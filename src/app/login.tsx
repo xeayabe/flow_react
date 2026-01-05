@@ -105,7 +105,7 @@ export default function LoginScreen() {
           >
             <ScrollView
               className="flex-1"
-              contentContainerClassName="px-6 py-8 justify-center flex-1"
+              contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 32, justifyContent: 'center', flexGrow: 1 }}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
@@ -209,7 +209,7 @@ export default function LoginScreen() {
         >
           <ScrollView
             className="flex-1"
-            contentContainerClassName="px-6 py-8 justify-center flex-1"
+            contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 32, justifyContent: 'center', flexGrow: 1 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
