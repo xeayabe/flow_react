@@ -348,9 +348,7 @@ export default function SignupScreen() {
                   {formData.acceptTerms && <CheckCircle2 size={16} color="white" />}
                 </View>
                 <Text className="flex-1 text-sm text-slate-600">
-                  I agree to the{' '}
-                  <Text className="text-cyan-600 font-semibold">Terms and Conditions</Text> and{' '}
-                  <Text className="text-cyan-600 font-semibold">Privacy Policy</Text>
+                  I agree to the <Text className="text-cyan-600 font-semibold">Terms and Conditions</Text> and <Text className="text-cyan-600 font-semibold">Privacy Policy</Text>
                 </Text>
               </Pressable>
               {touched.acceptTerms && errors.acceptTerms && (
