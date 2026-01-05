@@ -5,9 +5,10 @@ A modern expense sharing app built with Expo, React Native, and InstantDB.
 ## Features
 
 ### Authentication
-- ✅ Email/Password signup with validation
-- ✅ Secure password hashing with bcrypt
-- ✅ Custom authentication using InstantDB Admin SDK
+- ✅ Email magic code signup and login
+- ✅ Passwordless authentication (more secure)
+- ✅ Email verification required
+- ✅ Profile check on login to prevent unauthorized access
 - ✅ Auto-login after signup
 - ✅ Protected routes with auth guards
 
@@ -21,9 +22,8 @@ A modern expense sharing app built with Expo, React Native, and InstantDB.
 #### Users
 - `id`: UUID (primary key)
 - `email`: String (unique)
-- `passwordHash`: String
 - `name`: String
-- `emailVerified`: Boolean (default: false)
+- `emailVerified`: Boolean (default: true after magic code verification)
 - `isActive`: Boolean (default: true)
 - `createdAt`: Timestamp
 
@@ -48,8 +48,8 @@ A modern expense sharing app built with Expo, React Native, and InstantDB.
 - **Database**: InstantDB (real-time database)
 - **Styling**: NativeWind + TailwindCSS v3
 - **State Management**: React Query + Zustand
-- **Authentication**: Custom email/password with InstantDB Admin SDK
-- **Security**: bcryptjs for password hashing
+- **Authentication**: Passwordless magic code authentication via InstantDB
+- **Security**: Email verification, profile validation
 
 ## Project Structure
 
@@ -74,30 +74,42 @@ src/
 ## Authentication Flow
 
 1. **Signup**:
-   - User fills signup form with email, password, name
+   - User fills signup form with email and name
    - Validation rules enforced:
-     - Email must be valid format and unique
-     - Password minimum 8 characters
-     - Password must contain uppercase letter and number
-     - Passwords must match
+     - Email must be valid format
+     - Email must not already be registered
+     - Name minimum 2 characters
      - Terms must be accepted
-   - Password is hashed with bcrypt
-   - User record created in InstantDB
-   - Default household created automatically
-   - HouseholdMember record created linking user to household
-   - Auth token generated and user auto-logged in
+   - Magic code sent to email via InstantDB
+   - User enters 6-digit verification code
+   - Upon verification:
+     - User profile created in database
+     - Default household created automatically
+     - HouseholdMember record created linking user to household
+     - User auto-logged in
    - Redirect to dashboard
 
 2. **Login**:
-   - User enters email and password
-   - Password verified against hash
-   - Auth token generated
-   - Redirect to dashboard
+   - User enters email
+   - Magic code sent to email via InstantDB
+   - User enters 6-digit verification code
+   - System checks if user profile exists:
+     - If profile exists: User logged in → redirect to dashboard
+     - If no profile: Show error → redirect to signup
+   - This prevents users from logging in without first creating an account
 
 3. **Auth Guards**:
    - Unauthenticated users redirected to signup
    - Authenticated users redirected to dashboard
    - Auth state managed by InstantDB SDK
+
+## Key Security Features
+
+- **Passwordless Authentication**: Uses InstantDB Magic Codes - more secure than passwords
+- **No Password Storage**: No passwords stored in database or transmitted
+- **Email Verification Required**: Users must verify email to authenticate
+- **Profile Check on Login**: Ensures only registered users can access the app
+- **Duplicate Email Prevention**: Checks for existing accounts during signup
 
 ## Environment Variables
 

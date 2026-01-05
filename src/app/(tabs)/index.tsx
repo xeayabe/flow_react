@@ -9,6 +9,20 @@ import { db } from '@/lib/db';
 export default function DashboardScreen() {
   const { user } = db.useAuth();
 
+  // Query user profile from database
+  const { data: profileData } = db.useQuery({
+    users: {
+      $: {
+        where: {
+          email: user?.email || '',
+        },
+      },
+    },
+  });
+
+  const userProfile = profileData?.users?.[0];
+  const displayName = userProfile?.name || user?.email?.split('@')[0] || 'User';
+
   const handleSignOut = async () => {
     await db.auth.signOut();
     router.replace('/login');
@@ -21,7 +35,7 @@ export default function DashboardScreen() {
         <View className="flex-row justify-between items-center mb-2">
           <View>
             <Text className="text-sm text-slate-500">Welcome back,</Text>
-            <Text className="text-2xl font-bold text-slate-900">{user?.email?.split('@')[0] || 'User'}</Text>
+            <Text className="text-2xl font-bold text-slate-900">{displayName}</Text>
           </View>
           <Pressable
             onPress={handleSignOut}
@@ -90,13 +104,15 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Success Message */}
-        <View className="px-6 mb-8">
-          <View className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-            <Text className="text-emerald-800 font-semibold text-base mb-1">Account created!</Text>
-            <Text className="text-emerald-700 text-sm">Welcome aboard. Your default household has been set up.</Text>
+        {/* Success Message - Only show if profile exists */}
+        {userProfile ? (
+          <View className="px-6 mb-8">
+            <View className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+              <Text className="text-emerald-800 font-semibold text-base mb-1">Welcome, {userProfile.name}!</Text>
+              <Text className="text-emerald-700 text-sm">Your default household has been set up.</Text>
+            </View>
           </View>
-        </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

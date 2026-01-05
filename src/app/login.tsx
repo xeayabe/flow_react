@@ -41,8 +41,22 @@ export default function LoginScreen() {
 
   const verifyCodeMutation = useMutation({
     mutationFn: () => verifyMagicCode(formData.email, formData.code),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       if (response.success) {
+        // Check if user profile exists
+        const { checkUserProfile } = await import('@/lib/auth-api');
+        const profileCheck = await checkUserProfile(formData.email);
+
+        if (!profileCheck.exists) {
+          // User authenticated but no profile exists - redirect to signup
+          setError('No account found with this email. Please sign up first.');
+          setTimeout(() => {
+            router.replace('/signup');
+          }, 2000);
+          return;
+        }
+
+        // Profile exists, proceed to dashboard
         router.replace('/(tabs)');
       } else {
         setError(response.error || 'Invalid verification code');
