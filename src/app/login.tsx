@@ -43,20 +43,7 @@ export default function LoginScreen() {
     mutationFn: () => verifyMagicCode(formData.email, formData.code),
     onSuccess: async (response) => {
       if (response.success) {
-        // Check if user profile exists
-        const { checkUserProfile } = await import('@/lib/auth-api');
-        const profileCheck = await checkUserProfile(formData.email);
-
-        if (!profileCheck.exists) {
-          // User authenticated but no profile exists - redirect to signup
-          setError('No account found with this email. Please sign up first.');
-          setTimeout(() => {
-            router.replace('/signup');
-          }, 2000);
-          return;
-        }
-
-        // Profile exists, proceed to dashboard
+        // Profile already verified before sending code, proceed to dashboard
         router.replace('/(tabs)');
       } else {
         setError(response.error || 'Invalid verification code');
@@ -72,7 +59,7 @@ export default function LoginScreen() {
     return emailRegex.test(email);
   };
 
-  const handleSendCode = () => {
+  const handleSendCode = async () => {
     setError('');
 
     if (!formData.email) {
@@ -85,6 +72,16 @@ export default function LoginScreen() {
       return;
     }
 
+    // Check if user is registered BEFORE sending magic code
+    const { checkUserProfile } = await import('@/lib/auth-api');
+    const profileCheck = await checkUserProfile(formData.email);
+
+    if (!profileCheck.exists) {
+      setError('No account found with this email. Please sign up first.');
+      return;
+    }
+
+    // User is registered, proceed to send magic code
     sendCodeMutation.mutate();
   };
 

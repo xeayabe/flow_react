@@ -91,12 +91,12 @@ src/
 
 2. **Login**:
    - User enters email
-   - Magic code sent to email via InstantDB
+   - System checks if user profile exists in database:
+     - If no profile: Show error "No account found with this email. Please sign up first."
+     - If profile exists: Send magic code to email via InstantDB
    - User enters 6-digit verification code
-   - System checks if user profile exists:
-     - If profile exists: User logged in → redirect to dashboard
-     - If no profile: Show error → redirect to signup
-   - This prevents users from logging in without first creating an account
+   - Upon successful verification: User logged in → redirect to dashboard
+   - **Important**: Users CANNOT receive a login code unless they have already signed up
 
 3. **Auth Guards**:
    - Unauthenticated users redirected to signup
