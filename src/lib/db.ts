@@ -5,7 +5,6 @@ const schema = i.schema({
   entities: {
     users: i.entity({
       email: i.string(),
-      passwordHash: i.string(),
       name: i.string(),
       emailVerified: i.boolean(),
       isActive: i.boolean(),
@@ -20,8 +19,8 @@ const schema = i.schema({
     householdMembers: i.entity({
       householdId: i.string(),
       userId: i.string(),
-      role: i.string(), // 'admin' | 'member'
-      status: i.string(), // 'active' | 'invited' | 'removed'
+      role: i.string(),
+      status: i.string(),
       joinedAt: i.number(),
     }),
   },

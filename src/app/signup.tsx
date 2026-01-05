@@ -207,9 +207,9 @@ export default function SignupScreen() {
                       autoFocus
                     />
                   </View>
-                  {touched.code && errors.code && (
+                  {(touched.code && errors.code) ? (
                     <Text className="text-red-500 text-xs mt-1 ml-1">{errors.code}</Text>
-                  )}
+                  ) : null}
                 </View>
 
                 {/* Verify Button */}
@@ -302,9 +302,9 @@ export default function SignupScreen() {
                     autoCorrect={false}
                   />
                 </View>
-                {touched.name && errors.name && (
+                {(touched.name && errors.name) ? (
                   <Text className="text-red-500 text-xs mt-1 ml-1">{errors.name}</Text>
-                )}
+                ) : null}
               </View>
 
               {/* Email Input */}
@@ -324,9 +324,9 @@ export default function SignupScreen() {
                     autoCorrect={false}
                   />
                 </View>
-                {touched.email && errors.email && (
+                {(touched.email && errors.email) ? (
                   <Text className="text-red-500 text-xs mt-1 ml-1">{errors.email}</Text>
-                )}
+                ) : null}
               </View>
 
               {/* Info Box */}
@@ -345,15 +345,15 @@ export default function SignupScreen() {
                   "w-5 h-5 rounded border-2 mr-3 items-center justify-center mt-0.5",
                   formData.acceptTerms ? "bg-cyan-500 border-cyan-500" : "bg-white border-slate-300"
                 )}>
-                  {formData.acceptTerms && <CheckCircle2 size={16} color="white" />}
+                  {formData.acceptTerms ? <CheckCircle2 size={16} color="white" /> : null}
                 </View>
                 <Text className="flex-1 text-sm text-slate-600">
                   I agree to the <Text className="text-cyan-600 font-semibold">Terms and Conditions</Text> and <Text className="text-cyan-600 font-semibold">Privacy Policy</Text>
                 </Text>
               </Pressable>
-              {touched.acceptTerms && errors.acceptTerms && (
+              {(touched.acceptTerms && errors.acceptTerms) ? (
                 <Text className="text-red-500 text-xs -mt-4 mb-4 ml-1">{errors.acceptTerms}</Text>
-              )}
+              ) : null}
 
               {/* Continue Button */}
               <Pressable

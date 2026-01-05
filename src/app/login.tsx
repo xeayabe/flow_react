@@ -120,11 +120,11 @@ export default function LoginScreen() {
               {/* Form Container */}
               <View className="bg-white rounded-3xl p-6 shadow-lg">
                 {/* Error Message */}
-                {error && (
+                {error ? (
                   <View className="bg-red-50 border border-red-200 rounded-xl p-4 mb-5">
                     <Text className="text-red-600 text-sm font-medium">{error}</Text>
                   </View>
-                )}
+                ) : null}
 
                 {/* Code Input */}
                 <View className="mb-5">
@@ -221,11 +221,11 @@ export default function LoginScreen() {
             {/* Form Container */}
             <View className="bg-white rounded-3xl p-6 shadow-lg">
               {/* Error Message */}
-              {error && (
+              {error ? (
                 <View className="bg-red-50 border border-red-200 rounded-xl p-4 mb-5">
                   <Text className="text-red-600 text-sm font-medium">{error}</Text>
                 </View>
-              )}
+              ) : null}
 
               {/* Email Input */}
               <View className="mb-5">
