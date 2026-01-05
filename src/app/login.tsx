@@ -113,8 +113,7 @@ export default function LoginScreen() {
               <View className="mb-8">
                 <Text className="text-4xl font-bold text-white mb-2">Check Your Email</Text>
                 <Text className="text-lg text-sky-100">
-                  We sent a verification code to{'\n'}
-                  <Text className="font-semibold">{formData.email}</Text>
+                  We sent a verification code to{'\n'}<Text className="font-semibold">{formData.email}</Text>
                 </Text>
               </View>
 
