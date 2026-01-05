@@ -3,36 +3,35 @@ import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Pla
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react-native';
+import { Mail, ArrowRight } from 'lucide-react-native';
 import { useMutation } from '@tanstack/react-query';
-import { login } from '@/lib/auth-api';
-import { db } from '@/lib/db';
+import { sendMagicCode, verifyMagicCode } from '@/lib/auth-api';
 import { cn } from '@/lib/cn';
 
-interface LoginFormData {
+type Step = 'email' | 'verify';
+
+interface FormData {
   email: string;
-  password: string;
+  code: string;
 }
 
 export default function LoginScreen() {
-  const [formData, setFormData] = useState<LoginFormData>({
+  const [step, setStep] = useState<Step>('email');
+  const [formData, setFormData] = useState<FormData>({
     email: '',
-    password: '',
+    code: '',
   });
 
-  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
 
-  const loginMutation = useMutation({
-    mutationFn: login,
-    onSuccess: async (response) => {
-      if (response.success && response.token) {
-        // Sign in with the token
-        await db.auth.signInWithToken(response.token);
-        // Navigate to dashboard
-        router.replace('/(tabs)');
-      } else if (response.error) {
-        setError(response.error);
+  const sendCodeMutation = useMutation({
+    mutationFn: () => sendMagicCode(formData.email),
+    onSuccess: (response) => {
+      if (response.success) {
+        setStep('verify');
+        setError('');
+      } else {
+        setError(response.error || 'Failed to send verification code');
       }
     },
     onError: () => {
@@ -40,18 +39,159 @@ export default function LoginScreen() {
     },
   });
 
-  const handleLogin = () => {
+  const verifyCodeMutation = useMutation({
+    mutationFn: () => verifyMagicCode(formData.email, formData.code),
+    onSuccess: (response) => {
+      if (response.success) {
+        router.replace('/(tabs)');
+      } else {
+        setError(response.error || 'Invalid verification code');
+      }
+    },
+    onError: () => {
+      setError('Something went wrong. Please try again');
+    },
+  });
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleSendCode = () => {
     setError('');
 
-    if (!formData.email || !formData.password) {
-      setError('Please enter both email and password');
+    if (!formData.email) {
+      setError('Please enter your email address');
       return;
     }
 
-    loginMutation.mutate(formData);
+    if (!validateEmail(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    sendCodeMutation.mutate();
   };
 
-  const isFormValid = formData.email.length > 0 && formData.password.length > 0;
+  const handleVerifyCode = () => {
+    setError('');
+
+    if (!formData.code || formData.code.length < 6) {
+      setError('Please enter the 6-digit code');
+      return;
+    }
+
+    verifyCodeMutation.mutate();
+  };
+
+  const isEmailValid = formData.email.length > 0 && validateEmail(formData.email);
+  const isCodeValid = formData.code.length === 6;
+
+  if (step === 'verify') {
+    return (
+      <View className="flex-1 bg-slate-50">
+        <LinearGradient
+          colors={['#0ea5e9', '#06b6d4', '#14b8a6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        />
+
+        <SafeAreaView className="flex-1">
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            className="flex-1"
+          >
+            <ScrollView
+              className="flex-1"
+              contentContainerClassName="px-6 py-8 justify-center flex-1"
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Header */}
+              <View className="mb-8">
+                <Text className="text-4xl font-bold text-white mb-2">Check Your Email</Text>
+                <Text className="text-lg text-sky-100">
+                  We sent a verification code to{'\n'}
+                  <Text className="font-semibold">{formData.email}</Text>
+                </Text>
+              </View>
+
+              {/* Form Container */}
+              <View className="bg-white rounded-3xl p-6 shadow-lg">
+                {/* Error Message */}
+                {error && (
+                  <View className="bg-red-50 border border-red-200 rounded-xl p-4 mb-5">
+                    <Text className="text-red-600 text-sm font-medium">{error}</Text>
+                  </View>
+                )}
+
+                {/* Code Input */}
+                <View className="mb-5">
+                  <Text className="text-sm font-semibold text-slate-700 mb-2">Verification Code</Text>
+                  <View className="flex-row items-center bg-slate-50 rounded-xl px-4 py-4 border border-slate-200">
+                    <TextInput
+                      className="flex-1 text-2xl text-slate-900 text-center tracking-widest"
+                      placeholder="000000"
+                      placeholderTextColor="#94a3b8"
+                      value={formData.code}
+                      onChangeText={(text) => {
+                        setFormData({ ...formData, code: text.replace(/\D/g, '').slice(0, 6) });
+                        setError('');
+                      }}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      autoFocus
+                    />
+                  </View>
+                </View>
+
+                {/* Verify Button */}
+                <Pressable
+                  onPress={handleVerifyCode}
+                  disabled={!isCodeValid || verifyCodeMutation.isPending}
+                  className={cn(
+                    "rounded-xl py-4 items-center justify-center mb-4",
+                    isCodeValid && !verifyCodeMutation.isPending
+                      ? "bg-cyan-500 active:bg-cyan-600"
+                      : "bg-slate-200"
+                  )}
+                >
+                  {verifyCodeMutation.isPending ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text className={cn(
+                      "text-base font-bold",
+                      isCodeValid ? "text-white" : "text-slate-400"
+                    )}>
+                      Log In
+                    </Text>
+                  )}
+                </Pressable>
+
+                {/* Resend Code */}
+                <Pressable
+                  onPress={() => sendCodeMutation.mutate()}
+                  disabled={sendCodeMutation.isPending}
+                  className="items-center"
+                >
+                  <Text className="text-cyan-600 text-sm font-semibold">
+                    {sendCodeMutation.isPending ? 'Sending...' : "Didn't receive the code? Resend"}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Back Link */}
+              <Pressable onPress={() => setStep('email')} className="items-center mt-6">
+                <Text className="text-white text-base font-semibold">Use different email</Text>
+              </Pressable>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-slate-50">
@@ -69,7 +209,7 @@ export default function LoginScreen() {
         >
           <ScrollView
             className="flex-1"
-            contentContainerClassName="px-6 py-8 justify-center"
+            contentContainerClassName="px-6 py-8 justify-center flex-1"
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
@@ -109,60 +249,37 @@ export default function LoginScreen() {
                 </View>
               </View>
 
-              {/* Password Input */}
-              <View className="mb-6">
-                <Text className="text-sm font-semibold text-slate-700 mb-2">Password</Text>
-                <View className="flex-row items-center bg-slate-50 rounded-xl px-4 py-4 border border-slate-200">
-                  <Lock size={20} color="#64748b" />
-                  <TextInput
-                    className="flex-1 ml-3 text-base text-slate-900"
-                    placeholder="••••••••"
-                    placeholderTextColor="#94a3b8"
-                    value={formData.password}
-                    onChangeText={(text) => {
-                      setFormData({ ...formData, password: text });
-                      setError('');
-                    }}
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                  <Pressable onPress={() => setShowPassword(!showPassword)} className="ml-2">
-                    {showPassword ? (
-                      <EyeOff size={20} color="#64748b" />
-                    ) : (
-                      <Eye size={20} color="#64748b" />
-                    )}
-                  </Pressable>
-                </View>
+              {/* Info Box */}
+              <View className="bg-cyan-50 rounded-xl p-4 mb-6">
+                <Text className="text-cyan-800 text-sm">
+                  We'll send you a verification code via email. No password needed!
+                </Text>
               </View>
 
-              {/* Login Button */}
+              {/* Continue Button */}
               <Pressable
-                onPress={handleLogin}
-                disabled={!isFormValid || loginMutation.isPending}
+                onPress={handleSendCode}
+                disabled={!isEmailValid || sendCodeMutation.isPending}
                 className={cn(
-                  "rounded-xl py-4 items-center justify-center mb-4",
-                  isFormValid && !loginMutation.isPending
+                  "rounded-xl py-4 flex-row items-center justify-center",
+                  isEmailValid && !sendCodeMutation.isPending
                     ? "bg-cyan-500 active:bg-cyan-600"
                     : "bg-slate-200"
                 )}
               >
-                {loginMutation.isPending ? (
+                {sendCodeMutation.isPending ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <Text className={cn(
-                    "text-base font-bold",
-                    isFormValid ? "text-white" : "text-slate-400"
-                  )}>
-                    Log In
-                  </Text>
+                  <>
+                    <Text className={cn(
+                      "text-base font-bold mr-2",
+                      isEmailValid ? "text-white" : "text-slate-400"
+                    )}>
+                      Continue
+                    </Text>
+                    <ArrowRight size={20} color={isEmailValid ? "white" : "#94a3b8"} />
+                  </>
                 )}
-              </Pressable>
-
-              {/* Forgot Password Link */}
-              <Pressable className="items-center">
-                <Text className="text-cyan-600 text-sm font-semibold">Forgot Password?</Text>
               </Pressable>
             </View>
 

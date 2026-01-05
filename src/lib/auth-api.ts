@@ -1,84 +1,72 @@
-import { init } from '@instantdb/admin';
-import bcrypt from 'bcryptjs';
+import { db } from './db';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 
-// Initialize admin SDK
-const ADMIN_TOKEN = process.env.INSTANTDB_ADMIN_TOKEN || '';
-const APP_ID = process.env.EXPO_PUBLIC_INSTANTDB_APP_ID || '';
-
-const db = init({
-  appId: APP_ID,
-  adminToken: ADMIN_TOKEN,
-});
-
-export interface SignupRequest {
+export interface SignupData {
   email: string;
-  password: string;
   name: string;
-}
-
-export interface LoginRequest {
-  email: string;
-  password: string;
 }
 
 export interface AuthResponse {
   success: boolean;
-  token?: string;
-  userId?: string;
   error?: string;
 }
 
 /**
- * Sign up a new user
- * 1. Validate email is unique
- * 2. Hash password
- * 3. Create user record
- * 4. Create default household
- * 5. Create household member record
- * 6. Return auth token
+ * Send magic code to user's email for signup/login
  */
-export async function signup(data: SignupRequest): Promise<AuthResponse> {
+export async function sendMagicCode(email: string): Promise<AuthResponse> {
   try {
-    const { email, password, name } = data;
+    await db.auth.sendMagicCode({ email: email.toLowerCase() });
+    return { success: true };
+  } catch (error: unknown) {
+    const err = error as { body?: { message?: string } };
+    console.error('Send magic code error:', error);
+    return {
+      success: false,
+      error: err.body?.message || 'Failed to send verification code',
+    };
+  }
+}
 
-    // Check if email already exists
-    const existingUsers = await db.query({
-      users: {
-        $: {
-          where: {
-            email: email.toLowerCase(),
-          },
-        },
-      },
-    });
+/**
+ * Verify magic code and sign in
+ */
+export async function verifyMagicCode(email: string, code: string): Promise<AuthResponse> {
+  try {
+    await db.auth.signInWithMagicCode({ email: email.toLowerCase(), code });
+    return { success: true };
+  } catch (error: unknown) {
+    const err = error as { body?: { message?: string } };
+    console.error('Verify magic code error:', error);
+    return {
+      success: false,
+      error: err.body?.message || 'Invalid verification code',
+    };
+  }
+}
 
-    if (existingUsers.users && existingUsers.users.length > 0) {
-      return {
-        success: false,
-        error: 'This email is already registered',
-      };
-    }
-
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    // Create user
-    const userId = crypto.randomUUID();
+/**
+ * Create user profile and default household after authentication
+ */
+export async function createUserProfile(email: string, name: string): Promise<AuthResponse> {
+  try {
+    const userId = uuidv4();
     const now = Date.now();
 
+    // Create user profile
     await db.transact([
       db.tx.users[userId].update({
         email: email.toLowerCase(),
-        passwordHash,
         name,
-        emailVerified: false,
+        emailVerified: true,
         isActive: true,
         createdAt: now,
       }),
     ]);
 
     // Create default household
-    const householdId = crypto.randomUUID();
+    const householdId = uuidv4();
     const householdName = `${name}'s Household`;
 
     await db.transact([
@@ -91,7 +79,7 @@ export async function signup(data: SignupRequest): Promise<AuthResponse> {
     ]);
 
     // Create household member record
-    const memberId = crypto.randomUUID();
+    const memberId = uuidv4();
     await db.transact([
       db.tx.householdMembers[memberId].update({
         householdId,
@@ -102,35 +90,26 @@ export async function signup(data: SignupRequest): Promise<AuthResponse> {
       }),
     ]);
 
-    // Generate auth token
-    const token = await db.auth.createToken(email.toLowerCase());
+    // Log for debugging (will show in expo.log)
+    console.log('User profile created:', { userId, email, name });
+    console.log('Default household created:', { householdId, householdName });
 
-    return {
-      success: true,
-      token,
-      userId,
-    };
+    return { success: true };
   } catch (error) {
-    console.error('Signup error:', error);
+    console.error('Create profile error:', error);
     return {
       success: false,
-      error: 'Something went wrong. Please try again',
+      error: 'Failed to create user profile',
     };
   }
 }
 
 /**
- * Log in an existing user
- * 1. Find user by email
- * 2. Verify password
- * 3. Return auth token
+ * Check if user profile exists
  */
-export async function login(data: LoginRequest): Promise<AuthResponse> {
+export async function checkUserProfile(email: string): Promise<{ exists: boolean; profile?: { id: string; name: string } }> {
   try {
-    const { email, password } = data;
-
-    // Find user
-    const result = await db.query({
+    const result = await db.queryOnce({
       users: {
         $: {
           where: {
@@ -140,46 +119,20 @@ export async function login(data: LoginRequest): Promise<AuthResponse> {
       },
     });
 
-    const user = result.users?.[0];
-
-    if (!user) {
-      return {
-        success: false,
-        error: 'Invalid email or password',
-      };
+    const user = result.data.users?.[0];
+    if (user) {
+      return { exists: true, profile: { id: user.id, name: user.name } };
     }
-
-    // Verify password
-    const isValid = await bcrypt.compare(password, user.passwordHash);
-
-    if (!isValid) {
-      return {
-        success: false,
-        error: 'Invalid email or password',
-      };
-    }
-
-    // Check if user is active
-    if (!user.isActive) {
-      return {
-        success: false,
-        error: 'This account has been deactivated',
-      };
-    }
-
-    // Generate auth token
-    const token = await db.auth.createToken(email.toLowerCase());
-
-    return {
-      success: true,
-      token,
-      userId: user.id,
-    };
+    return { exists: false };
   } catch (error) {
-    console.error('Login error:', error);
-    return {
-      success: false,
-      error: 'Something went wrong. Please try again',
-    };
+    console.error('Check profile error:', error);
+    return { exists: false };
   }
+}
+
+/**
+ * Sign out current user
+ */
+export async function signOut(): Promise<void> {
+  await db.auth.signOut();
 }
