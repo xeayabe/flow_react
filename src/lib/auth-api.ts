@@ -110,15 +110,27 @@ export async function sendMagicCode(email: string): Promise<AuthResponse> {
 
     return { success: true };
   } catch (error: unknown) {
-    const err = error as { body?: { message?: string } };
+    const err = error as { message?: string; body?: { message?: string } };
     console.error('Send magic code error:', error);
 
     // Record failed attempt
     recordAttempt(email, false);
 
+    // Parse error message for user-friendly responses
+    const errorMessage = err.message || err.body?.message || '';
+
+    let userFriendlyError = 'Failed to send verification code. Please try again';
+
+    // Handle specific error cases
+    if (errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
+      userFriendlyError = 'Too many attempts. Please try again in a few minutes';
+    } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+      userFriendlyError = 'Connection issue. Please check your internet and try again';
+    }
+
     return {
       success: false,
-      error: err.body?.message || 'Failed to send verification code',
+      error: userFriendlyError,
     };
   }
 }
