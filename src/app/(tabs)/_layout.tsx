@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, User } from 'lucide-react-native';
+import { Home, Wallet, User } from 'lucide-react-native';
 import { Tabs } from 'expo-router';
 
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -15,7 +15,8 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colorScheme === 'dark' ? 'white' : '#06b6d4',
+        tabBarActiveTintColor: colorScheme === 'dark' ? 'white' : '#006A6A',
+        tabBarInactiveTintColor: colorScheme === 'dark' ? '#6B7280' : '#D1D5DB',
         headerShown: useClientOnlyValue(false, true),
       }}>
       <Tabs.Screen
@@ -24,6 +25,14 @@ export default function TabLayout() {
           title: 'Dashboard',
           headerShown: false,
           tabBarIcon: ({ color }: { color: string }) => <TabBarIcon Icon={Home} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="wallets"
+        options={{
+          title: 'Wallets',
+          headerShown: false,
+          tabBarIcon: ({ color }: { color: string }) => <TabBarIcon Icon={Wallet} color={color} />,
         }}
       />
       <Tabs.Screen
