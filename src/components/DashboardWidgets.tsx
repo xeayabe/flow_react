@@ -43,8 +43,8 @@ export const TotalBalanceCard: React.FC<{ totalBalance: number }> = ({ totalBala
     onPress={() => router.push('/accounts')}
     className="flex-1 rounded-xl p-4 bg-white border border-gray-100 active:bg-gray-50"
   >
-    <Text className="text-xs text-gray-600 font-medium mb-1">Total Balance</Text>
-    <Text className="text-2xl font-bold text-gray-900 mb-1">
+    <Text className="text-xs text-gray-600 font-medium mb-2">Total Balance</Text>
+    <Text className="text-xl font-bold text-gray-900 mb-1" numberOfLines={1}>
       {formatCurrency(totalBalance)}
     </Text>
     <Text className="text-xs text-gray-500">Across all accounts</Text>
@@ -65,8 +65,8 @@ export const ThisMonthSpendingCard: React.FC<{ monthSpending: number; budgetAllo
       onPress={() => router.push('/(tabs)/transactions')}
       className="flex-1 rounded-xl p-4 bg-white border border-gray-100 active:bg-gray-50"
     >
-      <Text className="text-xs text-gray-600 font-medium mb-1">This Month Spending</Text>
-      <Text className="text-2xl font-bold text-red-600 mb-1">{formatCurrency(monthSpending)}</Text>
+      <Text className="text-xs text-gray-600 font-medium mb-2">This Month Spending</Text>
+      <Text className="text-xl font-bold text-red-600 mb-1" numberOfLines={1}>{formatCurrency(monthSpending)}</Text>
       <View className="flex-row items-center justify-between">
         <Text className="text-xs text-gray-500">of {formatCurrency(budgetAllocated)} allocated</Text>
         <Text className={`text-xs font-semibold ${percentage > 100 ? 'text-red-600' : 'text-gray-600'}`}>
