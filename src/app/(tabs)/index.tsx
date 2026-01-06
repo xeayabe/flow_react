@@ -189,25 +189,10 @@ export default function DashboardScreen() {
   // Enrich recent transactions with category info
   const enrichedTransactions = getRecentTransactionsWithCategories(recentTransactions, categories, 5);
 
-  // Calculate spent amounts by category group if summary exists
-  let needsSpent = 0;
-  let wantsSpent = 0;
-  let savingsSpent = 0;
-
-  if (summary) {
-    // This would require fetching budgets for each group
-    // For now, we can estimate based on the proportion of allocated to total
-    const totalAllocated = summary.needsAllocated + summary.wantsAllocated + summary.savingsAllocated;
-    if (totalAllocated > 0 && summary.totalSpent > 0) {
-      const needsProportion = summary.needsAllocated / totalAllocated;
-      const wantsProportion = summary.wantsAllocated / totalAllocated;
-      const savingsProportion = summary.savingsAllocated / totalAllocated;
-
-      needsSpent = summary.totalSpent * needsProportion;
-      wantsSpent = summary.totalSpent * wantsProportion;
-      savingsSpent = summary.totalSpent * savingsProportion;
-    }
-  }
+  // Get spent amounts by category group from summary (actual values, not estimates)
+  const needsSpent = summary?.needsSpent ?? 0;
+  const wantsSpent = summary?.wantsSpent ?? 0;
+  const savingsSpent = summary?.savingsSpent ?? 0;
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>

@@ -98,6 +98,9 @@ const schema = i.schema({
       needsAllocated: i.number().optional(), // Sum of needs categories
       wantsAllocated: i.number().optional(), // Sum of wants categories
       savingsAllocated: i.number().optional(), // Sum of savings categories
+      needsSpent: i.number().optional(), // Sum of needs spent, default 0
+      wantsSpent: i.number().optional(), // Sum of wants spent, default 0
+      savingsSpent: i.number().optional(), // Sum of savings spent, default 0
       createdAt: i.number(),
       updatedAt: i.number(),
     }),

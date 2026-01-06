@@ -357,8 +357,23 @@ export async function recalculateBudgetSpentAmounts(
     const budgets = budgetsResult.data.budgets ?? [];
     const now = Date.now();
 
+    // Calculate spent amounts per category group
+    let needsSpent = 0;
+    let wantsSpent = 0;
+    let savingsSpent = 0;
+
     const updateOps = budgets.map((budget: any) => {
       const newSpentAmount = spentByCategory[budget.categoryId] || 0;
+
+      // Accumulate spent by group
+      if (budget.categoryGroup === 'needs') {
+        needsSpent += newSpentAmount;
+      } else if (budget.categoryGroup === 'wants') {
+        wantsSpent += newSpentAmount;
+      } else if (budget.categoryGroup === 'savings') {
+        savingsSpent += newSpentAmount;
+      }
+
       return db.tx.budgets[budget.id].update({
         spentAmount: newSpentAmount,
         updatedAt: now,
@@ -369,7 +384,7 @@ export async function recalculateBudgetSpentAmounts(
       await db.transact(updateOps);
     }
 
-    // Recalculate budget summary total spent
+    // Recalculate budget summary total spent and group spent amounts
     const summaryResult = await db.queryOnce({
       budgetSummary: {
         $: {
@@ -387,6 +402,9 @@ export async function recalculateBudgetSpentAmounts(
       await db.transact([
         db.tx.budgetSummary[summary.id].update({
           totalSpent,
+          needsSpent,
+          wantsSpent,
+          savingsSpent,
           updatedAt: now,
         }),
       ]);
