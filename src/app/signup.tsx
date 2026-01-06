@@ -1,26 +1,27 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Mail, User, CheckCircle2, ArrowRight } from 'lucide-react-native';
+import { Eye, EyeOff, CheckCircle2, ArrowLeft } from 'lucide-react-native';
 import { useMutation } from '@tanstack/react-query';
 import { sendMagicCode, verifyMagicCode, createUserProfile, checkUserProfile } from '@/lib/auth-api';
 import { cn } from '@/lib/cn';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 
 type Step = 'details' | 'verify';
 
 interface FormData {
   email: string;
-  name: string;
-  acceptTerms: boolean;
+  password: string;
+  confirmPassword: string;
   code: string;
 }
 
 interface ValidationErrors {
   email?: string;
-  name?: string;
-  acceptTerms?: string;
+  password?: string;
+  confirmPassword?: string;
   code?: string;
 }
 
@@ -28,13 +29,16 @@ export default function SignupScreen() {
   const [step, setStep] = useState<Step>('details');
   const [formData, setFormData] = useState<FormData>({
     email: '',
-    name: '',
-    acceptTerms: false,
+    password: '',
+    confirmPassword: '',
     code: '',
   });
 
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
 
   const sendCodeMutation = useMutation({
     mutationFn: () => sendMagicCode(formData.email),
@@ -57,7 +61,9 @@ export default function SignupScreen() {
         // Check if profile exists, if not create it
         const profileCheck = await checkUserProfile(formData.email);
         if (!profileCheck.exists) {
-          await createUserProfile(formData.email, formData.name);
+          // Extract name from email for now (we can add a name field later if needed)
+          const name = formData.email.split('@')[0];
+          await createUserProfile(formData.email, name);
         }
         // Navigate to dashboard
         router.replace('/(tabs)');
@@ -77,9 +83,15 @@ export default function SignupScreen() {
     return undefined;
   };
 
-  const validateName = (name: string): string | undefined => {
-    if (!name) return 'Name is required';
-    if (name.length < 2) return 'Name must be at least 2 characters';
+  const validatePassword = (password: string): string | undefined => {
+    if (!password) return 'Password is required';
+    if (password.length < 8) return 'Must be 8+ characters';
+    return undefined;
+  };
+
+  const validateConfirmPassword = (confirmPassword: string): string | undefined => {
+    if (!confirmPassword) return 'Please confirm your password';
+    if (confirmPassword !== formData.password) return 'Passwords do not match';
     return undefined;
   };
 
@@ -92,8 +104,8 @@ export default function SignupScreen() {
   const validateDetailsForm = (): boolean => {
     const newErrors: ValidationErrors = {
       email: validateEmail(formData.email),
-      name: validateName(formData.name),
-      acceptTerms: !formData.acceptTerms ? 'You must accept the terms and conditions' : undefined,
+      password: validatePassword(formData.password),
+      confirmPassword: validateConfirmPassword(formData.confirmPassword),
     };
 
     setErrors(newErrors);
@@ -102,14 +114,18 @@ export default function SignupScreen() {
 
   const handleBlur = (field: keyof FormData) => {
     setTouched({ ...touched, [field]: true });
+    setFocusedField(null);
 
     let error: string | undefined;
     switch (field) {
       case 'email':
         error = validateEmail(formData.email);
         break;
-      case 'name':
-        error = validateName(formData.name);
+      case 'password':
+        error = validatePassword(formData.password);
+        break;
+      case 'confirmPassword':
+        error = validateConfirmPassword(formData.confirmPassword);
         break;
       case 'code':
         error = validateCode(formData.code);
@@ -119,7 +135,9 @@ export default function SignupScreen() {
     setErrors({ ...errors, [field]: error });
   };
 
-  const handleSendCode = async () => {
+  const handleCreateAccount = async () => {
+    Keyboard.dismiss();
+
     // Check if user already exists
     const profileCheck = await checkUserProfile(formData.email);
     if (profileCheck.exists) {
@@ -129,8 +147,8 @@ export default function SignupScreen() {
 
     setTouched({
       email: true,
-      name: true,
-      acceptTerms: true,
+      password: true,
+      confirmPassword: true,
     });
 
     if (validateDetailsForm()) {
@@ -152,84 +170,88 @@ export default function SignupScreen() {
 
   const isDetailsValid =
     !validateEmail(formData.email) &&
-    !validateName(formData.name) &&
-    formData.acceptTerms;
+    !validatePassword(formData.password) &&
+    !validateConfirmPassword(formData.confirmPassword);
 
   const isCodeValid = !validateCode(formData.code);
+  const isEmailValid = !validateEmail(formData.email);
 
+  // Verification screen
   if (step === 'verify') {
     return (
-      <View className="flex-1 bg-slate-50">
-        <LinearGradient
-          colors={['#0ea5e9', '#06b6d4', '#14b8a6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-        />
-
-        <SafeAreaView className="flex-1">
+      <View className="flex-1 bg-white">
+        <StatusBar style="dark" />
+        <SafeAreaView className="flex-1" edges={['top']}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             className="flex-1"
           >
             <ScrollView
               className="flex-1"
-              contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 32, justifyContent: 'center', flexGrow: 1 }}
+              contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 24 }}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {/* Header */}
-              <View className="mb-8">
-                <Text className="text-4xl font-bold text-white mb-2">Check Your Email</Text>
-                <Text className="text-lg text-sky-100">
-                  We sent a verification code to{'\n'}<Text className="font-semibold">{formData.email}</Text>
-                </Text>
-              </View>
+              {/* Back button */}
+              <Pressable onPress={() => setStep('details')} className="mb-8">
+                <ArrowLeft size={24} color="#006A6A" />
+              </Pressable>
 
-              {/* Form Container */}
-              <View className="bg-white rounded-3xl p-6 shadow-lg">
-                {/* Code Input */}
-                <View className="mb-5">
-                  <Text className="text-sm font-semibold text-slate-700 mb-2">Verification Code</Text>
-                  <View className="flex-row items-center bg-slate-50 rounded-xl px-4 py-4 border border-slate-200">
-                    <TextInput
-                      className="flex-1 text-2xl text-slate-900 text-center tracking-widest"
-                      placeholder="000000"
-                      placeholderTextColor="#94a3b8"
-                      value={formData.code}
-                      onChangeText={(text) => {
-                        setFormData({ ...formData, code: text.replace(/\D/g, '').slice(0, 6) });
-                        setErrors({ ...errors, code: undefined });
-                      }}
-                      onBlur={() => handleBlur('code')}
-                      keyboardType="number-pad"
-                      maxLength={6}
-                      autoFocus
-                    />
-                  </View>
-                  {(touched.code && errors.code) ? (
-                    <Text className="text-red-500 text-xs mt-1 ml-1">{errors.code}</Text>
-                  ) : null}
+              {/* Header */}
+              <Animated.View entering={FadeInDown.duration(600)}>
+                <Text className="text-2xl font-semibold mb-2" style={{ color: '#006A6A' }}>
+                  Verify Your Email
+                </Text>
+                <Text className="text-sm mb-8" style={{ color: '#8B9D8B' }}>
+                  We sent a verification code to{'\n'}
+                  <Text className="font-semibold">{formData.email}</Text>
+                </Text>
+              </Animated.View>
+
+              {/* Code Input */}
+              <Animated.View entering={FadeInDown.delay(200).duration(600)}>
+                <View className="mb-6">
+                  <TextInput
+                    className="text-3xl text-center tracking-widest py-6 px-4 rounded-3xl border-2"
+                    style={{
+                      borderColor: focusedField === 'code' ? '#006A6A' : '#E5E7EB',
+                      color: '#006A6A',
+                    }}
+                    placeholder="000000"
+                    placeholderTextColor="#D1D5DB"
+                    value={formData.code}
+                    onChangeText={(text) => {
+                      setFormData({ ...formData, code: text.replace(/\D/g, '').slice(0, 6) });
+                      setErrors({ ...errors, code: undefined });
+                    }}
+                    onFocus={() => setFocusedField('code')}
+                    onBlur={() => handleBlur('code')}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    autoFocus
+                  />
+                  {touched.code && errors.code && (
+                    <Text className="text-red-500 text-xs mt-2 ml-4">{errors.code}</Text>
+                  )}
                 </View>
 
                 {/* Verify Button */}
                 <Pressable
                   onPress={handleVerifyCode}
                   disabled={!isCodeValid || verifyCodeMutation.isPending}
-                  className={cn(
-                    "rounded-xl py-4 items-center justify-center mb-4",
-                    isCodeValid && !verifyCodeMutation.isPending
-                      ? "bg-cyan-500 active:bg-cyan-600"
-                      : "bg-slate-200"
-                  )}
+                  className="rounded-full py-4 items-center justify-center mb-4"
+                  style={{
+                    backgroundColor: isCodeValid && !verifyCodeMutation.isPending ? '#006A6A' : '#E5E7EB',
+                    height: 56,
+                  }}
                 >
                   {verifyCodeMutation.isPending ? (
                     <ActivityIndicator color="white" />
                   ) : (
-                    <Text className={cn(
-                      "text-base font-bold",
-                      isCodeValid ? "text-white" : "text-slate-400"
-                    )}>
+                    <Text
+                      className="text-base font-semibold"
+                      style={{ color: isCodeValid ? 'white' : '#9CA3AF' }}
+                    >
                       Verify & Create Account
                     </Text>
                   )}
@@ -241,16 +263,11 @@ export default function SignupScreen() {
                   disabled={sendCodeMutation.isPending}
                   className="items-center"
                 >
-                  <Text className="text-cyan-600 text-sm font-semibold">
+                  <Text className="text-sm font-medium" style={{ color: '#006A6A' }}>
                     {sendCodeMutation.isPending ? 'Sending...' : "Didn't receive the code? Resend"}
                   </Text>
                 </Pressable>
-              </View>
-
-              {/* Back Link */}
-              <Pressable onPress={() => setStep('details')} className="items-center mt-6">
-                <Text className="text-white text-base font-semibold">Back to details</Text>
-              </Pressable>
+              </Animated.View>
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
@@ -258,138 +275,226 @@ export default function SignupScreen() {
     );
   }
 
+  // Signup form screen
   return (
-    <View className="flex-1 bg-slate-50">
-      <LinearGradient
-        colors={['#0ea5e9', '#06b6d4', '#14b8a6']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-      />
-
-      <SafeAreaView className="flex-1">
+    <View className="flex-1 bg-white">
+      <StatusBar style="dark" />
+      <SafeAreaView className="flex-1" edges={['top']}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           className="flex-1"
         >
           <ScrollView
             className="flex-1"
-            contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 32 }}
+            contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
+            {/* Back button */}
+            <Pressable onPress={() => router.back()} className="mb-8">
+              <ArrowLeft size={24} color="#006A6A" />
+            </Pressable>
+
             {/* Header */}
-            <View className="mb-8">
-              <Text className="text-4xl font-bold text-white mb-2">Create Account</Text>
-              <Text className="text-lg text-sky-100">Start tracking expenses with your team</Text>
-            </View>
+            <Animated.View entering={FadeInDown.duration(600)} className="mb-10">
+              <Text className="text-2xl font-semibold mb-2" style={{ color: '#006A6A' }}>
+                Create Your Account
+              </Text>
+              <Text className="text-sm" style={{ color: '#8B9D8B' }}>
+                Start your journey to financial calm
+              </Text>
+            </Animated.View>
 
-            {/* Form Container */}
-            <View className="bg-white rounded-3xl p-6 shadow-lg">
-              {/* Name Input */}
-              <View className="mb-5">
-                <Text className="text-sm font-semibold text-slate-700 mb-2">Full Name</Text>
-                <View className="flex-row items-center bg-slate-50 rounded-xl px-4 py-4 border border-slate-200">
-                  <User size={20} color="#64748b" />
-                  <TextInput
-                    className="flex-1 ml-3 text-base text-slate-900"
-                    placeholder="John Doe"
-                    placeholderTextColor="#94a3b8"
-                    value={formData.name}
-                    onChangeText={(text) => setFormData({ ...formData, name: text })}
-                    onBlur={() => handleBlur('name')}
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                  />
-                </View>
-                {(touched.name && errors.name) ? (
-                  <Text className="text-red-500 text-xs mt-1 ml-1">{errors.name}</Text>
-                ) : null}
-              </View>
-
-              {/* Email Input */}
-              <View className="mb-5">
-                <Text className="text-sm font-semibold text-slate-700 mb-2">Email Address</Text>
-                <View className="flex-row items-center bg-slate-50 rounded-xl px-4 py-4 border border-slate-200">
-                  <Mail size={20} color="#64748b" />
-                  <TextInput
-                    className="flex-1 ml-3 text-base text-slate-900"
-                    placeholder="you@example.com"
-                    placeholderTextColor="#94a3b8"
-                    value={formData.email}
-                    onChangeText={(text) => setFormData({ ...formData, email: text })}
-                    onBlur={() => handleBlur('email')}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                </View>
-                {(touched.email && errors.email) ? (
-                  <Text className="text-red-500 text-xs mt-1 ml-1">{errors.email}</Text>
-                ) : null}
-              </View>
-
-              {/* Info Box */}
-              <View className="bg-cyan-50 rounded-xl p-4 mb-5">
-                <Text className="text-cyan-800 text-sm">
-                  We'll send you a verification code via email. No password needed!
+            {/* Email Field */}
+            <Animated.View entering={FadeInDown.delay(100).duration(600)} className="mb-4">
+              <View className="relative">
+                <TextInput
+                  className="text-base px-4 pt-6 pb-4 rounded-3xl border-2"
+                  style={{
+                    borderColor: focusedField === 'email' ? '#006A6A' : touched.email && errors.email ? '#EF4444' : '#E5E7EB',
+                    color: '#1F2937',
+                  }}
+                  placeholder=" "
+                  value={formData.email}
+                  onChangeText={(text) => {
+                    setFormData({ ...formData, email: text });
+                    setErrors({ ...errors, email: undefined });
+                  }}
+                  onFocus={() => setFocusedField('email')}
+                  onBlur={() => handleBlur('email')}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {/* Floating Label */}
+                <Text
+                  className="absolute left-4 text-xs font-medium"
+                  style={{
+                    top: 10,
+                    color: focusedField === 'email' ? '#006A6A' : '#9CA3AF',
+                  }}
+                >
+                  Email
                 </Text>
-              </View>
-
-              {/* Terms Checkbox */}
-              <Pressable
-                onPress={() => setFormData({ ...formData, acceptTerms: !formData.acceptTerms })}
-                className="flex-row items-start mb-6"
-              >
-                <View className={cn(
-                  "w-5 h-5 rounded border-2 mr-3 items-center justify-center mt-0.5",
-                  formData.acceptTerms ? "bg-cyan-500 border-cyan-500" : "bg-white border-slate-300"
-                )}>
-                  {formData.acceptTerms ? <CheckCircle2 size={16} color="white" /> : null}
-                </View>
-                <Text className="flex-1 text-sm text-slate-600">
-                  I agree to the <Text className="text-cyan-600 font-semibold">Terms and Conditions</Text> and <Text className="text-cyan-600 font-semibold">Privacy Policy</Text>
-                </Text>
-              </Pressable>
-              {(touched.acceptTerms && errors.acceptTerms) ? (
-                <Text className="text-red-500 text-xs -mt-4 mb-4 ml-1">{errors.acceptTerms}</Text>
-              ) : null}
-
-              {/* Continue Button */}
-              <Pressable
-                onPress={handleSendCode}
-                disabled={!isDetailsValid || sendCodeMutation.isPending}
-                className={cn(
-                  "rounded-xl py-4 flex-row items-center justify-center",
-                  isDetailsValid && !sendCodeMutation.isPending
-                    ? "bg-cyan-500 active:bg-cyan-600"
-                    : "bg-slate-200"
+                {/* Validation Checkmark */}
+                {touched.email && isEmailValid && (
+                  <View className="absolute right-4" style={{ top: 20 }}>
+                    <CheckCircle2 size={20} color="#8B9D8B" />
+                  </View>
                 )}
+              </View>
+              {touched.email && errors.email && (
+                <Text className="text-red-500 text-xs mt-2 ml-4">{errors.email}</Text>
+              )}
+            </Animated.View>
+
+            {/* Password Field */}
+            <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mb-4">
+              <View className="relative">
+                <TextInput
+                  className="text-base px-4 pt-6 pb-4 pr-12 rounded-3xl border-2"
+                  style={{
+                    borderColor: focusedField === 'password' ? '#006A6A' : touched.password && errors.password ? '#EF4444' : '#E5E7EB',
+                    color: '#1F2937',
+                  }}
+                  placeholder=" "
+                  value={formData.password}
+                  onChangeText={(text) => {
+                    setFormData({ ...formData, password: text });
+                    setErrors({ ...errors, password: undefined });
+                  }}
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => handleBlur('password')}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {/* Floating Label */}
+                <Text
+                  className="absolute left-4 text-xs font-medium"
+                  style={{
+                    top: 10,
+                    color: focusedField === 'password' ? '#006A6A' : '#9CA3AF',
+                  }}
+                >
+                  Password
+                </Text>
+                {/* Eye Icon */}
+                <Pressable
+                  onPress={() => setShowPassword(!showPassword)}
+                  className="absolute right-4"
+                  style={{ top: 20 }}
+                >
+                  {showPassword ? (
+                    <EyeOff size={20} color="#9CA3AF" />
+                  ) : (
+                    <Eye size={20} color="#9CA3AF" />
+                  )}
+                </Pressable>
+              </View>
+              {/* Helper Text */}
+              {!errors.password && (
+                <Text className="text-xs mt-2 ml-4" style={{ color: '#C4B5FD' }}>
+                  Must be 8+ characters
+                </Text>
+              )}
+              {touched.password && errors.password && (
+                <Text className="text-red-500 text-xs mt-2 ml-4">{errors.password}</Text>
+              )}
+            </Animated.View>
+
+            {/* Confirm Password Field */}
+            <Animated.View entering={FadeInDown.delay(300).duration(600)} className="mb-8">
+              <View className="relative">
+                <TextInput
+                  className="text-base px-4 pt-6 pb-4 pr-12 rounded-3xl border-2"
+                  style={{
+                    borderColor: focusedField === 'confirmPassword' ? '#006A6A' : touched.confirmPassword && errors.confirmPassword ? '#EF4444' : '#E5E7EB',
+                    color: '#1F2937',
+                  }}
+                  placeholder=" "
+                  value={formData.confirmPassword}
+                  onChangeText={(text) => {
+                    setFormData({ ...formData, confirmPassword: text });
+                    setErrors({ ...errors, confirmPassword: undefined });
+                  }}
+                  onFocus={() => setFocusedField('confirmPassword')}
+                  onBlur={() => handleBlur('confirmPassword')}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {/* Floating Label */}
+                <Text
+                  className="absolute left-4 text-xs font-medium"
+                  style={{
+                    top: 10,
+                    color: focusedField === 'confirmPassword' ? '#006A6A' : '#9CA3AF',
+                  }}
+                >
+                  Confirm Password
+                </Text>
+                {/* Eye Icon */}
+                <Pressable
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-4"
+                  style={{ top: 20 }}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff size={20} color="#9CA3AF" />
+                  ) : (
+                    <Eye size={20} color="#9CA3AF" />
+                  )}
+                </Pressable>
+              </View>
+              {touched.confirmPassword && errors.confirmPassword && (
+                <Text className="text-red-500 text-xs mt-2 ml-4">{errors.confirmPassword}</Text>
+              )}
+            </Animated.View>
+          </ScrollView>
+
+          {/* Bottom Button - Fixed at bottom */}
+          <View className="px-6 pb-6 pt-4 bg-white">
+            <Animated.View entering={FadeInDown.delay(400).duration(600)}>
+              <Pressable
+                onPress={handleCreateAccount}
+                disabled={!isDetailsValid || sendCodeMutation.isPending}
+                className="rounded-full py-4 items-center justify-center"
+                style={{
+                  backgroundColor: isDetailsValid && !sendCodeMutation.isPending ? '#006A6A' : '#E5E7EB',
+                  height: 56,
+                  shadowColor: '#006A6A',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: isDetailsValid ? 0.2 : 0,
+                  shadowRadius: 12,
+                  elevation: isDetailsValid ? 4 : 0,
+                }}
               >
                 {sendCodeMutation.isPending ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <>
-                    <Text className={cn(
-                      "text-base font-bold mr-2",
-                      isDetailsValid ? "text-white" : "text-slate-400"
-                    )}>
-                      Continue
-                    </Text>
-                    <ArrowRight size={20} color={isDetailsValid ? "white" : "#94a3b8"} />
-                  </>
+                  <Text
+                    className="text-base font-semibold"
+                    style={{ color: isDetailsValid ? 'white' : '#9CA3AF' }}
+                  >
+                    Create Account
+                  </Text>
                 )}
               </Pressable>
-            </View>
 
-            {/* Login Link */}
-            <View className="flex-row justify-center mt-6">
-              <Text className="text-white text-base">Already have an account? </Text>
-              <Pressable onPress={() => router.push('/login')}>
-                <Text className="text-white text-base font-bold underline">Log in</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
+              {/* Login Link */}
+              <View className="flex-row justify-center mt-4">
+                <Text className="text-sm" style={{ color: '#6B7280' }}>
+                  Already have an account?{' '}
+                </Text>
+                <Pressable onPress={() => router.push('/login')}>
+                  <Text className="text-sm font-semibold" style={{ color: '#006A6A' }}>
+                    Log in
+                  </Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+          </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
