@@ -42,10 +42,21 @@ export default function LoginScreen() {
   const [biometricEnabled, setBiometricEnabled] = useState<boolean>(false);
   const [showBiometricPrompt, setShowBiometricPrompt] = useState<boolean>(false);
   const [isCheckingBiometric, setIsCheckingBiometric] = useState<boolean>(true);
+  const [resendCooldown, setResendCooldown] = useState<number>(0);
 
   useEffect(() => {
     checkBiometricSetup();
   }, []);
+
+  // Cooldown timer for resend
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => {
+        setResendCooldown(resendCooldown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   const checkBiometricSetup = async () => {
     const capability = await checkBiometricCapability();
@@ -90,6 +101,7 @@ export default function LoginScreen() {
     onSuccess: (response) => {
       if (response.success) {
         setStep('verify');
+        setResendCooldown(60); // Start 60-second cooldown
       } else {
         setErrors({ email: response.error });
       }
@@ -326,12 +338,21 @@ export default function LoginScreen() {
 
                 {/* Resend Code */}
                 <Pressable
-                  onPress={() => sendCodeMutation.mutate()}
-                  disabled={sendCodeMutation.isPending}
+                  onPress={() => {
+                    sendCodeMutation.mutate();
+                  }}
+                  disabled={sendCodeMutation.isPending || resendCooldown > 0}
                   className="items-center"
                 >
-                  <Text className="text-sm font-medium" style={{ color: '#006A6A' }}>
-                    {sendCodeMutation.isPending ? 'Sending...' : "Didn't receive the code? Resend"}
+                  <Text
+                    className="text-sm font-medium"
+                    style={{ color: resendCooldown > 0 ? '#9CA3AF' : '#006A6A' }}
+                  >
+                    {sendCodeMutation.isPending
+                      ? 'Sending...'
+                      : resendCooldown > 0
+                      ? `Resend code in ${resendCooldown}s`
+                      : "Didn't receive the code? Resend"}
                   </Text>
                 </Pressable>
               </Animated.View>

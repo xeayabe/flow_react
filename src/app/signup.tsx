@@ -35,12 +35,24 @@ export default function SignupScreen() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [resendCooldown, setResendCooldown] = useState<number>(0);
+
+  // Cooldown timer for resend
+  React.useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => {
+        setResendCooldown(resendCooldown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   const sendCodeMutation = useMutation({
     mutationFn: () => sendMagicCode(formData.email),
     onSuccess: (response) => {
       if (response.success) {
         setStep('verify');
+        setResendCooldown(60); // Start 60-second cooldown
       } else {
         setErrors({ email: response.error });
       }
@@ -249,11 +261,18 @@ export default function SignupScreen() {
                 {/* Resend Code */}
                 <Pressable
                   onPress={() => sendCodeMutation.mutate()}
-                  disabled={sendCodeMutation.isPending}
+                  disabled={sendCodeMutation.isPending || resendCooldown > 0}
                   className="items-center"
                 >
-                  <Text className="text-sm font-medium" style={{ color: '#006A6A' }}>
-                    {sendCodeMutation.isPending ? 'Sending...' : "Didn't receive the code? Resend"}
+                  <Text
+                    className="text-sm font-medium"
+                    style={{ color: resendCooldown > 0 ? '#9CA3AF' : '#006A6A' }}
+                  >
+                    {sendCodeMutation.isPending
+                      ? 'Sending...'
+                      : resendCooldown > 0
+                      ? `Resend code in ${resendCooldown}s`
+                      : "Didn't receive the code? Resend"}
                   </Text>
                 </Pressable>
               </Animated.View>
