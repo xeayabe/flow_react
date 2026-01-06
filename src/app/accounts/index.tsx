@@ -3,7 +3,7 @@ import { View, Text, Pressable, ScrollView, ActivityIndicator } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { Plus, Star, Building2, CreditCard, Wallet, TrendingUp, Banknote } from 'lucide-react-native';
+import { Plus, Star, Building2, CreditCard, Wallet, TrendingUp, Banknote, ChevronLeft } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { getUserAccounts, formatBalance, type Account } from '@/lib/accounts-api';
 import { db } from '@/lib/db';
@@ -130,13 +130,18 @@ export default function WalletsScreen() {
       <StatusBar style="dark" />
       <SafeAreaView className="flex-1" edges={['top']}>
         {/* Header */}
-        <View className="px-6 pt-4 pb-6">
-          <Text className="text-3xl font-bold mb-2" style={{ color: '#006A6A' }}>
-            My Wallets
-          </Text>
-          <Text className="text-sm" style={{ color: '#8B9D8B' }}>
-            Manage your finances across multiple wallets
-          </Text>
+        <View className="px-6 pt-4 pb-6 flex-row items-center justify-between">
+          <Pressable onPress={() => router.back()} className="p-2 -ml-2">
+            <ChevronLeft size={24} color="#006A6A" />
+          </Pressable>
+          <View className="flex-1 ml-2">
+            <Text className="text-3xl font-bold mb-2" style={{ color: '#006A6A' }}>
+              My Wallets
+            </Text>
+            <Text className="text-sm" style={{ color: '#8B9D8B' }}>
+              Manage your finances across multiple wallets
+            </Text>
+          </View>
         </View>
 
         {/* Total Balance Card */}
