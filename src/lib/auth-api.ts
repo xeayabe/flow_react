@@ -111,10 +111,6 @@ export async function sendMagicCode(email: string): Promise<AuthResponse> {
     return { success: true };
   } catch (error: unknown) {
     const err = error as { message?: string; body?: { message?: string } };
-    console.error('Send magic code error:', error);
-
-    // Record failed attempt
-    recordAttempt(email, false);
 
     // Parse error message for user-friendly responses
     const errorMessage = err.message || err.body?.message || '';
@@ -124,9 +120,17 @@ export async function sendMagicCode(email: string): Promise<AuthResponse> {
     // Handle specific error cases
     if (errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
       userFriendlyError = 'Too many attempts. Please try again in a few minutes';
+      console.log('Magic code request rate limited');
     } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
       userFriendlyError = 'Connection issue. Please check your internet and try again';
+      console.log('Network error sending magic code');
+    } else {
+      // Log unexpected errors for debugging
+      console.error('Send magic code error:', error);
     }
+
+    // Record failed attempt
+    recordAttempt(email, false);
 
     return {
       success: false,
@@ -154,10 +158,6 @@ export async function verifyMagicCode(email: string, code: string): Promise<Auth
     return { success: true };
   } catch (error: unknown) {
     const err = error as { message?: string; body?: { message?: string } };
-    console.error('Verify magic code error:', error);
-
-    // Record failed attempt
-    recordAttempt(email, false);
 
     // Parse error message for user-friendly responses
     // Check both error.message and error.body.message
@@ -168,11 +168,21 @@ export async function verifyMagicCode(email: string, code: string): Promise<Auth
     // Handle specific error cases
     if (errorMessage.includes('Record not found') || errorMessage.includes('app-user-magic-code')) {
       userFriendlyError = 'Incorrect code. Please check your email and try again';
+      // Log user-friendly message instead of technical error
+      console.log('Login attempt with incorrect verification code');
     } else if (errorMessage.includes('expired')) {
       userFriendlyError = 'This code has expired. Please request a new one';
+      console.log('Login attempt with expired verification code');
     } else if (errorMessage.includes('already used')) {
       userFriendlyError = 'This code has already been used. Please request a new one';
+      console.log('Login attempt with already used verification code');
+    } else {
+      // Log unexpected errors for debugging
+      console.error('Verify magic code error:', error);
     }
+
+    // Record failed attempt
+    recordAttempt(email, false);
 
     return {
       success: false,
