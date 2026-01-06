@@ -16,7 +16,7 @@ import { Stack, router } from 'expo-router';
 import { ChevronLeft, X, Zap } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/db';
-import { saveBudget } from '@/lib/budget-api';
+import { saveBudget, getBudgetDetails } from '@/lib/budget-api';
 import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
 import { calculatePercentage, calculateAmountFromPercentage, autoBalanceRemaining, apply503020Split } from '@/lib/budget-utils';
 import { cn } from '@/lib/cn';
@@ -93,6 +93,19 @@ export default function BudgetSetupScreen() {
     enabled: !!householdQuery.data?.household?.id,
   });
 
+  // Get existing budget if available (for editing)
+  const paydayDay = householdQuery.data?.household?.paydayDay ?? 25;
+  const budgetPeriod = calculateBudgetPeriod(paydayDay);
+
+  const existingBudgetQuery = useQuery({
+    queryKey: ['budget-edit-details', householdQuery.data?.userRecord?.id, budgetPeriod.start],
+    queryFn: async () => {
+      if (!householdQuery.data?.userRecord?.id) return [];
+      return getBudgetDetails(householdQuery.data.userRecord.id, budgetPeriod.start);
+    },
+    enabled: !!householdQuery.data?.userRecord?.id,
+  });
+
   // Initialize allocations when categories load
   useEffect(() => {
     if (categoriesQuery.data && categoriesQuery.data.length > 0) {
@@ -101,8 +114,51 @@ export default function BudgetSetupScreen() {
         newAllocations[cat.id] = 0;
       });
       setAllocations(newAllocations);
+
+      // If there's an existing budget, load those values
+      if (existingBudgetQuery.data && existingBudgetQuery.data.length > 0) {
+        const existingAllocations: Record<string, number> = {};
+        existingBudgetQuery.data.forEach((budget: any) => {
+          existingAllocations[budget.categoryId] = budget.allocatedAmount;
+        });
+        setAllocations(existingAllocations);
+
+        // Also load the monthly income from the budget summary
+        if (householdQuery.data?.household?.id) {
+          // We'll need to fetch the budget summary to get the total income
+          const totalAllocated = Object.values(existingAllocations).reduce((sum, amount) => sum + amount, 0);
+          // For now, estimate it based on allocation percentage, but we should ideally load from summary
+          // This will be updated once we load the summary
+        }
+      }
     }
-  }, [categoriesQuery.data]);
+  }, [categoriesQuery.data, existingBudgetQuery.data, householdQuery.data?.household?.id]);
+
+  // Load monthly income from budget summary if in edit mode - will auto-populate when editing
+  const budgetSummaryQuery = useQuery({
+    queryKey: ['budget-summary-income', householdQuery.data?.userRecord?.id, budgetPeriod.start],
+    queryFn: async () => {
+      if (!householdQuery.data?.userRecord?.id) return null;
+      const result = await db.queryOnce({
+        budgetSummary: {
+          $: {
+            where: {
+              userId: householdQuery.data.userRecord.id,
+              periodStart: budgetPeriod.start,
+            },
+          },
+        },
+      });
+      return result.data.budgetSummary?.[0] || null;
+    },
+    enabled: !!householdQuery.data?.userRecord?.id,
+  });
+
+  useEffect(() => {
+    if (budgetSummaryQuery.data?.totalIncome && !monthlyIncome) {
+      setMonthlyIncome(budgetSummaryQuery.data.totalIncome.toString());
+    }
+  }, [budgetSummaryQuery.data, monthlyIncome]);
 
   // Group categories by type
   const groupedCategories: GroupedCategories = {
@@ -264,9 +320,6 @@ export default function BudgetSetupScreen() {
       setIsSaving(false);
     }
   };
-
-  const paydayDay = householdQuery.data?.household?.paydayDay ?? 25;
-  const budgetPeriod = calculateBudgetPeriod(paydayDay);
 
   if (householdQuery.isLoading || categoriesQuery.isLoading) {
     return (
