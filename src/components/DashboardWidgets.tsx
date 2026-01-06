@@ -28,34 +28,9 @@ export const WelcomeHeader: React.FC<{
   budgetPeriodStart: string;
   budgetPeriodEnd: string;
 }> = ({ userName = 'User', budgetPeriodStart, budgetPeriodEnd }) => {
-  const today = new Date();
-  const dateStr = today.toLocaleDateString('de-CH', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-
-  // Format dates for display (expecting ISO format YYYY-MM-DD)
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('de-CH', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-  };
-
-  // Calculate days remaining (using ISO format dates)
-  const endDate = new Date(budgetPeriodEnd + 'T00:00:00');
-  const todayForCalc = new Date();
-  todayForCalc.setHours(0, 0, 0, 0);
-  const daysRemaining = Math.ceil((endDate.getTime() - todayForCalc.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
   return (
-    <View className="mb-8">
-      <Text className="text-3xl font-bold text-gray-900 mb-1">Welcome back, {userName}! 👋</Text>
-      <Text className="text-xs text-gray-500 mb-2">{dateStr}</Text>
+    <View className="mb-4">
+      <Text className="text-3xl font-bold text-gray-900">Welcome back, {userName}! 👋</Text>
     </View>
   );
 };
