@@ -30,7 +30,7 @@ export default function TransactionsTabScreen() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Filter states
-  const [dateRange, setDateRange] = useState<DateRange>('this_month');
+  const [dateRange, setDateRange] = useState<DateRange>('all_time');
   const [transactionType, setTransactionType] = useState<TransactionType>('all');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
