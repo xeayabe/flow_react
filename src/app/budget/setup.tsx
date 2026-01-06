@@ -209,7 +209,18 @@ export default function BudgetSetupScreen() {
       return;
     }
 
-    const allocPercentage = (totalAllocated / income) * 100;
+    // Filter out zero allocations
+    const nonZeroAllocations = Object.fromEntries(
+      Object.entries(allocations).filter(([_, amount]) => (amount || 0) > 0)
+    );
+
+    if (Object.keys(nonZeroAllocations).length === 0) {
+      setShowSaveError('Please allocate at least one category');
+      return;
+    }
+
+    const totalAllocatedFiltered = Object.values(nonZeroAllocations).reduce((sum, amount) => sum + amount, 0);
+    const allocPercentage = (totalAllocatedFiltered / income) * 100;
     if (allocPercentage < 99.99 || allocPercentage > 100.01) {
       setShowSaveError(`Budget must total 100%. Currently: ${Math.round(allocPercentage * 10) / 10}%`);
       return;
@@ -231,7 +242,7 @@ export default function BudgetSetupScreen() {
         userId: householdQuery.data.userRecord.id,
         householdId: householdQuery.data.household.id,
         totalIncome: income,
-        allocations,
+        allocations: nonZeroAllocations,
         categoryGroups,
       });
 
