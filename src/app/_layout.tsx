@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -23,12 +23,15 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
   const { user, isLoading } = db.useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const navigationState = useRootNavigationState();
 
   useEffect(() => {
+    // Wait for both auth loading AND navigation to be ready
     if (isLoading) return;
+    if (!navigationState?.key) return;
 
     const inAuthGroup = segments[0] === '(tabs)';
-    const inWelcome = segments[0] === 'welcome';
+    const inLoginFlow = segments[0] === 'welcome' || segments[0] === 'signup' || segments[0] === 'login';
 
     if (!user && inAuthGroup) {
       // Redirect to welcome if not authenticated
@@ -40,7 +43,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
 
     // Hide splash screen once auth is determined
     SplashScreen.hideAsync();
-  }, [user, isLoading, segments]);
+  }, [user, isLoading, segments, navigationState?.key]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
