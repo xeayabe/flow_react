@@ -3,8 +3,7 @@ import { View, Text, ScrollView, Pressable, TextInput, Modal, ActivityIndicator,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Plus, X, Check, Calendar } from 'lucide-react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { ChevronLeft, Plus, X, Check, Calendar, ChevronRight } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { createTransaction, formatCurrency, formatDateSwiss, parseSwissDate } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
@@ -41,6 +40,7 @@ export default function AddTransactionScreen() {
   const [successMessage, setSuccessMessage] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
 
   // Form state
   const [formData, setFormData] = useState<FormData>({
@@ -359,49 +359,132 @@ export default function AddTransactionScreen() {
                 {errors.date && <Text className="text-xs text-red-500 mt-2">{errors.date}</Text>}
               </View>
 
-              {/* Date Picker Modal */}
+              {/* Date Picker Calendar */}
               {showDatePicker && (
-                <DateTimePicker
-                  value={new Date(tempDate + 'T12:00:00')}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(event, selectedDate) => {
-                    if (Platform.OS === 'android') {
-                      setShowDatePicker(false);
-                      if (selectedDate) {
-                        const isoDate = selectedDate.toISOString().split('T')[0];
-                        setFormData({ ...formData, date: isoDate });
-                        if (errors.date) setErrors({ ...errors, date: undefined });
-                      }
-                    } else if (selectedDate) {
-                      const isoDate = selectedDate.toISOString().split('T')[0];
-                      setTempDate(isoDate);
-                    }
-                  }}
-                />
-              )}
+                <View className="mb-8 p-4 rounded-lg border-2 border-gray-200 bg-gray-50">
+                  {/* Month/Year Header */}
+                  <View className="flex-row items-center justify-between mb-4">
+                    <Pressable
+                      onPress={() => {
+                        const prev = new Date(calendarMonth);
+                        prev.setMonth(prev.getMonth() - 1);
+                        setCalendarMonth(prev);
+                      }}
+                      className="p-2"
+                    >
+                      <ChevronLeft size={20} color="#006A6A" />
+                    </Pressable>
+                    <Text className="text-sm font-semibold text-gray-900">
+                      {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </Text>
+                    <Pressable
+                      onPress={() => {
+                        const next = new Date(calendarMonth);
+                        next.setMonth(next.getMonth() + 1);
+                        const today = new Date();
+                        if (next <= today) {
+                          setCalendarMonth(next);
+                        }
+                      }}
+                      className="p-2"
+                    >
+                      <ChevronRight size={20} color="#006A6A" />
+                    </Pressable>
+                  </View>
 
-              {/* iOS Date Picker Done Button */}
-              {showDatePicker && Platform.OS === 'ios' && (
-                <View className="mb-8 flex-row justify-end gap-2">
-                  <Pressable
-                    onPress={() => setShowDatePicker(false)}
-                    className="px-4 py-2 rounded-lg"
-                    style={{ backgroundColor: '#E5E7EB' }}
-                  >
-                    <Text className="text-sm font-semibold text-gray-900">Cancel</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      setFormData({ ...formData, date: tempDate });
-                      if (errors.date) setErrors({ ...errors, date: undefined });
-                      setShowDatePicker(false);
-                    }}
-                    className="px-4 py-2 rounded-lg"
-                    style={{ backgroundColor: '#006A6A' }}
-                  >
-                    <Text className="text-sm font-semibold text-white">Done</Text>
-                  </Pressable>
+                  {/* Day Labels */}
+                  <View className="flex-row justify-between mb-2">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                      <Text key={day} className="w-12 text-center text-xs font-semibold text-gray-600">
+                        {day}
+                      </Text>
+                    ))}
+                  </View>
+
+                  {/* Calendar Days */}
+                  <View className="flex-row flex-wrap justify-between">
+                    {(() => {
+                      const year = calendarMonth.getFullYear();
+                      const month = calendarMonth.getMonth();
+                      const firstDay = new Date(year, month, 1).getDay();
+                      const daysInMonth = new Date(year, month + 1, 0).getDate();
+                      const days = [];
+
+                      // Empty cells for days before month starts
+                      for (let i = 0; i < firstDay; i++) {
+                        days.push(null);
+                      }
+
+                      // Days in month
+                      for (let i = 1; i <= daysInMonth; i++) {
+                        days.push(i);
+                      }
+
+                      return days.map((day, index) => {
+                        const dateStr =
+                          day === null
+                            ? null
+                            : `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        const isSelected = dateStr === tempDate;
+                        const isToday = dateStr === new Date().toISOString().split('T')[0];
+                        const isFuture = dateStr && dateStr > new Date().toISOString().split('T')[0];
+
+                        const isDisabled = !dateStr || Boolean(isFuture);
+                        return (
+                          <Pressable
+                            key={index}
+                            onPress={() => {
+                              if (dateStr && !isFuture) {
+                                setTempDate(dateStr);
+                              }
+                            }}
+                            disabled={isDisabled}
+                            className={cn(
+                              'w-12 h-12 items-center justify-center rounded-lg mb-2',
+                              isSelected && 'bg-teal-600',
+                              isToday && !isSelected && 'bg-teal-100 border-2 border-teal-600',
+                              !dateStr && 'bg-transparent',
+                              isFuture && 'opacity-30'
+                            )}
+                          >
+                            {day && (
+                              <Text
+                                className={cn(
+                                  'text-sm font-semibold',
+                                  isSelected && 'text-white',
+                                  !isSelected && 'text-gray-900'
+                                )}
+                              >
+                                {day}
+                              </Text>
+                            )}
+                          </Pressable>
+                        );
+                      });
+                    })()}
+                  </View>
+
+                  {/* Done/Cancel Buttons */}
+                  <View className="mt-4 flex-row justify-end gap-2">
+                    <Pressable
+                      onPress={() => setShowDatePicker(false)}
+                      className="px-4 py-2 rounded-lg"
+                      style={{ backgroundColor: '#E5E7EB' }}
+                    >
+                      <Text className="text-sm font-semibold text-gray-900">Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        setFormData({ ...formData, date: tempDate });
+                        if (errors.date) setErrors({ ...errors, date: undefined });
+                        setShowDatePicker(false);
+                      }}
+                      className="px-4 py-2 rounded-lg"
+                      style={{ backgroundColor: '#006A6A' }}
+                    >
+                      <Text className="text-sm font-semibold text-white">Done</Text>
+                    </Pressable>
+                  </View>
                 </View>
               )}
 
