@@ -267,7 +267,7 @@ export async function updateBudgetSpentAmount(
       }),
     ]);
 
-    // Also update the budget summary totalSpent
+    // Also update the budget summary totalSpent and group spent amounts
     const summaryResult = await db.queryOnce({
       budgetSummary: {
         $: {
@@ -281,7 +281,7 @@ export async function updateBudgetSpentAmount(
 
     const summary = summaryResult.data.budgetSummary?.[0];
     if (summary) {
-      // Recalculate total spent from all budgets
+      // Recalculate total spent and group spent amounts from all budgets
       const budgetsResult = await db.queryOnce({
         budgets: {
           $: {
@@ -293,11 +293,32 @@ export async function updateBudgetSpentAmount(
         },
       });
 
-      const totalSpent = (budgetsResult.data.budgets || []).reduce((sum: number, b: any) => sum + (b.spentAmount || 0), 0);
+      const budgets = budgetsResult.data.budgets || [];
+
+      let totalSpent = 0;
+      let needsSpent = 0;
+      let wantsSpent = 0;
+      let savingsSpent = 0;
+
+      budgets.forEach((b: any) => {
+        const spent = b.spentAmount || 0;
+        totalSpent += spent;
+
+        if (b.categoryGroup === 'needs') {
+          needsSpent += spent;
+        } else if (b.categoryGroup === 'wants') {
+          wantsSpent += spent;
+        } else if (b.categoryGroup === 'savings') {
+          savingsSpent += spent;
+        }
+      });
 
       await db.transact([
         db.tx.budgetSummary[summary.id].update({
           totalSpent,
+          needsSpent,
+          wantsSpent,
+          savingsSpent,
           updatedAt: now,
         }),
       ]);
