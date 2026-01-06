@@ -3,7 +3,8 @@ import { View, Text, ScrollView, Pressable, TextInput, Modal, ActivityIndicator,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Plus, X, Check } from 'lucide-react-native';
+import { ChevronLeft, Plus, X, Check, Calendar } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { db } from '@/lib/db';
 import { createTransaction, formatCurrency, formatDateSwiss, parseSwissDate } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
@@ -38,6 +39,7 @@ export default function AddTransactionScreen() {
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<FormData>({
@@ -332,31 +334,64 @@ export default function AddTransactionScreen() {
 
               {/* Date Input */}
               <View className="mb-8">
-                <Text className="text-sm font-semibold text-gray-700 mb-3">Date (DD.MM.YYYY)</Text>
-                <TextInput
+                <Text className="text-sm font-semibold text-gray-700 mb-3">Date</Text>
+                <Pressable
+                  onPress={() => setShowDatePicker(true)}
                   className={cn(
-                    'p-3 rounded-lg border-2 text-base font-medium',
+                    'p-3 rounded-lg border-2 flex-row items-center justify-between',
                     errors.date ? 'border-red-500' : 'border-gray-200'
                   )}
-                  style={{ color: '#1F2937' }}
-                  placeholder="25.12.2024"
-                  placeholderTextColor="#D1D5DB"
-                  value={formData.date}
-                  onChangeText={(text) => {
-                    setFormData({ ...formData, date: text });
-                    if (errors.date) setErrors({ ...errors, date: undefined });
-                  }}
-                  onBlur={() => {
-                    // Parse and validate date on blur
-                    const parsed = parseSwissDate(formData.date);
-                    if (parsed) {
-                      setFormData((prev) => ({ ...prev, date: parsed }));
-                    }
-                  }}
-                />
-                <Text className="text-xs text-gray-500 mt-1">Formats: DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY</Text>
+                >
+                  <View className="flex-row items-center">
+                    <Calendar size={20} color="#006A6A" style={{ marginRight: 12 }} />
+                    <Text className="text-base font-medium" style={{ color: '#1F2937' }}>
+                      {formatDateSwiss(formData.date)}
+                    </Text>
+                  </View>
+                  <Text className="text-gray-400">›</Text>
+                </Pressable>
                 {errors.date && <Text className="text-xs text-red-500 mt-2">{errors.date}</Text>}
               </View>
+
+              {/* Date Picker Modal */}
+              {showDatePicker && (
+                <DateTimePicker
+                  value={new Date(formData.date)}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, selectedDate) => {
+                    if (Platform.OS === 'android') {
+                      setShowDatePicker(false);
+                    }
+                    if (selectedDate) {
+                      const isoDate = selectedDate.toISOString().split('T')[0];
+                      setFormData({ ...formData, date: isoDate });
+                      if (errors.date) setErrors({ ...errors, date: undefined });
+                    }
+                  }}
+                  maximumDate={new Date()}
+                />
+              )}
+
+              {/* iOS Date Picker Done Button */}
+              {showDatePicker && Platform.OS === 'ios' && (
+                <View className="mb-8 flex-row justify-end gap-2">
+                  <Pressable
+                    onPress={() => setShowDatePicker(false)}
+                    className="px-4 py-2 rounded-lg"
+                    style={{ backgroundColor: '#E5E7EB' }}
+                  >
+                    <Text className="text-sm font-semibold text-gray-900">Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setShowDatePicker(false)}
+                    className="px-4 py-2 rounded-lg"
+                    style={{ backgroundColor: '#006A6A' }}
+                  >
+                    <Text className="text-sm font-semibold text-white">Done</Text>
+                  </Pressable>
+                </View>
+              )}
 
               {/* Note */}
               <View className="mb-8">

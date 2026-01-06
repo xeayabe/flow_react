@@ -369,12 +369,14 @@ bun start
    - Type toggle with dynamic category filtering
    - Amount input with auto-formatting
    - Category and account selection with modals
-   - Swiss date format support (DD.MM.YYYY)
+   - **Native date picker** with calendar UI
+     - iOS: Spinner-style picker with Done button
+     - Android: Native calendar picker
+     - Prevents future dates
    - Optional note with character counter
    - Monthly recurring transaction option
    - Real-time validation with error messages
    - Success feedback with form reset
-   - Automatic balance restoration on deletion
 
 ### Quick Access Paths
 
