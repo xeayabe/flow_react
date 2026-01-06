@@ -132,7 +132,8 @@ export default function AddTransactionScreen() {
         recurringDay: formData.isRecurring ? formData.recurringDay : undefined,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
 
       setSuccessMessage(`✓ ${formData.type === 'income' ? 'Income' : 'Expense'} added!`);

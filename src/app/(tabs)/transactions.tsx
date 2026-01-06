@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, SectionList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
 import { Trash2, ArrowDownLeft, ArrowUpRight, AlertCircle, Plus } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { db } from '@/lib/db';
@@ -23,6 +24,14 @@ export default function TransactionsTabScreen() {
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Refetch transactions when tab comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['transactions', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
+    }, [user?.email, queryClient])
+  );
 
   // Get user and household info
   const householdQuery = useQuery({
