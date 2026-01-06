@@ -308,6 +308,98 @@ export async function updateBudgetSpentAmount(
 }
 
 /**
+ * Recalculate budget spent amounts from actual transactions
+ * Useful for backfilling spent amounts if they weren't properly tracked
+ */
+export async function recalculateBudgetSpentAmounts(
+  userId: string,
+  periodStart: string,
+  periodEnd: string
+): Promise<void> {
+  try {
+    // Get all expense transactions for this user in this period
+    const transactionsResult = await db.queryOnce({
+      transactions: {
+        $: {
+          where: {
+            userId,
+            type: 'expense',
+          },
+        },
+      },
+    });
+
+    const transactions = (transactionsResult.data.transactions ?? []).filter(
+      (tx: any) => tx.date >= periodStart && tx.date <= periodEnd
+    );
+
+    // Group transactions by category
+    const spentByCategory: Record<string, number> = {};
+    transactions.forEach((tx: any) => {
+      if (!spentByCategory[tx.categoryId]) {
+        spentByCategory[tx.categoryId] = 0;
+      }
+      spentByCategory[tx.categoryId] += tx.amount;
+    });
+
+    // Update all budgets with recalculated spent amounts
+    const budgetsResult = await db.queryOnce({
+      budgets: {
+        $: {
+          where: {
+            userId,
+            periodStart,
+          },
+        },
+      },
+    });
+
+    const budgets = budgetsResult.data.budgets ?? [];
+    const now = Date.now();
+
+    const updateOps = budgets.map((budget: any) => {
+      const newSpentAmount = spentByCategory[budget.categoryId] || 0;
+      return db.tx.budgets[budget.id].update({
+        spentAmount: newSpentAmount,
+        updatedAt: now,
+      });
+    });
+
+    if (updateOps.length > 0) {
+      await db.transact(updateOps);
+    }
+
+    // Recalculate budget summary total spent
+    const summaryResult = await db.queryOnce({
+      budgetSummary: {
+        $: {
+          where: {
+            userId,
+            periodStart,
+          },
+        },
+      },
+    });
+
+    const summary = summaryResult.data.budgetSummary?.[0];
+    if (summary) {
+      const totalSpent = Object.values(spentByCategory).reduce((sum: number, amount: number) => sum + amount, 0);
+      await db.transact([
+        db.tx.budgetSummary[summary.id].update({
+          totalSpent,
+          updatedAt: now,
+        }),
+      ]);
+    }
+
+    console.log('Budget spent amounts recalculated successfully');
+  } catch (error) {
+    console.error('Recalculate budget spent amounts error:', error);
+    throw error;
+  }
+}
+
+/**
  * Simple ID generator (UUID v4)
  */
 function generateId(): string {

@@ -6,7 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { TrendingUp, ChevronRight } from 'lucide-react-native';
 import { db } from '@/lib/db';
-import { getBudgetSummary } from '@/lib/budget-api';
+import { getBudgetSummary, recalculateBudgetSpentAmounts } from '@/lib/budget-api';
 import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
 
 interface BudgetSummaryData {
@@ -77,6 +77,23 @@ export default function DashboardScreen() {
       refetchBudgetSummary();
     }, [refetchBudgetSummary])
   );
+
+  // Recalculate spent amounts on first load to catch any missing transactions
+  React.useEffect(() => {
+    if (householdQuery.data?.userRecord?.id && !summaryQuery.isLoading && summary) {
+      // Recalculate to ensure all transactions are accounted for
+      recalculateBudgetSpentAmounts(
+        householdQuery.data.userRecord.id,
+        budgetPeriod.start,
+        budgetPeriod.end
+      ).then(() => {
+        // Refetch after recalculation
+        setTimeout(() => refetchBudgetSummary(), 500);
+      }).catch((error) => {
+        console.warn('Failed to recalculate budget spent amounts:', error);
+      });
+    }
+  }, []);
 
   const summary = summaryQuery.data as BudgetSummaryData | null;
 
