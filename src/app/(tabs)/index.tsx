@@ -198,15 +198,15 @@ export default function DashboardScreen() {
                   <View className="grid grid-cols-3 gap-3">
                     <View className="p-3 rounded-lg bg-white">
                       <Text className="text-xs text-gray-600 mb-1">Needs</Text>
-                      <Text className="text-sm font-bold text-gray-900">{summary.needsAllocated.toFixed(0)}%</Text>
+                      <Text className="text-sm font-bold text-gray-900">{summary.needsAllocated.toFixed(2)} CHF</Text>
                     </View>
                     <View className="p-3 rounded-lg bg-white">
                       <Text className="text-xs text-gray-600 mb-1">Wants</Text>
-                      <Text className="text-sm font-bold text-gray-900">{summary.wantsAllocated.toFixed(0)}%</Text>
+                      <Text className="text-sm font-bold text-gray-900">{summary.wantsAllocated.toFixed(2)} CHF</Text>
                     </View>
                     <View className="p-3 rounded-lg bg-white">
                       <Text className="text-xs text-gray-600 mb-1">Savings</Text>
-                      <Text className="text-sm font-bold text-gray-900">{summary.savingsAllocated.toFixed(0)}%</Text>
+                      <Text className="text-sm font-bold text-gray-900">{summary.savingsAllocated.toFixed(2)} CHF</Text>
                     </View>
                   </View>
                 </View>
