@@ -40,6 +40,19 @@ export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
 
+  // Handle password change and auto-sync with confirm password when autofilled
+  const handlePasswordChange = (text: string) => {
+    setFormData({ ...formData, password: text });
+    setErrors({ ...errors, password: undefined });
+
+    // If confirm password is empty and password is being autofilled, copy it
+    if (formData.confirmPassword === '' && text.length > 8) {
+      setTimeout(() => {
+        setFormData(prev => ({ ...prev, password: text, confirmPassword: text }));
+      }, 100);
+    }
+  };
+
   const sendCodeMutation = useMutation({
     mutationFn: () => sendMagicCode(formData.email),
     onSuccess: (response) => {
@@ -375,10 +388,7 @@ export default function SignupScreen() {
                   }}
                   placeholder=" "
                   value={formData.password}
-                  onChangeText={(text) => {
-                    setFormData({ ...formData, password: text });
-                    setErrors({ ...errors, password: undefined });
-                  }}
+                  onChangeText={handlePasswordChange}
                   onFocus={() => setFocusedField('password')}
                   onBlur={() => handleBlur('password')}
                   secureTextEntry={!showPassword}
@@ -463,7 +473,7 @@ export default function SignupScreen() {
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
-                  textContentType="newPassword"
+                  textContentType="none"
                 />
                 {/* Floating Label */}
                 <Text
