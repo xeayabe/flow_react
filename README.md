@@ -90,20 +90,20 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - All categories personal to user (is_shareable = false)
   - No shared expense functionality yet
 
-### Transaction System (US-014)
+### Transaction System (US-014 & US-018)
 - ✅ **Add Transaction Page** - Full form to track income and expenses
   - Type Toggle: Income/Expense with dynamic category filtering
   - Amount Input: Auto-formatting with currency symbol (CHF)
   - Category Dropdown: Grouped by Income/Needs/Wants/Savings/Other
   - Account Selection: Pre-selected default account with balance display
-  - Date Input: Swiss format (DD.MM.YYYY) with validation
+  - Date Input: Custom calendar chip picker with month navigation
   - Optional Note: Max 200 characters with character counter
   - Recurring Option: Monthly recurring with day selector
 - ✅ **Transaction Validation**:
   - Amount: Required, must be > 0, max 2 decimals
   - Category: Required, filtered by transaction type
   - Account: Required, shows current balance
-  - Date: Required, cannot be future date, accepts multiple formats
+  - Date: Required, cannot be future date, prevents future dates in calendar
   - Note: Optional, max 200 characters
 - ✅ **Database Integration**:
   - Transactions stored with all metadata
@@ -113,8 +113,23 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Success message after transaction creation
   - Form resets with option to add another
   - Auto-focus on amount field for quick entry
-  - Date input with Swiss format support (DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY)
+  - Custom date picker with calendar UI (no native date picker)
   - FAB button on Dashboard to add transactions
+- ✅ **View & Filter Transactions (US-018)** - Complete transaction list with filtering
+  - 4 Filter Types:
+    - **Date Range**: This week, This month, Last month, Last 3 months, This year, All time
+    - **Transaction Type**: All, Income only, Expense only
+    - **Category Filter**: Multi-select specific categories or view all
+    - **Account Filter**: Multi-select specific accounts or view all
+  - **Summary Statistics**: Real-time income, expense, and net calculations
+  - **Grouped Display**: Transactions grouped by date (newest first) with Swiss date format
+  - **Modal-Based Filters**: Each filter type opens in a modal for easy selection
+  - **Clear Filters Button**: Reset all filters to view everything
+  - **Delete Transactions**: Swipe or tap delete with confirmation modal
+  - **Empty States**: Helpful messages when no transactions match filters
+  - **Two Access Points**:
+    - Transactions Tab: Bottom navigation tab for quick access
+    - Standalone Page: `/transactions` route for direct navigation
 - ✅ **Phase 1 Implementation**:
   - Personal transactions only (is_shared = false)
   - No split/shared expenses yet
@@ -342,12 +357,14 @@ bun start
    - Bottom tab navigation with three tabs
 
 2. **Transactions Tab** (`/(tabs)/transactions`)
-   - Dedicated tab to view all recorded transactions
-   - Grouped by date with Swiss format (DD.MM.YYYY)
+   - View all transactions with powerful filtering system
+   - Filter by: Date range, Type (income/expense), Category, Account
+   - Summary statistics showing income, expense, and net for current filters
+   - Transactions grouped by date with Swiss date format (DD.MM.YYYY)
    - Transaction details: type icon, amount, category, account
-   - Delete transactions with confirmation
-   - FAB button to add new transactions
+   - Delete transactions with confirmation modal
    - Empty state with quick-add option
+   - Real-time updates when tab comes into focus
 
 3. **Profile** (`/(tabs)/two`)
    - User profile section with avatar and email
@@ -369,10 +386,12 @@ bun start
    - Type toggle with dynamic category filtering
    - Amount input with auto-formatting
    - Category and account selection with modals
-   - **Native date picker** with calendar UI
-     - iOS: Spinner-style picker with Done button
-     - Android: Native calendar picker
-     - Prevents future dates
+   - **Custom date picker** with calendar UI
+     - Month/year header with navigation arrows
+     - Day labels (Sun-Sat) with calendar grid
+     - Today highlighted with border, selected date with teal background
+     - Prevents selection of future dates
+     - Done/Cancel buttons to confirm selection
    - Optional note with character counter
    - Monthly recurring transaction option
    - Real-time validation with error messages
@@ -403,7 +422,6 @@ bun start
 
 - [ ] Create transaction detail/edit page with editing capability
 - [ ] Implement recurring transaction templates (Phase 2)
-- [ ] Add transaction filtering and sorting options
 - [ ] Create transaction search functionality
 - [ ] Build settlement/splitting logic for shared expenses (Phase 2)
 - [ ] Add notifications for recurring transactions
