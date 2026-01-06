@@ -23,6 +23,21 @@ const schema = i.schema({
       status: i.string(),
       joinedAt: i.number(),
     }),
+    accounts: i.entity({
+      userId: i.string(),
+      householdId: i.string(),
+      name: i.string(),
+      institution: i.string(),
+      accountType: i.string(),
+      balance: i.number(),
+      startingBalance: i.number(),
+      currency: i.string(),
+      last4Digits: i.string().optional(),
+      isDefault: i.boolean(),
+      isActive: i.boolean(),
+      createdAt: i.number(),
+      updatedAt: i.number(),
+    }),
   },
   links: {
     householdsByCreator: {
@@ -59,6 +74,30 @@ const schema = i.schema({
         on: 'users',
         has: 'many',
         label: 'memberships',
+      },
+    },
+    accountsByUser: {
+      forward: {
+        on: 'accounts',
+        has: 'one',
+        label: 'user',
+      },
+      reverse: {
+        on: 'users',
+        has: 'many',
+        label: 'accounts',
+      },
+    },
+    accountsByHousehold: {
+      forward: {
+        on: 'accounts',
+        has: 'one',
+        label: 'household',
+      },
+      reverse: {
+        on: 'households',
+        has: 'many',
+        label: 'accounts',
       },
     },
   },
