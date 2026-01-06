@@ -406,24 +406,6 @@ export default function TransactionsListScreen() {
               </View>
               <Text className="text-2xl font-bold text-red-700">-{formatCurrency(stats.expense)}</Text>
             </View>
-
-            {/* Net Balance Card */}
-            <View className="p-4 rounded-2xl" style={{ backgroundColor: stats.net >= 0 ? '#F0FDF4' : '#FEF2F2', borderWidth: 1, borderColor: stats.net >= 0 ? '#86EFAC' : '#FECACA' }}>
-              <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-xs font-semibold" style={{ color: stats.net >= 0 ? '#16A34A' : '#DC2626' }}>
-                  NET BALANCE
-                </Text>
-                <View
-                  className="w-8 h-8 rounded-full items-center justify-center"
-                  style={{ backgroundColor: stats.net >= 0 ? '#DCFCE7' : '#FEE2E2' }}
-                >
-                  <Scale3D size={16} color={stats.net >= 0 ? '#16A34A' : '#DC2626'} />
-                </View>
-              </View>
-              <Text className="text-2xl font-bold" style={{ color: stats.net >= 0 ? '#16A34A' : '#DC2626' }}>
-                {stats.net >= 0 ? '+' : '-'}{formatCurrency(Math.abs(stats.net))}
-              </Text>
-            </View>
           </View>
 
           {/* Transaction List */}
