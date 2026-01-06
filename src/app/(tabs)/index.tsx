@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Text, View, ScrollView, ActivityIndicator } from 'react-native';
+import { Text, View, ScrollView, ActivityIndicator, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
@@ -8,7 +8,7 @@ import { db } from '@/lib/db';
 import { getUserAccounts } from '@/lib/accounts-api';
 import { getRecentTransactions, Transaction } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
-import { getBudgetSummary, recalculateBudgetSpentAmounts } from '@/lib/budget-api';
+import { getBudgetSummary, recalculateBudgetSpentAmounts, checkAndResetBudgetIfNeeded } from '@/lib/budget-api';
 import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
 import {
   calculateTotalBalance,
@@ -43,6 +43,7 @@ interface BudgetSummaryData {
 
 export default function DashboardScreen() {
   const { user } = db.useAuth();
+  const [showResetNotification, setShowResetNotification] = React.useState(false);
 
   // Get household for payday info
   const householdQuery = useQuery({
@@ -143,6 +144,25 @@ export default function DashboardScreen() {
     }
   }, []);
 
+  // Check if budget reset is needed on component mount
+  React.useEffect(() => {
+    if (householdId) {
+      checkAndResetBudgetIfNeeded(householdId).then((resetHappened) => {
+        if (resetHappened) {
+          setShowResetNotification(true);
+          // Refetch data after reset
+          setTimeout(() => {
+            refetchBudgetSummary();
+            refetchAccounts();
+            refetchRecentTransactions();
+          }, 500);
+        }
+      }).catch((error) => {
+        console.error('Error checking budget reset:', error);
+      });
+    }
+  }, [householdId]);
+
   const isLoading =
     householdQuery.isLoading ||
     accountsQuery.isLoading ||
@@ -191,6 +211,21 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      {/* Budget Reset Notification */}
+      {showResetNotification && (
+        <View className="bg-green-50 border-b border-green-200 px-6 py-4">
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1">
+              <Text className="text-sm font-bold text-green-900">🎉 New Budget Period Started!</Text>
+              <Text className="text-xs text-green-700 mt-1">Your budget has been reset to zero</Text>
+            </View>
+            <Pressable onPress={() => setShowResetNotification(false)}>
+              <Text className="text-lg font-bold text-green-600">×</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="px-6 py-6 gap-6">
           {/* Welcome Header */}

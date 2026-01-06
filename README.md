@@ -259,6 +259,46 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - No transactions → Prompt to add first transaction
 - ✅ **Real-Time Data Refresh** - Auto-refetch on tab focus
 - ✅ **Data Aggregation** - Efficient parallel queries with React Query caching
+- ✅ **Floating Action Button** - Plus sign in bottom right with menu for:
+  - Add Transaction
+  - Add Account
+- ✅ **Budget Reset Notification** - Celebratory banner when budget period resets
+
+### Budget Reset on Payday (US-025)
+- ✅ **Automatic Budget Reset** - Resets budget on payday without user intervention
+  - Triggers when user loads app after budget period ends
+  - Checks current date against household.budgetPeriodEnd
+  - Automatically resets for any missed periods
+- ✅ **Budget Period Calculation** - Correctly calculates new period based on payday:
+  - If payday = 25th: Period runs 25th of current month to 24th of next month
+  - If payday = 31st: Auto-adjusts for months with fewer days (Feb, April, etc.)
+  - Handles "last day of month" payday configuration
+- ✅ **Archive Old Budgets** - Archives previous period budgets (marks as inactive)
+  - Preserves budget history for audit trail
+  - Doesn't delete old data
+- ✅ **Create New Budgets** - Creates fresh budgets for new period:
+  - Copies allocation amounts from previous period
+  - Resets spent amounts to 0
+  - Creates new budget records with updated period dates
+- ✅ **Update Budget Summary** - Updates summary with:
+  - New period dates
+  - Reset total spent to 0
+  - Preserves income and allocation amounts
+- ✅ **User Notification** - Shows celebratory banner:
+  - Message: "🎉 New Budget Period Started!"
+  - Subtext: "Your budget has been reset to zero"
+  - Dismissible with close button
+  - Auto-refreshes dashboard data after reset
+- ✅ **Data Refetch** - Automatically refetches all dashboard data:
+  - Budget summary
+  - Accounts
+  - Recent transactions
+  - Updated progress bars show 0%
+- ✅ **Error Handling** - Gracefully handles edge cases:
+  - Missing household data
+  - Multiple missed periods
+  - Partial reset failures
+  - Logs errors without blocking UI
 
 ### Database Schema (InstantDB)
 

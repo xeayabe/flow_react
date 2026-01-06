@@ -409,3 +409,153 @@ function generateId(): string {
     return v.toString(16);
   });
 }
+
+/**
+ * Reset budget period on payday
+ * Archives old budgets, creates new ones with reset spent amounts
+ */
+export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
+  try {
+    // Step 1: Get household
+    const householdResult = await db.queryOnce({
+      households: { $: { where: { id: householdId } } },
+    });
+
+    const household = householdResult.data.households?.[0];
+    if (!household) {
+      console.error('Household not found');
+      return false;
+    }
+
+    // Step 2: Calculate new period using payday
+    const paydayDay = household.paydayDay ?? 25; // Default to 25 if not set
+    const { start: newPeriodStart, end: newPeriodEnd } = calculateBudgetPeriod(paydayDay);
+
+    // Step 3: Get all active budgets from current period
+    const oldBudgetsResult = await db.queryOnce({
+      budgets: {
+        $: {
+          where: {
+            householdId,
+            periodEnd: household.budgetPeriodEnd,
+            isActive: true,
+          },
+        },
+      },
+    });
+
+    const oldBudgets = oldBudgetsResult.data.budgets || [];
+
+    // Step 4: Archive old budgets by marking as inactive
+    const archiveTransactions = oldBudgets.map((budget: any) =>
+      db.tx.budgets[budget.id].update({
+        isActive: false,
+        updatedAt: Date.now(),
+      })
+    );
+
+    // Step 5: Create new budgets with reset spent amounts
+    const newBudgetTransactions = oldBudgets.map((oldBudget: any) =>
+      db.tx.budgets[generateId()].update({
+        userId: oldBudget.userId,
+        householdId,
+        categoryId: oldBudget.categoryId,
+        periodStart: newPeriodStart,
+        periodEnd: newPeriodEnd,
+        allocatedAmount: oldBudget.allocatedAmount,
+        spentAmount: 0, // Reset to 0!
+        percentage: oldBudget.percentage,
+        categoryGroup: oldBudget.categoryGroup,
+        isActive: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      })
+    );
+
+    // Step 6: Update household with new period
+    const householdTransaction = db.tx.households[householdId].update({
+      budgetPeriodStart: newPeriodStart,
+      budgetPeriodEnd: newPeriodEnd,
+      updatedAt: Date.now(),
+    });
+
+    // Step 7: Update budget summary
+    const summaryResult = await db.queryOnce({
+      budgetSummary: {
+        $: {
+          where: {
+            householdId,
+            periodEnd: household.budgetPeriodEnd,
+          },
+        },
+      },
+    });
+
+    const oldSummary = summaryResult.data.budgetSummary?.[0];
+    const summaryId = oldSummary?.id || generateId();
+
+    const summaryTransaction = db.tx.budgetSummary[summaryId].update({
+      householdId,
+      periodStart: newPeriodStart,
+      periodEnd: newPeriodEnd,
+      totalIncome: oldSummary?.totalIncome || 0,
+      totalAllocated: oldSummary?.totalAllocated || 0,
+      totalSpent: 0, // Reset!
+      needsAllocated: oldSummary?.needsAllocated || 0,
+      wantsAllocated: oldSummary?.wantsAllocated || 0,
+      savingsAllocated: oldSummary?.savingsAllocated || 0,
+      updatedAt: Date.now(),
+    });
+
+    // Execute all transactions atomically
+    const allTransactions = [
+      ...archiveTransactions,
+      ...newBudgetTransactions,
+      householdTransaction,
+      summaryTransaction,
+    ];
+
+    if (allTransactions.length > 0) {
+      await db.transact(allTransactions);
+    }
+
+    console.log('Budget reset successful for household:', householdId);
+    return true;
+  } catch (error) {
+    console.error('Budget reset error:', error);
+    return false;
+  }
+}
+
+/**
+ * Check if budget reset is needed and perform it if required
+ * Call this on app load (dashboard, budget pages)
+ */
+export async function checkAndResetBudgetIfNeeded(householdId: string): Promise<boolean> {
+  try {
+    const householdResult = await db.queryOnce({
+      households: { $: { where: { id: householdId } } },
+    });
+
+    const household = householdResult.data.households?.[0];
+    if (!household) return false;
+
+    // Check if current date is past the budget period end date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const periodEnd = new Date(household.budgetPeriodEnd + 'T00:00:00');
+    periodEnd.setHours(0, 0, 0, 0);
+
+    // If today > period end date, reset is needed
+    if (today > periodEnd) {
+      console.log('Budget period has ended, triggering reset...');
+      return resetBudgetPeriod(householdId);
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Error checking budget reset:', error);
+    return false;
+  }
+}
