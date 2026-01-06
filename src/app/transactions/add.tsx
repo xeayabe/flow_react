@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, TextInput, Modal, ActivityIndicator,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Plus, X, Check, Calendar, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, Plus, X, Check, Calendar, ChevronRight, Check as CheckIcon } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { createTransaction, formatCurrency, formatDateSwiss, parseSwissDate } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
@@ -37,6 +37,7 @@ export default function AddTransactionScreen() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showAddAnotherModal, setShowAddAnotherModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -143,21 +144,10 @@ export default function AddTransactionScreen() {
       setSuccessMessage(`✓ ${formData.type === 'income' ? 'Income' : 'Expense'} added!`);
       setShowSuccess(true);
 
-      // Clear form after 2 seconds
+      // Show the "add another" modal after 1.5 seconds
       setTimeout(() => {
-        setFormData({
-          type: formData.type,
-          amount: '',
-          categoryId: '',
-          accountId: accountsQuery.data?.[0]?.id || '',
-          date: new Date().toISOString().split('T')[0],
-          note: '',
-          isRecurring: false,
-          recurringDay: 1,
-        });
-        setShowSuccess(false);
-        amountInputRef.current?.focus();
-      }, 2000);
+        setShowAddAnotherModal(true);
+      }, 1500);
     },
     onError: (error) => {
       console.error('Transaction creation failed:', error);
@@ -664,6 +654,60 @@ export default function AddTransactionScreen() {
               </ScrollView>
             </View>
           </SafeAreaView>
+        </View>
+      </Modal>
+
+      {/* Add Another Modal */}
+      <Modal visible={showAddAnotherModal} animationType="fade" transparent>
+        <View className="flex-1 bg-black/50 items-center justify-center">
+          <View className="bg-white rounded-2xl mx-6 p-6 gap-4">
+            <View className="items-center gap-3">
+              <View className="w-12 h-12 rounded-full bg-green-100 items-center justify-center">
+                <CheckIcon size={24} color="#059669" />
+              </View>
+              <Text className="text-lg font-semibold text-gray-900 text-center">
+                {formData.type === 'income' ? 'Income' : 'Expense'} Added!
+              </Text>
+              <Text className="text-sm text-gray-600 text-center">
+                Would you like to add another transaction?
+              </Text>
+            </View>
+
+            <View className="gap-3 mt-2">
+              <Pressable
+                onPress={() => {
+                  setShowAddAnotherModal(false);
+                  setShowSuccess(false);
+                  // Reset form for new transaction
+                  setFormData({
+                    type: formData.type,
+                    amount: '',
+                    categoryId: '',
+                    accountId: accountsQuery.data?.[0]?.id || '',
+                    date: new Date().toISOString().split('T')[0],
+                    note: '',
+                    isRecurring: false,
+                    recurringDay: 1,
+                  });
+                  amountInputRef.current?.focus();
+                }}
+                className="py-3 rounded-lg bg-teal-600 items-center justify-center"
+              >
+                <Text className="text-base font-semibold text-white">Add Another</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  setShowAddAnotherModal(false);
+                  setShowSuccess(false);
+                  router.back();
+                }}
+                className="py-3 rounded-lg border-2 border-gray-200 items-center justify-center"
+              >
+                <Text className="text-base font-semibold text-gray-700">Done</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
       </Modal>
     </View>
