@@ -170,6 +170,7 @@ src/
 │   │   ├── add.tsx           # Add Wallet modal (Material Design 3)
 │   │   └── index.tsx         # Wallets list screen
 │   ├── settings/
+│   │   ├── index.tsx         # Settings home page with menu
 │   │   └── categories.tsx    # Categories management page
 │   ├── _layout.tsx           # Root layout with auth routing
 │   ├── welcome.tsx           # Welcome screen (first screen)
@@ -283,6 +284,39 @@ INSTANTDB_ADMIN_TOKEN=your-admin-token
 ```bash
 bun start
 ```
+
+## Navigation Guide
+
+### Main Navigation Flow
+
+1. **Dashboard** (`/` or `/(tabs)`)
+   - Main app screen showing all wallets
+   - Settings button (⚙️) in top-right corner
+   - Click to access Settings menu
+
+2. **Settings** (`/settings`)
+   - User profile section with avatar and email
+   - Menu items:
+     - **Wallets** → `/accounts` - Manage bank accounts and wallets
+     - **Categories** → `/settings/categories` - Organize income/expense categories
+     - **Profile** → Coming soon
+   - Sign Out button at bottom
+
+3. **Categories Management** (`/settings/categories`)
+   - View all categories organized by type (Income, Needs, Wants, Savings, Other)
+   - Add new category button (+) in top-right
+   - Click category to edit (custom categories only)
+   - Delete custom categories (default categories are read-only)
+   - Back button returns to Settings
+
+### Quick Access Paths
+
+| Screen | Route | How to Access |
+|--------|-------|---------------|
+| Dashboard | `/` | App default/home |
+| Settings | `/settings` | Settings icon on Dashboard |
+| Categories | `/settings/categories` | Settings > Categories |
+| Wallets | `/accounts` | Settings > Wallets |
 
 ## Design Principles
 

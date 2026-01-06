@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, TextInput, Modal, ActivityIndicator,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Edit2, Trash2, X } from 'lucide-react-native';
+import { ChevronLeft, Plus, Edit2, Trash2, X } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '@/lib/categories-api';
 import { cn } from '@/lib/cn';
@@ -262,7 +262,7 @@ export default function CategoriesScreen() {
           title: 'Categories',
           headerLeft: () => (
             <Pressable onPress={() => router.back()} className="pl-4">
-              <ArrowLeft size={24} color="#006A6A" />
+              <ChevronLeft size={24} color="#006A6A" />
             </Pressable>
           ),
           headerRight: () => (

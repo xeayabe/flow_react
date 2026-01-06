@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, View, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Wallet, Plus, LogOut, Star, Building2, CreditCard, Banknote, TrendingUp, ArrowRight } from 'lucide-react-native';
+import { Wallet, Plus, Star, Building2, CreditCard, Banknote, TrendingUp, ArrowRight, Settings } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 import { getUserAccounts, formatBalance } from '@/lib/accounts-api';
@@ -56,11 +56,6 @@ export default function DashboardScreen() {
   const defaultAccount = accounts.find((acc) => acc.isDefault);
   const hasAccounts = accounts.length > 0;
 
-  const handleSignOut = async () => {
-    await db.auth.signOut();
-    router.replace('/login');
-  };
-
   // Get current month and year
   const currentDate = new Date();
   const monthYear = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -79,11 +74,11 @@ export default function DashboardScreen() {
             </Text>
           </View>
           <Pressable
-            onPress={handleSignOut}
+            onPress={() => router.push('/settings')}
             className="rounded-full p-2"
             style={{ backgroundColor: 'rgba(0, 106, 106, 0.1)' }}
           >
-            <LogOut size={20} color="#006A6A" />
+            <Settings size={20} color="#006A6A" />
           </Pressable>
         </View>
       </View>
