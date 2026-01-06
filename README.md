@@ -111,8 +111,10 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Soft delete support with balance restoration
 - ✅ **User Experience**:
   - Success message after transaction creation
-  - Form resets with option to add another
-  - Auto-focus on amount field for quick entry
+  - Confirmation modal asking if user wants to add another transaction
+  - Quick entry: "Add Another" button resets form for fast successive entries
+  - Exit option: "Done" button returns to previous screen (dashboard or transactions tab)
+  - Auto-focus on amount field for quick re-entry
   - Custom date picker with calendar UI (no native date picker)
   - FAB button on Dashboard to add transactions
 - ✅ **View & Filter Transactions (US-018)** - Complete transaction list with filtering
