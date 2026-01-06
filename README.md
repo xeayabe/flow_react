@@ -109,7 +109,7 @@ src/
      - User auto-logged in
    - Redirect to dashboard
 
-2. **Login**:
+3. **Login**:
    - User enters email
    - System checks if user profile exists in database:
      - If no profile: Show error "No account found with this email. Please sign up first."
@@ -117,8 +117,9 @@ src/
    - User enters 6-digit verification code
    - Upon successful verification: User logged in → redirect to dashboard
    - **Important**: Users CANNOT receive a login code unless they have already signed up
+   - **Security**: Passwordless authentication only - no passwords collected or validated
 
-3. **Auth Guards**:
+4. **Auth Guards**:
    - Unauthenticated users redirected to signup
    - Authenticated users redirected to dashboard
    - Auth state managed by InstantDB SDK

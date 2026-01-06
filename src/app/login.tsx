@@ -3,24 +3,21 @@ import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Pla
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { Eye, EyeOff, ArrowLeft, Info } from 'lucide-react-native';
+import { ArrowLeft, Info } from 'lucide-react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useMutation } from '@tanstack/react-query';
 import { sendMagicCode, verifyMagicCode, checkUserProfile } from '@/lib/auth-api';
-import { cn } from '@/lib/cn';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 type Step = 'details' | 'verify';
 
 interface FormData {
   email: string;
-  password: string;
   code: string;
 }
 
 interface ValidationErrors {
   email?: string;
-  password?: string;
   code?: string;
 }
 
@@ -28,14 +25,12 @@ export default function LoginScreen() {
   const [step, setStep] = useState<Step>('details');
   const [formData, setFormData] = useState<FormData>({
     email: '',
-    password: '',
     code: '',
   });
 
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [biometricAvailable, setBiometricAvailable] = useState<boolean>(false);
 
   React.useEffect(() => {
@@ -52,13 +47,12 @@ export default function LoginScreen() {
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Log in to Flow',
-        fallbackLabel: 'Use password',
+        fallbackLabel: 'Use email',
         disableDeviceFallback: false,
       });
 
       if (result.success) {
         // In a real app, you'd retrieve stored credentials here
-        // For now, just show a success message
         console.log('Biometric authentication successful');
       }
     } catch (error) {
@@ -101,12 +95,6 @@ export default function LoginScreen() {
     return undefined;
   };
 
-  const validatePassword = (password: string): string | undefined => {
-    if (!password) return 'Password is required';
-    if (password.length < 8) return 'Password must be at least 8 characters';
-    return undefined;
-  };
-
   const validateCode = (code: string): string | undefined => {
     if (!code) return 'Verification code is required';
     if (code.length < 6) return 'Enter the 6-digit code';
@@ -121,9 +109,6 @@ export default function LoginScreen() {
     switch (field) {
       case 'email':
         error = validateEmail(formData.email);
-        break;
-      case 'password':
-        error = validatePassword(formData.password);
         break;
       case 'code':
         error = validateCode(formData.code);
@@ -143,16 +128,12 @@ export default function LoginScreen() {
       return;
     }
 
-    setTouched({
-      email: true,
-      password: true,
-    });
+    setTouched({ email: true });
 
     const emailError = validateEmail(formData.email);
-    const passwordError = validatePassword(formData.password);
 
-    if (emailError || passwordError) {
-      setErrors({ email: emailError, password: passwordError });
+    if (emailError) {
+      setErrors({ email: emailError });
       return;
     }
 
@@ -172,7 +153,7 @@ export default function LoginScreen() {
     verifyCodeMutation.mutate();
   };
 
-  const isDetailsValid = !validateEmail(formData.email) && !validatePassword(formData.password);
+  const isDetailsValid = !validateEmail(formData.email);
   const isCodeValid = !validateCode(formData.code);
 
   // Verification screen
@@ -306,12 +287,12 @@ export default function LoginScreen() {
                 Welcome Back
               </Text>
               <Text className="text-sm" style={{ color: 'rgba(139, 157, 139, 0.6)' }}>
-                Log in to continue your journey
+                Enter your email to receive a login code
               </Text>
             </Animated.View>
 
             {/* Email Field */}
-            <Animated.View entering={FadeInDown.delay(100).duration(600)} className="mb-4">
+            <Animated.View entering={FadeInDown.delay(100).duration(600)} className="mb-8">
               <View className="relative rounded-3xl" style={{ overflow: 'hidden' }}>
                 <TextInput
                   className="text-base px-4 pt-6 pb-4 rounded-3xl border-2 bg-white"
@@ -355,81 +336,25 @@ export default function LoginScreen() {
               )}
             </Animated.View>
 
-            {/* Password Field */}
-            <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mb-2">
-              <View className="relative rounded-3xl" style={{ overflow: 'hidden' }}>
-                <TextInput
-                  className="text-base px-4 pt-6 pb-4 pr-12 rounded-3xl border-2 bg-white"
-                  style={{
-                    borderColor: focusedField === 'password' ? '#006A6A' : '#E5E7EB',
-                    color: '#1F2937',
-                    backgroundColor: '#FFFFFF',
-                  }}
-                  placeholder=" "
-                  value={formData.password}
-                  onChangeText={(text) => {
-                    setFormData({ ...formData, password: text });
-                    setErrors({ ...errors, password: undefined });
-                  }}
-                  onFocus={() => setFocusedField('password')}
-                  onBlur={() => handleBlur('password')}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  textContentType="password"
-                />
-                {/* Floating Label */}
-                <Text
-                  className="absolute left-4 text-xs font-medium"
-                  style={{
-                    top: 10,
-                    color: focusedField === 'password' ? '#006A6A' : '#9CA3AF',
-                  }}
-                >
-                  Password
+            {/* Info Message */}
+            <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mb-8">
+              <View className="px-4 py-3 rounded-2xl" style={{ backgroundColor: 'rgba(0, 106, 106, 0.05)' }}>
+                <Text className="text-xs text-center" style={{ color: 'rgba(0, 106, 106, 0.7)' }}>
+                  We'll send a secure verification code to your email. No password needed!
                 </Text>
-                {/* Eye Icon */}
-                <Pressable
-                  onPress={() => setShowPassword(!showPassword)}
-                  className="absolute right-4"
-                  style={{ top: 20 }}
-                >
-                  {showPassword ? (
-                    <EyeOff size={20} color="#9CA3AF" />
-                  ) : (
-                    <Eye size={20} color="#9CA3AF" />
-                  )}
-                </Pressable>
               </View>
-              {touched.password && errors.password && (
-                <View className="flex-row items-center mt-2 ml-4">
-                  <Info size={14} color="#006A6A" />
-                  <Text className="text-xs ml-1.5" style={{ color: '#006A6A' }}>
-                    {errors.password}
-                  </Text>
-                </View>
-              )}
-            </Animated.View>
-
-            {/* Forgot Password Link */}
-            <Animated.View entering={FadeInDown.delay(300).duration(600)} className="items-end mb-8">
-              <Pressable onPress={() => {/* Handle forgot password */}}>
-                <Text className="text-xs font-medium underline" style={{ color: '#8B9D8B' }}>
-                  Forgot Password?
-                </Text>
-              </Pressable>
             </Animated.View>
           </ScrollView>
 
           {/* Bottom Button - Fixed at bottom */}
           <View className="px-6 pb-6 pt-4 bg-white">
-            <Animated.View entering={FadeInDown.delay(400).duration(600)}>
+            <Animated.View entering={FadeInDown.delay(300).duration(600)}>
               <View className="flex-row items-center">
                 {/* Login Button */}
                 <Pressable
                   onPress={handleLogin}
                   disabled={!isDetailsValid || sendCodeMutation.isPending}
-                  className="flex-1 rounded-full py-4 items-center justify-center mr-3"
+                  className="flex-1 rounded-full py-4 items-center justify-center"
                   style={{
                     backgroundColor: isDetailsValid && !sendCodeMutation.isPending ? '#006A6A' : '#E5E7EB',
                     height: 56,
@@ -448,7 +373,7 @@ export default function LoginScreen() {
                       className="text-base font-semibold"
                       style={{ color: isDetailsValid ? 'white' : '#9CA3AF' }}
                     >
-                      Log In
+                      Send Login Code
                     </Text>
                   )}
                 </Pressable>
@@ -457,7 +382,7 @@ export default function LoginScreen() {
                 {biometricAvailable && (
                   <Pressable
                     onPress={handleBiometricAuth}
-                    className="w-14 h-14 rounded-full items-center justify-center"
+                    className="w-14 h-14 rounded-full items-center justify-center ml-3"
                     style={{
                       backgroundColor: '#F3E8FF',
                     }}
