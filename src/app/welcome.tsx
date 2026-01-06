@@ -148,7 +148,7 @@ export default function WelcomeScreen() {
 
         <Animated.View entering={FadeInDown.delay(400).duration(800)}>
           <Text
-            className="text-center mb-8"
+            className="text-center mb-12"
             style={{
               fontSize: 16,
               color: 'rgba(0, 106, 106, 0.6)',
@@ -159,38 +159,17 @@ export default function WelcomeScreen() {
             Calm Financial Control
           </Text>
         </Animated.View>
-
-        {/* Features - subtle hints */}
-        <Animated.View entering={FadeInDown.delay(600).duration(800)} className="space-y-6 px-4">
-          <View className="flex-row items-center">
-            <View className="w-1.5 h-1.5 rounded-full mr-3" style={{ backgroundColor: '#006A6A' }} />
-            <Text className="text-base" style={{ color: 'rgba(0, 106, 106, 0.7)' }}>
-              Track expenses effortlessly
-            </Text>
-          </View>
-          <View className="flex-row items-center">
-            <View className="w-1.5 h-1.5 rounded-full mr-3" style={{ backgroundColor: '#006A6A' }} />
-            <Text className="text-base" style={{ color: 'rgba(0, 106, 106, 0.7)' }}>
-              Share with your household
-            </Text>
-          </View>
-          <View className="flex-row items-center">
-            <View className="w-1.5 h-1.5 rounded-full mr-3" style={{ backgroundColor: '#006A6A' }} />
-            <Text className="text-base" style={{ color: 'rgba(0, 106, 106, 0.7)' }}>
-              Stay in control, stay calm
-            </Text>
-          </View>
-        </Animated.View>
       </View>
 
-      {/* Bottom section with CTA button */}
+      {/* Bottom section with CTA buttons */}
       <SafeAreaView edges={['bottom']} className="px-6 pb-4">
-        <Animated.View entering={FadeInDown.delay(800).duration(800)}>
+        {/* Get Started Button */}
+        <Animated.View entering={FadeInDown.delay(600).duration(800)}>
           <Pressable
             onPressIn={() => setButtonPressed(true)}
             onPressOut={() => setButtonPressed(false)}
             onPress={handleGetStarted}
-            className="rounded-full py-5 items-center justify-center shadow-lg"
+            className="rounded-full py-5 items-center justify-center shadow-lg mb-3"
             style={{
               backgroundColor: '#006A6A',
               shadowColor: '#006A6A',
@@ -210,10 +189,25 @@ export default function WelcomeScreen() {
           </Pressable>
         </Animated.View>
 
+        {/* Login Link */}
+        <Animated.View entering={FadeInDown.delay(800).duration(800)}>
+          <Pressable
+            onPress={() => router.push('/login')}
+            className="py-3 items-center"
+          >
+            <Text
+              className="font-medium"
+              style={{ fontSize: 15, color: '#006A6A' }}
+            >
+              Already have an account? <Text className="font-semibold underline">Log in</Text>
+            </Text>
+          </Pressable>
+        </Animated.View>
+
         {/* Terms hint */}
         <Animated.View entering={FadeIn.delay(1000).duration(800)}>
           <Text
-            className="text-center mt-4 px-8 text-xs"
+            className="text-center mt-2 px-8 text-xs"
             style={{ color: 'rgba(0, 106, 106, 0.4)' }}
           >
             By continuing, you agree to our Terms of Service and Privacy Policy
