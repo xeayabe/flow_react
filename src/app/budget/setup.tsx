@@ -42,6 +42,7 @@ export default function BudgetSetupScreen() {
   const { user } = db.useAuth();
   const [monthlyIncome, setMonthlyIncome] = useState<string>('');
   const [allocations, setAllocations] = useState<Record<string, number>>({});
+  const [editingField, setEditingField] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showSaveError, setShowSaveError] = useState('');
@@ -147,6 +148,13 @@ export default function BudgetSetupScreen() {
 
   // Handle amount change
   const handleAmountChange = (categoryId: string, newAmount: string) => {
+    if (!newAmount) {
+      setAllocations((prev) => ({
+        ...prev,
+        [categoryId]: 0,
+      }));
+      return;
+    }
     const amount = parseFloat(newAmount) || 0;
     setAllocations((prev) => ({
       ...prev,
@@ -156,6 +164,14 @@ export default function BudgetSetupScreen() {
 
   // Handle percentage change
   const handlePercentageChange = (categoryId: string, newPercentage: string) => {
+    if (!newPercentage) {
+      setAllocations((prev) => ({
+        ...prev,
+        [categoryId]: 0,
+      }));
+      return;
+    }
+    const income = parseFloat(monthlyIncome) || 0;
     const percentage = parseFloat(newPercentage) || 0;
     const amount = calculateAmountFromPercentage(Math.max(0, percentage), income);
     setAllocations((prev) => ({
@@ -365,9 +381,10 @@ export default function BudgetSetupScreen() {
                   {/* Categories in Group */}
                   <View>
                     {group.categories.map((category) => {
-                      const amount = category.allocatedAmount;
+                      const amount = allocations[category.id] || 0;
                       const percentage = income > 0 ? calculatePercentage(amount, income) : 0;
-                      const percentageStr = percentage.toFixed(1);
+                      const isEditingAmount = editingField === `amount-${category.id}`;
+                      const isEditingPercentage = editingField === `percentage-${category.id}`;
 
                       return (
                         <View key={category.id} className="mb-5">
@@ -375,15 +392,16 @@ export default function BudgetSetupScreen() {
                             <View className="flex-1">
                               <Text className="text-sm font-semibold text-gray-900">{category.name}</Text>
                             </View>
-                            <Text className="text-xs font-medium text-gray-500">{percentageStr}%</Text>
+                            <Text className="text-xs font-medium text-gray-500">{percentage.toFixed(1)}%</Text>
                           </View>
 
                           {/* Dual Input Row */}
                           <View className="flex-row gap-2">
                             <View className="flex-1">
                               <TextInput
-                                value={amount > 0 ? amount.toFixed(2) : ''}
+                                value={isEditingAmount ? (allocations[category.id]?.toString() || '') : (amount > 0 ? amount.toFixed(2) : '')}
                                 onChangeText={(text) => {
+                                  setEditingField(`amount-${category.id}`);
                                   // Allow only numbers and decimal point
                                   const filtered = text.replace(/[^0-9.]/g, '');
                                   // Prevent multiple decimal points
@@ -394,6 +412,7 @@ export default function BudgetSetupScreen() {
                                     handleAmountChange(category.id, filtered);
                                   }
                                 }}
+                                onBlur={() => setEditingField(null)}
                                 placeholder="0.00"
                                 placeholderTextColor="#D1D5DB"
                                 keyboardType="numbers-and-punctuation"
@@ -405,8 +424,9 @@ export default function BudgetSetupScreen() {
 
                             <View className="flex-1">
                               <TextInput
-                                value={percentage > 0 ? percentageStr : ''}
+                                value={isEditingPercentage ? (allocations[category.id] > 0 ? calculatePercentage(allocations[category.id], income).toString() : '') : (percentage > 0 ? percentage.toFixed(1) : '')}
                                 onChangeText={(text) => {
+                                  setEditingField(`percentage-${category.id}`);
                                   // Allow only numbers and decimal point
                                   const filtered = text.replace(/[^0-9.]/g, '');
                                   // Prevent multiple decimal points
@@ -417,6 +437,7 @@ export default function BudgetSetupScreen() {
                                     handlePercentageChange(category.id, filtered);
                                   }
                                 }}
+                                onBlur={() => setEditingField(null)}
                                 placeholder="0.0"
                                 placeholderTextColor="#D1D5DB"
                                 keyboardType="numbers-and-punctuation"
