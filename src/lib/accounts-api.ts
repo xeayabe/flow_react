@@ -60,27 +60,64 @@ export interface AccountResponse {
  */
 async function getUserHouseholdInfo(email: string): Promise<{ householdId: string; currency: string; userId: string } | null> {
   try {
-    const result = await db.queryOnce({
+    // First, get the user by email
+    const userResult = await db.queryOnce({
       users: {
         $: {
           where: {
             email: email.toLowerCase(),
           },
         },
-        memberships: {
-          household: {},
+      },
+    });
+
+    const user = userResult.data.users?.[0];
+    if (!user) {
+      console.error('User not found:', email);
+      return null;
+    }
+
+    // Then, get the household members for this user
+    const membershipResult = await db.queryOnce({
+      householdMembers: {
+        $: {
+          where: {
+            userId: user.id,
+            status: 'active',
+          },
         },
       },
     });
 
-    const user = result.data.users?.[0];
-    if (!user) return null;
+    const membership = membershipResult.data.householdMembers?.[0];
+    if (!membership) {
+      console.error('No active household membership found for user:', user.id);
+      return null;
+    }
 
-    const membership = user.memberships?.[0];
-    if (!membership) return null;
+    // Validate that householdId exists in the membership record
+    if (!membership.householdId) {
+      console.error('Membership has no householdId:', membership.id);
+      return null;
+    }
 
-    const household = membership.household;
-    if (!household) return null;
+    // Now get the household details using the householdId from the membership
+    // This ensures we have the correct household currency
+    const householdResult = await db.queryOnce({
+      households: {
+        $: {
+          where: {
+            id: membership.householdId,
+          },
+        },
+      },
+    });
+
+    const household = householdResult.data.households?.[0];
+    if (!household) {
+      console.error('Household not found for householdId:', membership.householdId);
+      return null;
+    }
 
     return {
       userId: user.id,
