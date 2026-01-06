@@ -36,9 +36,7 @@ export default function AddTransactionScreen() {
   const amountInputRef = useRef<TextInput>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [showAddAnotherModal, setShowAddAnotherModal] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
@@ -141,13 +139,8 @@ export default function AddTransactionScreen() {
       queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
 
-      setSuccessMessage(`✓ ${formData.type === 'income' ? 'Income' : 'Expense'} added!`);
-      setShowSuccess(true);
-
-      // Show the "add another" modal after 1.5 seconds
-      setTimeout(() => {
-        setShowAddAnotherModal(true);
-      }, 1500);
+      // Show the "add another" modal immediately
+      setShowAddAnotherModal(true);
     },
     onError: (error) => {
       console.error('Transaction creation failed:', error);
@@ -227,14 +220,6 @@ export default function AddTransactionScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
             <View className="px-6 py-8">
-              {/* Success Message */}
-              {showSuccess && (
-                <View className="mb-6 p-4 rounded-lg bg-green-50 flex-row items-center gap-2">
-                  <Check size={20} color="#059669" />
-                  <Text className="text-sm font-semibold text-green-700">{successMessage}</Text>
-                </View>
-              )}
-
               {/* Type Toggle */}
               <View className="mb-8">
                 <Text className="text-sm font-semibold text-gray-700 mb-3">Type</Text>
@@ -677,7 +662,6 @@ export default function AddTransactionScreen() {
               <Pressable
                 onPress={() => {
                   setShowAddAnotherModal(false);
-                  setShowSuccess(false);
                   // Reset form for new transaction
                   setFormData({
                     type: formData.type,
@@ -699,7 +683,6 @@ export default function AddTransactionScreen() {
               <Pressable
                 onPress={() => {
                   setShowAddAnotherModal(false);
-                  setShowSuccess(false);
                   router.back();
                 }}
                 className="py-3 rounded-lg border-2 border-gray-200 items-center justify-center"
