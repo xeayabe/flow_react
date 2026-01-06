@@ -1,8 +1,14 @@
-# Expense Sharing Application
+# Flow - Budget Tracker Application
 
-A modern expense sharing app built with Expo, React Native, and InstantDB.
+A beautiful iOS mobile app for calm financial control. Track expenses with your household using a premium, minimalist design.
 
 ## Features
+
+### Welcome Experience
+- ✅ Premium welcome screen with Flow branding
+- ✅ Smooth animations with flowing water droplets forming currency symbols
+- ✅ Deep teal and sage green aesthetic
+- ✅ Material Design 3 filled button with elegant interactions
 
 ### Authentication
 - ✅ Email magic code signup and login
@@ -61,6 +67,7 @@ src/
 │   │   ├── index.tsx         # Dashboard screen
 │   │   └── two.tsx           # Profile screen
 │   ├── _layout.tsx           # Root layout with auth routing
+│   ├── welcome.tsx           # Welcome screen (first screen)
 │   ├── signup.tsx            # Signup screen
 │   └── login.tsx             # Login screen
 ├── lib/
@@ -73,7 +80,13 @@ src/
 
 ## Authentication Flow
 
-1. **Signup**:
+1. **Welcome Screen**:
+   - Beautiful first impression with Flow branding
+   - Animated water droplets forming currency symbols
+   - Single "Get Started" button to begin signup flow
+   - Automatic redirect to dashboard if already logged in
+
+2. **Signup**:
    - User fills signup form with email and name
    - Validation rules enforced:
      - Email must be valid format
@@ -126,10 +139,12 @@ bun start
 
 ## Design Principles
 
-- **Mobile-first**: Designed for iOS with clean, modern aesthetics
-- **User-friendly**: Clear validation messages and intuitive UI
-- **Secure**: Password hashing, validation, and protected routes
-- **Real-time**: InstantDB enables real-time data sync across devices
+- **Premium iOS Design**: Follows Apple's Human Interface Guidelines
+- **Calm & Empathetic**: Deep teal (#006A6A) and sage green color palette
+- **Material Design 3**: Modern rounded corners, subtle shadows, and smooth interactions
+- **Mobile-first**: Designed specifically for iOS with touch-optimized interactions
+- **Generous Whitespace**: Clean, uncluttered layouts that breathe
+- **Smooth Animations**: React Native Reanimated for fluid, delightful micro-interactions
 - **Accessible**: Proper form labels, error messages, and keyboard handling
 
 ## Next Steps

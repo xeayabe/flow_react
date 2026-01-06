@@ -11,7 +11,7 @@ import { useEffect } from 'react';
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: 'signup',
+  initialRouteName: 'welcome',
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -28,10 +28,11 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(tabs)';
+    const inWelcome = segments[0] === 'welcome';
 
     if (!user && inAuthGroup) {
-      // Redirect to signup if not authenticated
-      router.replace('/signup');
+      // Redirect to welcome if not authenticated
+      router.replace('/welcome');
     } else if (user && !inAuthGroup && segments[0] !== 'modal') {
       // Redirect to dashboard if authenticated
       router.replace('/(tabs)');
@@ -44,6 +45,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
+        <Stack.Screen name="welcome" options={{ headerShown: false }} />
         <Stack.Screen name="signup" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
