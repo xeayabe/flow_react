@@ -260,7 +260,7 @@ export default function AddAccountScreen() {
               </Text>
             </View>
 
-            {/* Account Name with Character Counter */}
+            {/* Wallet Name with Character Counter */}
             <Animated.View entering={FadeInDown.delay(100).duration(600)} className="mb-6">
               <View className="relative">
                 <TextInput
@@ -269,7 +269,8 @@ export default function AddAccountScreen() {
                     borderColor: focusedField === 'name' ? '#006A6A' : '#E5E7EB',
                     color: '#1F2937',
                   }}
-                  placeholder=" "
+                  placeholder="e.g., My Checking, Savings Account"
+                  placeholderTextColor="#D1D5DB"
                   value={formData.name}
                   onChangeText={(text) => {
                     setFormData({ ...formData, name: text });
@@ -286,7 +287,7 @@ export default function AddAccountScreen() {
                     color: focusedField === 'name' ? '#006A6A' : '#9CA3AF',
                   }}
                 >
-                  Account Name
+                  Wallet Name
                 </Text>
                 <Text className="absolute right-4 text-xs font-medium" style={{ color: '#9CA3AF', top: 8 }}>
                   {formData.name.length}/50
@@ -402,7 +403,8 @@ export default function AddAccountScreen() {
                       borderColor: focusedField === 'startingBalance' ? '#006A6A' : '#E5E7EB',
                       color: '#1F2937',
                     }}
-                    placeholder=" "
+                    placeholder="e.g., 1,000"
+                    placeholderTextColor="#D1D5DB"
                     value={formData.startingBalance}
                     onChangeText={(text) => {
                       setFormData({ ...formData, startingBalance: text });
