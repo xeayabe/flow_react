@@ -57,7 +57,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="accounts" options={{ headerShown: false, presentation: 'card' }} />
-        <Stack.Screen name="budget" options={{ headerShown: false, presentation: 'card' }} />
+        <Stack.Screen name="budget" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false, presentation: 'card' }} />
         <Stack.Screen name="transactions" options={{ headerShown: false, presentation: 'card' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />

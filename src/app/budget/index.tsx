@@ -21,36 +21,20 @@ interface BudgetSummaryData {
 function getStatusColor(status: string): string {
   switch (status) {
     case 'on-track':
-      return '#10B981'; // Green
+      return '#10B981';
     case 'warning':
-      return '#F59E0B'; // Amber
+      return '#F59E0B';
     case 'over-budget':
-      return '#EF4444'; // Red
+      return '#EF4444';
     default:
-      return '#6B7280'; // Gray
+      return '#6B7280';
   }
-}
-
-function getCategoryIcon(group: string, spent: number, allocated: number): React.ReactNode {
-  const statusColor = spent > allocated ? '#EF4444' : spent >= allocated * 0.95 ? '#F59E0B' : '#10B981';
-
-  if (group === 'needs') {
-    return <View className="w-10 h-10 rounded-full items-center justify-center bg-blue-100"><Text className="text-lg">🏠</Text></View>;
-  }
-  if (group === 'wants') {
-    return <View className="w-10 h-10 rounded-full items-center justify-center bg-purple-100"><Text className="text-lg">🎭</Text></View>;
-  }
-  if (group === 'savings') {
-    return <View className="w-10 h-10 rounded-full items-center justify-center bg-green-100"><Text className="text-lg">💎</Text></View>;
-  }
-  return <View className="w-10 h-10 rounded-full items-center justify-center bg-gray-100"><Text className="text-lg">📊</Text></View>;
 }
 
 export default function BudgetOverviewScreen() {
   const { user } = db.useAuth();
   const queryClient = useQueryClient();
 
-  // Get household for payday info
   const householdQuery = useQuery({
     queryKey: ['household', user?.email],
     queryFn: async () => {
@@ -75,11 +59,9 @@ export default function BudgetOverviewScreen() {
     enabled: !!user?.email,
   });
 
-  // Calculate budget period
   const paydayDay = householdQuery.data?.household?.paydayDay ?? 25;
   const budgetPeriod = calculateBudgetPeriod(paydayDay);
 
-  // Get budget summary
   const summaryQuery = useQuery({
     queryKey: ['budget-summary', householdQuery.data?.userRecord?.id, householdQuery.data?.household?.id, budgetPeriod.start],
     queryFn: async () => {
@@ -89,7 +71,6 @@ export default function BudgetOverviewScreen() {
     enabled: !!householdQuery.data?.userRecord?.id,
   });
 
-  // Get budget details
   const detailsQuery = useQuery({
     queryKey: ['budget-details', householdQuery.data?.userRecord?.id, budgetPeriod.start],
     queryFn: async () => {
@@ -99,7 +80,6 @@ export default function BudgetOverviewScreen() {
     enabled: !!householdQuery.data?.userRecord?.id,
   });
 
-  // Refetch when focused
   useFocusEffect(
     useCallback(() => {
       queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
@@ -110,7 +90,6 @@ export default function BudgetOverviewScreen() {
   const summary = summaryQuery.data as BudgetSummaryData | null;
   const details = detailsQuery.data || [];
 
-  // Group details by category group
   const groupedDetails = useMemo(() => {
     const groups: Record<string, any[]> = {
       needs: [],
@@ -137,38 +116,27 @@ export default function BudgetOverviewScreen() {
     );
   }
 
-  // No budget yet
   if (!summary) {
     return (
-      <>
-        <Stack.Screen
-          options={{
-            title: 'Budget',
-            headerStyle: { backgroundColor: '#FFFFFF' },
-            headerTintColor: '#006A6A',
-            headerTitleStyle: { fontSize: 18, fontWeight: '600' },
-          }}
-        />
-        <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
-            <View className="items-center">
-              <View className="w-20 h-20 rounded-full bg-teal-50 items-center justify-center mb-6">
-                <Text className="text-4xl">📊</Text>
-              </View>
-              <Text className="text-2xl font-bold text-gray-900 text-center mb-3">Set up your budget</Text>
-              <Text className="text-base text-gray-600 text-center leading-6 mb-8">
-                Allocate your monthly income to track spending and ensure every franc has a purpose.
-              </Text>
-              <Pressable
-                onPress={() => router.push('/budget/setup')}
-                className="bg-teal-600 py-3 px-8 rounded-lg"
-              >
-                <Text className="text-white font-semibold text-center">Create My First Budget</Text>
-              </Pressable>
+      <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
+          <View className="items-center">
+            <View className="w-20 h-20 rounded-full bg-teal-50 items-center justify-center mb-6">
+              <Text className="text-4xl">📊</Text>
             </View>
-          </ScrollView>
-        </SafeAreaView>
-      </>
+            <Text className="text-2xl font-bold text-gray-900 text-center mb-3">Set up your budget</Text>
+            <Text className="text-base text-gray-600 text-center leading-6 mb-8">
+              Allocate your monthly income to track spending and ensure every franc has a purpose.
+            </Text>
+            <Pressable
+              onPress={() => router.push('/budget/setup')}
+              className="bg-teal-600 py-3 px-8 rounded-lg"
+            >
+              <Text className="text-white font-semibold text-center">Create My First Budget</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
@@ -190,11 +158,9 @@ export default function BudgetOverviewScreen() {
           headerTitleStyle: { fontSize: 18, fontWeight: '600' },
         }}
       />
-
       <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
           <View className="px-6 py-6">
-            {/* Period Header */}
             <View className="mb-8">
               <Text className="text-sm text-gray-500 mb-1">Period</Text>
               <Text className="text-2xl font-bold text-gray-900">
@@ -202,7 +168,6 @@ export default function BudgetOverviewScreen() {
               </Text>
             </View>
 
-            {/* Overall Progress */}
             <View className="mb-8 p-5 rounded-2xl bg-gradient-to-br from-teal-50 to-blue-50" style={{ borderWidth: 1, borderColor: '#CCFBF1' }}>
               <View className="mb-4">
                 <View className="flex-row justify-between mb-2">
@@ -236,7 +201,6 @@ export default function BudgetOverviewScreen() {
               </View>
             </View>
 
-            {/* 50/30/20 Summary Cards */}
             <View className="mb-8 gap-3">
               {[
                 { title: 'Needs', icon: '🏠', allocated: summary.needsAllocated, spent: groupedDetails.needs.reduce((sum: number, d: any) => sum + d.spentAmount, 0), color: '#3B82F6' },
@@ -269,7 +233,6 @@ export default function BudgetOverviewScreen() {
               })}
             </View>
 
-            {/* Category Breakdown */}
             <View>
               <Text className="text-sm font-semibold text-gray-900 mb-4 uppercase">Categories</Text>
 

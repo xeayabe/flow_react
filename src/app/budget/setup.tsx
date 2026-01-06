@@ -253,15 +253,11 @@ export default function BudgetSetupScreen() {
     <>
       <Stack.Screen
         options={{
-          title: 'Set Up Your Budget',
           headerLeft: () => (
             <Pressable onPress={() => router.back()} className="mr-4">
               <ChevronLeft size={24} color="#006A6A" />
             </Pressable>
           ),
-          headerStyle: { backgroundColor: '#FFFFFF' },
-          headerTintColor: '#006A6A',
-          headerTitleStyle: { fontSize: 18, fontWeight: '600' },
         }}
       />
 
@@ -331,6 +327,9 @@ export default function BudgetSetupScreen() {
             {/* Category Groups */}
             {['needs', 'wants', 'savings'].map((groupKey) => {
               const group = groupedCategories[groupKey];
+              if (!group || !group.categories || group.categories.length === 0) {
+                return null;
+              }
               const groupTotal = group.categories.reduce((sum, cat) => sum + cat.allocatedAmount, 0);
               const groupPercentage = income > 0 ? (groupTotal / income) * 100 : 0;
 
@@ -354,59 +353,61 @@ export default function BudgetSetupScreen() {
                   </View>
 
                   {/* Categories in Group */}
-                  {group.categories.map((category) => {
-                    const amount = category.allocatedAmount;
-                    const percentage = income > 0 ? calculatePercentage(amount, income) : 0;
-                    const percentageStr = percentage.toFixed(1);
+                  <View>
+                    {group.categories.map((category) => {
+                      const amount = category.allocatedAmount;
+                      const percentage = income > 0 ? calculatePercentage(amount, income) : 0;
+                      const percentageStr = percentage.toFixed(1);
 
-                    return (
-                      <View key={category.id} className="mb-5">
-                        <View className="flex-row items-center gap-3 mb-2">
-                          <View className="flex-1">
-                            <Text className="text-sm font-semibold text-gray-900">{category.name}</Text>
+                      return (
+                        <View key={category.id} className="mb-5">
+                          <View className="flex-row items-center gap-3 mb-2">
+                            <View className="flex-1">
+                              <Text className="text-sm font-semibold text-gray-900">{category.name}</Text>
+                            </View>
+                            <Text className="text-xs font-medium text-gray-500">{percentageStr}%</Text>
                           </View>
-                          <Text className="text-xs font-medium text-gray-500">{percentageStr}%</Text>
-                        </View>
 
-                        {/* Dual Input Row */}
-                        <View className="flex-row gap-2">
-                          <View className="flex-1">
-                            <TextInput
-                              value={amount > 0 ? amount.toFixed(2) : ''}
-                              onChangeText={(text) => handleAmountChange(category.id, text)}
-                              placeholder="0.00"
-                              placeholderTextColor="#D1D5DB"
-                              keyboardType="decimal-pad"
-                              className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
-                              style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+                          {/* Dual Input Row */}
+                          <View className="flex-row gap-2">
+                            <View className="flex-1">
+                              <TextInput
+                                value={amount > 0 ? amount.toFixed(2) : ''}
+                                onChangeText={(text) => handleAmountChange(category.id, text)}
+                                placeholder="0.00"
+                                placeholderTextColor="#D1D5DB"
+                                keyboardType="decimal-pad"
+                                className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
+                                style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+                              />
+                              <Text className="text-xs text-gray-500 mt-0.5">CHF</Text>
+                            </View>
+
+                            <View className="flex-1">
+                              <TextInput
+                                value={percentage > 0 ? percentageStr : ''}
+                                onChangeText={(text) => handlePercentageChange(category.id, text)}
+                                placeholder="0.0"
+                                placeholderTextColor="#D1D5DB"
+                                keyboardType="decimal-pad"
+                                className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
+                                style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+                              />
+                              <Text className="text-xs text-gray-500 mt-0.5">%</Text>
+                            </View>
+                          </View>
+
+                          {/* Progress Bar */}
+                          <View className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <View
+                              className="h-full bg-teal-500"
+                              style={{ width: `${Math.min(100, percentage)}%` }}
                             />
-                            <Text className="text-xs text-gray-500 mt-0.5">CHF</Text>
-                          </View>
-
-                          <View className="flex-1">
-                            <TextInput
-                              value={percentage > 0 ? percentageStr : ''}
-                              onChangeText={(text) => handlePercentageChange(category.id, text)}
-                              placeholder="0.0"
-                              placeholderTextColor="#D1D5DB"
-                              keyboardType="decimal-pad"
-                              className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
-                              style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
-                            />
-                            <Text className="text-xs text-gray-500 mt-0.5">%</Text>
                           </View>
                         </View>
-
-                        {/* Progress Bar */}
-                        <View className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <View
-                            className="h-full bg-teal-500"
-                            style={{ width: `${Math.min(100, percentage)}%` }}
-                          />
-                        </View>
-                      </View>
-                    );
-                  })}
+                      );
+                    })}
+                  </View>
                 </View>
               );
             })}
