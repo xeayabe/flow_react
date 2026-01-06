@@ -10,10 +10,9 @@ import {
   ActivityIndicator,
   Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { ArrowLeft, Info, CheckCircle2, ChevronDown } from 'lucide-react-native';
+import { Info, CheckCircle2, ChevronDown } from 'lucide-react-native';
 import { useMutation } from '@tanstack/react-query';
 import {
   createAccount,
@@ -46,6 +45,7 @@ interface ValidationErrors {
   last4Digits?: string;
 }
 
+// Material Design 3 Add Account Modal - iOS full-screen form
 export default function AddAccountScreen() {
   const { user } = db.useAuth();
   const [formData, setFormData] = useState<FormData>({
@@ -227,35 +227,40 @@ export default function AddAccountScreen() {
   return (
     <View className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <SafeAreaView className="flex-1" edges={['top']}>
+      <View className="flex-1 rounded-t-3xl" style={{ overflow: 'hidden' }}>
+        {/* Modal Handle */}
+        <View className="pt-3 pb-2 items-center bg-white">
+          <View style={{ width: 32, height: 4, backgroundColor: '#D1D5DB', borderRadius: 2 }} />
+        </View>
+
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           className="flex-1"
         >
           <ScrollView
             className="flex-1"
-            contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Header */}
-            <View className="flex-row items-center mb-8">
-              <Pressable onPress={() => router.back()} className="mr-4">
-                <ArrowLeft size={24} color="#006A6A" />
-              </Pressable>
-              <View className="flex-1">
-                <Text className="text-2xl font-semibold" style={{ color: '#006A6A' }}>
-                  Add Account
-                </Text>
-                <Text className="text-sm mt-1" style={{ color: '#8B9D8B' }}>
-                  Track your finances across multiple accounts
-                </Text>
+            {/* Header Section */}
+            <View className="mb-8">
+              <View className="flex-row items-center mb-3">
+                <Pressable onPress={() => router.back()} className="mr-auto py-2">
+                  <Text style={{ color: '#006A6A', fontSize: 16, fontWeight: '600' }}>Cancel</Text>
+                </Pressable>
               </View>
+              <Text className="text-3xl font-bold text-center" style={{ color: '#006A6A', fontFamily: 'Rounded Sans' }}>
+                Add Account
+              </Text>
+              <Text className="text-base text-center mt-2" style={{ color: '#8B9D8B', opacity: 0.6 }}>
+                Track your money across all accounts
+              </Text>
             </View>
 
-            {/* Account Name */}
-            <Animated.View entering={FadeInDown.delay(100).duration(600)} className="mb-4">
-              <View className="relative rounded-3xl" style={{ overflow: 'hidden' }}>
+            {/* Account Name with Character Counter */}
+            <Animated.View entering={FadeInDown.delay(100).duration(600)} className="mb-6">
+              <View className="relative">
                 <TextInput
                   className="text-base px-4 pt-6 pb-4 rounded-3xl border-2 bg-white"
                   style={{
@@ -275,30 +280,28 @@ export default function AddAccountScreen() {
                 <Text
                   className="absolute left-4 text-xs font-medium"
                   style={{
-                    top: 10,
+                    top: 8,
                     color: focusedField === 'name' ? '#006A6A' : '#9CA3AF',
                   }}
                 >
                   Account Name
                 </Text>
-                {touched.name && !errors.name && formData.name.length >= 2 && (
-                  <View className="absolute right-4" style={{ top: 20 }}>
-                    <CheckCircle2 size={20} color="#8B9D8B" />
-                  </View>
-                )}
+                <Text className="absolute right-4 text-xs font-medium" style={{ color: '#9CA3AF', top: 8 }}>
+                  {formData.name.length}/50
+                </Text>
               </View>
               {touched.name && errors.name && (
                 <View className="flex-row items-center mt-2 ml-4">
-                  <Info size={14} color="#006A6A" />
-                  <Text className="text-xs ml-1.5" style={{ color: '#006A6A' }}>
+                  <Info size={14} color="#DC2626" />
+                  <Text className="text-xs ml-1.5" style={{ color: '#DC2626' }}>
                     {errors.name}
                   </Text>
                 </View>
               )}
             </Animated.View>
 
-            {/* Institution Picker */}
-            <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mb-4">
+            {/* Institution Dropdown */}
+            <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mb-6">
               <Pressable
                 onPress={() => setShowInstitutionPicker(!showInstitutionPicker)}
                 className="relative rounded-3xl border-2"
@@ -315,13 +318,13 @@ export default function AddAccountScreen() {
                 <Text
                   className="absolute left-4 text-xs font-medium"
                   style={{
-                    top: 10,
+                    top: 8,
                     color: '#9CA3AF',
                   }}
                 >
                   Institution
                 </Text>
-                <View className="absolute right-4" style={{ top: 20 }}>
+                <View className="absolute right-4" style={{ top: 16 }}>
                   <ChevronDown size={20} color="#9CA3AF" />
                 </View>
               </Pressable>
@@ -349,16 +352,16 @@ export default function AddAccountScreen() {
 
               {touched.institution && errors.institution && (
                 <View className="flex-row items-center mt-2 ml-4">
-                  <Info size={14} color="#006A6A" />
-                  <Text className="text-xs ml-1.5" style={{ color: '#006A6A' }}>
+                  <Info size={14} color="#DC2626" />
+                  <Text className="text-xs ml-1.5" style={{ color: '#DC2626' }}>
                     {errors.institution}
                   </Text>
                 </View>
               )}
             </Animated.View>
 
-            {/* Account Type Picker */}
-            <Animated.View entering={FadeInDown.delay(300).duration(600)} className="mb-4">
+            {/* Account Type Dropdown */}
+            <Animated.View entering={FadeInDown.delay(300).duration(600)} className="mb-6">
               <Pressable
                 onPress={() => setShowAccountTypePicker(!showAccountTypePicker)}
                 className="relative rounded-3xl border-2"
@@ -375,13 +378,13 @@ export default function AddAccountScreen() {
                 <Text
                   className="absolute left-4 text-xs font-medium"
                   style={{
-                    top: 10,
+                    top: 8,
                     color: '#9CA3AF',
                   }}
                 >
                   Account Type
                 </Text>
-                <View className="absolute right-4" style={{ top: 20 }}>
+                <View className="absolute right-4" style={{ top: 16 }}>
                   <ChevronDown size={20} color="#9CA3AF" />
                 </View>
               </Pressable>
@@ -409,8 +412,8 @@ export default function AddAccountScreen() {
 
               {touched.accountType && errors.accountType && (
                 <View className="flex-row items-center mt-2 ml-4">
-                  <Info size={14} color="#006A6A" />
-                  <Text className="text-xs ml-1.5" style={{ color: '#006A6A' }}>
+                  <Info size={14} color="#DC2626" />
+                  <Text className="text-xs ml-1.5" style={{ color: '#DC2626' }}>
                     {errors.accountType}
                   </Text>
                 </View>
@@ -418,52 +421,61 @@ export default function AddAccountScreen() {
             </Animated.View>
 
             {/* Starting Balance */}
-            <Animated.View entering={FadeInDown.delay(400).duration(600)} className="mb-4">
-              <View className="relative rounded-3xl" style={{ overflow: 'hidden' }}>
-                <TextInput
-                  className="text-base px-4 pt-6 pb-4 rounded-3xl border-2 bg-white"
-                  style={{
-                    borderColor: focusedField === 'startingBalance' ? '#006A6A' : '#E5E7EB',
-                    color: '#1F2937',
-                  }}
-                  placeholder=" "
-                  value={formData.startingBalance}
-                  onChangeText={(text) => {
-                    setFormData({ ...formData, startingBalance: text });
-                    setErrors({ ...errors, startingBalance: undefined });
-                  }}
-                  onFocus={() => setFocusedField('startingBalance')}
-                  onBlur={() => handleBlur('startingBalance')}
-                  keyboardType="numeric"
-                />
+            <Animated.View entering={FadeInDown.delay(400).duration(600)} className="mb-6">
+              <View className="relative">
                 <Text
                   className="absolute left-4 text-xs font-medium"
                   style={{
-                    top: 10,
+                    top: 8,
                     color: focusedField === 'startingBalance' ? '#006A6A' : '#9CA3AF',
                   }}
                 >
-                  Starting Balance (CHF)
+                  Starting Balance
                 </Text>
+                <View className="flex-row items-center">
+                  <Text className="absolute left-4 pt-6 text-base font-medium" style={{ color: '#9CA3AF' }}>
+                    CHF
+                  </Text>
+                  <TextInput
+                    className="text-base pl-16 pr-4 pt-6 pb-4 rounded-3xl border-2 bg-white flex-1"
+                    style={{
+                      borderColor: focusedField === 'startingBalance' ? '#006A6A' : '#E5E7EB',
+                      color: '#1F2937',
+                    }}
+                    placeholder=" "
+                    value={formData.startingBalance}
+                    onChangeText={(text) => {
+                      setFormData({ ...formData, startingBalance: text });
+                      setErrors({ ...errors, startingBalance: undefined });
+                    }}
+                    onFocus={() => setFocusedField('startingBalance')}
+                    onBlur={() => handleBlur('startingBalance')}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
               </View>
-              {!touched.startingBalance && !errors.startingBalance && (
-                <Text className="text-xs mt-2 ml-4" style={{ color: '#C4B5FD' }}>
-                  Can be positive or negative
-                </Text>
-              )}
               {touched.startingBalance && errors.startingBalance && (
                 <View className="flex-row items-center mt-2 ml-4">
-                  <Info size={14} color="#006A6A" />
-                  <Text className="text-xs ml-1.5" style={{ color: '#006A6A' }}>
+                  <Info size={14} color="#DC2626" />
+                  <Text className="text-xs ml-1.5" style={{ color: '#DC2626' }}>
                     {errors.startingBalance}
                   </Text>
                 </View>
               )}
             </Animated.View>
 
-            {/* Last 4 Digits (Optional) */}
-            <Animated.View entering={FadeInDown.delay(500).duration(600)} className="mb-4">
-              <View className="relative rounded-3xl" style={{ overflow: 'hidden' }}>
+            {/* Account Number (Optional) */}
+            <Animated.View entering={FadeInDown.delay(500).duration(600)} className="mb-6">
+              <View className="relative">
+                <Text
+                  className="absolute left-4 text-xs font-medium"
+                  style={{
+                    top: 8,
+                    color: focusedField === 'last4Digits' ? '#006A6A' : '#9CA3AF',
+                  }}
+                >
+                  Account Number
+                </Text>
                 <TextInput
                   className="text-base px-4 pt-6 pb-4 rounded-3xl border-2 bg-white"
                   style={{
@@ -473,7 +485,6 @@ export default function AddAccountScreen() {
                   placeholder=" "
                   value={formData.last4Digits}
                   onChangeText={(text) => {
-                    // Only allow numbers, max 4 digits
                     const cleaned = text.replace(/\D/g, '').slice(0, 4);
                     setFormData({ ...formData, last4Digits: cleaned });
                     setErrors({ ...errors, last4Digits: undefined });
@@ -483,32 +494,28 @@ export default function AddAccountScreen() {
                   keyboardType="number-pad"
                   maxLength={4}
                 />
-                <Text
-                  className="absolute left-4 text-xs font-medium"
-                  style={{
-                    top: 10,
-                    color: focusedField === 'last4Digits' ? '#006A6A' : '#9CA3AF',
-                  }}
-                >
-                  Account Number (Optional)
-                </Text>
+                <View className="absolute right-4" style={{ top: 8 }}>
+                  <View
+                    className="px-2 py-1 rounded-full"
+                    style={{ backgroundColor: 'rgba(0, 106, 106, 0.1)' }}
+                  >
+                    <Text className="text-xs font-medium" style={{ color: '#006A6A' }}>
+                      Optional
+                    </Text>
+                  </View>
+                </View>
               </View>
-              {!touched.last4Digits && !errors.last4Digits && (
-                <Text className="text-xs mt-2 ml-4" style={{ color: '#C4B5FD' }}>
-                  Last 4 digits only
-                </Text>
-              )}
               {touched.last4Digits && errors.last4Digits && (
                 <View className="flex-row items-center mt-2 ml-4">
-                  <Info size={14} color="#006A6A" />
-                  <Text className="text-xs ml-1.5" style={{ color: '#006A6A' }}>
+                  <Info size={14} color="#DC2626" />
+                  <Text className="text-xs ml-1.5" style={{ color: '#DC2626' }}>
                     {errors.last4Digits}
                   </Text>
                 </View>
               )}
             </Animated.View>
 
-            {/* Set as Default Checkbox */}
+            {/* Default Account Switch */}
             {!isFirstAccount && (
               <Animated.View entering={FadeInDown.delay(600).duration(600)} className="mb-8">
                 <Pressable
@@ -543,13 +550,13 @@ export default function AddAccountScreen() {
             )}
           </ScrollView>
 
-          {/* Bottom Buttons */}
-          <View className="px-6 pb-6 pt-4 bg-white border-t" style={{ borderTopColor: '#E5E7EB' }}>
+          {/* Bottom Submit Button - inside KeyboardAvoidingView */}
+          <View className="px-6 pb-6 pt-4 bg-white" style={{ borderTopWidth: 1, borderTopColor: '#E5E7EB' }}>
             <Animated.View entering={FadeInDown.delay(700).duration(600)}>
               <Pressable
                 onPress={handleSubmit}
                 disabled={!isValid || createAccountMutation.isPending}
-                className="rounded-full py-4 items-center justify-center mb-3"
+                className="rounded-full py-4 items-center justify-center"
                 style={{
                   backgroundColor: isValid && !createAccountMutation.isPending ? '#006A6A' : '#E5E7EB',
                   height: 56,
@@ -569,16 +576,10 @@ export default function AddAccountScreen() {
                   </Text>
                 )}
               </Pressable>
-
-              <Pressable onPress={() => router.back()} className="py-3 items-center">
-                <Text className="text-sm font-medium" style={{ color: '#6B7280' }}>
-                  Cancel
-                </Text>
-              </Pressable>
             </Animated.View>
           </View>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
