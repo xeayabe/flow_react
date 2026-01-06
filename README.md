@@ -90,7 +90,7 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - All categories personal to user (is_shareable = false)
   - No shared expense functionality yet
 
-### Transaction System (US-014 & US-018)
+### Transaction System (US-014, US-018, & US-020)
 - ✅ **Add Transaction Page** - Full form to track income and expenses
   - Type Toggle: Income/Expense with dynamic category filtering
   - Amount Input: Auto-formatting with currency symbol (CHF)
@@ -99,6 +99,18 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Date Input: Custom calendar chip picker with month navigation
   - Optional Note: Max 200 characters with character counter
   - Recurring Option: Monthly recurring with day selector
+- ✅ **Edit Transaction Page (US-020)** - Edit existing transactions with smart balance adjustment
+  - Pre-filled form with all existing transaction data
+  - Complex balance calculations:
+    * Reverse original transaction impact
+    * Apply new transaction impact
+    * Handle account changes (update both old and new accounts)
+    * Handle type changes (income ↔ expense)
+    * Handle amount changes with net adjustment
+  - Transaction not found error handling
+  - Access denied protection (only own transactions)
+  - Delete button available on edit page
+  - Success message and automatic redirect after update
 - ✅ **Transaction Validation**:
   - Amount: Required, must be > 0, max 2 decimals
   - Category: Required, filtered by transaction type
@@ -109,6 +121,7 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Transactions stored with all metadata
   - Account balance automatically updated (income adds, expense subtracts)
   - Soft delete support with balance restoration
+  - Edit updates balance correctly for all scenarios
 - ✅ **User Experience**:
   - Success message after transaction creation
   - Confirmation modal asking if user wants to add another transaction
@@ -117,17 +130,18 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Auto-focus on amount field for quick re-entry
   - Custom date picker with calendar UI (no native date picker)
   - FAB button on Dashboard to add transactions
+  - Edit icon next to delete on transaction list items
 - ✅ **View & Filter Transactions (US-018)** - Complete transaction list with filtering
   - 4 Filter Types:
     - **Date Range**: This week, This month, Last month, Last 3 months, This year, All time
     - **Transaction Type**: All, Income only, Expense only
     - **Category Filter**: Multi-select specific categories or view all
     - **Account Filter**: Multi-select specific accounts or view all
-  - **Summary Statistics**: Real-time income, expense, and net calculations
+  - **Summary Statistics**: Real-time income and expense calculations
   - **Grouped Display**: Transactions grouped by date (newest first) with Swiss date format
   - **Modal-Based Filters**: Each filter type opens in a modal for easy selection
   - **Clear Filters Button**: Reset all filters to view everything
-  - **Delete Transactions**: Swipe or tap delete with confirmation modal
+  - **Edit & Delete Transactions**: Edit and delete icons on each transaction with confirmation
   - **Empty States**: Helpful messages when no transactions match filters
   - **Two Access Points**:
     - Transactions Tab: Bottom navigation tab for quick access
@@ -422,7 +436,6 @@ bun start
 
 ## Next Steps
 
-- [ ] Create transaction detail/edit page with editing capability
 - [ ] Implement recurring transaction templates (Phase 2)
 - [ ] Create transaction search functionality
 - [ ] Build settlement/splitting logic for shared expenses (Phase 2)
@@ -431,3 +444,4 @@ bun start
 - [ ] Add receipt attachment to transactions
 - [ ] Create expense reports and analytics
 - [ ] Phase 2: Implement shareable transactions for household splitting
+- [ ] Phase 2: Add transaction edit history/audit log
