@@ -337,9 +337,19 @@ bun start
 
 1. **Dashboard** (`/` or `/(tabs)/index`)
    - Main app screen showing all wallets
-   - Bottom tab navigation with two tabs
+   - View all transactions link
+   - FAB button to add new transaction
+   - Bottom tab navigation with three tabs
 
-2. **Profile** (`/(tabs)/two`)
+2. **Transactions Tab** (`/(tabs)/transactions`)
+   - Dedicated tab to view all recorded transactions
+   - Grouped by date with Swiss format (DD.MM.YYYY)
+   - Transaction details: type icon, amount, category, account
+   - Delete transactions with confirmation
+   - FAB button to add new transactions
+   - Empty state with quick-add option
+
+3. **Profile** (`/(tabs)/two`)
    - User profile section with avatar and email
    - Settings menu with items:
      - **Wallets** → `/accounts` - Manage bank accounts and wallets
@@ -347,14 +357,14 @@ bun start
      - **Profile** → Coming soon
    - Sign Out button at bottom
 
-3. **Categories Management** (`/settings/categories`)
+4. **Categories Management** (`/settings/categories`)
    - View all categories organized by type (Income, Needs, Wants, Savings, Other)
    - Add new category button (+) in top-right
    - Click category to edit (custom categories only)
    - Delete custom categories (default categories are read-only)
    - Back button returns to Profile tab
 
-4. **Add Transaction** (`/transactions/add`)
+5. **Add Transaction** (`/transactions/add`)
    - Full form to log income and expenses
    - Type toggle with dynamic category filtering
    - Amount input with auto-formatting
@@ -364,13 +374,6 @@ bun start
    - Monthly recurring transaction option
    - Real-time validation with error messages
    - Success feedback with form reset
-
-5. **Transactions List** (`/transactions`)
-   - View all transactions in reverse chronological order
-   - Grouped by date with Swiss format headers
-   - Transaction details: type icon, amount, category, account
-   - Delete transactions with confirmation dialog
-   - FAB to quickly add new transactions
    - Automatic balance restoration on deletion
 
 ### Quick Access Paths
@@ -378,11 +381,11 @@ bun start
 | Screen | Route | How to Access |
 |--------|-------|---------------|
 | Dashboard | `/` | App default/home (first tab) |
+| Transactions | `/(tabs)/transactions` | Click "Transactions" tab at bottom |
 | Profile | `/(tabs)/two` | Click "Profile" tab at bottom |
 | Categories | `/settings/categories` | Profile tab > Categories |
 | Wallets | `/accounts` | Profile tab > Wallets |
-| Add Transaction | `/transactions/add` | FAB on Dashboard or Transactions list |
-| Transactions | `/transactions` | Dashboard > View Transactions or FAB |
+| Add Transaction | `/transactions/add` | FAB on Dashboard or Transactions tab |
 
 ## Design Principles
 
