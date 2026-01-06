@@ -248,7 +248,7 @@ export default function AddAccountScreen() {
             {/* Header Section */}
             <View className="mb-8">
               <View className="flex-row items-center mb-3">
-                <Pressable onPress={() => router.back()} className="mr-auto py-2">
+                <Pressable onPress={() => router.dismiss()} className="mr-auto py-2">
                   <Text style={{ color: '#006A6A', fontSize: 16, fontWeight: '600' }}>Cancel</Text>
                 </Pressable>
               </View>
