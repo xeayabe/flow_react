@@ -69,11 +69,13 @@ export default function DashboardScreen() {
     enabled: !!householdQuery.data?.userRecord?.id,
   });
 
+  const { refetch: refetchBudgetSummary } = summaryQuery;
+
   // Refetch when focused
   useFocusEffect(
     useCallback(() => {
-      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
-    }, [queryClient])
+      refetchBudgetSummary();
+    }, [refetchBudgetSummary])
   );
 
   const summary = summaryQuery.data as BudgetSummaryData | null;
