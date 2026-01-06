@@ -3,26 +3,23 @@ import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Pla
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { Eye, EyeOff, CheckCircle2, ArrowLeft, AlertCircle, Info } from 'lucide-react-native';
+import { CheckCircle2, ArrowLeft, Info } from 'lucide-react-native';
 import { useMutation } from '@tanstack/react-query';
 import { sendMagicCode, verifyMagicCode, createUserProfile, checkUserProfile } from '@/lib/auth-api';
-import { cn } from '@/lib/cn';
-import Animated, { FadeInDown, FadeIn, FadeInLeft } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import SuccessModal from '@/components/SuccessModal';
 
 type Step = 'details' | 'verify';
 
 interface FormData {
   email: string;
-  password: string;
-  confirmPassword: string;
+  name: string;
   code: string;
 }
 
 interface ValidationErrors {
   email?: string;
-  password?: string;
-  confirmPassword?: string;
+  name?: string;
   code?: string;
 }
 
@@ -30,30 +27,14 @@ export default function SignupScreen() {
   const [step, setStep] = useState<Step>('details');
   const [formData, setFormData] = useState<FormData>({
     email: '',
-    password: '',
-    confirmPassword: '',
+    name: '',
     code: '',
   });
 
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
-
-  // Handle password change and auto-sync with confirm password when autofilled
-  const handlePasswordChange = (text: string) => {
-    setFormData({ ...formData, password: text });
-    setErrors({ ...errors, password: undefined });
-
-    // If confirm password is empty and password is being autofilled, copy it
-    if (formData.confirmPassword === '' && text.length > 8) {
-      setTimeout(() => {
-        setFormData(prev => ({ ...prev, password: text, confirmPassword: text }));
-      }, 100);
-    }
-  };
 
   const sendCodeMutation = useMutation({
     mutationFn: () => sendMagicCode(formData.email),
@@ -76,9 +57,8 @@ export default function SignupScreen() {
         // Check if profile exists, if not create it
         const profileCheck = await checkUserProfile(formData.email);
         if (!profileCheck.exists) {
-          // Extract name from email for now (we can add a name field later if needed)
-          const name = formData.email.split('@')[0];
-          await createUserProfile(formData.email, name);
+          // Create profile with user-provided name
+          await createUserProfile(formData.email, formData.name);
         }
         // Show success modal instead of navigating immediately
         setShowSuccessModal(true);
@@ -98,20 +78,9 @@ export default function SignupScreen() {
     return undefined;
   };
 
-  const validatePassword = (password: string): string | undefined => {
-    if (!password) return 'Password is required';
-    if (password.length < 8) return 'Must be 8+ characters';
-
-    // Check for numbers or special characters
-    const hasNumberOrSpecial = /[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
-    if (!hasNumberOrSpecial && password.length >= 8) return 'Try adding numbers or special characters';
-
-    return undefined;
-  };
-
-  const validateConfirmPassword = (confirmPassword: string): string | undefined => {
-    if (!confirmPassword) return 'Please confirm your password';
-    if (confirmPassword !== formData.password) return 'Passwords do not match';
+  const validateName = (name: string): string | undefined => {
+    if (!name) return 'Name is required';
+    if (name.length < 2) return 'Name must be at least 2 characters';
     return undefined;
   };
 
@@ -124,8 +93,7 @@ export default function SignupScreen() {
   const validateDetailsForm = (): boolean => {
     const newErrors: ValidationErrors = {
       email: validateEmail(formData.email),
-      password: validatePassword(formData.password),
-      confirmPassword: validateConfirmPassword(formData.confirmPassword),
+      name: validateName(formData.name),
     };
 
     setErrors(newErrors);
@@ -141,11 +109,8 @@ export default function SignupScreen() {
       case 'email':
         error = validateEmail(formData.email);
         break;
-      case 'password':
-        error = validatePassword(formData.password);
-        break;
-      case 'confirmPassword':
-        error = validateConfirmPassword(formData.confirmPassword);
+      case 'name':
+        error = validateName(formData.name);
         break;
       case 'code':
         error = validateCode(formData.code);
@@ -167,8 +132,7 @@ export default function SignupScreen() {
 
     setTouched({
       email: true,
-      password: true,
-      confirmPassword: true,
+      name: true,
     });
 
     if (validateDetailsForm()) {
@@ -190,13 +154,11 @@ export default function SignupScreen() {
 
   const isDetailsValid =
     !validateEmail(formData.email) &&
-    !validatePassword(formData.password) &&
-    !validateConfirmPassword(formData.confirmPassword);
+    !validateName(formData.name);
 
   const isCodeValid = !validateCode(formData.code);
   const isEmailValid = !validateEmail(formData.email);
-  const passwordError = validatePassword(formData.password);
-  const confirmPasswordError = validateConfirmPassword(formData.confirmPassword);
+  const isNameValid = !validateName(formData.name);
 
   // Verification screen
   if (step === 'verify') {
@@ -253,7 +215,12 @@ export default function SignupScreen() {
                     autoFocus
                   />
                   {touched.code && errors.code && (
-                    <Text className="text-red-500 text-xs mt-2 ml-4">{errors.code}</Text>
+                    <View className="flex-row items-center mt-2 ml-4">
+                      <Info size={14} color="#006A6A" />
+                      <Text className="text-xs ml-1.5" style={{ color: '#006A6A' }}>
+                        {errors.code}
+                      </Text>
+                    </View>
                   )}
                 </View>
 
@@ -327,8 +294,57 @@ export default function SignupScreen() {
               </Text>
             </Animated.View>
 
-            {/* Email Field */}
+            {/* Name Field */}
             <Animated.View entering={FadeInDown.delay(100).duration(600)} className="mb-4">
+              <View className="relative rounded-3xl" style={{ overflow: 'hidden' }}>
+                <TextInput
+                  className="text-base px-4 pt-6 pb-4 rounded-3xl border-2 bg-white"
+                  style={{
+                    borderColor: focusedField === 'name' ? '#006A6A' : '#E5E7EB',
+                    color: '#1F2937',
+                    backgroundColor: '#FFFFFF',
+                  }}
+                  placeholder=" "
+                  value={formData.name}
+                  onChangeText={(text) => {
+                    setFormData({ ...formData, name: text });
+                    setErrors({ ...errors, name: undefined });
+                  }}
+                  onFocus={() => setFocusedField('name')}
+                  onBlur={() => handleBlur('name')}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  textContentType="name"
+                />
+                {/* Floating Label */}
+                <Text
+                  className="absolute left-4 text-xs font-medium"
+                  style={{
+                    top: 10,
+                    color: focusedField === 'name' ? '#006A6A' : '#9CA3AF',
+                  }}
+                >
+                  Full Name
+                </Text>
+                {/* Validation Checkmark */}
+                {touched.name && isNameValid && (
+                  <View className="absolute right-4" style={{ top: 20 }}>
+                    <CheckCircle2 size={20} color="#8B9D8B" />
+                  </View>
+                )}
+              </View>
+              {touched.name && errors.name && (
+                <View className="flex-row items-center mt-2 ml-4">
+                  <Info size={14} color="#006A6A" />
+                  <Text className="text-xs ml-1.5" style={{ color: '#006A6A' }}>
+                    {errors.name}
+                  </Text>
+                </View>
+              )}
+            </Animated.View>
+
+            {/* Email Field */}
+            <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mb-8">
               <View className="relative rounded-3xl" style={{ overflow: 'hidden' }}>
                 <TextInput
                   className="text-base px-4 pt-6 pb-4 rounded-3xl border-2 bg-white"
@@ -378,151 +394,13 @@ export default function SignupScreen() {
               )}
             </Animated.View>
 
-            {/* Password Field */}
-            <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mb-4">
-              <View className="relative rounded-3xl" style={{ overflow: 'hidden' }}>
-                <TextInput
-                  className="text-base px-4 pt-6 pb-4 pr-12 rounded-3xl border-2 bg-white"
-                  style={{
-                    borderColor: focusedField === 'password' ? '#006A6A' : '#E5E7EB',
-                    color: '#1F2937',
-                    backgroundColor: '#FFFFFF',
-                  }}
-                  placeholder=" "
-                  value={formData.password}
-                  onChangeText={handlePasswordChange}
-                  onFocus={() => setFocusedField('password')}
-                  onBlur={() => handleBlur('password')}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  textContentType="newPassword"
-                  passwordRules="minlength: 8;"
-                />
-                {/* Floating Label */}
-                <Text
-                  className="absolute left-4 text-xs font-medium"
-                  style={{
-                    top: 10,
-                    color: focusedField === 'password' ? '#006A6A' : '#9CA3AF',
-                  }}
-                >
-                  Password
-                </Text>
-                {/* Eye Icon */}
-                <Pressable
-                  onPress={() => setShowPassword(!showPassword)}
-                  className="absolute right-4"
-                  style={{ top: 20 }}
-                >
-                  {showPassword ? (
-                    <EyeOff size={20} color="#9CA3AF" />
-                  ) : (
-                    <Eye size={20} color="#9CA3AF" />
-                  )}
-                </Pressable>
-              </View>
-
-              {/* Helper Text - Default state */}
-              {!touched.password && !errors.password && (
-                <Text className="text-xs mt-2 ml-4" style={{ color: '#C4B5FD' }}>
-                  Must be 8+ characters
-                </Text>
-              )}
-
-              {/* Empathetic suggestion chip - when password needs improvement */}
-              {touched.password && passwordError === 'Try adding numbers or special characters' && (
-                <View
-                  className="flex-row items-center mt-2 px-3 py-2 rounded-2xl mx-4"
-                  style={{ backgroundColor: '#F3E8FF' }}
-                >
-                  <Info size={16} color="#006A6A" />
-                  <Text className="text-xs ml-2 flex-1" style={{ color: '#006A6A' }}>
-                    Try adding numbers or special characters
-                  </Text>
-                </View>
-              )}
-
-              {/* Other password errors */}
-              {touched.password && passwordError && passwordError !== 'Try adding numbers or special characters' && (
-                <View className="flex-row items-center mt-2 ml-4">
-                  <Info size={14} color="#006A6A" />
-                  <Text className="text-xs ml-1.5" style={{ color: '#006A6A' }}>
-                    {passwordError}
-                  </Text>
-                </View>
-              )}
-            </Animated.View>
-
-            {/* Confirm Password Field */}
+            {/* Info Message */}
             <Animated.View entering={FadeInDown.delay(300).duration(600)} className="mb-8">
-              <View className="relative rounded-3xl" style={{ overflow: 'hidden' }}>
-                <TextInput
-                  className="text-base px-4 pt-6 pb-4 pr-12 rounded-3xl border-2 bg-white"
-                  style={{
-                    borderColor: focusedField === 'confirmPassword' ? '#006A6A' : '#E5E7EB',
-                    color: '#1F2937',
-                    backgroundColor: '#FFFFFF',
-                  }}
-                  placeholder=" "
-                  value={formData.confirmPassword}
-                  onChangeText={(text) => {
-                    setFormData({ ...formData, confirmPassword: text });
-                    setErrors({ ...errors, confirmPassword: undefined });
-                  }}
-                  onFocus={() => setFocusedField('confirmPassword')}
-                  onBlur={() => handleBlur('confirmPassword')}
-                  secureTextEntry={!showConfirmPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  textContentType="none"
-                />
-                {/* Floating Label */}
-                <Text
-                  className="absolute left-4 text-xs font-medium"
-                  style={{
-                    top: 10,
-                    color: focusedField === 'confirmPassword' ? '#006A6A' : '#9CA3AF',
-                  }}
-                >
-                  Confirm Password
+              <View className="px-4 py-3 rounded-2xl" style={{ backgroundColor: 'rgba(0, 106, 106, 0.05)' }}>
+                <Text className="text-xs text-center" style={{ color: 'rgba(0, 106, 106, 0.7)' }}>
+                  No password needed! We'll send a secure verification code to your email.
                 </Text>
-                {/* Eye Icon */}
-                <Pressable
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-4"
-                  style={{ top: 20 }}
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff size={20} color="#9CA3AF" />
-                  ) : (
-                    <Eye size={20} color="#9CA3AF" />
-                  )}
-                </Pressable>
               </View>
-
-              {/* Gentle mismatch indicator with animation */}
-              {formData.confirmPassword.length > 0 && confirmPasswordError === 'Passwords do not match' && (
-                <Animated.View
-                  entering={FadeInLeft.duration(400)}
-                  className="flex-row items-center mt-2 ml-4"
-                >
-                  <Info size={14} color="#006A6A" />
-                  <Text className="text-xs ml-1.5" style={{ color: '#006A6A' }}>
-                    Passwords don't match yet
-                  </Text>
-                </Animated.View>
-              )}
-
-              {/* Other confirm password errors */}
-              {touched.confirmPassword && confirmPasswordError && confirmPasswordError !== 'Passwords do not match' && (
-                <View className="flex-row items-center mt-2 ml-4">
-                  <Info size={14} color="#006A6A" />
-                  <Text className="text-xs ml-1.5" style={{ color: '#006A6A' }}>
-                    {confirmPasswordError}
-                  </Text>
-                </View>
-              )}
             </Animated.View>
           </ScrollView>
 

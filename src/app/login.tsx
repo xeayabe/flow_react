@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { ArrowLeft, Info } from 'lucide-react-native';
-import * as LocalAuthentication from 'expo-local-authentication';
+import { ArrowLeft, Info, Fingerprint } from 'lucide-react-native';
 import { useMutation } from '@tanstack/react-query';
 import { sendMagicCode, verifyMagicCode, checkUserProfile } from '@/lib/auth-api';
+import {
+  checkBiometricCapability,
+  getBiometricTypeName,
+  performBiometricQuickLogin,
+  isBiometricLoginEnabled,
+  enableBiometricLogin,
+} from '@/lib/biometric-auth';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 type Step = 'details' | 'verify';
@@ -32,31 +38,50 @@ export default function LoginScreen() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [biometricAvailable, setBiometricAvailable] = useState<boolean>(false);
+  const [biometricType, setBiometricType] = useState<string>('Biometric');
+  const [biometricEnabled, setBiometricEnabled] = useState<boolean>(false);
+  const [showBiometricPrompt, setShowBiometricPrompt] = useState<boolean>(false);
+  const [isCheckingBiometric, setIsCheckingBiometric] = useState<boolean>(true);
 
-  React.useEffect(() => {
-    checkBiometricAvailability();
+  useEffect(() => {
+    checkBiometricSetup();
   }, []);
 
-  const checkBiometricAvailability = async () => {
-    const compatible = await LocalAuthentication.hasHardwareAsync();
-    const enrolled = await LocalAuthentication.isEnrolledAsync();
-    setBiometricAvailable(compatible && enrolled);
+  const checkBiometricSetup = async () => {
+    const capability = await checkBiometricCapability();
+    const isEnabled = await isBiometricLoginEnabled();
+
+    setBiometricAvailable(capability.hasHardware && capability.isEnrolled);
+    setBiometricType(getBiometricTypeName(capability.supportedTypes));
+    setBiometricEnabled(isEnabled);
+    setIsCheckingBiometric(false);
+
+    // If biometric is enabled, try auto-login
+    if (isEnabled && capability.hasHardware && capability.isEnrolled) {
+      handleBiometricQuickLogin();
+    }
   };
 
-  const handleBiometricAuth = async () => {
+  const handleBiometricQuickLogin = async () => {
     try {
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Log in to Flow',
-        fallbackLabel: 'Use email',
-        disableDeviceFallback: false,
-      });
-
-      if (result.success) {
-        // In a real app, you'd retrieve stored credentials here
-        console.log('Biometric authentication successful');
+      const email = await performBiometricQuickLogin();
+      if (email) {
+        // Set email and send magic code automatically
+        setFormData({ ...formData, email });
+        sendCodeMutation.mutate();
       }
     } catch (error) {
-      console.error('Biometric auth error:', error);
+      console.error('Biometric quick-login error:', error);
+    }
+  };
+
+  const handleEnableBiometric = async () => {
+    const success = await enableBiometricLogin(formData.email);
+    if (success) {
+      setBiometricEnabled(true);
+      setShowBiometricPrompt(false);
+      // Navigate to tabs
+      router.replace('/(tabs)');
     }
   };
 
@@ -78,7 +103,12 @@ export default function LoginScreen() {
     mutationFn: () => verifyMagicCode(formData.email, formData.code),
     onSuccess: async (response) => {
       if (response.success) {
-        router.replace('/(tabs)');
+        // Check if biometric is available and not yet enabled
+        if (biometricAvailable && !biometricEnabled) {
+          setShowBiometricPrompt(true);
+        } else {
+          router.replace('/(tabs)');
+        }
       } else {
         setErrors({ code: response.error });
       }
@@ -155,6 +185,57 @@ export default function LoginScreen() {
 
   const isDetailsValid = !validateEmail(formData.email);
   const isCodeValid = !validateCode(formData.code);
+
+  // Biometric prompt modal
+  if (showBiometricPrompt) {
+    return (
+      <View className="flex-1 bg-white">
+        <StatusBar style="dark" />
+        <SafeAreaView className="flex-1 px-6 justify-center">
+          <Animated.View entering={FadeInDown.duration(600)} className="items-center">
+            <View
+              className="w-20 h-20 rounded-full items-center justify-center mb-6"
+              style={{ backgroundColor: 'rgba(0, 106, 106, 0.1)' }}
+            >
+              <Fingerprint size={40} color="#006A6A" />
+            </View>
+
+            <Text className="text-2xl font-semibold mb-2 text-center" style={{ color: '#006A6A' }}>
+              Enable {biometricType}?
+            </Text>
+            <Text className="text-sm text-center mb-8" style={{ color: '#8B9D8B' }}>
+              Log in faster next time using {biometricType} instead of entering a code
+            </Text>
+
+            <Pressable
+              onPress={handleEnableBiometric}
+              className="w-full rounded-full py-4 items-center justify-center mb-3"
+              style={{
+                backgroundColor: '#006A6A',
+                height: 56,
+              }}
+            >
+              <Text className="text-base font-semibold text-white">
+                Enable {biometricType}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                setShowBiometricPrompt(false);
+                router.replace('/(tabs)');
+              }}
+              className="w-full py-4 items-center"
+            >
+              <Text className="text-sm font-medium" style={{ color: '#6B7280' }}>
+                Maybe Later
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   // Verification screen
   if (step === 'verify') {
@@ -287,12 +368,46 @@ export default function LoginScreen() {
                 Welcome Back
               </Text>
               <Text className="text-sm" style={{ color: 'rgba(139, 157, 139, 0.6)' }}>
-                Enter your email to receive a login code
+                {biometricEnabled
+                  ? `Use ${biometricType} or enter your email`
+                  : 'Enter your email to receive a login code'}
               </Text>
             </Animated.View>
 
+            {/* Biometric Quick Login Button */}
+            {biometricEnabled && !isCheckingBiometric && (
+              <Animated.View entering={FadeInDown.delay(100).duration(600)} className="mb-6">
+                <Pressable
+                  onPress={handleBiometricQuickLogin}
+                  className="rounded-full py-4 items-center justify-center flex-row"
+                  style={{
+                    backgroundColor: 'rgba(0, 106, 106, 0.1)',
+                    height: 56,
+                    borderWidth: 1,
+                    borderColor: '#006A6A',
+                  }}
+                >
+                  <Fingerprint size={24} color="#006A6A" />
+                  <Text className="text-base font-semibold ml-2" style={{ color: '#006A6A' }}>
+                    Log in with {biometricType}
+                  </Text>
+                </Pressable>
+
+                <View className="flex-row items-center my-6">
+                  <View className="flex-1 h-px" style={{ backgroundColor: '#E5E7EB' }} />
+                  <Text className="mx-4 text-xs" style={{ color: '#9CA3AF' }}>
+                    OR
+                  </Text>
+                  <View className="flex-1 h-px" style={{ backgroundColor: '#E5E7EB' }} />
+                </View>
+              </Animated.View>
+            )}
+
             {/* Email Field */}
-            <Animated.View entering={FadeInDown.delay(100).duration(600)} className="mb-8">
+            <Animated.View
+              entering={FadeInDown.delay(biometricEnabled ? 200 : 100).duration(600)}
+              className="mb-8"
+            >
               <View className="relative rounded-3xl" style={{ overflow: 'hidden' }}>
                 <TextInput
                   className="text-base px-4 pt-6 pb-4 rounded-3xl border-2 bg-white"
@@ -337,7 +452,10 @@ export default function LoginScreen() {
             </Animated.View>
 
             {/* Info Message */}
-            <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mb-8">
+            <Animated.View
+              entering={FadeInDown.delay(biometricEnabled ? 300 : 200).duration(600)}
+              className="mb-8"
+            >
               <View className="px-4 py-3 rounded-2xl" style={{ backgroundColor: 'rgba(0, 106, 106, 0.05)' }}>
                 <Text className="text-xs text-center" style={{ color: 'rgba(0, 106, 106, 0.7)' }}>
                   We'll send a secure verification code to your email. No password needed!
@@ -348,49 +466,33 @@ export default function LoginScreen() {
 
           {/* Bottom Button - Fixed at bottom */}
           <View className="px-6 pb-6 pt-4 bg-white">
-            <Animated.View entering={FadeInDown.delay(300).duration(600)}>
-              <View className="flex-row items-center">
-                {/* Login Button */}
-                <Pressable
-                  onPress={handleLogin}
-                  disabled={!isDetailsValid || sendCodeMutation.isPending}
-                  className="flex-1 rounded-full py-4 items-center justify-center"
-                  style={{
-                    backgroundColor: isDetailsValid && !sendCodeMutation.isPending ? '#006A6A' : '#E5E7EB',
-                    height: 56,
-                    shadowColor: '#006A6A',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: isDetailsValid ? 0.2 : 0,
-                    shadowRadius: 12,
-                    elevation: isDetailsValid ? 4 : 0,
-                    opacity: isDetailsValid && !sendCodeMutation.isPending ? 1 : 0.4,
-                  }}
-                >
-                  {sendCodeMutation.isPending ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text
-                      className="text-base font-semibold"
-                      style={{ color: isDetailsValid ? 'white' : '#9CA3AF' }}
-                    >
-                      Send Login Code
-                    </Text>
-                  )}
-                </Pressable>
-
-                {/* Biometric Button */}
-                {biometricAvailable && (
-                  <Pressable
-                    onPress={handleBiometricAuth}
-                    className="w-14 h-14 rounded-full items-center justify-center ml-3"
-                    style={{
-                      backgroundColor: '#F3E8FF',
-                    }}
+            <Animated.View entering={FadeInDown.delay(biometricEnabled ? 400 : 300).duration(600)}>
+              <Pressable
+                onPress={handleLogin}
+                disabled={!isDetailsValid || sendCodeMutation.isPending}
+                className="rounded-full py-4 items-center justify-center"
+                style={{
+                  backgroundColor: isDetailsValid && !sendCodeMutation.isPending ? '#006A6A' : '#E5E7EB',
+                  height: 56,
+                  shadowColor: '#006A6A',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: isDetailsValid ? 0.2 : 0,
+                  shadowRadius: 12,
+                  elevation: isDetailsValid ? 4 : 0,
+                  opacity: isDetailsValid && !sendCodeMutation.isPending ? 1 : 0.4,
+                }}
+              >
+                {sendCodeMutation.isPending ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text
+                    className="text-base font-semibold"
+                    style={{ color: isDetailsValid ? 'white' : '#9CA3AF' }}
                   >
-                    <Text style={{ fontSize: 20 }}>🔒</Text>
-                  </Pressable>
+                    Send Login Code
+                  </Text>
                 )}
-              </View>
+              </Pressable>
 
               {/* Sign Up Link */}
               <View className="flex-row justify-center mt-4">

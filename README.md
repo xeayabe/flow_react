@@ -11,17 +11,18 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - ✅ Material Design 3 filled button with elegant interactions
 
 ### Authentication
-- ✅ Email magic code signup and login
-- ✅ Passwordless authentication (more secure)
-- ✅ Email verification required
+- ✅ **Fully passwordless authentication** - no passwords to remember!
+- ✅ Email magic code signup and login via InstantDB
+- ✅ Email verification required (6-digit codes)
+- ✅ **Biometric quick-login** for returning users (Face ID/Touch ID)
+- ✅ **Rate limiting** (5 attempts/minute, 15-min lockout)
+- ✅ **Secure credential storage** using Expo SecureStore
 - ✅ Profile check on login to prevent unauthorized access
 - ✅ Auto-login after signup
 - ✅ Protected routes with auth guards
-- ✅ Material Design 3 signup form with floating labels
-- ✅ Material Design 3 login form with FaceID/TouchID support
-- ✅ Empathetic error design with calming color palette (no harsh reds)
+- ✅ Material Design 3 forms with floating labels
+- ✅ Empathetic error design with calming colors (no harsh reds)
 - ✅ Real-time validation with supportive feedback
-- ✅ Password strength suggestions in soft lavender chips
 - ✅ Celebratory success modal with confetti animation
 - ✅ Smooth onboarding experience with professional animations
 
@@ -62,7 +63,9 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - **Styling**: NativeWind + TailwindCSS v3
 - **State Management**: React Query + Zustand
 - **Authentication**: Passwordless magic code authentication via InstantDB
-- **Security**: Email verification, profile validation
+- **Biometric Auth**: Expo Local Authentication (Face ID/Touch ID)
+- **Secure Storage**: Expo SecureStore for biometric credentials
+- **Security**: Email verification, profile validation, rate limiting, lockout protection
 
 ## Project Structure
 
@@ -75,31 +78,39 @@ src/
 │   │   └── two.tsx           # Profile screen
 │   ├── _layout.tsx           # Root layout with auth routing
 │   ├── welcome.tsx           # Welcome screen (first screen)
-│   ├── signup.tsx            # Signup screen
-│   └── login.tsx             # Login screen
+│   ├── signup.tsx            # Passwordless signup screen
+│   └── login.tsx             # Passwordless login with biometric quick-login
 ├── lib/
 │   ├── db.ts                 # InstantDB configuration & schema
-│   ├── auth-api.ts           # Authentication API functions
+│   ├── auth-api.ts           # Auth API with rate limiting & lockout
+│   ├── biometric-auth.ts     # Biometric authentication utilities
 │   └── cn.ts                 # Utility for className merging
 └── components/
-    └── Themed.tsx            # Themed components
+    ├── Themed.tsx            # Themed components
+    └── SuccessModal.tsx      # Success celebration modal
 ```
 
 ## Authentication Flow
+
+Flow uses a **fully passwordless** authentication system with optional biometric quick-login for enhanced security and convenience.
 
 1. **Welcome Screen**:
    - Beautiful first impression with Flow branding
    - Animated water droplets forming currency symbols
    - Single "Get Started" button to begin signup flow
+   - "Already have an account? Log in" link for returning users
    - Automatic redirect to dashboard if already logged in
 
-2. **Signup**:
-   - User fills signup form with email and name
+2. **Signup** (Passwordless):
+   - User fills signup form with:
+     - Full name
+     - Email address
+     - **No password required!**
    - Validation rules enforced:
      - Email must be valid format
      - Email must not already be registered
      - Name minimum 2 characters
-     - Terms must be accepted
+   - Info message explains: "No password needed! We'll send a secure verification code to your email."
    - Magic code sent to email via InstantDB
    - User enters 6-digit verification code
    - Upon verification:
@@ -107,30 +118,59 @@ src/
      - Default household created automatically
      - HouseholdMember record created linking user to household
      - User auto-logged in
+     - Success modal with confetti animation
    - Redirect to dashboard
 
-3. **Login**:
-   - User enters email
-   - System checks if user profile exists in database:
-     - If no profile: Show error "No account found with this email. Please sign up first."
-     - If profile exists: Send magic code to email via InstantDB
-   - User enters 6-digit verification code
-   - Upon successful verification: User logged in → redirect to dashboard
+3. **Login** (Passwordless + Biometric):
+   - **Biometric Quick-Login** (if enabled):
+     - Button shown: "Log in with Face ID" or "Log in with Touch ID"
+     - Tapping button triggers biometric authentication
+     - Upon successful biometric auth: Email auto-filled and magic code sent
+     - User still verifies with 6-digit code (hybrid security)
+   - **Standard Email Login**:
+     - User enters email only
+     - System checks if user profile exists in database:
+       - If no profile: Show error "No account found with this email. Please sign up first."
+       - If profile exists AND not rate-limited: Send magic code to email via InstantDB
+       - If rate-limited: Show error "Too many attempts. Please try again in X minutes"
+     - User enters 6-digit verification code
+     - Upon successful verification:
+       - If biometric available and not enabled: Prompt to enable Face ID/Touch ID
+       - User logged in → redirect to dashboard
    - **Important**: Users CANNOT receive a login code unless they have already signed up
    - **Security**: Passwordless authentication only - no passwords collected or validated
 
-4. **Auth Guards**:
+4. **Biometric Setup** (Optional Enhancement):
+   - After first successful login on device with Face ID/Touch ID
+   - App shows prompt: "Enable [Face ID/Touch ID]?"
+   - User can enable for faster future logins or skip ("Maybe Later")
+   - If enabled:
+     - Email securely stored in Expo SecureStore
+     - Only accessible after successful biometric authentication
+     - Quick-login button appears on login screen
+   - Can be disabled anytime from settings
+
+5. **Auth Guards**:
    - Unauthenticated users redirected to signup
    - Authenticated users redirected to dashboard
    - Auth state managed by InstantDB SDK
 
 ## Key Security Features
 
-- **Passwordless Authentication**: Uses InstantDB Magic Codes - more secure than passwords
-- **No Password Storage**: No passwords stored in database or transmitted
-- **Email Verification Required**: Users must verify email to authenticate
-- **Profile Check on Login**: Ensures only registered users can access the app
+- **Fully Passwordless Authentication**: Uses InstantDB Magic Codes - more secure than passwords
+- **No Password Storage**: No passwords stored in database or transmitted anywhere
+- **Email Verification Required**: Users must verify email with 6-digit code to authenticate
+- **Profile Check on Login**: Ensures only registered users can receive login codes
 - **Duplicate Email Prevention**: Checks for existing accounts during signup
+- **Rate Limiting**: Maximum 5 failed attempts per minute per email
+- **Automatic Lockout**: 15-minute lockout after exceeding rate limit
+- **Biometric Security**:
+  - Face ID/Touch ID optional for returning users
+  - Email securely stored in Expo SecureStore
+  - Only accessible after successful biometric authentication
+  - Hybrid approach: Biometric auth + magic code verification
+- **Session Management**: InstantDB handles secure session tokens
+- **No Client-Side Secrets**: All sensitive operations server-side via InstantDB
 
 ## Environment Variables
 
