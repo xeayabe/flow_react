@@ -270,10 +270,20 @@ export default function BudgetSetupScreen() {
               <View className="relative">
                 <TextInput
                   value={monthlyIncome}
-                  onChangeText={setMonthlyIncome}
+                  onChangeText={(text) => {
+                    // Allow only numbers and decimal point
+                    const filtered = text.replace(/[^0-9.]/g, '');
+                    // Prevent multiple decimal points
+                    const parts = filtered.split('.');
+                    if (parts.length > 2) {
+                      setMonthlyIncome(parts[0] + '.' + parts.slice(1).join(''));
+                    } else {
+                      setMonthlyIncome(filtered);
+                    }
+                  }}
                   placeholder="5000"
                   placeholderTextColor="#D1D5DB"
-                  keyboardType="decimal-pad"
+                  keyboardType="numbers-and-punctuation"
                   className="p-4 rounded-xl text-2xl font-bold text-gray-900"
                   style={{ backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB' }}
                 />
@@ -373,10 +383,20 @@ export default function BudgetSetupScreen() {
                             <View className="flex-1">
                               <TextInput
                                 value={amount > 0 ? amount.toFixed(2) : ''}
-                                onChangeText={(text) => handleAmountChange(category.id, text)}
+                                onChangeText={(text) => {
+                                  // Allow only numbers and decimal point
+                                  const filtered = text.replace(/[^0-9.]/g, '');
+                                  // Prevent multiple decimal points
+                                  const parts = filtered.split('.');
+                                  if (parts.length > 2) {
+                                    handleAmountChange(category.id, parts[0] + '.' + parts.slice(1).join(''));
+                                  } else {
+                                    handleAmountChange(category.id, filtered);
+                                  }
+                                }}
                                 placeholder="0.00"
                                 placeholderTextColor="#D1D5DB"
-                                keyboardType="decimal-pad"
+                                keyboardType="numbers-and-punctuation"
                                 className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
                                 style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
                               />
@@ -386,10 +406,20 @@ export default function BudgetSetupScreen() {
                             <View className="flex-1">
                               <TextInput
                                 value={percentage > 0 ? percentageStr : ''}
-                                onChangeText={(text) => handlePercentageChange(category.id, text)}
+                                onChangeText={(text) => {
+                                  // Allow only numbers and decimal point
+                                  const filtered = text.replace(/[^0-9.]/g, '');
+                                  // Prevent multiple decimal points
+                                  const parts = filtered.split('.');
+                                  if (parts.length > 2) {
+                                    handlePercentageChange(category.id, parts[0] + '.' + parts.slice(1).join(''));
+                                  } else {
+                                    handlePercentageChange(category.id, filtered);
+                                  }
+                                }}
                                 placeholder="0.0"
                                 placeholderTextColor="#D1D5DB"
-                                keyboardType="decimal-pad"
+                                keyboardType="numbers-and-punctuation"
                                 className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
                                 style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
                               />
