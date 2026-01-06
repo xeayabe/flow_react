@@ -196,8 +196,8 @@ export default function DashboardScreen() {
           {/* Welcome Header */}
           <WelcomeHeader
             userName={userName}
-            budgetPeriodStart={formatDateSwiss(budgetPeriod.start)}
-            budgetPeriodEnd={formatDateSwiss(budgetPeriod.end)}
+            budgetPeriodStart={budgetPeriod.start}
+            budgetPeriodEnd={budgetPeriod.end}
           />
 
           {/* Summary Cards Row */}
@@ -220,10 +220,16 @@ export default function DashboardScreen() {
                   <View className="w-10 h-10 rounded-lg bg-teal-100 items-center justify-center">
                     <TrendingUp size={20} color="#0D9488" />
                   </View>
-                  <View>
+                  <View className="flex-1">
                     <Text className="text-sm font-semibold text-gray-700">Budget Status</Text>
                     <Text className="text-xs text-gray-500 mt-0.5">
-                      {formatDateSwiss(budgetPeriod.start)} - {formatDateSwiss(budgetPeriod.end)}
+                      {formatDateSwiss(budgetPeriod.start)} - {formatDateSwiss(budgetPeriod.end)} • {(() => {
+                        const endDate = new Date(budgetPeriod.end + 'T00:00:00');
+                        const todayForCalc = new Date();
+                        todayForCalc.setHours(0, 0, 0, 0);
+                        const daysRemaining = Math.ceil((endDate.getTime() - todayForCalc.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                        return daysRemaining > 0 ? daysRemaining : 0;
+                      })()} days left
                     </Text>
                   </View>
                 </View>

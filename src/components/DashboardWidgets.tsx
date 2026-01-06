@@ -36,19 +36,26 @@ export const WelcomeHeader: React.FC<{
     day: 'numeric',
   });
 
-  // Calculate days remaining
+  // Format dates for display (expecting ISO format YYYY-MM-DD)
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('de-CH', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  };
+
+  // Calculate days remaining (using ISO format dates)
   const endDate = new Date(budgetPeriodEnd + 'T00:00:00');
-  const today2 = new Date();
-  today2.setHours(0, 0, 0, 0);
-  const daysRemaining = Math.ceil((endDate.getTime() - today2.getTime()) / (1000 * 60 * 60 * 24));
+  const todayForCalc = new Date();
+  todayForCalc.setHours(0, 0, 0, 0);
+  const daysRemaining = Math.ceil((endDate.getTime() - todayForCalc.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
   return (
     <View className="mb-8">
       <Text className="text-3xl font-bold text-gray-900 mb-1">Welcome back, {userName}! 👋</Text>
       <Text className="text-xs text-gray-500 mb-2">{dateStr}</Text>
-      <Text className="text-xs text-gray-600">
-        Budget Period: {budgetPeriodStart} - {budgetPeriodEnd} • {daysRemaining > 0 ? daysRemaining : 0} days left
-      </Text>
     </View>
   );
 };
