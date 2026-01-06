@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, SectionList, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, Trash2, ArrowDownLeft, ArrowUpRight, AlertCircle, Plus, X } from 'lucide-react-native';
+import { ChevronDown, Trash2, ArrowDownLeft, ArrowUpRight, AlertCircle, Plus, X, TrendingUp, TrendingDown, Scale3D } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { db } from '@/lib/db';
 import { getUserTransactions, deleteTransaction, formatCurrency, formatDateSwiss, Transaction } from '@/lib/transactions-api';
@@ -384,20 +384,43 @@ export default function TransactionsListScreen() {
           </View>
 
           {/* Summary Cards */}
-          <View className="px-6 py-4 gap-3 flex-row">
-            <View className="flex-1 p-4 rounded-lg bg-green-50 border border-green-200">
-              <Text className="text-xs text-green-700 font-semibold mb-1">Income</Text>
-              <Text className="text-lg font-bold text-green-700">+{formatCurrency(stats.income)}</Text>
+          <View className="px-6 py-4 gap-3">
+            {/* Income Card */}
+            <View className="p-4 rounded-2xl" style={{ backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#86EFAC' }}>
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="text-xs font-semibold text-green-700">INCOME</Text>
+                <View className="w-8 h-8 rounded-full bg-green-100 items-center justify-center">
+                  <TrendingUp size={16} color="#16A34A" />
+                </View>
+              </View>
+              <Text className="text-2xl font-bold text-green-700">+{formatCurrency(stats.income)}</Text>
             </View>
-            <View className="flex-1 p-4 rounded-lg bg-red-50 border border-red-200">
-              <Text className="text-xs text-red-700 font-semibold mb-1">Expenses</Text>
-              <Text className="text-lg font-bold text-red-700">-{formatCurrency(stats.expense)}</Text>
+
+            {/* Expenses Card */}
+            <View className="p-4 rounded-2xl" style={{ backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' }}>
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="text-xs font-semibold text-red-700">EXPENSES</Text>
+                <View className="w-8 h-8 rounded-full bg-red-100 items-center justify-center">
+                  <TrendingDown size={16} color="#DC2626" />
+                </View>
+              </View>
+              <Text className="text-2xl font-bold text-red-700">-{formatCurrency(stats.expense)}</Text>
             </View>
-            <View className="flex-1 p-4 rounded-lg border-2" style={{ backgroundColor: stats.net >= 0 ? '#F0FDF4' : '#FEF2F2', borderColor: stats.net >= 0 ? '#86EFAC' : '#FECACA' }}>
-              <Text className="text-xs font-semibold mb-1" style={{ color: stats.net >= 0 ? '#16A34A' : '#DC2626' }}>
-                Net
-              </Text>
-              <Text className="text-lg font-bold" style={{ color: stats.net >= 0 ? '#16A34A' : '#DC2626' }}>
+
+            {/* Net Balance Card */}
+            <View className="p-4 rounded-2xl" style={{ backgroundColor: stats.net >= 0 ? '#F0FDF4' : '#FEF2F2', borderWidth: 1, borderColor: stats.net >= 0 ? '#86EFAC' : '#FECACA' }}>
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="text-xs font-semibold" style={{ color: stats.net >= 0 ? '#16A34A' : '#DC2626' }}>
+                  NET BALANCE
+                </Text>
+                <View
+                  className="w-8 h-8 rounded-full items-center justify-center"
+                  style={{ backgroundColor: stats.net >= 0 ? '#DCFCE7' : '#FEE2E2' }}
+                >
+                  <Scale3D size={16} color={stats.net >= 0 ? '#16A34A' : '#DC2626'} />
+                </View>
+              </View>
+              <Text className="text-2xl font-bold" style={{ color: stats.net >= 0 ? '#16A34A' : '#DC2626' }}>
                 {stats.net >= 0 ? '+' : '-'}{formatCurrency(Math.abs(stats.net))}
               </Text>
             </View>
