@@ -216,19 +216,49 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Simple allocation interface
   - Basic tracking (allocated vs spent)
 
-### Dashboard (US-034 Integration)
-- ✅ **Budget Status Widget** - Quick financial overview
-  - Displays current spending vs allocated amount
-  - Real-time progress bar with color-coded status
-  - Status indicators: "On Track" (green), "Warning" (yellow), "Over Budget" (red)
-  - Shows remaining amount (positive/negative with colors)
-  - Displays 50/30/20 allocation breakdown (Needs/Wants/Savings percentages)
-  - Budget period dates (from payday to payday)
-- ✅ **Widget Features**
-  - Automatic data refresh when dashboard is focused
-  - Empty state prompts user to create first budget
-  - "View Budget Details" link to navigate to full budget page
-  - Real-time sync with transaction operations
+### Dashboard (US-051 - Comprehensive Overview)
+- ✅ **Welcome Header** - Personalized greeting with user name, current date, and budget period
+- ✅ **Total Balance Card** - Sum of all account balances with clickable link to accounts
+- ✅ **This Month Spending Card** - Total expenses for current budget period with percentage
+- ✅ **Budget Status Widget** - Comprehensive budget overview with:
+  - Total spent vs allocated amount
+  - Color-coded progress bar (Green/Yellow/Orange/Red)
+  - Status indicators (On Track, Watch Spending, Approaching Limit, Over Budget)
+  - Remaining budget amount
+  - Period dates
+- ✅ **Budget 50/30/20 Breakdown** - Visual progress bars for:
+  - Needs (50%) - Housing, groceries, utilities, etc.
+  - Wants (30%) - Dining, entertainment, shopping, etc.
+  - Savings (20%) - Emergency fund, investments, goals
+  - Each category shows spent vs allocated with percentage
+- ✅ **Recent Transactions Widget** - Last 5 transactions with:
+  - Category icons and colors
+  - Transaction amounts (color-coded by type)
+  - Relative dates (Today, Yesterday, X days ago)
+  - Clickable to view/edit transaction
+  - "View All" link to full transaction list
+  - Empty state for new users
+- ✅ **Accounts List Widget** - Display of 3-4 accounts with:
+  - Account name and institution
+  - Current balance (color-coded by sign)
+  - Default account badge
+  - Clickable to view account details
+  - "View All" link if more than 4 accounts
+  - Empty state with quick add button
+- ✅ **Quick Actions Bar** - Three prominent buttons:
+  - Add Expense (red)
+  - Add Income (green)
+  - Add Account (teal)
+- ✅ **Skeleton Loaders** - Progressive data loading with:
+  - Shimmer animation on placeholder cards
+  - Staggered load sequence for visual appeal
+  - Loading state for each widget
+- ✅ **Empty States** - Helpful prompts for new users:
+  - No budget → Prompt to create first budget
+  - No accounts → Prompt to add first account
+  - No transactions → Prompt to add first transaction
+- ✅ **Real-Time Data Refresh** - Auto-refetch on tab focus
+- ✅ **Data Aggregation** - Efficient parallel queries with React Query caching
 
 ### Database Schema (InstantDB)
 
@@ -378,15 +408,18 @@ src/
 │   ├── categories-api.ts     # Categories management API
 │   ├── transactions-api.ts   # Transactions management API
 │   ├── budget-api.ts         # Budget management API (US-034)
-│   ├── budget-utils.ts       # Budget calculation utilities (US-034)
-│   ├── payday-utils.ts       # Payday calculation & budget period utilities
-│   ├── biometric-auth.ts     # Biometric authentication utilities
-│   └── cn.ts                 # Utility for className merging
+│   ├── budget-utils.ts           # Budget calculation utilities (US-034)
+│   ├── dashboard-helpers.ts      # Dashboard data aggregation & formatting helpers
+│   ├── payday-utils.ts           # Payday calculation & budget period utilities
+│   ├── biometric-auth.ts         # Biometric authentication utilities
+│   └── cn.ts                     # Utility for className merging
 └── components/
-    ├── Themed.tsx            # Themed components
-    ├── SuccessModal.tsx      # Success celebration modal
-    ├── InstitutionPicker.tsx  # Institution selection bottom sheet
-    └── AccountTypePicker.tsx  # Wallet type selection bottom sheet
+    ├── Themed.tsx                    # Themed components
+    ├── SuccessModal.tsx              # Success celebration modal
+    ├── InstitutionPicker.tsx         # Institution selection bottom sheet
+    ├── AccountTypePicker.tsx         # Wallet type selection bottom sheet
+    ├── SkeletonLoaders.tsx           # Dashboard skeleton loaders with shimmer
+    └── DashboardWidgets.tsx          # Dashboard widget components (Welcome, Cards, Lists)
 ```
 
 ## Authentication Flow

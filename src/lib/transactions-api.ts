@@ -705,3 +705,42 @@ export function parseSwissDate(dateString: string): string | null {
 
   return null;
 }
+
+/**
+ * Get recent transactions for dashboard (last N transactions for current period)
+ */
+export async function getRecentTransactions(
+  userId: string,
+  limit: number = 5,
+  periodStart?: string,
+  periodEnd?: string
+): Promise<Transaction[]> {
+  try {
+    const result = await db.queryOnce({
+      transactions: {
+        $: {
+          where: {
+            userId,
+          },
+        },
+      },
+    });
+
+    let transactions = (result.data.transactions || []) as Transaction[];
+
+    // Filter by period if provided
+    if (periodStart && periodEnd) {
+      transactions = transactions.filter(
+        (tx) => tx.date >= periodStart && tx.date <= periodEnd
+      );
+    }
+
+    // Sort by date descending and limit
+    return transactions
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, limit);
+  } catch (error) {
+    console.error('Get recent transactions error:', error);
+    return [];
+  }
+}

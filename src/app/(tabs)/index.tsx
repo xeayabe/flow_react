@@ -1,13 +1,33 @@
 import React, { useCallback } from 'react';
-import { Text, View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { Text, View, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
-import { router } from 'expo-router';
-import { TrendingUp, ChevronRight } from 'lucide-react-native';
+import { TrendingUp } from 'lucide-react-native';
 import { db } from '@/lib/db';
+import { getUserAccounts } from '@/lib/accounts-api';
+import { getRecentTransactions, Transaction } from '@/lib/transactions-api';
+import { getCategories } from '@/lib/categories-api';
 import { getBudgetSummary, recalculateBudgetSpentAmounts } from '@/lib/budget-api';
 import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
+import {
+  calculateTotalBalance,
+  calculatePeriodSpending,
+  getRecentTransactionsWithCategories,
+  formatCurrency,
+} from '@/lib/dashboard-helpers';
+import {
+  DashboardLoadingSkeleton,
+} from '@/components/SkeletonLoaders';
+import {
+  WelcomeHeader,
+  TotalBalanceCard,
+  ThisMonthSpendingCard,
+  RecentTransactionsWidget,
+  AccountsListWidget,
+  Budget50_30_20Widget,
+  QuickActionsBar,
+} from '@/components/DashboardWidgets';
 
 interface BudgetSummaryData {
   totalIncome: number;
@@ -16,19 +36,13 @@ interface BudgetSummaryData {
   needsAllocated: number;
   wantsAllocated: number;
   savingsAllocated: number;
-}
-
-function getSpendingStatus(spent: number, allocated: number): { status: string; color: string } {
-  if (allocated === 0) return { status: 'empty', color: '#9CA3AF' };
-  const percentage = (spent / allocated) * 100;
-  if (percentage >= 100) return { status: 'over', color: '#EF4444' };
-  if (percentage >= 90) return { status: 'warning', color: '#F59E0B' };
-  return { status: 'on-track', color: '#10B981' };
+  needsSpent?: number;
+  wantsSpent?: number;
+  savingsSpent?: number;
 }
 
 export default function DashboardScreen() {
   const { user } = db.useAuth();
-  const queryClient = useQueryClient();
 
   // Get household for payday info
   const householdQuery = useQuery({
@@ -58,36 +72,70 @@ export default function DashboardScreen() {
   // Calculate budget period
   const paydayDay = householdQuery.data?.household?.paydayDay ?? 25;
   const budgetPeriod = calculateBudgetPeriod(paydayDay);
+  const userId = householdQuery.data?.userRecord?.id;
+  const householdId = householdQuery.data?.household?.id;
+
+  // Get all accounts
+  const accountsQuery = useQuery({
+    queryKey: ['user-accounts', user?.email],
+    queryFn: async () => {
+      if (!user?.email) return [];
+      return getUserAccounts(user.email);
+    },
+    enabled: !!user?.email,
+  });
 
   // Get budget summary
   const summaryQuery = useQuery({
-    queryKey: ['budget-summary', householdQuery.data?.userRecord?.id, householdQuery.data?.household?.id, budgetPeriod.start],
+    queryKey: ['budget-summary', userId, householdId, budgetPeriod.start],
     queryFn: async () => {
-      if (!householdQuery.data?.userRecord?.id) return null;
-      return getBudgetSummary(householdQuery.data.userRecord.id, householdQuery.data.household.id, budgetPeriod.start);
+      if (!userId || !householdId) return null;
+      return getBudgetSummary(userId, householdId, budgetPeriod.start);
     },
-    enabled: !!householdQuery.data?.userRecord?.id,
+    enabled: !!userId && !!householdId,
   });
 
-  const { refetch: refetchBudgetSummary } = summaryQuery;
+  // Get recent transactions
+  const recentTransactionsQuery = useQuery({
+    queryKey: ['recent-transactions', userId, budgetPeriod.start, budgetPeriod.end],
+    queryFn: async () => {
+      if (!userId) return [];
+      return getRecentTransactions(userId, 5, budgetPeriod.start, budgetPeriod.end);
+    },
+    enabled: !!userId,
+  });
+
+  // Get categories
+  const categoriesQuery = useQuery({
+    queryKey: ['categories', householdId],
+    queryFn: async () => {
+      if (!householdId) return [];
+      return getCategories(householdId);
+    },
+    enabled: !!householdId,
+  });
 
   // Refetch when focused
+  const { refetch: refetchBudgetSummary } = summaryQuery;
+  const { refetch: refetchAccounts } = accountsQuery;
+  const { refetch: refetchRecentTransactions } = recentTransactionsQuery;
+
   useFocusEffect(
     useCallback(() => {
       refetchBudgetSummary();
-    }, [refetchBudgetSummary])
+      refetchAccounts();
+      refetchRecentTransactions();
+    }, [refetchBudgetSummary, refetchAccounts, refetchRecentTransactions])
   );
 
-  // Recalculate spent amounts on first load to catch any missing transactions
+  // Recalculate spent amounts on first load
   React.useEffect(() => {
-    if (householdQuery.data?.userRecord?.id && !summaryQuery.isLoading && summary) {
-      // Recalculate to ensure all transactions are accounted for
+    if (userId && householdId && !summaryQuery.isLoading && summaryQuery.data) {
       recalculateBudgetSpentAmounts(
-        householdQuery.data.userRecord.id,
+        userId,
         budgetPeriod.start,
         budgetPeriod.end
       ).then(() => {
-        // Refetch after recalculation
         setTimeout(() => refetchBudgetSummary(), 500);
       }).catch((error) => {
         console.warn('Failed to recalculate budget spent amounts:', error);
@@ -95,137 +143,158 @@ export default function DashboardScreen() {
     }
   }, []);
 
-  const summary = summaryQuery.data as BudgetSummaryData | null;
+  const isLoading =
+    householdQuery.isLoading ||
+    accountsQuery.isLoading ||
+    summaryQuery.isLoading ||
+    recentTransactionsQuery.isLoading ||
+    categoriesQuery.isLoading;
 
-  if (householdQuery.isLoading || summaryQuery.isLoading) {
+  if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#006A6A" />
-        </View>
+        <DashboardLoadingSkeleton />
       </SafeAreaView>
     );
   }
 
-  const remaining = summary ? summary.totalIncome - summary.totalSpent : 0;
-  const spentPercentage = summary ? (summary.totalSpent / summary.totalIncome) * 100 : 0;
-  const { status: spendingStatus, color: statusColor } = summary
-    ? getSpendingStatus(summary.totalSpent, summary.totalAllocated)
-    : { status: 'empty', color: '#9CA3AF' };
+  const accounts = accountsQuery.data || [];
+  const summary = (summaryQuery.data as BudgetSummaryData) || null;
+  const recentTransactions = recentTransactionsQuery.data || [];
+  const categories = categoriesQuery.data || [];
+  const userName = householdQuery.data?.userRecord?.name || 'User';
+  const totalBalance = calculateTotalBalance(accounts);
+  const monthSpending = calculatePeriodSpending(recentTransactions, budgetPeriod.start, budgetPeriod.end, 'expense');
+
+  // Enrich recent transactions with category info
+  const enrichedTransactions = getRecentTransactionsWithCategories(recentTransactions, categories, 5);
+
+  // Calculate spent amounts by category group if summary exists
+  let needsSpent = 0;
+  let wantsSpent = 0;
+  let savingsSpent = 0;
+
+  if (summary) {
+    // This would require fetching budgets for each group
+    // For now, we can estimate based on the proportion of allocated to total
+    const totalAllocated = summary.needsAllocated + summary.wantsAllocated + summary.savingsAllocated;
+    if (totalAllocated > 0 && summary.totalSpent > 0) {
+      const needsProportion = summary.needsAllocated / totalAllocated;
+      const wantsProportion = summary.wantsAllocated / totalAllocated;
+      const savingsProportion = summary.savingsAllocated / totalAllocated;
+
+      needsSpent = summary.totalSpent * needsProportion;
+      wantsSpent = summary.totalSpent * wantsProportion;
+      savingsSpent = summary.totalSpent * savingsProportion;
+    }
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View className="px-6 py-6">
-          {/* Header */}
-          <View className="mb-8">
-            <Text className="text-3xl font-bold text-gray-900">Dashboard</Text>
-            <Text className="text-sm text-gray-500 mt-2">Overview of your finances</Text>
+        <View className="px-6 py-6 gap-6">
+          {/* Welcome Header */}
+          <WelcomeHeader
+            userName={userName}
+            budgetPeriodStart={formatDateSwiss(budgetPeriod.start)}
+            budgetPeriodEnd={formatDateSwiss(budgetPeriod.end)}
+          />
+
+          {/* Summary Cards Row */}
+          <View className="flex-row gap-4">
+            <TotalBalanceCard totalBalance={totalBalance} />
+            {summary && (
+              <ThisMonthSpendingCard
+                monthSpending={monthSpending}
+                budgetAllocated={summary.totalAllocated}
+              />
+            )}
           </View>
 
           {/* Budget Status Widget */}
           {summary ? (
-            <View className="mb-8">
-              <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#F8FAFC' }}>
-                {/* Card Header */}
-                <View className="px-6 py-5 border-b border-gray-200">
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-row items-center gap-3">
-                      <View className="w-10 h-10 rounded-lg bg-teal-100 items-center justify-center">
-                        <TrendingUp size={20} color="#0D9488" />
-                      </View>
-                      <View>
-                        <Text className="text-sm font-semibold text-gray-700">Budget Status</Text>
-                        <Text className="text-xs text-gray-500 mt-0.5">
-                          {formatDateSwiss(budgetPeriod.start)} - {formatDateSwiss(budgetPeriod.end)}
-                        </Text>
-                      </View>
-                    </View>
+            <View className="rounded-2xl overflow-hidden bg-slate-50">
+              {/* Card Header */}
+              <View className="px-6 py-5 border-b border-gray-200">
+                <View className="flex-row items-center gap-3">
+                  <View className="w-10 h-10 rounded-lg bg-teal-100 items-center justify-center">
+                    <TrendingUp size={20} color="#0D9488" />
                   </View>
-                </View>
-
-                {/* Card Content */}
-                <View className="px-6 py-5">
-                  {/* Spending Summary */}
-                  <View className="mb-5">
-                    <View className="flex-row justify-between items-baseline mb-2">
-                      <Text className="text-sm text-gray-600">Spent</Text>
-                      <Text className="text-2xl font-bold text-gray-900">
-                        {summary.totalSpent.toFixed(2)} CHF
-                      </Text>
-                    </View>
-                    <Text className="text-xs text-gray-500">
-                      of {summary.totalAllocated.toFixed(2)} CHF allocated
+                  <View>
+                    <Text className="text-sm font-semibold text-gray-700">Budget Status</Text>
+                    <Text className="text-xs text-gray-500 mt-0.5">
+                      {formatDateSwiss(budgetPeriod.start)} - {formatDateSwiss(budgetPeriod.end)}
                     </Text>
                   </View>
+                </View>
+              </View>
 
-                  {/* Progress Bar */}
-                  <View className="mb-4">
-                    <View className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                      <View
-                        className="h-full"
-                        style={{
-                          width: `${Math.min(100, spentPercentage)}%`,
-                          backgroundColor: statusColor,
-                        }}
-                      />
-                    </View>
+              {/* Card Content */}
+              <View className="px-6 py-5">
+                {/* Spending Summary */}
+                <View className="mb-5">
+                  <View className="flex-row justify-between items-baseline mb-2">
+                    <Text className="text-sm text-gray-600">Spent</Text>
+                    <Text className="text-2xl font-bold text-gray-900">
+                      {formatCurrency(summary.totalSpent)}
+                    </Text>
                   </View>
+                  <Text className="text-xs text-gray-500">
+                    of {formatCurrency(summary.totalAllocated)} allocated
+                  </Text>
+                </View>
 
-                  {/* Status and Remaining */}
-                  <View className="flex-row justify-between items-center mb-4">
-                    <View>
-                      <Text className="text-xs text-gray-600 mb-0.5">Status</Text>
-                      <View className="flex-row items-center gap-2">
-                        <View className="w-2 h-2 rounded-full" style={{ backgroundColor: statusColor }} />
-                        <Text className="text-sm font-semibold text-gray-900">
-                          {spendingStatus === 'on-track' && 'On Track'}
-                          {spendingStatus === 'warning' && 'Warning'}
-                          {spendingStatus === 'over' && 'Over Budget'}
-                          {spendingStatus === 'empty' && 'No Budget'}
-                        </Text>
-                      </View>
-                    </View>
-                    <View className="items-end">
-                      <Text className="text-xs text-gray-600 mb-0.5">Remaining</Text>
-                      <Text className="text-sm font-semibold" style={{ color: remaining > 0 ? '#10B981' : '#EF4444' }}>
-                        {remaining > 0 ? '+' : ''}{remaining.toFixed(2)} CHF
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Allocation Breakdown */}
-                  <View className="grid grid-cols-3 gap-3">
-                    <View className="p-3 rounded-lg bg-white">
-                      <Text className="text-xs text-gray-600 mb-1">Needs</Text>
-                      <Text className="text-sm font-bold text-gray-900">{summary.needsAllocated.toFixed(2)} CHF</Text>
-                    </View>
-                    <View className="p-3 rounded-lg bg-white">
-                      <Text className="text-xs text-gray-600 mb-1">Wants</Text>
-                      <Text className="text-sm font-bold text-gray-900">{summary.wantsAllocated.toFixed(2)} CHF</Text>
-                    </View>
-                    <View className="p-3 rounded-lg bg-white">
-                      <Text className="text-xs text-gray-600 mb-1">Savings</Text>
-                      <Text className="text-sm font-bold text-gray-900">{summary.savingsAllocated.toFixed(2)} CHF</Text>
-                    </View>
+                {/* Progress Bar */}
+                <View className="mb-4">
+                  <View className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                    <View
+                      className="h-full"
+                      style={{
+                        width: `${Math.min(100, (summary.totalSpent / summary.totalAllocated) * 100)}%`,
+                        backgroundColor:
+                          (summary.totalSpent / summary.totalAllocated) * 100 >= 100
+                            ? '#EF4444'
+                            : (summary.totalSpent / summary.totalAllocated) * 100 >= 90
+                              ? '#F59E0B'
+                              : '#10B981',
+                      }}
+                    />
                   </View>
                 </View>
 
-                {/* Card Footer - View Budget Link */}
-                <View className="px-6 py-4 border-t border-gray-200">
-                  <Pressable
-                    onPress={() => router.push('/budget')}
-                    className="flex-row items-center justify-between"
-                  >
-                    <Text className="text-sm font-semibold text-teal-600">View Budget Details</Text>
-                    <ChevronRight size={18} color="#0D9488" />
-                  </Pressable>
+                {/* Status and Remaining */}
+                <View className="flex-row justify-between items-center">
+                  <View>
+                    <Text className="text-xs text-gray-600 mb-0.5">Status</Text>
+                    <Text className="text-sm font-semibold text-gray-900">
+                      {(summary.totalSpent / summary.totalAllocated) * 100 >= 100
+                        ? 'Over Budget'
+                        : (summary.totalSpent / summary.totalAllocated) * 100 >= 90
+                          ? 'Approaching Limit'
+                          : (summary.totalSpent / summary.totalAllocated) * 100 >= 70
+                            ? 'Watch Spending'
+                            : 'On Track'}
+                    </Text>
+                  </View>
+                  <View className="items-end">
+                    <Text className="text-xs text-gray-600 mb-0.5">Remaining</Text>
+                    <Text
+                      className="text-sm font-semibold"
+                      style={{
+                        color:
+                          summary.totalIncome - summary.totalSpent > 0 ? '#10B981' : '#EF4444',
+                      }}
+                    >
+                      {summary.totalIncome - summary.totalSpent > 0 ? '+' : ''}
+                      {formatCurrency(summary.totalIncome - summary.totalSpent)}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
           ) : (
             /* Empty State */
-            <View className="mb-8 rounded-2xl p-6" style={{ backgroundColor: '#F0F9FF' }}>
+            <View className="rounded-2xl p-6 bg-blue-50 border border-blue-100">
               <View className="items-center">
                 <View className="w-12 h-12 rounded-full bg-teal-100 items-center justify-center mb-3">
                   <TrendingUp size={24} color="#0D9488" />
@@ -234,20 +303,33 @@ export default function DashboardScreen() {
                 <Text className="text-sm text-gray-600 text-center mb-4">
                   Create your first budget to track spending and see your financial overview here.
                 </Text>
-                <Pressable
-                  onPress={() => router.push('/budget')}
-                  className="bg-teal-600 py-2 px-4 rounded-lg"
-                >
-                  <Text className="text-sm font-semibold text-white">Create Budget</Text>
-                </Pressable>
               </View>
             </View>
           )}
 
-          {/* Placeholder for future widgets */}
-          <View className="py-4">
-            <Text className="text-xs text-gray-500 text-center">More widgets coming soon</Text>
-          </View>
+          {/* Budget 50/30/20 Breakdown */}
+          {summary && (
+            <Budget50_30_20Widget
+              needsAllocated={summary.needsAllocated}
+              needsSpent={needsSpent}
+              wantsAllocated={summary.wantsAllocated}
+              wantsSpent={wantsSpent}
+              savingsAllocated={summary.savingsAllocated}
+              savingsSpent={savingsSpent}
+            />
+          )}
+
+          {/* Recent Transactions Widget */}
+          <RecentTransactionsWidget transactions={enrichedTransactions} />
+
+          {/* Accounts List Widget */}
+          <AccountsListWidget accounts={accounts} />
+
+          {/* Quick Actions Bar */}
+          <QuickActionsBar />
+
+          {/* Bottom Padding */}
+          <View className="h-4" />
         </View>
       </ScrollView>
     </SafeAreaView>
