@@ -98,6 +98,7 @@ export default function TransactionsListScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
       setDeleteConfirmId(null);
     },
   });

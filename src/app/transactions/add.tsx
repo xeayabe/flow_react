@@ -136,6 +136,7 @@ export default function AddTransactionScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
 
       setSuccessMessage(`✓ ${formData.type === 'income' ? 'Income' : 'Expense'} added!`);
@@ -157,7 +158,8 @@ export default function AddTransactionScreen() {
         amountInputRef.current?.focus();
       }, 2000);
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Transaction creation failed:', error);
       Alert.alert('Error', 'Failed to create transaction. Please try again.');
     },
   });

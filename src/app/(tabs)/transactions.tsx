@@ -97,6 +97,7 @@ export default function TransactionsTabScreen() {
     React.useCallback(() => {
       queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
     }, [householdQuery.data?.userRecord?.id, user?.email, queryClient])
   );
 
@@ -106,6 +107,7 @@ export default function TransactionsTabScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
       setDeleteConfirmId(null);
     },
   });

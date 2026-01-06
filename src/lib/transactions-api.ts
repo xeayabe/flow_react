@@ -45,6 +45,8 @@ export interface TransactionResponse {
  */
 export async function createTransaction(request: CreateTransactionRequest): Promise<TransactionResponse> {
   try {
+    console.log('Creating transaction:', { type: request.type, amount: request.amount });
+
     // Validate input
     if (!request.amount || request.amount <= 0) {
       return { success: false, error: 'Amount must be greater than 0' };
@@ -82,13 +84,19 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
       return { success: false, error: 'Account not found' };
     }
 
+    console.log('Account found:', { accountId: account.id, currentBalance: account.balance });
+
     // Calculate new balance
     let newBalance = account.balance;
     if (request.type === 'income') {
       newBalance += request.amount;
+      console.log('Income transaction: adding', request.amount, 'to balance');
     } else {
       newBalance -= request.amount;
+      console.log('Expense transaction: subtracting', request.amount, 'from balance');
     }
+
+    console.log('New balance will be:', newBalance);
 
     // Create transaction and update account balance in a transaction
     await db.transact([
@@ -114,8 +122,7 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
       }),
     ]);
 
-    console.log('Transaction created:', { transactionId, amount: request.amount, type: request.type });
-    console.log('New account balance:', newBalance);
+    console.log('Transaction created successfully:', { transactionId, type: request.type, newBalance });
 
     return { success: true, data: { id: transactionId, ...request, isShared: false, createdAt: now, updatedAt: now } as Transaction };
   } catch (error) {
