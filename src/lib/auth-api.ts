@@ -141,16 +141,17 @@ export async function verifyMagicCode(email: string, code: string): Promise<Auth
 
     return { success: true };
   } catch (error: unknown) {
-    const err = error as { body?: { message?: string } };
+    const err = error as { message?: string; body?: { message?: string } };
     console.error('Verify magic code error:', error);
 
     // Record failed attempt
     recordAttempt(email, false);
 
     // Parse error message for user-friendly responses
-    const errorMessage = err.body?.message || '';
+    // Check both error.message and error.body.message
+    const errorMessage = err.message || err.body?.message || '';
 
-    let userFriendlyError = 'Invalid verification code';
+    let userFriendlyError = 'Incorrect code. Please check your email and try again';
 
     // Handle specific error cases
     if (errorMessage.includes('Record not found') || errorMessage.includes('app-user-magic-code')) {
@@ -159,9 +160,6 @@ export async function verifyMagicCode(email: string, code: string): Promise<Auth
       userFriendlyError = 'This code has expired. Please request a new one';
     } else if (errorMessage.includes('already used')) {
       userFriendlyError = 'This code has already been used. Please request a new one';
-    } else if (errorMessage) {
-      // Use the original message if it's already user-friendly
-      userFriendlyError = errorMessage;
     }
 
     return {
