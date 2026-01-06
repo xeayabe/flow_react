@@ -34,6 +34,10 @@ export interface CreateTransactionRequest {
   recurringDay?: number;
 }
 
+export interface UpdateTransactionRequest extends CreateTransactionRequest {
+  id: string; // transaction ID to update
+}
+
 export interface TransactionResponse {
   success: boolean;
   data?: Transaction;
@@ -263,8 +267,221 @@ export async function deleteTransaction(transactionId: string): Promise<Transact
 }
 
 /**
- * Format amount as currency
+ * Get a single transaction by ID
  */
+export async function getTransaction(transactionId: string, userId: string): Promise<Transaction | null> {
+  try {
+    const result = await db.queryOnce({
+      transactions: {
+        $: {
+          where: {
+            id: transactionId,
+          },
+        },
+      },
+    });
+
+    const transaction = result.data.transactions?.[0] as Transaction | undefined;
+
+    // Security check: ensure user owns the transaction
+    if (transaction && transaction.userId !== userId) {
+      console.warn('Access denied: user does not own this transaction');
+      return null;
+    }
+
+    return transaction || null;
+  } catch (error) {
+    console.error('Get transaction error:', error);
+    return null;
+  }
+}
+
+/**
+ * Update a transaction with balance adjustments
+ * Handles: amount changes, type changes, account changes
+ */
+export async function updateTransaction(request: UpdateTransactionRequest): Promise<TransactionResponse> {
+  try {
+    console.log('Updating transaction:', { id: request.id, type: request.type, amount: request.amount });
+
+    // Validate input
+    if (!request.amount || request.amount <= 0) {
+      return { success: false, error: 'Amount must be greater than 0' };
+    }
+
+    if (!request.date) {
+      return { success: false, error: 'Please select a date' };
+    }
+
+    // Check date is not in future
+    const transactionDate = new Date(request.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (transactionDate > today) {
+      return { success: false, error: 'Date cannot be in the future' };
+    }
+
+    // Get the original transaction
+    const originalTxResult = await db.queryOnce({
+      transactions: {
+        $: {
+          where: {
+            id: request.id,
+          },
+        },
+      },
+    });
+
+    const originalTx = originalTxResult.data.transactions?.[0] as Transaction | undefined;
+    if (!originalTx) {
+      return { success: false, error: 'Transaction not found' };
+    }
+
+    // Security check: ensure user owns the transaction
+    if (originalTx.userId !== request.userId) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    // Get current balances for affected accounts
+    const oldAccountResult = await db.queryOnce({
+      accounts: {
+        $: {
+          where: {
+            id: originalTx.accountId,
+          },
+        },
+      },
+    });
+
+    const oldAccount = oldAccountResult.data.accounts?.[0];
+    if (!oldAccount) {
+      return { success: false, error: 'Original account not found' };
+    }
+
+    let newAccountData = oldAccount;
+    let needsSecondAccountUpdate = false;
+
+    // If account changed, get the new account
+    if (originalTx.accountId !== request.accountId) {
+      const newAccountResult = await db.queryOnce({
+        accounts: {
+          $: {
+            where: {
+              id: request.accountId,
+            },
+          },
+        },
+      });
+
+      newAccountData = newAccountResult.data.accounts?.[0];
+      if (!newAccountData) {
+        return { success: false, error: 'New account not found' };
+      }
+      needsSecondAccountUpdate = true;
+    }
+
+    // Calculate balance adjustments
+    // Step 1: Reverse the original transaction's impact
+    let oldAccountNewBalance = oldAccount.balance;
+    if (originalTx.type === 'income') {
+      oldAccountNewBalance -= originalTx.amount;
+      console.log(`Reversing income: subtracting ${originalTx.amount} from old account`);
+    } else {
+      oldAccountNewBalance += originalTx.amount;
+      console.log(`Reversing expense: adding ${originalTx.amount} to old account`);
+    }
+
+    // Step 2: Apply the new transaction's impact
+    let newAccountNewBalance = newAccountData.balance;
+    if (needsSecondAccountUpdate) {
+      // If account changed, we're working with the new account's balance
+      newAccountNewBalance = newAccountData.balance;
+    } else {
+      // If account didn't change, we're updating the same account
+      newAccountNewBalance = oldAccountNewBalance;
+    }
+
+    if (request.type === 'income') {
+      newAccountNewBalance += request.amount;
+      console.log(`Applying income: adding ${request.amount} to new account`);
+    } else {
+      newAccountNewBalance -= request.amount;
+      console.log(`Applying expense: subtracting ${request.amount} from new account`);
+    }
+
+    console.log('Balance adjustments:', {
+      oldAccountId: originalTx.accountId,
+      oldAccountBalance: oldAccount.balance,
+      oldAccountNewBalance,
+      newAccountId: request.accountId,
+      newAccountBalance: newAccountData.balance,
+      newAccountNewBalance,
+    });
+
+    // Step 3: Update transaction and balance(s)
+    const now = Date.now();
+    const transactionsToUpdate = [
+      db.tx.transactions[request.id].update({
+        type: request.type,
+        amount: request.amount,
+        categoryId: request.categoryId,
+        accountId: request.accountId,
+        date: request.date,
+        note: request.note,
+        isRecurring: request.isRecurring || false,
+        recurringDay: request.recurringDay,
+        updatedAt: now,
+      }),
+      db.tx.accounts[originalTx.accountId].update({
+        balance: oldAccountNewBalance,
+        updatedAt: now,
+      }),
+    ];
+
+    // If account changed, update the new account as well
+    if (needsSecondAccountUpdate) {
+      transactionsToUpdate.push(
+        db.tx.accounts[request.accountId].update({
+          balance: newAccountNewBalance,
+          updatedAt: now,
+        })
+      );
+    }
+
+    await db.transact(transactionsToUpdate);
+
+    console.log('Transaction updated successfully:', request.id);
+
+    return {
+      success: true,
+      data: {
+        id: request.id,
+        userId: request.userId,
+        householdId: request.householdId,
+        accountId: request.accountId,
+        categoryId: request.categoryId,
+        type: request.type,
+        amount: request.amount,
+        date: request.date,
+        note: request.note,
+        isShared: originalTx.isShared,
+        paidByUserId: originalTx.paidByUserId,
+        isRecurring: request.isRecurring || false,
+        recurringDay: request.recurringDay,
+        createdAt: originalTx.createdAt,
+        updatedAt: now,
+      } as Transaction,
+    };
+  } catch (error) {
+    console.error('Update transaction error:', error);
+    return {
+      success: false,
+      error: 'Failed to update transaction',
+    };
+  }
+}
+
 export function formatCurrency(amount: number, currency: string = 'CHF'): string {
   return new Intl.NumberFormat('de-CH', {
     style: 'currency',

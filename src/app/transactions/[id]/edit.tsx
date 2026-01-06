@@ -1,0 +1,755 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, Pressable, TextInput, Modal, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ChevronLeft, Plus, X, Check, Calendar, ChevronRight, Trash2 } from 'lucide-react-native';
+import { db } from '@/lib/db';
+import { getTransaction, updateTransaction, deleteTransaction, formatCurrency, formatDateSwiss, parseSwissDate, Transaction } from '@/lib/transactions-api';
+import { getCategories } from '@/lib/categories-api';
+import { getUserAccounts, formatBalance } from '@/lib/accounts-api';
+import { cn } from '@/lib/cn';
+
+type TransactionType = 'income' | 'expense';
+
+interface FormData {
+  type: TransactionType;
+  amount: string;
+  categoryId: string;
+  accountId: string;
+  date: string;
+  note: string;
+  isRecurring: boolean;
+  recurringDay: number;
+}
+
+interface FormErrors {
+  amount?: string;
+  categoryId?: string;
+  accountId?: string;
+  date?: string;
+}
+
+export default function EditTransactionScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const queryClient = useQueryClient();
+  const { user } = db.useAuth();
+  const amountInputRef = useRef<TextInput>(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDate, setTempDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [originalTransaction, setOriginalTransaction] = useState<Transaction | null>(null);
+
+  // Form state
+  const [formData, setFormData] = useState<FormData>({
+    type: 'expense',
+    amount: '',
+    categoryId: '',
+    accountId: '',
+    date: new Date().toISOString().split('T')[0],
+    note: '',
+    isRecurring: false,
+    recurringDay: 1,
+  });
+
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Get user and household info
+  const householdQuery = useQuery({
+    queryKey: ['household', user?.email],
+    queryFn: async () => {
+      if (!user?.email) throw new Error('No user email');
+
+      const userResult = await db.queryOnce({
+        users: {
+          $: {
+            where: {
+              email: user.email,
+            },
+          },
+        },
+      });
+
+      const userRecord = userResult.data.users?.[0];
+      if (!userRecord) throw new Error('User not found');
+
+      const householdsResult = await db.queryOnce({
+        households: {
+          $: {
+            where: {
+              createdByUserId: userRecord.id,
+            },
+          },
+        },
+      });
+
+      const household = householdsResult.data.households?.[0];
+      if (!household) throw new Error('No household found');
+
+      return { userRecord, household };
+    },
+    enabled: !!user?.email,
+  });
+
+  // Get transaction data
+  const transactionQuery = useQuery({
+    queryKey: ['transaction', id, householdQuery.data?.userRecord?.id],
+    queryFn: async () => {
+      if (!id || !householdQuery.data?.userRecord?.id) return null;
+      return getTransaction(id, householdQuery.data.userRecord.id);
+    },
+    enabled: !!id && !!householdQuery.data?.userRecord?.id,
+  });
+
+  // Get accounts
+  const accountsQuery = useQuery({
+    queryKey: ['accounts', user?.email],
+    queryFn: async () => {
+      if (!user?.email) return [];
+      return getUserAccounts(user.email);
+    },
+    enabled: !!user?.email,
+  });
+
+  // Get categories
+  const categoriesQuery = useQuery({
+    queryKey: ['categories', householdQuery.data?.household?.id],
+    queryFn: () => getCategories(householdQuery.data!.household.id),
+    enabled: !!householdQuery.data?.household?.id,
+  });
+
+  // Pre-fill form when transaction loads
+  useEffect(() => {
+    if (transactionQuery.data) {
+      const tx = transactionQuery.data;
+      setOriginalTransaction(tx);
+      setFormData({
+        type: tx.type,
+        amount: tx.amount.toString(),
+        categoryId: tx.categoryId,
+        accountId: tx.accountId,
+        date: tx.date,
+        note: tx.note || '',
+        isRecurring: tx.isRecurring,
+        recurringDay: tx.recurringDay || 1,
+      });
+      setTempDate(tx.date);
+      setCalendarMonth(new Date(tx.date + 'T00:00:00'));
+    }
+  }, [transactionQuery.data]);
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      updateTransaction({
+        id: id!,
+        userId: householdQuery.data!.userRecord.id,
+        householdId: householdQuery.data!.household.id,
+        accountId: formData.accountId,
+        categoryId: formData.categoryId,
+        type: formData.type,
+        amount: parseFloat(formData.amount),
+        date: formData.date,
+        note: formData.note || undefined,
+        isRecurring: formData.isRecurring,
+        recurringDay: formData.isRecurring ? formData.recurringDay : undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['transaction', id] });
+
+      setSuccessMessage('✓ Transaction updated!');
+      setShowSuccess(true);
+
+      setTimeout(() => {
+        setShowSuccess(false);
+        router.back();
+      }, 1500);
+    },
+    onError: (error) => {
+      console.error('Transaction update failed:', error);
+      Alert.alert('Error', 'Failed to update transaction. Please try again.');
+    },
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteTransaction(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
+      router.back();
+    },
+    onError: () => {
+      Alert.alert('Error', 'Failed to delete transaction. Please try again.');
+    },
+  });
+
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      newErrors.amount = 'Amount must be greater than 0';
+    }
+
+    if (!formData.categoryId) {
+      newErrors.categoryId = 'Please select a category';
+    }
+
+    if (!formData.accountId) {
+      newErrors.accountId = 'Please select an account';
+    }
+
+    if (!formData.date) {
+      newErrors.date = 'Please select a date';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (!validateForm()) return;
+    setIsSubmitting(true);
+    updateMutation.mutate();
+    setIsSubmitting(false);
+  };
+
+  // Filter categories by type
+  const categories = (categoriesQuery.data as any[]) || [];
+  const filteredCategories = categories.filter((cat) => cat.type === formData.type);
+
+  const selectedCategory = categories.find((cat) => cat.id === formData.categoryId);
+  const selectedAccount = accountsQuery.data?.find((acc) => acc.id === formData.accountId);
+
+  // Group categories
+  const groupedCategories = filteredCategories.reduce((acc, cat) => {
+    const group = cat.categoryGroup;
+    if (!acc[group]) acc[group] = [];
+    acc[group].push(cat);
+    return acc;
+  }, {} as Record<string, any[]>);
+
+  const groupOrder = formData.type === 'income' ? ['income'] : ['needs', 'wants', 'savings', 'other'];
+
+  // Error states
+  if (!id) {
+    return (
+      <View className="flex-1 bg-white items-center justify-center">
+        <Text className="text-lg font-semibold text-gray-900 mb-4">Transaction not found</Text>
+        <Pressable
+          onPress={() => router.back()}
+          className="px-6 py-3 rounded-lg bg-teal-600"
+        >
+          <Text className="text-white font-semibold">Back to Transactions</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (transactionQuery.isLoading || householdQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading) {
+    return (
+      <View className="flex-1 bg-white items-center justify-center">
+        <ActivityIndicator size="large" color="#006A6A" />
+      </View>
+    );
+  }
+
+  if (transactionQuery.data === null) {
+    return (
+      <View className="flex-1 bg-white items-center justify-center">
+        <Text className="text-lg font-semibold text-gray-900 mb-4">Transaction not found</Text>
+        <Pressable
+          onPress={() => router.back()}
+          className="px-6 py-3 rounded-lg bg-teal-600"
+        >
+          <Text className="text-white font-semibold">Back to Transactions</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View className="flex-1 bg-white">
+      <Stack.Screen
+        options={{
+          title: 'Edit Transaction',
+          headerLeft: () => (
+            <Pressable onPress={() => router.back()} className="pl-4">
+              <ChevronLeft size={24} color="#006A6A" />
+            </Pressable>
+          ),
+        }}
+      />
+
+      <SafeAreaView edges={['bottom']} className="flex-1">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+            <View className="px-6 py-8">
+              {/* Success Message */}
+              {showSuccess && (
+                <View className="mb-6 p-4 rounded-lg bg-green-50 flex-row items-center gap-2">
+                  <Check size={20} color="#059669" />
+                  <Text className="text-sm font-semibold text-green-700">{successMessage}</Text>
+                </View>
+              )}
+
+              {/* Type Toggle */}
+              <View className="mb-8">
+                <Text className="text-sm font-semibold text-gray-700 mb-3">Type</Text>
+                <View className="flex-row gap-3">
+                  {(['expense', 'income'] as const).map((type) => (
+                    <Pressable
+                      key={type}
+                      onPress={() => setFormData({ ...formData, type, categoryId: '' })}
+                      className={cn(
+                        'flex-1 py-3 rounded-lg border-2 items-center',
+                        formData.type === type ? 'bg-teal-50 border-teal-600' : 'border-gray-200'
+                      )}
+                    >
+                      <Text
+                        className={cn('font-semibold capitalize', formData.type === type ? 'text-teal-600' : 'text-gray-700')}
+                      >
+                        {type}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              {/* Amount Input */}
+              <View className="mb-8">
+                <Text className="text-sm font-semibold text-gray-700 mb-3">Amount (CHF)</Text>
+                <View className="relative">
+                  <Text className="absolute left-4 top-4 text-lg font-semibold text-gray-700">CHF</Text>
+                  <TextInput
+                    ref={amountInputRef}
+                    className={cn(
+                      'pl-14 pr-4 py-3 rounded-lg border-2 text-lg font-semibold',
+                      errors.amount ? 'border-red-500' : 'border-gray-200'
+                    )}
+                    style={{ color: '#006A6A' }}
+                    placeholder="0.00"
+                    placeholderTextColor="#D1D5DB"
+                    keyboardType="decimal-pad"
+                    value={formData.amount}
+                    onChangeText={(text) => {
+                      const cleaned = text.replace(/[^0-9.]/g, '');
+                      setFormData({ ...formData, amount: cleaned });
+                      if (errors.amount) setErrors({ ...errors, amount: undefined });
+                    }}
+                  />
+                </View>
+                {errors.amount && <Text className="text-xs text-red-500 mt-2">{errors.amount}</Text>}
+              </View>
+
+              {/* Category Dropdown */}
+              <View className="mb-8">
+                <Text className="text-sm font-semibold text-gray-700 mb-3">Category</Text>
+                <Pressable
+                  onPress={() => setShowCategoryModal(true)}
+                  className={cn(
+                    'p-3 rounded-lg border-2 flex-row items-center justify-between',
+                    errors.categoryId ? 'border-red-500' : 'border-gray-200'
+                  )}
+                >
+                  <Text className={cn('font-medium', selectedCategory ? 'text-gray-900' : 'text-gray-500')}>
+                    {selectedCategory?.name || 'Select category'}
+                  </Text>
+                  <Text className="text-gray-400">›</Text>
+                </Pressable>
+                {errors.categoryId && <Text className="text-xs text-red-500 mt-2">{errors.categoryId}</Text>}
+              </View>
+
+              {/* Account Dropdown */}
+              <View className="mb-8">
+                <Text className="text-sm font-semibold text-gray-700 mb-3">Account</Text>
+                <Pressable
+                  onPress={() => setShowAccountModal(true)}
+                  className={cn(
+                    'p-3 rounded-lg border-2 flex-row items-center justify-between',
+                    errors.accountId ? 'border-red-500' : 'border-gray-200'
+                  )}
+                >
+                  <View className="flex-1">
+                    <Text className={cn('font-medium', selectedAccount ? 'text-gray-900' : 'text-gray-500')}>
+                      {selectedAccount?.name || 'Select account'}
+                    </Text>
+                    {selectedAccount && (
+                      <Text className="text-xs text-gray-500 mt-1">{formatBalance(selectedAccount.balance, selectedAccount.currency)}</Text>
+                    )}
+                  </View>
+                  <Text className="text-gray-400">›</Text>
+                </Pressable>
+                {errors.accountId && <Text className="text-xs text-red-500 mt-2">{errors.accountId}</Text>}
+              </View>
+
+              {/* Date Input */}
+              <View className="mb-8">
+                <Text className="text-sm font-semibold text-gray-700 mb-3">Date</Text>
+                <Pressable
+                  onPress={() => {
+                    setTempDate(formData.date);
+                    setShowDatePicker(true);
+                  }}
+                  className={cn(
+                    'p-3 rounded-lg border-2 flex-row items-center justify-between',
+                    errors.date ? 'border-red-500' : 'border-gray-200'
+                  )}
+                >
+                  <Text className="font-medium text-gray-900">{formatDateSwiss(formData.date)}</Text>
+                  <Text className="text-gray-400">›</Text>
+                </Pressable>
+                {errors.date && <Text className="text-xs text-red-500 mt-2">{errors.date}</Text>}
+              </View>
+
+              {/* Note */}
+              <View className="mb-8">
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="text-sm font-semibold text-gray-700">Note</Text>
+                  <Text className="text-xs text-gray-500">{formData.note.length}/200</Text>
+                </View>
+                <TextInput
+                  className="p-3 rounded-lg border-2 border-gray-200 text-base"
+                  style={{ color: '#1F2937', minHeight: 80 }}
+                  placeholder="Add a note..."
+                  placeholderTextColor="#D1D5DB"
+                  multiline
+                  value={formData.note}
+                  onChangeText={(text) => setFormData({ ...formData, note: text.slice(0, 200) })}
+                />
+              </View>
+
+              {/* Recurring Checkbox */}
+              <View className="mb-8 flex-row items-center justify-between p-4 rounded-lg border border-gray-200">
+                <Text className="font-medium text-gray-900">This repeats monthly</Text>
+                <Pressable
+                  onPress={() => setFormData({ ...formData, isRecurring: !formData.isRecurring })}
+                  className={cn(
+                    'w-6 h-6 rounded border-2 items-center justify-center',
+                    formData.isRecurring ? 'bg-teal-600 border-teal-600' : 'border-gray-300'
+                  )}
+                >
+                  {formData.isRecurring && <Check size={16} color="white" />}
+                </Pressable>
+              </View>
+
+              {/* Recurring Day Selector */}
+              {formData.isRecurring && (
+                <View className="mb-8">
+                  <Text className="text-sm font-semibold text-gray-700 mb-3">On day of each month</Text>
+                  <View className="flex-row items-center gap-2">
+                    <TextInput
+                      className="flex-1 p-3 rounded-lg border-2 border-gray-200 text-base text-center font-semibold"
+                      style={{ color: '#006A6A' }}
+                      keyboardType="number-pad"
+                      value={formData.recurringDay.toString()}
+                      onChangeText={(text) => {
+                        const day = Math.min(31, Math.max(1, parseInt(text) || 1));
+                        setFormData({ ...formData, recurringDay: day });
+                      }}
+                      maxLength={2}
+                    />
+                    <Text className="font-medium text-gray-900">of each month</Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Action Buttons */}
+              <View className="gap-3">
+                <Pressable
+                  onPress={handleSubmit}
+                  disabled={isSubmitting || updateMutation.isPending}
+                  className="py-4 rounded-lg bg-teal-600 items-center justify-center"
+                >
+                  {isSubmitting || updateMutation.isPending ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text className="text-base font-semibold text-white">Update Transaction</Text>
+                  )}
+                </Pressable>
+
+                <Pressable
+                  onPress={() => router.back()}
+                  disabled={isSubmitting || updateMutation.isPending}
+                  className="py-4 rounded-lg border-2 border-gray-200 items-center justify-center"
+                >
+                  <Text className="text-base font-semibold text-gray-700">Cancel</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setShowDeleteConfirm(true)}
+                  disabled={isSubmitting || updateMutation.isPending || deleteMutation.isPending}
+                  className="py-4 rounded-lg border-2 border-red-200 items-center justify-center"
+                >
+                  <Text className="text-base font-semibold text-red-600">Delete Transaction</Text>
+                </Pressable>
+              </View>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+
+      {/* Date Picker Modal */}
+      <Modal visible={showDatePicker} transparent animationType="slide">
+        <SafeAreaView className="flex-1 bg-white">
+          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
+            <Text className="text-lg font-bold">Select Date</Text>
+            <Pressable onPress={() => setShowDatePicker(false)}>
+              <X size={24} color="#006A6A" />
+            </Pressable>
+          </View>
+
+          <ScrollView className="flex-1 px-6 py-4">
+            {/* Month/Year Navigation */}
+            <View className="flex-row items-center justify-between mb-6">
+              <Pressable
+                onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
+                className="p-2"
+              >
+                <ChevronLeft size={24} color="#006A6A" />
+              </Pressable>
+              <Text className="text-lg font-semibold text-gray-900">
+                {calendarMonth.toLocaleDateString('de-CH', { month: 'long', year: 'numeric' })}
+              </Text>
+              <Pressable
+                onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
+                className="p-2"
+              >
+                <ChevronRight size={24} color="#006A6A" />
+              </Pressable>
+            </View>
+
+            {/* Day Labels */}
+            <View className="flex-row mb-2">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                <Text key={day} className="flex-1 text-center font-semibold text-gray-700 text-sm">
+                  {day}
+                </Text>
+              ))}
+            </View>
+
+            {/* Calendar Grid */}
+            <View className="flex-row flex-wrap">
+              {(() => {
+                const year = calendarMonth.getFullYear();
+                const month = calendarMonth.getMonth();
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const days = [];
+
+                // Empty cells before first day
+                for (let i = 0; i < firstDay; i++) {
+                  days.push(<View key={`empty-${i}`} className="flex-1 aspect-square" />);
+                }
+
+                // Days of month
+                for (let day = 1; day <= daysInMonth; day++) {
+                  const currentDate = new Date(year, month, day);
+                  const dateStr = currentDate.toISOString().split('T')[0];
+                  const isSelected = dateStr === tempDate;
+                  const isToday = currentDate.getTime() === today.getTime();
+                  const isFuture = currentDate > today;
+
+                  days.push(
+                    <Pressable
+                      key={day}
+                      onPress={() => !isFuture && setTempDate(dateStr)}
+                      disabled={isFuture}
+                      className={cn(
+                        'flex-1 aspect-square items-center justify-center rounded-lg m-1',
+                        isSelected ? 'bg-teal-600' : isToday ? 'border-2 border-teal-600' : 'bg-gray-50',
+                        isFuture ? 'opacity-40' : ''
+                      )}
+                    >
+                      <Text
+                        className={cn(
+                          'font-semibold',
+                          isSelected ? 'text-white' : 'text-gray-900'
+                        )}
+                      >
+                        {day}
+                      </Text>
+                    </Pressable>
+                  );
+                }
+
+                return days;
+              })()}
+            </View>
+          </ScrollView>
+
+          <View className="px-6 py-4 border-t border-gray-200 flex-row gap-3">
+            <Pressable
+              onPress={() => setShowDatePicker(false)}
+              className="flex-1 py-3 rounded-lg border-2 border-gray-200 items-center justify-center"
+            >
+              <Text className="text-base font-semibold text-gray-700">Cancel</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setFormData({ ...formData, date: tempDate });
+                setShowDatePicker(false);
+              }}
+              className="flex-1 py-3 rounded-lg bg-teal-600 items-center justify-center"
+            >
+              <Text className="text-base font-semibold text-white">Done</Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Category Modal */}
+      <Modal visible={showCategoryModal} animationType="slide" transparent>
+        <View className="flex-1 bg-black/30">
+          <SafeAreaView className="flex-1" edges={['bottom']}>
+            <View className="flex-1 bg-white rounded-t-3xl pt-6">
+              <View className="flex-row items-center justify-between px-6 pb-6 border-b border-gray-100">
+                <Text className="text-xl font-semibold text-gray-900">Select Category</Text>
+                <Pressable onPress={() => setShowCategoryModal(false)}>
+                  <X size={24} color="#6B7280" />
+                </Pressable>
+              </View>
+
+              <ScrollView className="flex-1 px-6">
+                {groupOrder.map((group) => {
+                  const groupCategories = groupedCategories[group] || [];
+                  if (groupCategories.length === 0) return null;
+
+                  const groupLabels: Record<string, string> = {
+                    income: 'Income',
+                    needs: 'Needs (50%)',
+                    wants: 'Wants (30%)',
+                    savings: 'Savings (20%)',
+                    other: 'Other',
+                  };
+
+                  return (
+                    <View key={group}>
+                      <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{groupLabels[group]}</Text>
+                      {groupCategories.map((category: any) => (
+                        <Pressable
+                          key={category.id}
+                          onPress={() => {
+                            setFormData({ ...formData, categoryId: category.id });
+                            setShowCategoryModal(false);
+                          }}
+                          className={cn(
+                            'p-4 rounded-lg mb-2 flex-row items-center justify-between',
+                            formData.categoryId === category.id ? 'bg-teal-50' : 'bg-gray-50'
+                          )}
+                        >
+                          <View className="flex-row items-center gap-3 flex-1">
+                            {category.icon && <Text className="text-lg">{category.icon}</Text>}
+                            <Text className={cn('font-medium', formData.categoryId === category.id ? 'text-teal-600' : 'text-gray-900')}>
+                              {category.name}
+                            </Text>
+                          </View>
+                          {formData.categoryId === category.id && <Check size={20} color="#006A6A" />}
+                        </Pressable>
+                      ))}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </SafeAreaView>
+        </View>
+      </Modal>
+
+      {/* Account Modal */}
+      <Modal visible={showAccountModal} animationType="slide" transparent>
+        <View className="flex-1 bg-black/30">
+          <SafeAreaView className="flex-1" edges={['bottom']}>
+            <View className="flex-1 bg-white rounded-t-3xl pt-6">
+              <View className="flex-row items-center justify-between px-6 pb-6 border-b border-gray-100">
+                <Text className="text-xl font-semibold text-gray-900">Select Account</Text>
+                <Pressable onPress={() => setShowAccountModal(false)}>
+                  <X size={24} color="#6B7280" />
+                </Pressable>
+              </View>
+
+              <ScrollView className="flex-1 px-6">
+                {accountsQuery.data?.map((account) => (
+                  <Pressable
+                    key={account.id}
+                    onPress={() => {
+                      setFormData({ ...formData, accountId: account.id });
+                      setShowAccountModal(false);
+                    }}
+                    className={cn(
+                      'p-4 rounded-lg mb-2 flex-row items-center justify-between',
+                      formData.accountId === account.id ? 'bg-teal-50' : 'bg-gray-50'
+                    )}
+                  >
+                    <View className="flex-1">
+                      <Text className={cn('font-semibold', formData.accountId === account.id ? 'text-teal-600' : 'text-gray-900')}>
+                        {account.name}
+                      </Text>
+                      <Text className="text-sm text-gray-500 mt-1">{formatBalance(account.balance, account.currency)}</Text>
+                    </View>
+                    {formData.accountId === account.id && <Check size={20} color="#006A6A" />}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          </SafeAreaView>
+        </View>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={showDeleteConfirm} transparent animationType="fade">
+        <View className="flex-1 bg-black/50 items-center justify-center">
+          <View className="bg-white rounded-2xl mx-6 p-6 gap-4">
+            <View className="items-center gap-2">
+              <View className="w-12 h-12 rounded-full bg-red-100 items-center justify-center">
+                <Trash2 size={24} color="#DC2626" />
+              </View>
+              <Text className="text-lg font-semibold text-gray-900">Delete Transaction?</Text>
+              <Text className="text-sm text-gray-600 text-center">
+                This will permanently delete the transaction and restore the account balance.
+              </Text>
+            </View>
+
+            <View className="gap-3">
+              <Pressable
+                onPress={() => setShowDeleteConfirm(false)}
+                className="py-3 rounded-lg border-2 border-gray-200 items-center justify-center"
+              >
+                <Text className="text-base font-semibold text-gray-700">Cancel</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  setShowDeleteConfirm(false);
+                  deleteMutation.mutate();
+                }}
+                disabled={deleteMutation.isPending}
+                className="py-3 rounded-lg bg-red-600 items-center justify-center"
+              >
+                {deleteMutation.isPending ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text className="text-base font-semibold text-white">Delete</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
