@@ -155,6 +155,34 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - No split/shared expenses yet
   - Basic recurring flag (full templates in Phase 2)
 
+### Payday & Budget Period (US-024)
+- ✅ **Set Monthly Payday** - Configure when user receives monthly income
+  - Route: `/settings/payday` from Profile tab menu
+  - Payday Day Selection: 1-31 or "Last day of month" option
+  - Default payday: 25th (Swiss standard)
+- ✅ **Budget Period Calculation**
+  - Automatically calculates current budget period based on payday
+  - If today ≥ payday: Period runs from payday of this month to (payday-1) of next month
+  - If today < payday: Period runs from payday of last month to (payday-1) of this month
+  - Special handling for "last day of month" option
+  - Handles months with different day counts (28, 29, 30, 31)
+- ✅ **Settings Page Features**
+  - Shows current payday setting
+  - Displays current budget period with dates
+  - Shows days remaining in current period
+  - Shows next reset date
+  - Payday picker modal with all options
+  - Save changes button with success message
+- ✅ **Default Configuration**
+  - Payday automatically set to 25th on household creation
+  - Initial budget period calculated and stored
+  - User can change payday anytime
+- ✅ **Phase 1 Implementation**:
+  - Monthly payday only
+  - Single payday per household
+  - Automatic period calculation on payday change
+  - Stored in households table
+
 ### Database Schema (InstantDB)
 
 #### Users
@@ -170,7 +198,12 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - `name`: String
 - `currency`: String (default: "CHF")
 - `createdByUserId`: UUID (foreign key to Users)
+- `paydayDay`: Number (1-31, or -1 for last day of month) (default: 25)
+- `payFrequency`: String (default: "monthly", Phase 1 only)
+- `budgetPeriodStart`: String (ISO format YYYY-MM-DD, calculated based on payday)
+- `budgetPeriodEnd`: String (ISO format YYYY-MM-DD, calculated based on payday)
 - `createdAt`: Timestamp
+- `updatedAt`: Timestamp
 
 #### HouseholdMembers
 - `id`: UUID (primary key)
@@ -252,7 +285,8 @@ src/
 │   │   ├── add.tsx           # Add Wallet modal (Material Design 3)
 │   │   └── index.tsx         # Wallets list screen
 │   ├── settings/
-│   │   └── categories.tsx    # Categories management page
+│   │   ├── payday.tsx           # Payday & Budget Period settings page (US-024)
+│   │   └── categories.tsx       # Categories management page
 │   ├── _layout.tsx           # Root layout with auth routing
 │   ├── welcome.tsx           # Welcome screen (first screen)
 │   ├── signup.tsx            # Passwordless signup screen
@@ -262,6 +296,8 @@ src/
 │   ├── auth-api.ts           # Auth API with rate limiting & lockout
 │   ├── accounts-api.ts       # Account management API
 │   ├── categories-api.ts     # Categories management API
+│   ├── transactions-api.ts   # Transactions management API
+│   ├── payday-utils.ts       # Payday calculation & budget period utilities
 │   ├── biometric-auth.ts     # Biometric authentication utilities
 │   └── cn.ts                 # Utility for className merging
 └── components/

@@ -14,7 +14,12 @@ const schema = i.schema({
       name: i.string(),
       currency: i.string(),
       createdByUserId: i.string(),
+      paydayDay: i.number().optional(), // 1-31 or -1 for last day
+      payFrequency: i.string().optional(), // 'monthly'
+      budgetPeriodStart: i.string().optional(), // ISO format YYYY-MM-DD
+      budgetPeriodEnd: i.string().optional(), // ISO format YYYY-MM-DD
       createdAt: i.number(),
+      updatedAt: i.number().optional(),
     }),
     householdMembers: i.entity({
       householdId: i.string(),

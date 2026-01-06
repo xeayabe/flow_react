@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronRight, Tag, LogOut, Wallet, User } from 'lucide-react-native';
+import { ChevronRight, Tag, LogOut, Wallet, User, Calendar } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { signOut } from '@/lib/auth-api';
 
@@ -57,6 +57,12 @@ export default function TabTwoScreen() {
       label: 'Wallets',
       description: 'Manage your accounts and wallets',
       onPress: () => router.push('/accounts'),
+    },
+    {
+      icon: <Calendar size={24} color="#006A6A" />,
+      label: 'Payday & Budget Period',
+      description: 'Set when you get paid each month',
+      onPress: () => router.push('/settings/payday'),
     },
     {
       icon: <Tag size={24} color="#006A6A" />,

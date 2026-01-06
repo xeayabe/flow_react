@@ -1,5 +1,6 @@
 import { db } from './db';
 import { createDefaultCategories } from './categories-api';
+import { calculateBudgetPeriod } from './payday-utils';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -214,13 +215,20 @@ export async function createUserProfile(email: string, name: string): Promise<Au
     // Create default household
     const householdId = uuidv4();
     const householdName = `${name}'s Household`;
+    const defaultPaydayDay = 25; // Swiss standard
+    const budgetPeriod = calculateBudgetPeriod(defaultPaydayDay);
 
     await db.transact([
       db.tx.households[householdId].update({
         name: householdName,
         currency: 'CHF',
         createdByUserId: userId,
+        paydayDay: defaultPaydayDay,
+        payFrequency: 'monthly',
+        budgetPeriodStart: budgetPeriod.start,
+        budgetPeriodEnd: budgetPeriod.end,
         createdAt: now,
+        updatedAt: now,
       }),
     ]);
 
