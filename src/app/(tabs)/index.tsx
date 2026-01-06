@@ -41,7 +41,7 @@ export default function DashboardScreen() {
 
   // Query user accounts
   const { data: accounts = [], isLoading: accountsLoading } = useQuery({
-    queryKey: ['accounts', user?.email],
+    queryKey: ['wallets', user?.email],
     queryFn: async () => {
       if (!user?.email) return [];
       return getUserAccounts(user.email);
@@ -72,7 +72,7 @@ export default function DashboardScreen() {
         <View className="flex-row justify-between items-start mb-1">
           <View className="flex-1">
             <Text className="text-3xl font-bold mb-1" style={{ color: '#006A6A' }}>
-              My Accounts
+              My Wallets
             </Text>
             <Text className="text-sm" style={{ color: 'rgba(0, 106, 106, 0.6)' }}>
               {monthYear}
@@ -94,12 +94,12 @@ export default function DashboardScreen() {
           <View className="px-6 py-12 items-center">
             <ActivityIndicator size="large" color="#006A6A" />
             <Text className="text-sm mt-4" style={{ color: '#9CA3AF' }}>
-              Loading accounts...
+              Loading wallets...
             </Text>
           </View>
         )}
 
-        {/* Account Cards */}
+        {/* Wallet Cards */}
         {!accountsLoading && hasAccounts && (
           <View className="px-6 mb-6">
             {accounts.map((account, index) => {
@@ -166,14 +166,14 @@ export default function DashboardScreen() {
               );
             })}
 
-            {/* View All Accounts Link */}
+            {/* View All Wallets Link */}
             <Animated.View entering={FadeInDown.delay(accounts.length * 100).duration(600)}>
               <Pressable
                 onPress={() => router.push('/accounts')}
                 className="flex-row items-center justify-center py-3"
               >
                 <Text className="text-sm font-semibold mr-1" style={{ color: '#006A6A' }}>
-                  View All Accounts
+                  View All Wallets
                 </Text>
                 <ArrowRight size={16} color="#006A6A" />
               </Pressable>
@@ -181,7 +181,7 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* Empty State - No Accounts */}
+        {/* Empty State - No Wallets */}
         {!accountsLoading && !hasAccounts && (
           <View className="px-6 mb-6">
             <Animated.View entering={FadeInDown.duration(600)}>
@@ -193,17 +193,17 @@ export default function DashboardScreen() {
                   <Wallet size={40} color="#006A6A" />
                 </View>
                 <Text className="text-xl font-bold mb-2 text-center" style={{ color: '#1F2937' }}>
-                  No Accounts Yet
+                  No Wallets Yet
                 </Text>
                 <Text className="text-sm text-center mb-6" style={{ color: '#6B7280' }}>
-                  Add your first account to start tracking your finances
+                  Add your first wallet to start tracking your finances
                 </Text>
                 <Pressable
                   onPress={() => router.push('/accounts/add')}
                   className="rounded-full px-6 py-3"
                   style={{ backgroundColor: '#006A6A' }}
                 >
-                  <Text className="text-white font-bold text-sm">Add Your First Account</Text>
+                  <Text className="text-white font-bold text-sm">Add Your First Wallet</Text>
                 </Pressable>
               </View>
             </Animated.View>

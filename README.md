@@ -31,34 +31,34 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - ✅ Default household creation on signup
 - ✅ Automatic household member assignment
 
-### Account Management
-- ✅ **Add Multiple Accounts** - Track different bank accounts, cards, and cash
-- ✅ **Account Types**: Checking, Savings, Credit Card, Cash, Investment
+### Wallet Management
+- ✅ **Add Multiple Wallets** - Track different bank accounts, cards, and cash
+- ✅ **Wallet Types**: Checking, Savings, Credit Card, Cash, Investment
 - ✅ **Major Institutions**: UBS, Credit Suisse, Revolut, PostFinance, Raiffeisen, Cash, Other
 - ✅ **M3 Form with Floating Labels** - Beautiful Material Design 3 form
-- ✅ **Character Counter** - Account name with 0-50 character counter
+- ✅ **Character Counter** - Wallet name with 0-50 character counter
 - ✅ **Modal Presentation** - Full-screen modal with draggable handle
 - ✅ **Bottom Sheet Pickers**:
   - Institution picker: Bottom sheet with emoji icons, radio buttons, M3 styling
-  - Account type picker: Bottom sheet with icons, radio buttons, smooth animations
+  - Wallet type picker: Bottom sheet with icons, radio buttons, smooth animations
   - Dimmed overlay with 30% black opacity
   - Spring animation with smooth slide-up motion
-  - Header with "Select Institution" / "Select Account Type" title
+  - Header with "Select Institution" / "Select Wallet Type" title
 - ✅ **Field Validation**:
-  - Account name: 2-50 characters, must be unique per user
+  - Wallet name: 2-50 characters, must be unique per user
   - Institution: Required dropdown selection
-  - Account type: Required dropdown selection
+  - Wallet type: Required dropdown selection
   - Starting balance: Must be valid number (positive or negative)
-  - Account number: Optional 4-digit field with placeholder
-- ✅ **Default Account Logic**:
-  - First account automatically set as default (disabled checkbox)
-  - Only one default account allowed per user
+  - Card/Account number: Optional 4-digit field with placeholder
+- ✅ **Default Wallet Logic**:
+  - First wallet automatically set as default (disabled checkbox)
+  - Only one default wallet allowed per user
   - Auto-unset previous default when changing
 - ✅ **Real-time Validation** - Input validation with empathetic error messages
-- ✅ **Account Cards** - Beautiful cards showing institution, type, and balance
+- ✅ **Wallet Cards** - Beautiful cards showing institution, type, and balance
 - ✅ **Default Badge** - "Default" badge with soft lavender background
-- ✅ **Accounts List** - View all accounts with total balance card
-- ✅ **Dashboard Integration** - Main dashboard shows real account data
+- ✅ **Wallets List** - View all wallets with total balance card
+- ✅ **Dashboard Integration** - Main dashboard shows real wallet data
 
 ### Database Schema (InstantDB)
 
@@ -85,7 +85,7 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - `status`: String ("active" | "invited" | "removed")
 - `joinedAt`: Timestamp
 
-#### Accounts
+#### Wallets (formerly Accounts)
 - `id`: UUID (primary key)
 - `userId`: UUID (foreign key to Users)
 - `householdId`: UUID (foreign key to Households)
@@ -93,10 +93,10 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - `institution`: String ("UBS" | "Credit Suisse" | "Revolut" | "PostFinance" | "Raiffeisen" | "Cash" | "Other")
 - `accountType`: String ("Checking" | "Savings" | "Credit Card" | "Cash" | "Investment")
 - `balance`: Number (current balance in CHF)
-- `startingBalance`: Number (initial balance when account created)
+- `startingBalance`: Number (initial balance when wallet created)
 - `currency`: String (default: "CHF")
-- `last4Digits`: String (optional, last 4 digits of account number)
-- `isDefault`: Boolean (default: true for first account)
+- `last4Digits`: String (optional, last 4 digits of card/account number)
+- `isDefault`: Boolean (default: true for first wallet)
 - `isActive`: Boolean (default: true)
 - `createdAt`: Timestamp
 - `updatedAt`: Timestamp
@@ -119,11 +119,11 @@ src/
 ├── app/
 │   ├── (tabs)/
 │   │   ├── _layout.tsx      # Tab navigator
-│   │   ├── index.tsx         # Dashboard screen with accounts
+│   │   ├── index.tsx         # Dashboard screen with wallets
 │   │   └── two.tsx           # Profile screen
 │   ├── accounts/
-│   │   ├── add.tsx           # Add Account modal (Material Design 3)
-│   │   └── index.tsx         # Accounts list screen
+│   │   ├── add.tsx           # Add Wallet modal (Material Design 3)
+│   │   └── index.tsx         # Wallets list screen
 │   ├── _layout.tsx           # Root layout with auth routing
 │   ├── welcome.tsx           # Welcome screen (first screen)
 │   ├── signup.tsx            # Passwordless signup screen
@@ -138,7 +138,7 @@ src/
     ├── Themed.tsx            # Themed components
     ├── SuccessModal.tsx      # Success celebration modal
     ├── InstitutionPicker.tsx  # Institution selection bottom sheet
-    └── AccountTypePicker.tsx  # Account type selection bottom sheet
+    └── AccountTypePicker.tsx  # Wallet type selection bottom sheet
 ```
 
 ## Authentication Flow

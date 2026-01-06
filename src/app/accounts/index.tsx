@@ -105,11 +105,11 @@ function AccountCard({ account, index }: { account: Account; index: number }) {
   );
 }
 
-export default function AccountsScreen() {
+export default function WalletsScreen() {
   const { user } = db.useAuth();
 
   const { data: accounts = [], isLoading, refetch } = useQuery({
-    queryKey: ['accounts', user?.email],
+    queryKey: ['wallets', user?.email],
     queryFn: async () => {
       if (!user?.email) return [];
       return getUserAccounts(user.email);
@@ -132,10 +132,10 @@ export default function AccountsScreen() {
         {/* Header */}
         <View className="px-6 pt-4 pb-6">
           <Text className="text-3xl font-bold mb-2" style={{ color: '#006A6A' }}>
-            Accounts
+            My Wallets
           </Text>
           <Text className="text-sm" style={{ color: '#8B9D8B' }}>
-            Manage your finances across multiple accounts
+            Manage your finances across multiple wallets
           </Text>
         </View>
 
@@ -160,13 +160,13 @@ export default function AccountsScreen() {
                 {formatBalance(totalBalance, defaultAccount?.currency || 'CHF')}
               </Text>
               <Text className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                Across {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
+                Across {accounts.length} {accounts.length === 1 ? 'wallet' : 'wallets'}
               </Text>
             </View>
           </Animated.View>
         )}
 
-        {/* Accounts List */}
+        {/* Wallets List */}
         <ScrollView
           className="flex-1 px-6"
           showsVerticalScrollIndicator={false}
@@ -176,7 +176,7 @@ export default function AccountsScreen() {
             <View className="py-12 items-center">
               <ActivityIndicator size="large" color="#006A6A" />
               <Text className="text-sm mt-4" style={{ color: '#9CA3AF' }}>
-                Loading accounts...
+                Loading wallets...
               </Text>
             </View>
           )}
@@ -190,10 +190,10 @@ export default function AccountsScreen() {
                 <Wallet size={40} color="#006A6A" />
               </View>
               <Text className="text-xl font-semibold mb-2 text-center" style={{ color: '#1F2937' }}>
-                No Accounts Yet
+                No Wallets Yet
               </Text>
               <Text className="text-sm text-center mb-6" style={{ color: '#6B7280' }}>
-                Add your first account to start tracking your finances
+                Add your first wallet to start tracking your finances
               </Text>
             </Animated.View>
           )}

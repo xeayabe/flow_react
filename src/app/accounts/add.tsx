@@ -47,8 +47,8 @@ interface ValidationErrors {
   last4Digits?: string;
 }
 
-// Material Design 3 Add Account Modal - iOS full-screen form
-export default function AddAccountScreen() {
+// Material Design 3 Add Wallet Modal - iOS full-screen form
+export default function AddWalletScreen() {
   const { user } = db.useAuth();
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -66,12 +66,12 @@ export default function AddAccountScreen() {
   const [showAccountTypePicker, setShowAccountTypePicker] = useState<boolean>(false);
   const [isFirstAccount, setIsFirstAccount] = useState<boolean>(false);
 
-  // Check if this is user's first account
+  // Check if this is user's first wallet
   React.useEffect(() => {
-    checkIfFirstAccount();
+    checkIfFirstWallet();
   }, [user]);
 
-  const checkIfFirstAccount = async () => {
+  const checkIfFirstWallet = async () => {
     if (!user?.email) return;
 
     // Get user's household info first
@@ -92,7 +92,7 @@ export default function AddAccountScreen() {
     const isFirst = count === 0;
     setIsFirstAccount(isFirst);
 
-    // If first account, set isDefault to true
+    // If first wallet, set isDefault to true
     if (isFirst) {
       setFormData((prev) => ({ ...prev, isDefault: true }));
     }
@@ -116,7 +116,7 @@ export default function AddAccountScreen() {
   });
 
   const validateName = (name: string): string | undefined => {
-    if (!name.trim()) return 'Please enter an account name';
+    if (!name.trim()) return 'Please enter a wallet name';
     if (name.trim().length < 2) return 'Minimum 2 characters';
     if (name.length > 50) return 'Maximum 50 characters';
     return undefined;
@@ -128,7 +128,7 @@ export default function AddAccountScreen() {
   };
 
   const validateAccountType = (accountType: string): string | undefined => {
-    if (!accountType) return 'Please select an account type';
+    if (!accountType) return 'Please select a wallet type';
     return undefined;
   };
 
@@ -140,8 +140,8 @@ export default function AddAccountScreen() {
   };
 
   const validateLast4Digits = (digits: string): string | undefined => {
-    if (digits && digits.length !== 4) return 'Account number should be 4 digits';
-    if (digits && !/^\d{4}$/.test(digits)) return 'Account number should be 4 digits';
+    if (digits && digits.length !== 4) return 'Card/Account number should be 4 digits';
+    if (digits && !/^\d{4}$/.test(digits)) return 'Card/Account number should be 4 digits';
     return undefined;
   };
 
@@ -253,10 +253,10 @@ export default function AddAccountScreen() {
                 </Pressable>
               </View>
               <Text className="text-3xl font-bold text-center" style={{ color: '#006A6A', fontFamily: 'Rounded Sans' }}>
-                Add Account
+                Add Wallet
               </Text>
               <Text className="text-base text-center mt-2" style={{ color: '#8B9D8B', opacity: 0.6 }}>
-                Track your money across all accounts
+                Track your money across all wallets
               </Text>
             </View>
 
@@ -364,7 +364,7 @@ export default function AddAccountScreen() {
                     color: '#9CA3AF',
                   }}
                 >
-                  Account Type
+                  Wallet Type
                 </Text>
                 <View className="absolute right-4" style={{ top: 16 }}>
                   <ChevronDown size={20} color="#9CA3AF" />
@@ -426,7 +426,7 @@ export default function AddAccountScreen() {
               )}
             </Animated.View>
 
-            {/* Account Number (Optional) */}
+            {/* Card/Account Number (Optional) */}
             <Animated.View entering={FadeInDown.delay(500).duration(600)} className="mb-6">
               <View className="relative">
                 <Text
@@ -436,7 +436,7 @@ export default function AddAccountScreen() {
                     color: focusedField === 'last4Digits' ? '#006A6A' : '#9CA3AF',
                   }}
                 >
-                  Account Number
+                  Last 4 Digits (Optional)
                 </Text>
                 <TextInput
                   className="text-base px-4 pt-6 pb-4 rounded-3xl border-2 bg-white"
@@ -477,7 +477,7 @@ export default function AddAccountScreen() {
               )}
             </Animated.View>
 
-            {/* Default Account Switch */}
+            {/* Default Wallet Switch */}
             {!isFirstAccount && (
               <Animated.View entering={FadeInDown.delay(600).duration(600)} className="mb-8">
                 <Pressable
@@ -495,7 +495,7 @@ export default function AddAccountScreen() {
                     {formData.isDefault && <CheckCircle2 size={16} color="white" />}
                   </View>
                   <Text className="text-sm font-medium flex-1" style={{ color: '#006A6A' }}>
-                    Set as default account
+                    Set as default wallet
                   </Text>
                 </Pressable>
               </Animated.View>
@@ -505,7 +505,7 @@ export default function AddAccountScreen() {
               <Animated.View entering={FadeInDown.delay(600).duration(600)} className="mb-8">
                 <View className="px-4 py-3 rounded-2xl" style={{ backgroundColor: 'rgba(0, 106, 106, 0.05)' }}>
                   <Text className="text-xs text-center" style={{ color: 'rgba(0, 106, 106, 0.7)' }}>
-                    This will be your default account
+                    This will be your default wallet
                   </Text>
                 </View>
               </Animated.View>
