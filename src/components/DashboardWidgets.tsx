@@ -127,7 +127,7 @@ export const RecentTransactionsWidget: React.FC<{
           return (
             <Pressable
               key={tx.id || idx}
-              onPress={() => router.push(`/transactions/${tx.id}`)}
+              onPress={() => router.push(`/transactions/${tx.id}/edit`)}
               className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100 active:bg-gray-50"
             >
               <View className="flex-1 flex-row items-center gap-3">
