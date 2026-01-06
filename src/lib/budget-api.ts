@@ -233,6 +233,7 @@ export async function getBudgetDetails(userId: string, periodStart: string): Pro
 /**
  * Update spent amount for a category in budget
  * Called when transaction is added, edited, or deleted
+ * This runs in the background and doesn't block the transaction
  */
 export async function updateBudgetSpentAmount(
   userId: string,
@@ -240,35 +241,27 @@ export async function updateBudgetSpentAmount(
   periodStart: string,
   spentAmount: number
 ): Promise<void> {
+  // Run in background - don't await
+  updateBudgetSpentAmountAsync(userId, categoryId, periodStart, spentAmount);
+}
+
+async function updateBudgetSpentAmountAsync(
+  userId: string,
+  categoryId: string,
+  periodStart: string,
+  spentAmount: number
+): Promise<void> {
   try {
+    // Single query to get budget, summary, and all budgets for recalculation
     const result = await db.queryOnce({
       budgets: {
         $: {
           where: {
             userId,
-            categoryId,
             periodStart,
           },
         },
       },
-    });
-
-    const budget = result.data.budgets?.[0];
-    if (!budget) {
-      console.warn(`Budget not found for user ${userId}, category ${categoryId}, period ${periodStart}`);
-      return;
-    }
-
-    const now = Date.now();
-    await db.transact([
-      db.tx.budgets[budget.id].update({
-        spentAmount: Math.max(0, spentAmount),
-        updatedAt: now,
-      }),
-    ]);
-
-    // Also update the budget summary totalSpent and group spent amounts
-    const summaryResult = await db.queryOnce({
       budgetSummary: {
         $: {
           where: {
@@ -279,50 +272,58 @@ export async function updateBudgetSpentAmount(
       },
     });
 
-    const summary = summaryResult.data.budgetSummary?.[0];
+    const budgets = result.data.budgets || [];
+    const budget = budgets.find((b: any) => b.categoryId === categoryId);
+    const summary = result.data.budgetSummary?.[0];
+
+    if (!budget) {
+      console.warn(`Budget not found for user ${userId}, category ${categoryId}, period ${periodStart}`);
+      return;
+    }
+
+    const now = Date.now();
+
+    // Calculate totals including the new spent amount
+    let totalSpent = 0;
+    let needsSpent = 0;
+    let wantsSpent = 0;
+    let savingsSpent = 0;
+
+    budgets.forEach((b: any) => {
+      // Use the new spentAmount for the updated category
+      const spent = b.categoryId === categoryId ? Math.max(0, spentAmount) : (b.spentAmount || 0);
+      totalSpent += spent;
+
+      if (b.categoryGroup === 'needs') {
+        needsSpent += spent;
+      } else if (b.categoryGroup === 'wants') {
+        wantsSpent += spent;
+      } else if (b.categoryGroup === 'savings') {
+        savingsSpent += spent;
+      }
+    });
+
+    // Single transaction to update both budget and summary
+    const ops: any[] = [
+      db.tx.budgets[budget.id].update({
+        spentAmount: Math.max(0, spentAmount),
+        updatedAt: now,
+      }),
+    ];
+
     if (summary) {
-      // Recalculate total spent and group spent amounts from all budgets
-      const budgetsResult = await db.queryOnce({
-        budgets: {
-          $: {
-            where: {
-              userId,
-              periodStart,
-            },
-          },
-        },
-      });
-
-      const budgets = budgetsResult.data.budgets || [];
-
-      let totalSpent = 0;
-      let needsSpent = 0;
-      let wantsSpent = 0;
-      let savingsSpent = 0;
-
-      budgets.forEach((b: any) => {
-        const spent = b.spentAmount || 0;
-        totalSpent += spent;
-
-        if (b.categoryGroup === 'needs') {
-          needsSpent += spent;
-        } else if (b.categoryGroup === 'wants') {
-          wantsSpent += spent;
-        } else if (b.categoryGroup === 'savings') {
-          savingsSpent += spent;
-        }
-      });
-
-      await db.transact([
+      ops.push(
         db.tx.budgetSummary[summary.id].update({
           totalSpent,
           needsSpent,
           wantsSpent,
           savingsSpent,
           updatedAt: now,
-        }),
-      ]);
+        })
+      );
     }
+
+    await db.transact(ops);
   } catch (error) {
     console.error('Update budget spent amount error:', error);
   }
