@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -100,6 +101,7 @@ export default function WelcomeScreen() {
 
   return (
     <View className="flex-1 bg-white">
+      <StatusBar style="dark" />
       {/* Top section with animated illustration (40%) */}
       <View style={{ height: height * 0.4 }} className="relative overflow-hidden">
         {/* Subtle gradient background */}
