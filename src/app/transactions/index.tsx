@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, SectionList, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, Trash2, ArrowDownLeft, ArrowUpRight, AlertCircle, Plus, X, TrendingUp, TrendingDown, Scale3D, Edit2 } from 'lucide-react-native';
+import { ChevronDown, Trash2, ArrowDownLeft, ArrowUpRight, AlertCircle, Plus, X, TrendingUp, TrendingDown } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { db } from '@/lib/db';
 import { getUserTransactions, deleteTransaction, formatCurrency, formatDateSwiss, Transaction } from '@/lib/transactions-api';
@@ -449,6 +449,8 @@ export default function TransactionsListScreen() {
                     </View>
                   ) : (
                     <Pressable
+                      onPress={() => tx.id && router.push(`/transactions/${tx.id}/edit`)}
+                      onLongPress={() => setDeleteConfirmId(tx.id || null)}
                       className="mx-4 mb-3 p-4 rounded-2xl flex-row justify-between items-center"
                       style={{ backgroundColor: '#F9FAFB' }}
                     >
@@ -475,7 +477,7 @@ export default function TransactionsListScreen() {
                         </View>
                       </View>
 
-                      <View className="items-end gap-2 flex-row">
+                      <View className="items-end">
                         <Text
                           className="font-bold text-sm"
                           style={{
@@ -485,20 +487,6 @@ export default function TransactionsListScreen() {
                           {isIncome ? '+' : '-'}
                           {formatCurrency(tx.amount)}
                         </Text>
-                        <Pressable
-                          onPress={() => tx.id && router.push(`/transactions/${tx.id}/edit`)}
-                          className="p-1"
-                          hitSlop={8}
-                        >
-                          <Edit2 size={16} color="#6B7280" />
-                        </Pressable>
-                        <Pressable
-                          onPress={() => setDeleteConfirmId(tx.id || null)}
-                          className="p-1"
-                          hitSlop={8}
-                        >
-                          <Trash2 size={16} color="#9CA3AF" />
-                        </Pressable>
                       </View>
                     </Pressable>
                   )}
