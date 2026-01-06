@@ -17,6 +17,10 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - ✅ Profile check on login to prevent unauthorized access
 - ✅ Auto-login after signup
 - ✅ Protected routes with auth guards
+- ✅ Material Design 3 signup form with floating labels
+- ✅ Empathetic error design with calming color palette (no harsh reds)
+- ✅ Real-time validation with supportive feedback
+- ✅ Password strength suggestions in soft lavender chips
 
 ### User Management
 - ✅ User profiles with email and name
