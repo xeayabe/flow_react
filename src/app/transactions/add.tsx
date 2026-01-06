@@ -40,6 +40,7 @@ export default function AddTransactionScreen() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDate, setTempDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   // Form state
   const [formData, setFormData] = useState<FormData>({
@@ -338,7 +339,10 @@ export default function AddTransactionScreen() {
               <View className="mb-8">
                 <Text className="text-sm font-semibold text-gray-700 mb-3">Date</Text>
                 <Pressable
-                  onPress={() => setShowDatePicker(true)}
+                  onPress={() => {
+                    setTempDate(formData.date);
+                    setShowDatePicker(true);
+                  }}
                   className={cn(
                     'p-3 rounded-lg border-2 flex-row items-center justify-between',
                     errors.date ? 'border-red-500' : 'border-gray-200'
@@ -358,20 +362,22 @@ export default function AddTransactionScreen() {
               {/* Date Picker Modal */}
               {showDatePicker && (
                 <DateTimePicker
-                  value={new Date(formData.date)}
+                  value={new Date(tempDate + 'T12:00:00')}
                   mode="date"
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={(event, selectedDate) => {
                     if (Platform.OS === 'android') {
                       setShowDatePicker(false);
-                    }
-                    if (selectedDate) {
+                      if (selectedDate) {
+                        const isoDate = selectedDate.toISOString().split('T')[0];
+                        setFormData({ ...formData, date: isoDate });
+                        if (errors.date) setErrors({ ...errors, date: undefined });
+                      }
+                    } else if (selectedDate) {
                       const isoDate = selectedDate.toISOString().split('T')[0];
-                      setFormData({ ...formData, date: isoDate });
-                      if (errors.date) setErrors({ ...errors, date: undefined });
+                      setTempDate(isoDate);
                     }
                   }}
-                  maximumDate={new Date()}
                 />
               )}
 
@@ -386,7 +392,11 @@ export default function AddTransactionScreen() {
                     <Text className="text-sm font-semibold text-gray-900">Cancel</Text>
                   </Pressable>
                   <Pressable
-                    onPress={() => setShowDatePicker(false)}
+                    onPress={() => {
+                      setFormData({ ...formData, date: tempDate });
+                      if (errors.date) setErrors({ ...errors, date: undefined });
+                      setShowDatePicker(false);
+                    }}
                     className="px-4 py-2 rounded-lg"
                     style={{ backgroundColor: '#006A6A' }}
                   >
