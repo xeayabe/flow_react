@@ -341,15 +341,20 @@ export default function AddTransactionScreen() {
                   style={{ color: '#1F2937' }}
                   placeholder="25.12.2024"
                   placeholderTextColor="#D1D5DB"
-                  value={formatDateSwiss(formData.date)}
+                  value={formData.date}
                   onChangeText={(text) => {
-                    const parsed = parseSwissDate(text);
+                    setFormData({ ...formData, date: text });
+                    if (errors.date) setErrors({ ...errors, date: undefined });
+                  }}
+                  onBlur={() => {
+                    // Parse and validate date on blur
+                    const parsed = parseSwissDate(formData.date);
                     if (parsed) {
-                      setFormData({ ...formData, date: parsed });
-                      if (errors.date) setErrors({ ...errors, date: undefined });
+                      setFormData((prev) => ({ ...prev, date: parsed }));
                     }
                   }}
                 />
+                <Text className="text-xs text-gray-500 mt-1">Formats: DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY</Text>
                 {errors.date && <Text className="text-xs text-red-500 mt-2">{errors.date}</Text>}
               </View>
 
