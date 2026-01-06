@@ -310,6 +310,54 @@ export const Budget50_30_20Widget: React.FC<{
 /**
  * Quick Actions Bar Component
  */
+/**
+ * Floating Action Button Component
+ */
+export const FloatingActionButton: React.FC = () => {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  return (
+    <View className="absolute bottom-6 right-6">
+      {/* Menu Items */}
+      {isOpen && (
+        <View className="absolute bottom-20 right-0 gap-3 mb-2">
+          {/* Add Transaction Option */}
+          <Pressable
+            onPress={() => {
+              setIsOpen(false);
+              router.push('/transactions/add');
+            }}
+            className="flex-row items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-200 active:bg-gray-50"
+          >
+            <Plus size={18} color="#006A6A" />
+            <Text className="text-sm font-semibold text-gray-900">Add Transaction</Text>
+          </Pressable>
+
+          {/* Add Account Option */}
+          <Pressable
+            onPress={() => {
+              setIsOpen(false);
+              router.push('/accounts/add');
+            }}
+            className="flex-row items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-200 active:bg-gray-50"
+          >
+            <Plus size={18} color="#006A6A" />
+            <Text className="text-sm font-semibold text-gray-900">Add Account</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* FAB Button */}
+      <Pressable
+        onPress={() => setIsOpen(!isOpen)}
+        className="w-14 h-14 rounded-full bg-teal-600 active:bg-teal-700 items-center justify-center shadow-lg"
+      >
+        <Plus size={24} color="white" />
+      </Pressable>
+    </View>
+  );
+};
+
 export const QuickActionsBar: React.FC = () => (
   <View className="flex-row gap-3">
     <Pressable

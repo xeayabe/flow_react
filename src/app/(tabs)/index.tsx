@@ -26,7 +26,7 @@ import {
   RecentTransactionsWidget,
   AccountsListWidget,
   Budget50_30_20Widget,
-  QuickActionsBar,
+  FloatingActionButton,
 } from '@/components/DashboardWidgets';
 
 interface BudgetSummaryData {
@@ -331,13 +331,13 @@ export default function DashboardScreen() {
           {/* Accounts List Widget */}
           <AccountsListWidget accounts={accounts} />
 
-          {/* Quick Actions Bar */}
-          <QuickActionsBar />
-
           {/* Bottom Padding */}
           <View className="h-4" />
         </View>
       </ScrollView>
+
+      {/* Floating Action Button */}
+      <FloatingActionButton />
     </SafeAreaView>
   );
 }
