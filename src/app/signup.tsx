@@ -314,7 +314,7 @@ export default function SignupScreen() {
 
             {/* Email Field */}
             <Animated.View entering={FadeInDown.delay(100).duration(600)} className="mb-4">
-              <View className="relative">
+              <View className="relative overflow-hidden rounded-3xl">
                 <TextInput
                   className="text-base px-4 pt-6 pb-4 rounded-3xl border-2"
                   style={{
@@ -332,6 +332,8 @@ export default function SignupScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  textContentType="username"
+                  autoComplete="email"
                 />
                 {/* Floating Label */}
                 <Text
@@ -362,7 +364,7 @@ export default function SignupScreen() {
 
             {/* Password Field */}
             <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mb-4">
-              <View className="relative">
+              <View className="relative overflow-hidden rounded-3xl">
                 <TextInput
                   className="text-base px-4 pt-6 pb-4 pr-12 rounded-3xl border-2"
                   style={{
@@ -380,6 +382,8 @@ export default function SignupScreen() {
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  textContentType="newPassword"
+                  passwordRules="minlength: 8;"
                 />
                 {/* Floating Label */}
                 <Text
@@ -438,7 +442,7 @@ export default function SignupScreen() {
 
             {/* Confirm Password Field */}
             <Animated.View entering={FadeInDown.delay(300).duration(600)} className="mb-8">
-              <View className="relative">
+              <View className="relative overflow-hidden rounded-3xl">
                 <TextInput
                   className="text-base px-4 pt-6 pb-4 pr-12 rounded-3xl border-2"
                   style={{
@@ -456,6 +460,7 @@ export default function SignupScreen() {
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  textContentType="newPassword"
                 />
                 {/* Floating Label */}
                 <Text
