@@ -2,3 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Override iOS autofill yellow background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #1F2937 !important;
+  -webkit-box-shadow: 0 0 0px 1000px #F9FAFB inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+  caret-color: #006A6A;
+}
+
+/* For React Native Web */
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+textarea:-webkit-autofill:active {
+  -webkit-text-fill-color: #1F2937 !important;
+  -webkit-box-shadow: 0 0 0px 1000px #F9FAFB inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+  caret-color: #006A6A;
+}

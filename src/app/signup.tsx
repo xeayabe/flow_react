@@ -314,12 +314,13 @@ export default function SignupScreen() {
 
             {/* Email Field */}
             <Animated.View entering={FadeInDown.delay(100).duration(600)} className="mb-4">
-              <View className="relative overflow-hidden rounded-3xl">
+              <View className="relative rounded-3xl" style={{ overflow: 'hidden' }}>
                 <TextInput
-                  className="text-base px-4 pt-6 pb-4 rounded-3xl border-2"
+                  className="text-base px-4 pt-6 pb-4 rounded-3xl border-2 bg-white"
                   style={{
                     borderColor: focusedField === 'email' ? '#006A6A' : '#E5E7EB',
                     color: '#1F2937',
+                    backgroundColor: '#FFFFFF',
                   }}
                   placeholder=" "
                   value={formData.email}
@@ -364,12 +365,13 @@ export default function SignupScreen() {
 
             {/* Password Field */}
             <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mb-4">
-              <View className="relative overflow-hidden rounded-3xl">
+              <View className="relative rounded-3xl" style={{ overflow: 'hidden' }}>
                 <TextInput
-                  className="text-base px-4 pt-6 pb-4 pr-12 rounded-3xl border-2"
+                  className="text-base px-4 pt-6 pb-4 pr-12 rounded-3xl border-2 bg-white"
                   style={{
                     borderColor: focusedField === 'password' ? '#006A6A' : '#E5E7EB',
                     color: '#1F2937',
+                    backgroundColor: '#FFFFFF',
                   }}
                   placeholder=" "
                   value={formData.password}
@@ -442,12 +444,13 @@ export default function SignupScreen() {
 
             {/* Confirm Password Field */}
             <Animated.View entering={FadeInDown.delay(300).duration(600)} className="mb-8">
-              <View className="relative overflow-hidden rounded-3xl">
+              <View className="relative rounded-3xl" style={{ overflow: 'hidden' }}>
                 <TextInput
-                  className="text-base px-4 pt-6 pb-4 pr-12 rounded-3xl border-2"
+                  className="text-base px-4 pt-6 pb-4 pr-12 rounded-3xl border-2 bg-white"
                   style={{
                     borderColor: focusedField === 'confirmPassword' ? '#006A6A' : '#E5E7EB',
                     color: '#1F2937',
+                    backgroundColor: '#FFFFFF',
                   }}
                   placeholder=" "
                   value={formData.confirmPassword}
