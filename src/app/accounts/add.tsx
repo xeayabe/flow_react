@@ -27,6 +27,8 @@ import {
 } from '@/lib/accounts-api';
 import { db } from '@/lib/db';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { InstitutionPicker } from '@/components/InstitutionPicker';
+import { AccountTypePicker } from '@/components/AccountTypePicker';
 
 interface FormData {
   name: string;
@@ -300,13 +302,13 @@ export default function AddAccountScreen() {
               )}
             </Animated.View>
 
-            {/* Institution Dropdown */}
+            {/* Institution Selector */}
             <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mb-6">
               <Pressable
-                onPress={() => setShowInstitutionPicker(!showInstitutionPicker)}
+                onPress={() => setShowInstitutionPicker(true)}
                 className="relative rounded-3xl border-2"
                 style={{
-                  borderColor: focusedField === 'institution' ? '#006A6A' : '#E5E7EB',
+                  borderColor: formData.institution ? '#006A6A' : '#E5E7EB',
                   backgroundColor: '#FFFFFF',
                 }}
               >
@@ -329,27 +331,6 @@ export default function AddAccountScreen() {
                 </View>
               </Pressable>
 
-              {showInstitutionPicker && (
-                <View className="mt-2 rounded-2xl border" style={{ borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' }}>
-                  {INSTITUTIONS.map((institution) => (
-                    <Pressable
-                      key={institution}
-                      onPress={() => {
-                        setFormData({ ...formData, institution });
-                        setShowInstitutionPicker(false);
-                        setErrors({ ...errors, institution: undefined });
-                      }}
-                      className="px-4 py-3 border-b"
-                      style={{ borderBottomColor: '#E5E7EB' }}
-                    >
-                      <Text className="text-base" style={{ color: '#1F2937' }}>
-                        {institution}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-
               {touched.institution && errors.institution && (
                 <View className="flex-row items-center mt-2 ml-4">
                   <Info size={14} color="#DC2626" />
@@ -360,13 +341,13 @@ export default function AddAccountScreen() {
               )}
             </Animated.View>
 
-            {/* Account Type Dropdown */}
+            {/* Account Type Selector */}
             <Animated.View entering={FadeInDown.delay(300).duration(600)} className="mb-6">
               <Pressable
-                onPress={() => setShowAccountTypePicker(!showAccountTypePicker)}
+                onPress={() => setShowAccountTypePicker(true)}
                 className="relative rounded-3xl border-2"
                 style={{
-                  borderColor: focusedField === 'accountType' ? '#006A6A' : '#E5E7EB',
+                  borderColor: formData.accountType ? '#006A6A' : '#E5E7EB',
                   backgroundColor: '#FFFFFF',
                 }}
               >
@@ -388,27 +369,6 @@ export default function AddAccountScreen() {
                   <ChevronDown size={20} color="#9CA3AF" />
                 </View>
               </Pressable>
-
-              {showAccountTypePicker && (
-                <View className="mt-2 rounded-2xl border" style={{ borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' }}>
-                  {ACCOUNT_TYPES.map((accountType) => (
-                    <Pressable
-                      key={accountType}
-                      onPress={() => {
-                        setFormData({ ...formData, accountType });
-                        setShowAccountTypePicker(false);
-                        setErrors({ ...errors, accountType: undefined });
-                      }}
-                      className="px-4 py-3 border-b"
-                      style={{ borderBottomColor: '#E5E7EB' }}
-                    >
-                      <Text className="text-base" style={{ color: '#1F2937' }}>
-                        {accountType}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
 
               {touched.accountType && errors.accountType && (
                 <View className="flex-row items-center mt-2 ml-4">
@@ -580,6 +540,29 @@ export default function AddAccountScreen() {
           </View>
         </KeyboardAvoidingView>
       </View>
+
+      {/* Bottom Sheet Pickers */}
+      <InstitutionPicker
+        visible={showInstitutionPicker}
+        selectedInstitution={formData.institution}
+        institutions={INSTITUTIONS}
+        onSelect={(institution) => {
+          setFormData({ ...formData, institution });
+          setErrors({ ...errors, institution: undefined });
+        }}
+        onClose={() => setShowInstitutionPicker(false)}
+      />
+
+      <AccountTypePicker
+        visible={showAccountTypePicker}
+        selectedAccountType={formData.accountType}
+        accountTypes={ACCOUNT_TYPES}
+        onSelect={(accountType) => {
+          setFormData({ ...formData, accountType });
+          setErrors({ ...errors, accountType: undefined });
+        }}
+        onClose={() => setShowAccountTypePicker(false)}
+      />
     </View>
   );
 }

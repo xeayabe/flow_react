@@ -38,6 +38,12 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - ✅ **M3 Form with Floating Labels** - Beautiful Material Design 3 form
 - ✅ **Character Counter** - Account name with 0-50 character counter
 - ✅ **Modal Presentation** - Full-screen modal with draggable handle
+- ✅ **Bottom Sheet Pickers**:
+  - Institution picker: Bottom sheet with emoji icons, radio buttons, M3 styling
+  - Account type picker: Bottom sheet with icons, radio buttons, smooth animations
+  - Dimmed overlay with 30% black opacity
+  - Spring animation with smooth slide-up motion
+  - Header with "Select Institution" / "Select Account Type" title
 - ✅ **Field Validation**:
   - Account name: 2-50 characters, must be unique per user
   - Institution: Required dropdown selection
@@ -130,7 +136,9 @@ src/
 │   └── cn.ts                 # Utility for className merging
 └── components/
     ├── Themed.tsx            # Themed components
-    └── SuccessModal.tsx      # Success celebration modal
+    ├── SuccessModal.tsx      # Success celebration modal
+    ├── InstitutionPicker.tsx  # Institution selection bottom sheet
+    └── AccountTypePicker.tsx  # Account type selection bottom sheet
 ```
 
 ## Authentication Flow
