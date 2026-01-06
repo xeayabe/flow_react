@@ -165,12 +165,11 @@ src/
 │   ├── (tabs)/
 │   │   ├── _layout.tsx      # Tab navigator
 │   │   ├── index.tsx         # Dashboard screen with wallets
-│   │   └── two.tsx           # Profile screen
+│   │   └── two.tsx           # Profile screen with settings menu
 │   ├── accounts/
 │   │   ├── add.tsx           # Add Wallet modal (Material Design 3)
 │   │   └── index.tsx         # Wallets list screen
 │   ├── settings/
-│   │   ├── index.tsx         # Settings home page with menu
 │   │   └── categories.tsx    # Categories management page
 │   ├── _layout.tsx           # Root layout with auth routing
 │   ├── welcome.tsx           # Welcome screen (first screen)
@@ -289,14 +288,13 @@ bun start
 
 ### Main Navigation Flow
 
-1. **Dashboard** (`/` or `/(tabs)`)
+1. **Dashboard** (`/` or `/(tabs)/index`)
    - Main app screen showing all wallets
-   - Settings button (⚙️) in top-right corner
-   - Click to access Settings menu
+   - Bottom tab navigation with two tabs
 
-2. **Settings** (`/settings`)
+2. **Profile** (`/(tabs)/two`)
    - User profile section with avatar and email
-   - Menu items:
+   - Settings menu with items:
      - **Wallets** → `/accounts` - Manage bank accounts and wallets
      - **Categories** → `/settings/categories` - Organize income/expense categories
      - **Profile** → Coming soon
@@ -307,16 +305,16 @@ bun start
    - Add new category button (+) in top-right
    - Click category to edit (custom categories only)
    - Delete custom categories (default categories are read-only)
-   - Back button returns to Settings
+   - Back button returns to Profile tab
 
 ### Quick Access Paths
 
 | Screen | Route | How to Access |
 |--------|-------|---------------|
-| Dashboard | `/` | App default/home |
-| Settings | `/settings` | Settings icon on Dashboard |
-| Categories | `/settings/categories` | Settings > Categories |
-| Wallets | `/accounts` | Settings > Wallets |
+| Dashboard | `/` | App default/home (first tab) |
+| Profile | `/(tabs)/two` | Click "Profile" tab at bottom |
+| Categories | `/settings/categories` | Profile tab > Categories |
+| Wallets | `/accounts` | Profile tab > Wallets |
 
 ## Design Principles
 
