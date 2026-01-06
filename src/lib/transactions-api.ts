@@ -1,5 +1,7 @@
 import { db } from './db';
 import { getUserAccounts } from './accounts-api';
+import { updateBudgetSpentAmount } from './budget-api';
+import { calculateBudgetPeriod } from './payday-utils';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -128,6 +130,52 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
 
     console.log('Transaction created successfully:', { transactionId, type: request.type, newBalance });
 
+    // Update budget spent amount if this is an expense transaction
+    if (request.type === 'expense') {
+      try {
+        // Get household to retrieve payday info
+        const householdResult = await db.queryOnce({
+          households: {
+            $: {
+              where: { id: request.householdId },
+            },
+          },
+        });
+
+        const household = householdResult.data.households?.[0];
+        if (household) {
+          const paydayDay = household.paydayDay ?? 25;
+          const budgetPeriod = calculateBudgetPeriod(paydayDay);
+
+          // Check if transaction date falls within this budget period
+          const txDate = request.date;
+          if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
+            // Get current budget spent amount
+            const budgetResult = await db.queryOnce({
+              budgets: {
+                $: {
+                  where: {
+                    userId: request.userId,
+                    categoryId: request.categoryId,
+                    periodStart: budgetPeriod.start,
+                  },
+                },
+              },
+            });
+
+            const budget = budgetResult.data.budgets?.[0];
+            if (budget) {
+              const newSpentAmount = (budget.spentAmount || 0) + request.amount;
+              await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to update budget spent amount:', error);
+        // Don't fail the transaction creation if budget update fails
+      }
+    }
+
     return { success: true, data: { id: transactionId, ...request, isShared: false, createdAt: now, updatedAt: now } as Transaction };
   } catch (error) {
     console.error('Create transaction error:', error);
@@ -255,6 +303,52 @@ export async function deleteTransaction(transactionId: string): Promise<Transact
     ]);
 
     console.log('Transaction deleted:', transactionId);
+
+    // Update budget spent amount if this was an expense transaction
+    if (transaction.type === 'expense') {
+      try {
+        // Get household to retrieve payday info
+        const householdResult = await db.queryOnce({
+          households: {
+            $: {
+              where: { id: transaction.householdId },
+            },
+          },
+        });
+
+        const household = householdResult.data.households?.[0];
+        if (household) {
+          const paydayDay = household.paydayDay ?? 25;
+          const budgetPeriod = calculateBudgetPeriod(paydayDay);
+
+          // Check if transaction date falls within this budget period
+          const txDate = transaction.date;
+          if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
+            // Get current budget spent amount
+            const budgetResult = await db.queryOnce({
+              budgets: {
+                $: {
+                  where: {
+                    userId: transaction.userId,
+                    categoryId: transaction.categoryId,
+                    periodStart: budgetPeriod.start,
+                  },
+                },
+              },
+            });
+
+            const budget = budgetResult.data.budgets?.[0];
+            if (budget) {
+              const newSpentAmount = Math.max(0, (budget.spentAmount || 0) - transaction.amount);
+              await updateBudgetSpentAmount(transaction.userId, transaction.categoryId, budgetPeriod.start, newSpentAmount);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to update budget spent amount on delete:', error);
+        // Don't fail the transaction deletion if budget update fails
+      }
+    }
 
     return { success: true };
   } catch (error) {
@@ -452,6 +546,93 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
     await db.transact(transactionsToUpdate);
 
     console.log('Transaction updated successfully:', request.id);
+
+    // Update budget spent amounts if category or amount changed
+    if (request.type === 'expense' && originalTx.type === 'expense') {
+      try {
+        // Get household for budget period calculation
+        const householdResult = await db.queryOnce({
+          households: {
+            $: {
+              where: { id: request.householdId },
+            },
+          },
+        });
+
+        const household = householdResult.data.households?.[0];
+        if (household) {
+          const paydayDay = household.paydayDay ?? 25;
+          const budgetPeriod = calculateBudgetPeriod(paydayDay);
+
+          const txDate = request.date;
+          if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
+            // If category changed, update both old and new categories
+            if (originalTx.categoryId !== request.categoryId) {
+              // Update old category
+              const oldBudgetResult = await db.queryOnce({
+                budgets: {
+                  $: {
+                    where: {
+                      userId: request.userId,
+                      categoryId: originalTx.categoryId,
+                      periodStart: budgetPeriod.start,
+                    },
+                  },
+                },
+              });
+
+              const oldBudget = oldBudgetResult.data.budgets?.[0];
+              if (oldBudget) {
+                const newSpentAmount = Math.max(0, (oldBudget.spentAmount || 0) - originalTx.amount);
+                await updateBudgetSpentAmount(request.userId, originalTx.categoryId, budgetPeriod.start, newSpentAmount);
+              }
+
+              // Update new category
+              const newBudgetResult = await db.queryOnce({
+                budgets: {
+                  $: {
+                    where: {
+                      userId: request.userId,
+                      categoryId: request.categoryId,
+                      periodStart: budgetPeriod.start,
+                    },
+                  },
+                },
+              });
+
+              const newBudget = newBudgetResult.data.budgets?.[0];
+              if (newBudget) {
+                const newSpentAmount = (newBudget.spentAmount || 0) + request.amount;
+                await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
+              }
+            } else if (originalTx.amount !== request.amount) {
+              // If amount changed but category didn't
+              const budgetResult = await db.queryOnce({
+                budgets: {
+                  $: {
+                    where: {
+                      userId: request.userId,
+                      categoryId: request.categoryId,
+                      periodStart: budgetPeriod.start,
+                    },
+                  },
+                },
+              });
+
+              const budget = budgetResult.data.budgets?.[0];
+              if (budget) {
+                const amountDiff = request.amount - originalTx.amount;
+                const newSpentAmount = (budget.spentAmount || 0) + amountDiff;
+                await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to update budget spent amount on transaction update:', error);
+        // Don't fail the transaction update if budget update fails
+      }
+    }
 
     return {
       success: true,

@@ -183,6 +183,39 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Automatic period calculation on payday change
   - Stored in households table
 
+### Zero-Based Budget Allocation (US-034)
+- ✅ **Budget Setup** - Allocate 100% of monthly income across categories
+  - Route: `/budget/setup` from navigation
+  - Monthly income input with CHF formatting
+  - Category allocation with dual CHF/percentage inputs
+  - Real-time sync between amount and percentage
+  - Grouped by 50/30/20 framework (Needs/Wants/Savings)
+- ✅ **Budget Features**
+  - Auto-Balance button distributes remaining amount proportionally
+  - 50/30/20 Quick Split button applies framework allocation
+  - Validation ensures exactly 100% allocation (99.99%-100.01% tolerance)
+  - Budget period automatically set from payday settings
+- ✅ **Budget Overview** - Track spending against budget
+  - Route: `/budget` shows allocated vs spent
+  - Overall progress with visual progress bar
+  - 50/30/20 summary cards with spent percentages
+  - Category breakdown with status indicators
+  - Edit Budget button to modify allocations
+- ✅ **Real-Time Spent Tracking**
+  - Creating expense transactions updates budget spent amounts
+  - Editing transactions updates spent amounts (handles category/amount changes)
+  - Deleting transactions decreases spent amounts
+  - Budget period awareness (only tracks within current period)
+- ✅ **Color Coding**
+  - Green (on-track): 0-80% spent
+  - Yellow (warning): 80-95% spent
+  - Orange/Red (over-budget): >95% spent
+- ✅ **Phase 1 Implementation**:
+  - Personal budgets only
+  - Monthly periods based on payday
+  - Simple allocation interface
+  - Basic tracking (allocated vs spent)
+
 ### Database Schema (InstantDB)
 
 #### Users
@@ -261,6 +294,36 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - `createdAt`: Timestamp
 - `updatedAt`: Timestamp
 
+#### Budgets
+- `id`: UUID (primary key)
+- `userId`: UUID (foreign key to Users)
+- `householdId`: UUID (foreign key to Households)
+- `categoryId`: UUID (foreign key to Categories)
+- `periodStart`: String (ISO format YYYY-MM-DD)
+- `periodEnd`: String (ISO format YYYY-MM-DD)
+- `allocatedAmount`: Number (budget amount in CHF)
+- `spentAmount`: Number (sum of transactions in this category for period)
+- `percentage`: Number (allocatedAmount / totalIncome * 100)
+- `categoryGroup`: String ("needs" | "wants" | "savings" | "other")
+- `isActive`: Boolean (default: true)
+- `createdAt`: Timestamp
+- `updatedAt`: Timestamp
+
+#### BudgetSummary
+- `id`: UUID (primary key)
+- `userId`: UUID (foreign key to Users)
+- `householdId`: UUID (foreign key to Households)
+- `periodStart`: String (ISO format YYYY-MM-DD)
+- `periodEnd`: String (ISO format YYYY-MM-DD)
+- `totalIncome`: Number (monthly income set by user)
+- `totalAllocated`: Number (sum of all budget allocations)
+- `totalSpent`: Number (sum of all spent amounts)
+- `needsAllocated`: Number (sum of needs category budgets)
+- `wantsAllocated`: Number (sum of wants category budgets)
+- `savingsAllocated`: Number (sum of savings category budgets)
+- `createdAt`: Timestamp
+- `updatedAt`: Timestamp
+
 ## Tech Stack
 
 - **Frontend**: Expo SDK 53, React Native 0.76.7
@@ -284,6 +347,9 @@ src/
 │   ├── accounts/
 │   │   ├── add.tsx           # Add Wallet modal (Material Design 3)
 │   │   └── index.tsx         # Wallets list screen
+│   ├── budget/
+│   │   ├── setup.tsx         # Budget allocation setup page (US-034)
+│   │   └── index.tsx         # Budget overview & tracking page (US-034)
 │   ├── settings/
 │   │   ├── payday.tsx           # Payday & Budget Period settings page (US-024)
 │   │   └── categories.tsx       # Categories management page
@@ -297,6 +363,8 @@ src/
 │   ├── accounts-api.ts       # Account management API
 │   ├── categories-api.ts     # Categories management API
 │   ├── transactions-api.ts   # Transactions management API
+│   ├── budget-api.ts         # Budget management API (US-034)
+│   ├── budget-utils.ts       # Budget calculation utilities (US-034)
 │   ├── payday-utils.ts       # Payday calculation & budget period utilities
 │   ├── biometric-auth.ts     # Biometric authentication utilities
 │   └── cn.ts                 # Utility for className merging

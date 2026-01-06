@@ -73,6 +73,34 @@ const schema = i.schema({
       createdAt: i.number(),
       updatedAt: i.number(),
     }),
+    budgets: i.entity({
+      userId: i.string(),
+      householdId: i.string(),
+      categoryId: i.string(),
+      periodStart: i.string(), // ISO format YYYY-MM-DD
+      periodEnd: i.string(), // ISO format YYYY-MM-DD
+      allocatedAmount: i.number(), // Budget amount in CHF
+      spentAmount: i.number().optional(), // Calculated from transactions, default 0
+      percentage: i.number(), // (allocatedAmount / totalIncome) * 100
+      categoryGroup: i.string(), // 'needs' | 'wants' | 'savings' | 'other'
+      isActive: i.boolean().optional(), // default true
+      createdAt: i.number(),
+      updatedAt: i.number(),
+    }),
+    budgetSummary: i.entity({
+      userId: i.string(),
+      householdId: i.string(),
+      periodStart: i.string(), // ISO format YYYY-MM-DD
+      periodEnd: i.string(), // ISO format YYYY-MM-DD
+      totalIncome: i.number(), // Monthly income set by user
+      totalAllocated: i.number(), // Sum of all category budgets
+      totalSpent: i.number().optional(), // Sum of spent_amount, default 0
+      needsAllocated: i.number().optional(), // Sum of needs categories
+      wantsAllocated: i.number().optional(), // Sum of wants categories
+      savingsAllocated: i.number().optional(), // Sum of savings categories
+      createdAt: i.number(),
+      updatedAt: i.number(),
+    }),
   },
   links: {
     householdsByCreator: {
