@@ -64,12 +64,12 @@ export default function TransactionsListScreen() {
 
   // Get transactions
   const transactionsQuery = useQuery({
-    queryKey: ['transactions', user?.email],
+    queryKey: ['transactions', householdQuery.data?.userRecord?.id],
     queryFn: async () => {
-      if (!user?.email) return [];
-      return getUserTransactions(user.email);
+      if (!householdQuery.data?.userRecord?.id) return [];
+      return getUserTransactions(householdQuery.data.userRecord.id);
     },
-    enabled: !!user?.email,
+    enabled: !!householdQuery.data?.userRecord?.id,
   });
 
   // Get categories
@@ -96,7 +96,7 @@ export default function TransactionsListScreen() {
   const deleteMutation = useMutation({
     mutationFn: deleteTransaction,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
       setDeleteConfirmId(null);
     },

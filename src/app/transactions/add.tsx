@@ -132,7 +132,7 @@ export default function AddTransactionScreen() {
         recurringDay: formData.isRecurring ? formData.recurringDay : undefined,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
 

@@ -25,14 +25,6 @@ export default function TransactionsTabScreen() {
   const { user } = db.useAuth();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  // Refetch transactions when tab comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      queryClient.invalidateQueries({ queryKey: ['transactions', user?.email] });
-      queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
-    }, [user?.email, queryClient])
-  );
-
   // Get user and household info
   const householdQuery = useQuery({
     queryKey: ['household', user?.email],
@@ -70,14 +62,14 @@ export default function TransactionsTabScreen() {
     enabled: !!user?.email,
   });
 
-  // Get transactions
+  // Get transactions using the actual userId from householdQuery
   const transactionsQuery = useQuery({
-    queryKey: ['transactions', user?.email],
+    queryKey: ['transactions', householdQuery.data?.userRecord?.id],
     queryFn: async () => {
-      if (!user?.email) return [];
-      return getUserTransactions(user.email);
+      if (!householdQuery.data?.userRecord?.id) return [];
+      return getUserTransactions(householdQuery.data.userRecord.id);
     },
-    enabled: !!user?.email,
+    enabled: !!householdQuery.data?.userRecord?.id,
   });
 
   // Get categories
@@ -100,11 +92,19 @@ export default function TransactionsTabScreen() {
     enabled: !!user?.email,
   });
 
+  // Refetch transactions when tab comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
+    }, [householdQuery.data?.userRecord?.id, user?.email, queryClient])
+  );
+
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: deleteTransaction,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
       setDeleteConfirmId(null);
     },
