@@ -8,6 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { sendMagicCode, verifyMagicCode, createUserProfile, checkUserProfile } from '@/lib/auth-api';
 import { cn } from '@/lib/cn';
 import Animated, { FadeInDown, FadeIn, FadeInLeft } from 'react-native-reanimated';
+import SuccessModal from '@/components/SuccessModal';
 
 type Step = 'details' | 'verify';
 
@@ -39,6 +40,7 @@ export default function SignupScreen() {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
 
   // Handle password change and auto-sync with confirm password when autofilled
   const handlePasswordChange = (text: string) => {
@@ -78,8 +80,8 @@ export default function SignupScreen() {
           const name = formData.email.split('@')[0];
           await createUserProfile(formData.email, name);
         }
-        // Navigate to dashboard
-        router.replace('/(tabs)');
+        // Show success modal instead of navigating immediately
+        setShowSuccessModal(true);
       } else {
         setErrors({ code: response.error });
       }
@@ -569,6 +571,15 @@ export default function SignupScreen() {
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
+
+      {/* Success Modal */}
+      <SuccessModal
+        visible={showSuccessModal}
+        onContinue={() => {
+          setShowSuccessModal(false);
+          router.replace('/(tabs)');
+        }}
+      />
     </View>
   );
 }

@@ -21,6 +21,8 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - ✅ Empathetic error design with calming color palette (no harsh reds)
 - ✅ Real-time validation with supportive feedback
 - ✅ Password strength suggestions in soft lavender chips
+- ✅ Celebratory success modal with confetti animation
+- ✅ Smooth onboarding experience with professional animations
 
 ### User Management
 - ✅ User profiles with email and name
