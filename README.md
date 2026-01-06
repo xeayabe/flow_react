@@ -18,6 +18,7 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - ✅ Auto-login after signup
 - ✅ Protected routes with auth guards
 - ✅ Material Design 3 signup form with floating labels
+- ✅ Material Design 3 login form with FaceID/TouchID support
 - ✅ Empathetic error design with calming color palette (no harsh reds)
 - ✅ Real-time validation with supportive feedback
 - ✅ Password strength suggestions in soft lavender chips
