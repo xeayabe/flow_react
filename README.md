@@ -90,6 +90,36 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - All categories personal to user (is_shareable = false)
   - No shared expense functionality yet
 
+### Transaction System (US-014)
+- ✅ **Add Transaction Page** - Full form to track income and expenses
+  - Type Toggle: Income/Expense with dynamic category filtering
+  - Amount Input: Auto-formatting with currency symbol (CHF)
+  - Category Dropdown: Grouped by Income/Needs/Wants/Savings/Other
+  - Account Selection: Pre-selected default account with balance display
+  - Date Input: Swiss format (DD.MM.YYYY) with validation
+  - Optional Note: Max 200 characters with character counter
+  - Recurring Option: Monthly recurring with day selector
+- ✅ **Transaction Validation**:
+  - Amount: Required, must be > 0, max 2 decimals
+  - Category: Required, filtered by transaction type
+  - Account: Required, shows current balance
+  - Date: Required, cannot be future date, accepts multiple formats
+  - Note: Optional, max 200 characters
+- ✅ **Database Integration**:
+  - Transactions stored with all metadata
+  - Account balance automatically updated (income adds, expense subtracts)
+  - Soft delete support with balance restoration
+- ✅ **User Experience**:
+  - Success message after transaction creation
+  - Form resets with option to add another
+  - Auto-focus on amount field for quick entry
+  - Date input with Swiss format support (DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY)
+  - FAB button on Dashboard to add transactions
+- ✅ **Phase 1 Implementation**:
+  - Personal transactions only (is_shared = false)
+  - No split/shared expenses yet
+  - Basic recurring flag (full templates in Phase 2)
+
 ### Database Schema (InstantDB)
 
 #### Users
@@ -143,6 +173,23 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - `icon`: String (optional, emoji or icon name)
 - `color`: String (optional, hex color code)
 - `isActive`: Boolean (default: true, false for soft-deleted categories)
+- `createdAt`: Timestamp
+- `updatedAt`: Timestamp
+
+#### Transactions
+- `id`: UUID (primary key)
+- `userId`: UUID (foreign key to Users)
+- `householdId`: UUID (foreign key to Households)
+- `accountId`: UUID (foreign key to Accounts)
+- `categoryId`: UUID (foreign key to Categories)
+- `type`: String ("income" | "expense")
+- `amount`: Number (always positive)
+- `date`: String (ISO format YYYY-MM-DD)
+- `note`: String (optional, max 200 chars)
+- `isShared`: Boolean (default: false for Phase 1)
+- `paidByUserId`: UUID (optional, for Phase 2 shared expenses)
+- `isRecurring`: Boolean (default: false)
+- `recurringDay`: Number (1-31, optional, for monthly recurring)
 - `createdAt`: Timestamp
 - `updatedAt`: Timestamp
 
@@ -307,6 +354,25 @@ bun start
    - Delete custom categories (default categories are read-only)
    - Back button returns to Profile tab
 
+4. **Add Transaction** (`/transactions/add`)
+   - Full form to log income and expenses
+   - Type toggle with dynamic category filtering
+   - Amount input with auto-formatting
+   - Category and account selection with modals
+   - Swiss date format support (DD.MM.YYYY)
+   - Optional note with character counter
+   - Monthly recurring transaction option
+   - Real-time validation with error messages
+   - Success feedback with form reset
+
+5. **Transactions List** (`/transactions`)
+   - View all transactions in reverse chronological order
+   - Grouped by date with Swiss format headers
+   - Transaction details: type icon, amount, category, account
+   - Delete transactions with confirmation dialog
+   - FAB to quickly add new transactions
+   - Automatic balance restoration on deletion
+
 ### Quick Access Paths
 
 | Screen | Route | How to Access |
@@ -315,6 +381,8 @@ bun start
 | Profile | `/(tabs)/two` | Click "Profile" tab at bottom |
 | Categories | `/settings/categories` | Profile tab > Categories |
 | Wallets | `/accounts` | Profile tab > Wallets |
+| Add Transaction | `/transactions/add` | FAB on Dashboard or Transactions list |
+| Transactions | `/transactions` | Dashboard > View Transactions or FAB |
 
 ## Design Principles
 
@@ -328,12 +396,13 @@ bun start
 
 ## Next Steps
 
-- [ ] Add expense tracking functionality (transactions/expenses with categories)
+- [ ] Create transaction detail/edit page with editing capability
+- [ ] Implement recurring transaction templates (Phase 2)
+- [ ] Add transaction filtering and sorting options
+- [ ] Create transaction search functionality
+- [ ] Build settlement/splitting logic for shared expenses (Phase 2)
+- [ ] Add notifications for recurring transactions
 - [ ] Implement household member invitations
-- [ ] Add receipt attachment to expenses
-- [ ] Build settlement/splitting logic for shared expenses
-- [ ] Add notifications for new expenses
-- [ ] Implement forgot password flow
-- [ ] Add email verification for additional security
+- [ ] Add receipt attachment to transactions
 - [ ] Create expense reports and analytics
-- [ ] Phase 2: Implement shareable categories for household splitting
+- [ ] Phase 2: Implement shareable transactions for household splitting

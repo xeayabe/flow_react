@@ -52,6 +52,22 @@ const schema = i.schema({
       createdAt: i.number(),
       updatedAt: i.number(),
     }),
+    transactions: i.entity({
+      userId: i.string(),
+      householdId: i.string(),
+      accountId: i.string(),
+      categoryId: i.string(),
+      type: i.string(), // 'income' | 'expense'
+      amount: i.number(),
+      date: i.string(), // ISO format YYYY-MM-DD
+      note: i.string().optional(),
+      isShared: i.boolean(),
+      paidByUserId: i.string().optional(),
+      isRecurring: i.boolean(),
+      recurringDay: i.number().optional(),
+      createdAt: i.number(),
+      updatedAt: i.number(),
+    }),
   },
   links: {
     householdsByCreator: {
@@ -136,6 +152,54 @@ const schema = i.schema({
         on: 'users',
         has: 'many',
         label: 'createdCategories',
+      },
+    },
+    transactionsByUser: {
+      forward: {
+        on: 'transactions',
+        has: 'one',
+        label: 'user',
+      },
+      reverse: {
+        on: 'users',
+        has: 'many',
+        label: 'transactions',
+      },
+    },
+    transactionsByAccount: {
+      forward: {
+        on: 'transactions',
+        has: 'one',
+        label: 'account',
+      },
+      reverse: {
+        on: 'accounts',
+        has: 'many',
+        label: 'transactions',
+      },
+    },
+    transactionsByCategory: {
+      forward: {
+        on: 'transactions',
+        has: 'one',
+        label: 'category',
+      },
+      reverse: {
+        on: 'categories',
+        has: 'many',
+        label: 'transactions',
+      },
+    },
+    transactionsByHousehold: {
+      forward: {
+        on: 'transactions',
+        has: 'one',
+        label: 'household',
+      },
+      reverse: {
+        on: 'households',
+        has: 'many',
+        label: 'transactions',
       },
     },
   },

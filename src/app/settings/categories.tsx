@@ -82,7 +82,6 @@ export default function CategoriesScreen() {
     queryKey: ['categories', householdQuery.data?.household?.id],
     queryFn: () => getCategories(householdQuery.data!.household.id),
     enabled: !!householdQuery.data?.household?.id,
-    select: (response) => (response.success ? (response.data as any[]) : []),
   });
 
   const createMutation = useMutation({

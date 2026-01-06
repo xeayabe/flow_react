@@ -262,7 +262,7 @@ export async function createCategory(request: CreateCategoryRequest): Promise<Ca
 /**
  * Get all categories for a household
  */
-export async function getCategories(householdId: string): Promise<CategoryResponse> {
+export async function getCategories(householdId: string): Promise<Category[]> {
   try {
     const result = await db.queryOnce({
       categories: {
@@ -284,13 +284,10 @@ export async function getCategories(householdId: string): Promise<CategoryRespon
       return a.name.localeCompare(b.name);
     });
 
-    return { success: true, data: categories };
+    return categories;
   } catch (error) {
     console.error('Get categories error:', error);
-    return {
-      success: false,
-      error: 'Failed to fetch categories',
-    };
+    return [];
   }
 }
 

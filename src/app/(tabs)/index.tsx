@@ -166,6 +166,19 @@ export default function DashboardScreen() {
                 <ArrowRight size={16} color="#006A6A" />
               </Pressable>
             </Animated.View>
+
+            {/* View Transactions Link */}
+            <Animated.View entering={FadeInDown.delay((accounts.length + 1) * 100).duration(600)}>
+              <Pressable
+                onPress={() => router.push('/transactions')}
+                className="flex-row items-center justify-center py-3"
+              >
+                <Text className="text-sm font-semibold mr-1" style={{ color: '#006A6A' }}>
+                  View Transactions
+                </Text>
+                <ArrowRight size={16} color="#006A6A" />
+              </Pressable>
+            </Animated.View>
           </View>
         )}
 
@@ -199,11 +212,11 @@ export default function DashboardScreen() {
         )}
       </ScrollView>
 
-      {/* Floating Add Button - Only show if user has accounts */}
+      {/* Floating Add Button - Add Transaction */}
       {hasAccounts && (
         <View className="absolute bottom-6 right-6">
           <Pressable
-            onPress={() => router.push('/accounts/add')}
+            onPress={() => router.push('/transactions/add')}
             className="w-16 h-16 rounded-full items-center justify-center"
             style={{
               backgroundColor: '#006A6A',
