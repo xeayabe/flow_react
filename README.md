@@ -60,6 +60,36 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - ✅ **Wallets List** - View all wallets with total balance card
 - ✅ **Dashboard Integration** - Main dashboard shows real wallet data
 
+### Categories System (US-017)
+- ✅ **Default Categories** - Automatically created when household is created
+  - Income Categories: Salary, Bonus, Freelance, Investment, Gift, Refund, Other Income
+  - Expense Categories (Needs - 50%): Rent/Housing, Groceries, Utilities, Transportation, Health Insurance, Internet/Phone
+  - Expense Categories (Wants - 30%): Dining Out, Entertainment, Shopping, Hobbies, Subscriptions, Vacations
+  - Expense Categories (Savings - 20%): Emergency Fund, Investments, Savings Goals
+  - Other: Other Expense
+- ✅ **Categories Management Page** - Full CRUD for custom categories
+  - View all categories organized by type and group
+  - Create custom categories with name, type, group, icon (emoji), and color
+  - Edit custom categories (name, icon, color only)
+  - Delete custom categories (soft delete, with validation)
+  - Default categories are read-only
+- ✅ **Category Validation**:
+  - Category name: 2-30 characters, unique per household (case-insensitive)
+  - Type: Income or Expense (required)
+  - Group: Needs/Wants/Savings/Other for expenses, auto Income for income (required for expenses)
+  - Icon: Optional emoji picker
+  - Color: Optional hex color code
+- ✅ **Category Organization**:
+  - Income categories section
+  - Needs (50%) section
+  - Wants (30%) section
+  - Savings (20%) section
+  - Other section
+  - Default categories listed first, then custom categories, sorted alphabetically
+- ✅ **Phase 1 Implementation**:
+  - All categories personal to user (is_shareable = false)
+  - No shared expense functionality yet
+
 ### Database Schema (InstantDB)
 
 #### Users
@@ -101,6 +131,21 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - `createdAt`: Timestamp
 - `updatedAt`: Timestamp
 
+#### Categories
+- `id`: UUID (primary key)
+- `householdId`: UUID (foreign key to Households)
+- `name`: String (unique per household, case-insensitive)
+- `type`: String ("income" | "expense")
+- `categoryGroup`: String ("income" | "needs" | "wants" | "savings" | "other")
+- `isShareable`: Boolean (default: false for Phase 1)
+- `isDefault`: Boolean (true for system categories, false for user-created)
+- `createdByUserId`: UUID (optional, references Users.id for user-created categories)
+- `icon`: String (optional, emoji or icon name)
+- `color`: String (optional, hex color code)
+- `isActive`: Boolean (default: true, false for soft-deleted categories)
+- `createdAt`: Timestamp
+- `updatedAt`: Timestamp
+
 ## Tech Stack
 
 - **Frontend**: Expo SDK 53, React Native 0.76.7
@@ -124,6 +169,8 @@ src/
 │   ├── accounts/
 │   │   ├── add.tsx           # Add Wallet modal (Material Design 3)
 │   │   └── index.tsx         # Wallets list screen
+│   ├── settings/
+│   │   └── categories.tsx    # Categories management page
 │   ├── _layout.tsx           # Root layout with auth routing
 │   ├── welcome.tsx           # Welcome screen (first screen)
 │   ├── signup.tsx            # Passwordless signup screen
@@ -132,6 +179,7 @@ src/
 │   ├── db.ts                 # InstantDB configuration & schema
 │   ├── auth-api.ts           # Auth API with rate limiting & lockout
 │   ├── accounts-api.ts       # Account management API
+│   ├── categories-api.ts     # Categories management API
 │   ├── biometric-auth.ts     # Biometric authentication utilities
 │   └── cn.ts                 # Utility for className merging
 └── components/
@@ -248,11 +296,12 @@ bun start
 
 ## Next Steps
 
-- [ ] Add expense tracking functionality
+- [ ] Add expense tracking functionality (transactions/expenses with categories)
 - [ ] Implement household member invitations
-- [ ] Add expense categories and receipts
-- [ ] Build settlement/splitting logic
+- [ ] Add receipt attachment to expenses
+- [ ] Build settlement/splitting logic for shared expenses
 - [ ] Add notifications for new expenses
 - [ ] Implement forgot password flow
-- [ ] Add email verification
+- [ ] Add email verification for additional security
 - [ ] Create expense reports and analytics
+- [ ] Phase 2: Implement shareable categories for household splitting

@@ -38,6 +38,20 @@ const schema = i.schema({
       createdAt: i.number(),
       updatedAt: i.number(),
     }),
+    categories: i.entity({
+      householdId: i.string(),
+      name: i.string(),
+      type: i.string(), // 'income' | 'expense'
+      categoryGroup: i.string(), // 'needs' | 'wants' | 'savings' | 'income' | 'other'
+      isShareable: i.boolean(),
+      isDefault: i.boolean(),
+      createdByUserId: i.string().optional(),
+      icon: i.string().optional(),
+      color: i.string().optional(),
+      isActive: i.boolean(),
+      createdAt: i.number(),
+      updatedAt: i.number(),
+    }),
   },
   links: {
     householdsByCreator: {
@@ -98,6 +112,30 @@ const schema = i.schema({
         on: 'households',
         has: 'many',
         label: 'accounts',
+      },
+    },
+    categoriesByHousehold: {
+      forward: {
+        on: 'categories',
+        has: 'one',
+        label: 'household',
+      },
+      reverse: {
+        on: 'households',
+        has: 'many',
+        label: 'categories',
+      },
+    },
+    categoriesByCreator: {
+      forward: {
+        on: 'categories',
+        has: 'one',
+        label: 'createdBy',
+      },
+      reverse: {
+        on: 'users',
+        has: 'many',
+        label: 'createdCategories',
       },
     },
   },
