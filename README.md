@@ -216,6 +216,20 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Simple allocation interface
   - Basic tracking (allocated vs spent)
 
+### Dashboard (US-034 Integration)
+- ✅ **Budget Status Widget** - Quick financial overview
+  - Displays current spending vs allocated amount
+  - Real-time progress bar with color-coded status
+  - Status indicators: "On Track" (green), "Warning" (yellow), "Over Budget" (red)
+  - Shows remaining amount (positive/negative with colors)
+  - Displays 50/30/20 allocation breakdown (Needs/Wants/Savings percentages)
+  - Budget period dates (from payday to payday)
+- ✅ **Widget Features**
+  - Automatic data refresh when dashboard is focused
+  - Empty state prompts user to create first budget
+  - "View Budget Details" link to navigate to full budget page
+  - Real-time sync with transaction operations
+
 ### Database Schema (InstantDB)
 
 #### Users
