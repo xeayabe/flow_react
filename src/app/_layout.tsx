@@ -31,12 +31,13 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     if (!navigationState?.key) return;
 
     const inAuthGroup = segments[0] === '(tabs)';
+    const inAccountsFlow = segments[0] === 'accounts';
     const inLoginFlow = segments[0] === 'welcome' || segments[0] === 'signup' || segments[0] === 'login';
 
-    if (!user && inAuthGroup) {
+    if (!user && (inAuthGroup || inAccountsFlow)) {
       // Redirect to welcome if not authenticated
       router.replace('/welcome');
-    } else if (user && !inAuthGroup && segments[0] !== 'modal') {
+    } else if (user && !inAuthGroup && !inAccountsFlow && segments[0] !== 'modal') {
       // Redirect to dashboard if authenticated
       router.replace('/(tabs)');
     }
