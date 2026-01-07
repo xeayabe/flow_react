@@ -97,6 +97,8 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Category Dropdown: Grouped by Income/Needs/Wants/Savings/Other
   - Account Selection: Pre-selected default account with balance display
   - Date Input: Custom calendar chip picker with month navigation
+    * Calendar auto-scrolls to view when opened
+    * Single tap on date closes picker and updates form
   - Optional Note: Max 200 characters with character counter
   - Recurring Option: Monthly recurring with day selector
 - ✅ **Edit Transaction Page (US-020)** - Edit existing transactions with smart balance adjustment
@@ -111,6 +113,7 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Access denied protection (only own transactions)
   - Delete button available on edit page
   - Success message and automatic redirect after update
+  - Improved calendar date picker with proper 7-column grid layout
 - ✅ **Transaction Validation**:
   - Amount: Required, must be > 0, max 2 decimals
   - Category: Required, filtered by transaction type

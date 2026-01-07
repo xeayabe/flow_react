@@ -34,7 +34,7 @@ export default function AddTransactionScreen() {
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
   const amountInputRef = useRef<TextInput>(null);
-  const calendarScrollRef = useRef<ScrollView>(null);
+  const mainScrollRef = useRef<ScrollView>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showAddAnotherModal, setShowAddAnotherModal] = useState(false);
@@ -57,12 +57,12 @@ export default function AddTransactionScreen() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Auto-scroll calendar to selected date when picker opens
+  // Auto-scroll to date picker when it opens
   useEffect(() => {
     if (showDatePicker) {
       setTimeout(() => {
-        calendarScrollRef.current?.scrollTo({ y: 0, animated: true });
-      }, 100);
+        mainScrollRef.current?.scrollToEnd({ animated: true });
+      }, 150);
     }
   }, [showDatePicker]);
 
@@ -228,7 +228,7 @@ export default function AddTransactionScreen() {
 
       <SafeAreaView edges={['bottom']} className="flex-1">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+          <ScrollView ref={mainScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
             <View className="px-6 py-8">
               {/* Type Toggle */}
               <View className="mb-8">
@@ -347,7 +347,6 @@ export default function AddTransactionScreen() {
               {/* Date Picker Calendar */}
               {showDatePicker && (
                 <ScrollView
-                  ref={calendarScrollRef}
                   className="mb-8 p-4 rounded-lg border-2 border-gray-200 bg-gray-50 max-h-96"
                   scrollEnabled={true}
                   showsVerticalScrollIndicator={false}
