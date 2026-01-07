@@ -34,6 +34,7 @@ export default function AddTransactionScreen() {
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
   const amountInputRef = useRef<TextInput>(null);
+  const calendarScrollRef = useRef<ScrollView>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showAddAnotherModal, setShowAddAnotherModal] = useState(false);
@@ -55,6 +56,15 @@ export default function AddTransactionScreen() {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Auto-scroll calendar to selected date when picker opens
+  useEffect(() => {
+    if (showDatePicker) {
+      setTimeout(() => {
+        calendarScrollRef.current?.scrollTo({ y: 0, animated: true });
+      }, 100);
+    }
+  }, [showDatePicker]);
 
   // Get user and household info
   const householdQuery = useQuery({
@@ -336,7 +346,12 @@ export default function AddTransactionScreen() {
 
               {/* Date Picker Calendar */}
               {showDatePicker && (
-                <View className="mb-8 p-4 rounded-lg border-2 border-gray-200 bg-gray-50">
+                <ScrollView
+                  ref={calendarScrollRef}
+                  className="mb-8 p-4 rounded-lg border-2 border-gray-200 bg-gray-50 max-h-96"
+                  scrollEnabled={true}
+                  showsVerticalScrollIndicator={false}
+                >
                   {/* Month/Year Header */}
                   <View className="flex-row items-center justify-between mb-4">
                     <Pressable
@@ -443,7 +458,7 @@ export default function AddTransactionScreen() {
                   </View>
 
                   {/* Done/Cancel Buttons - Removed as selecting a day now closes the picker */}
-                </View>
+                </ScrollView>
               )}
 
               {/* Note */}
