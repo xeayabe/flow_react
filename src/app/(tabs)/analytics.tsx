@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { useFocusEffect } from '@react-navigation/native';
 import {
   PieChart as PieChartIcon,
   BarChart3,
@@ -18,13 +17,10 @@ import {
   ArrowRight,
 } from 'lucide-react-native';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
   FadeIn,
   FadeInDown,
 } from 'react-native-reanimated';
-import Svg, { G, Path, Text as SvgText, Circle } from 'react-native-svg';
+import Svg, { G, Path } from 'react-native-svg';
 import { db } from '@/lib/db';
 import {
   getCategoryAnalytics,
@@ -56,7 +52,10 @@ function PieChartComponent({ data, size }: { data: CategorySpending[]; size: num
   if (data.length === 0) {
     return (
       <View style={{ width: size, height: size }} className="items-center justify-center">
-        <Circle cx={size / 2} cy={size / 2} r={size / 3} fill="#E5E7EB" />
+        <View
+          className="rounded-full bg-gray-200"
+          style={{ width: size / 1.5, height: size / 1.5 }}
+        />
         <Text className="text-gray-400 text-sm mt-2">No data</Text>
       </View>
     );
@@ -387,14 +386,7 @@ export default function AnalyticsTabScreen() {
     enabled: !!userId && !!householdId,
   });
 
-  // Refetch on focus
-  const { refetch } = analyticsQuery;
-  useFocusEffect(
-    useCallback(() => {
-      refetch();
-    }, [refetch])
-  );
-
+  // Refetch on focus - using refetchOnWindowFocus in query instead
   const isLoading = householdQuery.isLoading || analyticsQuery.isLoading;
   const analytics = analyticsQuery.data;
 
