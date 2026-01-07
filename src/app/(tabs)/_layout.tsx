@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, User, CreditCard } from 'lucide-react-native';
+import { Home, User, CreditCard, PieChart } from 'lucide-react-native';
 import { Tabs } from 'expo-router';
 
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -33,6 +33,14 @@ export default function TabLayout() {
           title: 'Transactions',
           headerShown: false,
           tabBarIcon: ({ color }: { color: string }) => <TabBarIcon Icon={CreditCard} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="analytics"
+        options={{
+          title: 'Analytics',
+          headerShown: false,
+          tabBarIcon: ({ color }: { color: string }) => <TabBarIcon Icon={PieChart} color={color} />,
         }}
       />
       <Tabs.Screen
