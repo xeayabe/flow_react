@@ -216,6 +216,46 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Simple allocation interface
   - Basic tracking (allocated vs spent)
 
+### Category Charts & Analytics (US-052)
+- ✅ **Analytics Page** - Visual breakdown of spending by category
+  - Route: `/analytics` accessible from Dashboard Budget Breakdown widget
+  - Beautiful pie chart (donut style) showing category percentages
+  - Horizontal bar chart for top categories comparison
+  - View toggle: Pie only, Bar only, or Both charts
+- ✅ **Date Range Filtering**
+  - This Period (based on payday)
+  - Last Period
+  - This Week
+  - Last 3 Months
+  - Last 6 Months
+  - This Year
+  - All Time
+- ✅ **Type Filtering**
+  - Expenses (default)
+  - Income
+- ✅ **Summary Statistics**
+  - Total spending/income amount
+  - Number of categories used
+  - Average per category
+  - Top category identification
+- ✅ **Category Breakdown Table**
+  - Category name with color indicator
+  - Amount and percentage
+  - Transaction count
+  - Visual progress bar
+  - Tap to view transactions for that category
+- ✅ **Chart Features**
+  - Animated chart rendering
+  - Color coding by category group (Needs=Blue, Wants=Orange, Savings=Green)
+  - Donut center shows total amount
+  - Legend with category colors
+- ✅ **Empty States**
+  - No data message with call-to-action
+  - Add Transaction button
+- ✅ **Loading States**
+  - Skeleton placeholders for charts
+  - Shimmer animation
+
 ### Dashboard (US-051 - Comprehensive Overview)
 - ✅ **Welcome Header** - Personalized greeting with user name, current date, and budget period
 - ✅ **Total Balance Card** - Sum of all account balances with clickable link to accounts
@@ -434,6 +474,9 @@ src/
 │   ├── budget/
 │   │   ├── setup.tsx         # Budget allocation setup page (US-034)
 │   │   └── index.tsx         # Budget overview & tracking page (US-034)
+│   ├── analytics/
+│   │   ├── _layout.tsx       # Analytics stack layout
+│   │   └── index.tsx         # Category charts & analytics page (US-052)
 │   ├── settings/
 │   │   ├── payday.tsx           # Payday & Budget Period settings page (US-024)
 │   │   └── categories.tsx       # Categories management page
@@ -449,6 +492,7 @@ src/
 │   ├── transactions-api.ts   # Transactions management API
 │   ├── budget-api.ts         # Budget management API (US-034)
 │   ├── budget-utils.ts           # Budget calculation utilities (US-034)
+│   ├── analytics-api.ts          # Category analytics & aggregation API (US-052)
 │   ├── dashboard-helpers.ts      # Dashboard data aggregation & formatting helpers
 │   ├── payday-utils.ts           # Payday calculation & budget period utilities
 │   ├── biometric-auth.ts         # Biometric authentication utilities
@@ -619,6 +663,7 @@ bun start
 | Categories | `/settings/categories` | Profile tab > Categories |
 | Wallets | `/accounts` | Profile tab > Wallets |
 | Add Transaction | `/transactions/add` | FAB on Dashboard or Transactions tab |
+| Analytics | `/analytics` | Dashboard > Budget Breakdown > Analytics link |
 
 ## Design Principles
 

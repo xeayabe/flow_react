@@ -8,6 +8,7 @@ import {
   PiggyBank,
   Plus,
   Eye,
+  PieChart,
 } from 'lucide-react-native';
 import { Account } from '@/lib/accounts-api';
 import { Transaction } from '@/lib/transactions-api';
@@ -268,8 +269,15 @@ export const Budget50_30_20Widget: React.FC<{
   return (
     <View className="rounded-xl overflow-hidden bg-white border border-gray-100">
       {/* Header */}
-      <View className="px-4 py-3 border-b border-gray-100">
+      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
         <Text className="font-semibold text-gray-900">Budget Breakdown</Text>
+        <Pressable
+          onPress={() => router.push('/analytics')}
+          className="flex-row items-center gap-1 active:opacity-60"
+        >
+          <PieChart size={14} color="#0D9488" />
+          <Text className="text-xs font-semibold text-teal-600">Analytics</Text>
+        </Pressable>
       </View>
 
       {/* Categories */}
