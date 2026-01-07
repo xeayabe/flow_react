@@ -259,6 +259,47 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Skeleton placeholders for charts
   - Shimmer animation
 
+### Income vs Expenses Trend (US-053)
+- ✅ **Trends Page** - Visualize financial health over time
+  - Route: `/transactions/trends`
+  - Monthly income vs expenses trend analysis
+  - Dual-bar chart visualization (green=income, red=expenses)
+  - Shows pattern recognition for seasonal spending
+- ✅ **Summary Cards**
+  - Average Monthly Income (in CHF, with label)
+  - Average Monthly Expenses (in CHF, with label)
+  - Average Monthly Savings (in CHF, net amount, color-coded)
+  - Savings Rate (percentage with progress bar visualization)
+- ✅ **Time Range Selection**
+  - Last 3 Months
+  - Last 6 Months
+  - Last 12 Months
+  - All Time
+  - Quick toggle button to cycle through ranges
+- ✅ **Monthly Breakdown Table**
+  - Month and year
+  - Income amount (green text)
+  - Expenses amount (red text)
+  - Net savings amount (color-coded, positive=teal, negative=red)
+  - Monthly data sorted newest first
+  - Precise numbers for verification
+- ✅ **Chart Features**
+  - Animated chart rendering (FadeIn effect)
+  - Proportional scaling to max value in range
+  - Clean bar visualization for comparing months
+  - Legend identifying income/expense colors
+  - Month labels on X-axis
+  - Responsive layout
+- ✅ **Data Aggregation**
+  - Accurate monthly income/expense totals
+  - Savings calculation (income - expenses)
+  - Savings rate percentage (net / income * 100)
+  - Identifies best and worst months
+  - Averages across selected time range
+- ✅ **Empty States**
+  - "Need more data" message when < 2 months available
+  - Encourages users to continue tracking
+
 ### Dashboard (US-051 - Comprehensive Overview)
 - ✅ **Welcome Header** - Personalized greeting with user name, current date, and budget period
 - ✅ **Total Balance Card** - Sum of all account balances with clickable link to accounts
