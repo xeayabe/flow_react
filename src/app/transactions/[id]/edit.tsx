@@ -540,7 +540,7 @@ export default function EditTransactionScreen() {
             </View>
 
             {/* Calendar Grid */}
-            <View className="flex-row flex-wrap">
+            <View className="flex-row flex-wrap justify-between">
               {(() => {
                 const year = calendarMonth.getFullYear();
                 const month = calendarMonth.getMonth();
@@ -553,14 +553,14 @@ export default function EditTransactionScreen() {
 
                 // Empty cells before first day
                 for (let i = 0; i < firstDay; i++) {
-                  days.push(<View key={`empty-${i}`} className="flex-1 aspect-square" />);
+                  days.push(<View key={`empty-${i}`} className="w-12 h-12" />);
                 }
 
                 // Days of month
                 for (let day = 1; day <= daysInMonth; day++) {
                   const currentDate = new Date(year, month, day);
                   const dateStr = currentDate.toISOString().split('T')[0];
-                  const isSelected = dateStr === tempDate;
+                  const isSelected = dateStr === formData.date;
                   const isToday = currentDate.getTime() === today.getTime();
                   const isFuture = currentDate > today;
 
@@ -576,14 +576,14 @@ export default function EditTransactionScreen() {
                       }}
                       disabled={isFuture}
                       className={cn(
-                        'flex-1 aspect-square items-center justify-center rounded-lg m-1',
-                        isSelected ? 'bg-teal-600' : isToday ? 'border-2 border-teal-600' : 'bg-gray-50',
-                        isFuture ? 'opacity-40' : ''
+                        'w-12 h-12 items-center justify-center rounded-lg mb-2',
+                        isSelected ? 'bg-teal-600' : isToday && !isSelected ? 'bg-teal-100 border-2 border-teal-600' : 'bg-gray-50',
+                        isFuture ? 'opacity-30' : ''
                       )}
                     >
                       <Text
                         className={cn(
-                          'font-semibold',
+                          'text-sm font-semibold',
                           isSelected ? 'text-white' : 'text-gray-900'
                         )}
                       >
