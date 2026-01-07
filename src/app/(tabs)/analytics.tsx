@@ -5,7 +5,6 @@ import {
   ScrollView,
   Pressable,
   Dimensions,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -16,10 +15,6 @@ import {
   TrendingUp,
   ArrowRight,
 } from 'lucide-react-native';
-import Animated, {
-  FadeIn,
-  FadeInDown,
-} from 'react-native-reanimated';
 import Svg, { G, Path } from 'react-native-svg';
 import { db } from '@/lib/db';
 import {
@@ -29,7 +24,6 @@ import {
   CategorySpending,
 } from '@/lib/analytics-api';
 import { formatCurrency } from '@/lib/transactions-api';
-import { cn } from '@/lib/cn';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_SIZE = Math.min(SCREEN_WIDTH - 80, 280);
@@ -38,8 +32,8 @@ type ViewMode = 'pie' | 'bar' | 'both';
 type TypeFilter = 'expense' | 'income';
 
 const DATE_RANGE_OPTIONS: { value: DateRangeOption; label: string }[] = [
-  { value: 'this_month', label: 'This Period' },
-  { value: 'last_month', label: 'Last Period' },
+  { value: 'this_month', label: 'This Budget Period' },
+  { value: 'last_month', label: 'Last Budget Period' },
   { value: 'this_week', label: 'This Week' },
   { value: 'last_3_months', label: 'Last 3 Months' },
   { value: 'last_6_months', label: 'Last 6 Months' },
@@ -51,12 +45,11 @@ const DATE_RANGE_OPTIONS: { value: DateRangeOption; label: string }[] = [
 function PieChartComponent({ data, size }: { data: CategorySpending[]; size: number }) {
   if (data.length === 0) {
     return (
-      <View style={{ width: size, height: size }} className="items-center justify-center">
+      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
         <View
-          className="rounded-full bg-gray-200"
-          style={{ width: size / 1.5, height: size / 1.5 }}
+          style={{ width: size / 1.5, height: size / 1.5, borderRadius: size / 3, backgroundColor: '#E5E7EB' }}
         />
-        <Text className="text-gray-400 text-sm mt-2">No data</Text>
+        <Text style={{ color: '#9CA3AF', fontSize: 14, marginTop: 8 }}>No data</Text>
       </View>
     );
   }
@@ -66,14 +59,13 @@ function PieChartComponent({ data, size }: { data: CategorySpending[]; size: num
   const radius = size / 2.5;
   const innerRadius = radius * 0.6;
 
-  let startAngle = -90; // Start from top
+  let startAngle = -90;
 
-  const paths = data.map((item, index) => {
+  const paths = data.map((item) => {
     const percentage = item.amount / total;
     const angle = percentage * 360;
     const endAngle = startAngle + angle;
 
-    // Calculate path
     const startRad = (startAngle * Math.PI) / 180;
     const endRad = (endAngle * Math.PI) / 180;
 
@@ -115,18 +107,19 @@ function PieChartComponent({ data, size }: { data: CategorySpending[]; size: num
       <Svg width={size} height={size}>
         <G>{paths}</G>
       </Svg>
-      {/* Center text */}
       <View
-        className="absolute items-center justify-center"
         style={{
+          position: 'absolute',
+          alignItems: 'center',
+          justifyContent: 'center',
           top: center - innerRadius * 0.6,
           left: center - innerRadius * 0.8,
           width: innerRadius * 1.6,
           height: innerRadius * 1.2,
         }}
       >
-        <Text className="text-xs text-gray-500">Total</Text>
-        <Text className="text-base font-bold text-gray-900" numberOfLines={1} adjustsFontSizeToFit>
+        <Text style={{ fontSize: 12, color: '#6B7280' }}>Total</Text>
+        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }} numberOfLines={1} adjustsFontSizeToFit>
           {formatCurrency(total)}
         </Text>
       </View>
@@ -135,17 +128,11 @@ function PieChartComponent({ data, size }: { data: CategorySpending[]; size: num
 }
 
 // Bar chart component
-function BarChartComponent({
-  data,
-  maxWidth,
-}: {
-  data: CategorySpending[];
-  maxWidth: number;
-}) {
+function BarChartComponent({ data, maxWidth }: { data: CategorySpending[]; maxWidth: number }) {
   if (data.length === 0) {
     return (
-      <View className="items-center justify-center py-8">
-        <Text className="text-gray-400 text-sm">No data</Text>
+      <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 32 }}>
+        <Text style={{ color: '#9CA3AF', fontSize: 14 }}>No data</Text>
       </View>
     );
   }
@@ -153,34 +140,32 @@ function BarChartComponent({
   const maxAmount = Math.max(...data.map((item) => item.amount));
 
   return (
-    <View className="gap-3">
-      {data.slice(0, 8).map((item, index) => {
+    <View style={{ gap: 12 }}>
+      {data.slice(0, 8).map((item) => {
         const barWidth = maxAmount > 0 ? (item.amount / maxAmount) * (maxWidth - 100) : 0;
 
         return (
-          <Animated.View
-            key={item.categoryId}
-            entering={FadeInDown.delay(index * 50).duration(300)}
-            className="flex-row items-center gap-3"
-          >
-            <View className="w-24">
-              <Text className="text-xs text-gray-600" numberOfLines={1}>
+          <View key={item.categoryId} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ width: 96 }}>
+              <Text style={{ fontSize: 12, color: '#4B5563' }} numberOfLines={1}>
                 {item.categoryName}
               </Text>
             </View>
-            <View className="flex-1 flex-row items-center gap-2">
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View
-                className="h-6 rounded-r-md"
                 style={{
+                  height: 24,
+                  borderTopRightRadius: 6,
+                  borderBottomRightRadius: 6,
                   width: Math.max(barWidth, 4),
                   backgroundColor: item.color,
                 }}
               />
-              <Text className="text-xs text-gray-700 font-medium">
+              <Text style={{ fontSize: 12, color: '#374151', fontWeight: '500' }}>
                 {formatCurrency(item.amount)}
               </Text>
             </View>
-          </Animated.View>
+          </View>
         );
       })}
     </View>
@@ -188,51 +173,49 @@ function BarChartComponent({
 }
 
 // Category breakdown row
-function CategoryRow({
-  item,
-  onPress,
-  index,
-}: {
-  item: CategorySpending;
-  onPress: () => void;
-  index: number;
-}) {
+function CategoryRow({ item, onPress }: { item: CategorySpending; onPress: () => void }) {
   return (
-    <Animated.View entering={FadeInDown.delay(index * 30).duration(200)}>
-      <Pressable
-        onPress={onPress}
-        className="flex-row items-center py-3 px-4 bg-white rounded-xl mb-2 active:bg-gray-50"
-      >
+    <Pressable
+      onPress={onPress}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        backgroundColor: 'white',
+        borderRadius: 12,
+        marginBottom: 8,
+      }}
+    >
+      <View
+        style={{ width: 12, height: 12, borderRadius: 6, marginRight: 12, backgroundColor: item.color }}
+      />
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827' }}>
+          {item.categoryName}
+        </Text>
+        <Text style={{ fontSize: 12, color: '#6B7280' }}>
+          {item.transactionCount} transaction{item.transactionCount !== 1 ? 's' : ''}
+        </Text>
+      </View>
+      <View style={{ alignItems: 'flex-end', marginRight: 8 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>
+          {formatCurrency(item.amount)}
+        </Text>
+        <Text style={{ fontSize: 12, color: '#6B7280' }}>{item.percentage}%</Text>
+      </View>
+      <View style={{ width: 64, height: 8, backgroundColor: '#F3F4F6', borderRadius: 4, overflow: 'hidden' }}>
         <View
-          className="w-3 h-3 rounded-full mr-3"
-          style={{ backgroundColor: item.color }}
+          style={{
+            height: '100%',
+            borderRadius: 4,
+            width: `${Math.min(100, item.percentage)}%`,
+            backgroundColor: item.color,
+          }}
         />
-        <View className="flex-1">
-          <Text className="text-sm font-medium text-gray-900">
-            {item.categoryName}
-          </Text>
-          <Text className="text-xs text-gray-500">
-            {item.transactionCount} transaction{item.transactionCount !== 1 ? 's' : ''}
-          </Text>
-        </View>
-        <View className="items-end mr-2">
-          <Text className="text-sm font-semibold text-gray-900">
-            {formatCurrency(item.amount)}
-          </Text>
-          <Text className="text-xs text-gray-500">{item.percentage}%</Text>
-        </View>
-        <View className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
-          <View
-            className="h-full rounded-full"
-            style={{
-              width: `${Math.min(100, item.percentage)}%`,
-              backgroundColor: item.color,
-            }}
-          />
-        </View>
-        <ArrowRight size={16} color="#9CA3AF" className="ml-2" />
-      </Pressable>
-    </Animated.View>
+      </View>
+      <ArrowRight size={16} color="#9CA3AF" style={{ marginLeft: 8 }} />
+    </Pressable>
   );
 }
 
@@ -252,20 +235,44 @@ function FilterDropdown<T extends string>({
   const selectedOption = options.find((opt) => opt.value === value);
 
   return (
-    <View className="relative z-10">
+    <View style={{ position: 'relative', zIndex: 10 }}>
       <Pressable
         onPress={() => setIsOpen(!isOpen)}
-        className={cn(
-          'flex-row items-center px-3 py-2 rounded-lg border',
-          isOpen ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white'
-        )}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: isOpen ? '#14B8A6' : '#E5E7EB',
+          backgroundColor: isOpen ? '#F0FDFA' : 'white',
+        }}
       >
-        <Text className="text-sm text-gray-700 mr-1">{selectedOption?.label || label}</Text>
+        <Text style={{ fontSize: 14, color: '#374151', marginRight: 4 }}>{selectedOption?.label || label}</Text>
         <ChevronDown size={16} color="#6B7280" />
       </Pressable>
 
       {isOpen && (
-        <View className="absolute top-full left-0 mt-1 bg-white rounded-lg border border-gray-200 shadow-lg min-w-[140px] z-50">
+        <View
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            marginTop: 4,
+            backgroundColor: 'white',
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: '#E5E7EB',
+            minWidth: 160,
+            zIndex: 50,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
+          }}
+        >
           {options.map((option) => (
             <Pressable
               key={option.value}
@@ -273,16 +280,20 @@ function FilterDropdown<T extends string>({
                 onSelect(option.value);
                 setIsOpen(false);
               }}
-              className={cn(
-                'px-4 py-3 border-b border-gray-100',
-                option.value === value && 'bg-teal-50'
-              )}
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: '#F3F4F6',
+                backgroundColor: option.value === value ? '#F0FDFA' : 'white',
+              }}
             >
               <Text
-                className={cn(
-                  'text-sm',
-                  option.value === value ? 'text-teal-700 font-medium' : 'text-gray-700'
-                )}
+                style={{
+                  fontSize: 14,
+                  color: option.value === value ? '#0F766E' : '#374151',
+                  fontWeight: option.value === value ? '500' : '400',
+                }}
               >
                 {option.label}
               </Text>
@@ -297,21 +308,20 @@ function FilterDropdown<T extends string>({
 // Loading skeleton
 function AnalyticsSkeleton() {
   return (
-    <View className="px-6 py-4 gap-6">
-      <View className="h-8 w-48 bg-gray-200 rounded-lg" />
-      <View className="flex-row gap-3">
-        <View className="h-10 w-28 bg-gray-200 rounded-lg" />
-        <View className="h-10 w-28 bg-gray-200 rounded-lg" />
+    <View style={{ paddingHorizontal: 24, paddingVertical: 16, gap: 24 }}>
+      <View style={{ height: 32, width: 192, backgroundColor: '#E5E7EB', borderRadius: 8 }} />
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={{ height: 40, width: 112, backgroundColor: '#E5E7EB', borderRadius: 8 }} />
+        <View style={{ height: 40, width: 112, backgroundColor: '#E5E7EB', borderRadius: 8 }} />
       </View>
-      <View className="bg-gray-100 rounded-2xl p-6 items-center">
+      <View style={{ backgroundColor: '#F3F4F6', borderRadius: 16, padding: 24, alignItems: 'center' }}>
         <View
-          className="bg-gray-200 rounded-full"
-          style={{ width: CHART_SIZE, height: CHART_SIZE }}
+          style={{ backgroundColor: '#E5E7EB', borderRadius: CHART_SIZE / 2, width: CHART_SIZE, height: CHART_SIZE }}
         />
       </View>
-      <View className="gap-3">
+      <View style={{ gap: 12 }}>
         {[1, 2, 3, 4].map((i) => (
-          <View key={i} className="h-16 bg-gray-100 rounded-xl" />
+          <View key={i} style={{ height: 64, backgroundColor: '#F3F4F6', borderRadius: 12 }} />
         ))}
       </View>
     </View>
@@ -321,14 +331,24 @@ function AnalyticsSkeleton() {
 // Empty state component
 function EmptyState({ type }: { type: TypeFilter }) {
   return (
-    <View className="items-center justify-center py-16 px-6">
-      <View className="w-20 h-20 rounded-full bg-gray-100 items-center justify-center mb-4">
+    <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 64, paddingHorizontal: 24 }}>
+      <View
+        style={{
+          width: 80,
+          height: 80,
+          borderRadius: 40,
+          backgroundColor: '#F3F4F6',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 16,
+        }}
+      >
         <PieChartIcon size={32} color="#9CA3AF" />
       </View>
-      <Text className="text-lg font-semibold text-gray-900 mb-2">
+      <Text style={{ fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 8 }}>
         No {type === 'expense' ? 'Expenses' : 'Income'} Found
       </Text>
-      <Text className="text-sm text-gray-500 text-center mb-6">
+      <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center' }}>
         {type === 'expense'
           ? 'Add some expenses to see your spending breakdown'
           : 'Add income transactions to see your earnings breakdown'}
@@ -342,7 +362,6 @@ export default function AnalyticsTabScreen() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('expense');
   const [viewMode, setViewMode] = useState<ViewMode>('both');
 
-  // Get user and household info
   const { user } = db.useAuth();
 
   const householdQuery = useQuery({
@@ -373,10 +392,8 @@ export default function AnalyticsTabScreen() {
   const householdId = householdQuery.data?.household?.id;
   const paydayDay = householdQuery.data?.household?.paydayDay ?? 25;
 
-  // Get date range
   const range = getDateRange(dateRange, paydayDay);
 
-  // Get analytics data
   const analyticsQuery = useQuery({
     queryKey: ['analytics', userId, householdId, range.start, range.end, typeFilter],
     queryFn: async () => {
@@ -386,17 +403,16 @@ export default function AnalyticsTabScreen() {
     enabled: !!userId && !!householdId,
   });
 
-  // Refetch on focus - using refetchOnWindowFocus in query instead
   const isLoading = householdQuery.isLoading || analyticsQuery.isLoading;
   const analytics = analyticsQuery.data;
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }} edges={['top']}>
       {/* Header */}
-      <View className="px-6 py-4 bg-white border-b border-gray-100">
-        <Text className="text-2xl font-bold text-gray-900">Analytics</Text>
-        <Text className="text-sm text-gray-500 mt-1">
-          {range.label} • {range.start} to {range.end}
+      <View style={{ paddingHorizontal: 24, paddingVertical: 16, backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+        <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#111827' }}>Analytics</Text>
+        <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>
+          {range.label} ({range.start} to {range.end})
         </Text>
       </View>
 
@@ -404,9 +420,9 @@ export default function AnalyticsTabScreen() {
         <AnalyticsSkeleton />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}>
-          <View className="px-6 py-4 gap-5">
+          <View style={{ paddingHorizontal: 24, paddingVertical: 16, gap: 20 }}>
             {/* Filters */}
-            <View className="flex-row gap-3 flex-wrap">
+            <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap', zIndex: 100 }}>
               <FilterDropdown
                 value={dateRange}
                 options={DATE_RANGE_OPTIONS}
@@ -426,51 +442,48 @@ export default function AnalyticsTabScreen() {
 
             {/* Summary Stats */}
             {analytics && analytics.categoryBreakdown.length > 0 && (
-              <Animated.View
-                entering={FadeIn.duration(300)}
-                className="bg-white rounded-2xl p-5 border border-gray-100"
-              >
-                <View className="flex-row items-center gap-3 mb-4">
-                  <View className="w-10 h-10 rounded-lg bg-teal-100 items-center justify-center">
+              <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#F3F4F6' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: '#CCFBF1', alignItems: 'center', justifyContent: 'center' }}>
                     <TrendingUp size={20} color="#0D9488" />
                   </View>
                   <View>
-                    <Text className="text-sm text-gray-500">
+                    <Text style={{ fontSize: 14, color: '#6B7280' }}>
                       Total {typeFilter === 'expense' ? 'Spending' : 'Income'}
                     </Text>
-                    <Text className="text-2xl font-bold text-gray-900">
+                    <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#111827' }}>
                       {formatCurrency(analytics.totalAmount)}
                     </Text>
                   </View>
                 </View>
-                <View className="flex-row justify-between">
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <View>
-                    <Text className="text-xs text-gray-500">Categories</Text>
-                    <Text className="text-sm font-semibold text-gray-900">
+                    <Text style={{ fontSize: 12, color: '#6B7280' }}>Categories</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>
                       {analytics.categoryCount}
                     </Text>
                   </View>
                   <View>
-                    <Text className="text-xs text-gray-500">Average</Text>
-                    <Text className="text-sm font-semibold text-gray-900">
+                    <Text style={{ fontSize: 12, color: '#6B7280' }}>Average</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>
                       {formatCurrency(analytics.averagePerCategory)}
                     </Text>
                   </View>
                   {analytics.topCategory && (
-                    <View className="items-end">
-                      <Text className="text-xs text-gray-500">Top Category</Text>
-                      <Text className="text-sm font-semibold text-gray-900">
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontSize: 12, color: '#6B7280' }}>Top Category</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>
                         {analytics.topCategory.categoryName}
                       </Text>
                     </View>
                   )}
                 </View>
-              </Animated.View>
+              </View>
             )}
 
             {/* View Mode Toggle */}
             {analytics && analytics.categoryBreakdown.length > 0 && (
-              <View className="flex-row bg-gray-100 rounded-xl p-1">
+              <View style={{ flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 12, padding: 4 }}>
                 {[
                   { value: 'pie', label: 'Pie', icon: PieChartIcon },
                   { value: 'bar', label: 'Bar', icon: BarChart3 },
@@ -479,22 +492,29 @@ export default function AnalyticsTabScreen() {
                   <Pressable
                     key={value}
                     onPress={() => setViewMode(value as ViewMode)}
-                    className={cn(
-                      'flex-1 flex-row items-center justify-center py-2 rounded-lg gap-1',
-                      viewMode === value && 'bg-white shadow-sm'
-                    )}
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                      gap: 4,
+                      backgroundColor: viewMode === value ? 'white' : 'transparent',
+                      shadowColor: viewMode === value ? '#000' : 'transparent',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: viewMode === value ? 0.1 : 0,
+                      shadowRadius: 2,
+                      elevation: viewMode === value ? 2 : 0,
+                    }}
                   >
-                    {Icon && (
-                      <Icon
-                        size={16}
-                        color={viewMode === value ? '#0D9488' : '#6B7280'}
-                      />
-                    )}
+                    {Icon && <Icon size={16} color={viewMode === value ? '#0D9488' : '#6B7280'} />}
                     <Text
-                      className={cn(
-                        'text-sm font-medium',
-                        viewMode === value ? 'text-teal-700' : 'text-gray-500'
-                      )}
+                      style={{
+                        fontSize: 14,
+                        fontWeight: '500',
+                        color: viewMode === value ? '#0F766E' : '#6B7280',
+                      }}
                     >
                       {label}
                     </Text>
@@ -507,61 +527,39 @@ export default function AnalyticsTabScreen() {
             {analytics && analytics.categoryBreakdown.length > 0 ? (
               <>
                 {(viewMode === 'pie' || viewMode === 'both') && (
-                  <Animated.View
-                    entering={FadeIn.duration(400)}
-                    className="bg-white rounded-2xl p-5 items-center border border-gray-100"
-                  >
-                    <Text className="text-sm font-medium text-gray-700 mb-4">
+                  <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: '#F3F4F6' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 16 }}>
                       {typeFilter === 'expense' ? 'Spending' : 'Income'} by Category
                     </Text>
-                    <PieChartComponent
-                      data={analytics.categoryBreakdown}
-                      size={CHART_SIZE}
-                    />
+                    <PieChartComponent data={analytics.categoryBreakdown} size={CHART_SIZE} />
                     {/* Legend */}
-                    <View className="flex-row flex-wrap justify-center gap-3 mt-4">
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 16 }}>
                       {analytics.categoryBreakdown.slice(0, 6).map((item) => (
-                        <View key={item.categoryId} className="flex-row items-center gap-1">
-                          <View
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: item.color }}
-                          />
-                          <Text className="text-xs text-gray-600">{item.categoryName}</Text>
+                        <View key={item.categoryId} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
+                          <Text style={{ fontSize: 12, color: '#4B5563' }}>{item.categoryName}</Text>
                         </View>
                       ))}
                     </View>
-                  </Animated.View>
+                  </View>
                 )}
 
                 {(viewMode === 'bar' || viewMode === 'both') && (
-                  <Animated.View
-                    entering={FadeIn.delay(100).duration(400)}
-                    className="bg-white rounded-2xl p-5 border border-gray-100"
-                  >
-                    <Text className="text-sm font-medium text-gray-700 mb-4">
+                  <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#F3F4F6' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 16 }}>
                       Top Categories
                     </Text>
-                    <BarChartComponent
-                      data={analytics.categoryBreakdown}
-                      maxWidth={SCREEN_WIDTH - 80}
-                    />
-                  </Animated.View>
+                    <BarChartComponent data={analytics.categoryBreakdown} maxWidth={SCREEN_WIDTH - 80} />
+                  </View>
                 )}
 
                 {/* Category Breakdown Table */}
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-3">
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 12 }}>
                     Category Breakdown
                   </Text>
-                  {analytics.categoryBreakdown.map((item, index) => (
-                    <CategoryRow
-                      key={item.categoryId}
-                      item={item}
-                      index={index}
-                      onPress={() => {
-                        // Could add navigation here if needed
-                      }}
-                    />
+                  {analytics.categoryBreakdown.map((item) => (
+                    <CategoryRow key={item.categoryId} item={item} onPress={() => {}} />
                   ))}
                 </View>
               </>
@@ -570,7 +568,7 @@ export default function AnalyticsTabScreen() {
             )}
 
             {/* Bottom padding */}
-            <View className="h-8" />
+            <View style={{ height: 32 }} />
           </View>
         </ScrollView>
       )}
