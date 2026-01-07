@@ -216,7 +216,7 @@ export default function TransactionsTabScreen() {
       .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime())
       .map(([date, txs]) => ({
         title: formatDateSwiss(date),
-        data: txs,
+        data: txs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)), // Sort by creation time, newest first
       }));
   }, [enrichedTransactions]);
 
