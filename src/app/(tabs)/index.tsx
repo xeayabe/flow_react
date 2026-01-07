@@ -247,7 +247,7 @@ export default function DashboardScreen() {
                         const endDate = new Date(budgetPeriod.end + 'T00:00:00');
                         const todayForCalc = new Date();
                         todayForCalc.setHours(0, 0, 0, 0);
-                        const daysRemaining = Math.ceil((endDate.getTime() - todayForCalc.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                        const daysRemaining = Math.ceil((endDate.getTime() - todayForCalc.getTime()) / (1000 * 60 * 60 * 24));
                         return daysRemaining > 0 ? daysRemaining : 0;
                       })()} days left
                     </Text>
