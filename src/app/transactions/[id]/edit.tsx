@@ -567,7 +567,13 @@ export default function EditTransactionScreen() {
                   days.push(
                     <Pressable
                       key={day}
-                      onPress={() => !isFuture && setTempDate(dateStr)}
+                      onPress={() => {
+                        if (dateStr && !isFuture) {
+                          setFormData({ ...formData, date: dateStr });
+                          if (errors.date) setErrors({ ...errors, date: undefined });
+                          setShowDatePicker(false);
+                        }
+                      }}
                       disabled={isFuture}
                       className={cn(
                         'flex-1 aspect-square items-center justify-center rounded-lg m-1',
@@ -591,24 +597,6 @@ export default function EditTransactionScreen() {
               })()}
             </View>
           </ScrollView>
-
-          <View className="px-6 py-4 border-t border-gray-200 flex-row gap-3">
-            <Pressable
-              onPress={() => setShowDatePicker(false)}
-              className="flex-1 py-3 rounded-lg border-2 border-gray-200 items-center justify-center"
-            >
-              <Text className="text-base font-semibold text-gray-700">Cancel</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setFormData({ ...formData, date: tempDate });
-                setShowDatePicker(false);
-              }}
-              className="flex-1 py-3 rounded-lg bg-teal-600 items-center justify-center"
-            >
-              <Text className="text-base font-semibold text-white">Done</Text>
-            </Pressable>
-          </View>
         </SafeAreaView>
       </Modal>
 
