@@ -403,7 +403,9 @@ export default function AnalyticsTabScreen() {
       {/* Header */}
       <View className="px-6 py-4 bg-white border-b border-gray-100">
         <Text className="text-2xl font-bold text-gray-900">Analytics</Text>
-        <Text className="text-sm text-gray-500 mt-1">{range.label}</Text>
+        <Text className="text-sm text-gray-500 mt-1">
+          {range.label} • {range.start} to {range.end}
+        </Text>
       </View>
 
       {isLoading ? (

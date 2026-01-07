@@ -223,13 +223,13 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Horizontal bar chart for top categories comparison
   - View toggle: Pie only, Bar only, or Both charts
 - ✅ **Date Range Filtering**
-  - This Period (based on payday)
-  - Last Period
-  - This Week
-  - Last 3 Months
-  - Last 6 Months
-  - This Year
-  - All Time
+  - This Period (current budget period based on payday)
+  - Last Period (previous budget period based on payday)
+  - This Week (current week, Monday-today)
+  - Last 3 Months (last 3 calendar months)
+  - Last 6 Months (last 6 calendar months)
+  - This Year (January 1 to today)
+  - All Time (all transactions ever)
 - ✅ **Type Filtering**
   - Expenses (default)
   - Income

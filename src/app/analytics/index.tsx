@@ -425,7 +425,9 @@ export default function AnalyticsScreen() {
         </Pressable>
         <View className="flex-1">
           <Text className="text-xl font-bold text-gray-900">Analytics</Text>
-          <Text className="text-xs text-gray-500">{range.label}</Text>
+          <Text className="text-xs text-gray-500">
+            {range.label} • {range.start} to {range.end}
+          </Text>
         </View>
       </View>
 
