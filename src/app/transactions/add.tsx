@@ -411,6 +411,9 @@ export default function AddTransactionScreen() {
                             onPress={() => {
                               if (dateStr && !isFuture) {
                                 setTempDate(dateStr);
+                                setFormData({ ...formData, date: dateStr });
+                                if (errors.date) setErrors({ ...errors, date: undefined });
+                                setShowDatePicker(false);
                               }
                             }}
                             disabled={isDisabled}
@@ -439,27 +442,7 @@ export default function AddTransactionScreen() {
                     })()}
                   </View>
 
-                  {/* Done/Cancel Buttons */}
-                  <View className="mt-4 flex-row justify-end gap-2">
-                    <Pressable
-                      onPress={() => setShowDatePicker(false)}
-                      className="px-4 py-2 rounded-lg"
-                      style={{ backgroundColor: '#E5E7EB' }}
-                    >
-                      <Text className="text-sm font-semibold text-gray-900">Cancel</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        setFormData({ ...formData, date: tempDate });
-                        if (errors.date) setErrors({ ...errors, date: undefined });
-                        setShowDatePicker(false);
-                      }}
-                      className="px-4 py-2 rounded-lg"
-                      style={{ backgroundColor: '#006A6A' }}
-                    >
-                      <Text className="text-sm font-semibold text-white">Done</Text>
-                    </Pressable>
-                  </View>
+                  {/* Done/Cancel Buttons - Removed as selecting a day now closes the picker */}
                 </View>
               )}
 
