@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import {
   PieChart as PieChartIcon,
   BarChart3,
@@ -358,6 +359,7 @@ function EmptyState({ type }: { type: TypeFilter }) {
 }
 
 export default function AnalyticsTabScreen() {
+  const router = useRouter();
   const [dateRange, setDateRange] = useState<DateRangeOption>('this_month');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('expense');
   const [viewMode, setViewMode] = useState<ViewMode>('both');
@@ -408,10 +410,19 @@ export default function AnalyticsTabScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }} edges={['top']}>
-      {/* Header */}
+      {/* Header with Tabs */}
       <View style={{ paddingHorizontal: 24, paddingVertical: 16, backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
-        <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#111827' }}>Analytics</Text>
-        <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#111827' }}>Analytics</Text>
+          <Pressable
+            onPress={() => router.push('/transactions/trends')}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#ECFDF5', borderRadius: 8 }}
+          >
+            <TrendingUp size={16} color="#0D9488" />
+            <Text style={{ fontSize: 14, fontWeight: '600', color: '#0D9488' }}>Trends</Text>
+          </Pressable>
+        </View>
+        <Text style={{ fontSize: 14, color: '#6B7280' }}>
           {range.label} ({range.start} to {range.end})
         </Text>
       </View>

@@ -17,6 +17,19 @@ export default function TransactionsLayout() {
           title: 'Add Transaction',
         }}
       />
+      <Stack.Screen
+        name="trends"
+        options={{
+          headerShown: false,
+          title: 'Trends',
+        }}
+      />
+      <Stack.Screen
+        name="[id]"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }
