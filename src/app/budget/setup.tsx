@@ -43,6 +43,7 @@ export default function BudgetSetupScreen() {
   const [monthlyIncome, setMonthlyIncome] = useState<string>('');
   const [allocations, setAllocations] = useState<Record<string, number>>({});
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showSaveError, setShowSaveError] = useState('');
@@ -351,8 +352,8 @@ export default function BudgetSetupScreen() {
                 <TextInput
                   value={monthlyIncome}
                   onChangeText={(text) => {
-                    // Allow only numbers and decimal point
-                    const filtered = text.replace(/[^0-9.]/g, '');
+                    // Allow only numbers and decimal point (support both . and ,)
+                    const filtered = text.replace(/[^0-9.,]/g, '').replace(',', '.');
                     // Prevent multiple decimal points
                     const parts = filtered.split('.');
                     if (parts.length > 2) {
@@ -363,7 +364,7 @@ export default function BudgetSetupScreen() {
                   }}
                   placeholder="5000"
                   placeholderTextColor="#D1D5DB"
-                  keyboardType="numbers-and-punctuation"
+                  keyboardType="decimal-pad"
                   className="p-4 rounded-xl text-2xl font-bold text-gray-900"
                   style={{ backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB' }}
                 />
@@ -422,6 +423,7 @@ export default function BudgetSetupScreen() {
               }
               const groupTotal = group.categories.reduce((sum, cat) => sum + cat.allocatedAmount, 0);
               const groupPercentage = income > 0 ? (groupTotal / income) * 100 : 0;
+              const isOverTarget = groupPercentage > group.targetPercentage;
 
               return (
                 <View key={groupKey} className="mb-8">
@@ -434,12 +436,20 @@ export default function BudgetSetupScreen() {
                           <Text className="text-sm font-semibold text-gray-700 uppercase">
                             {groupKey} ({group.targetPercentage}%)
                           </Text>
-                          <Text className="text-xs text-gray-500 mt-0.5">
+                          <Text className={cn('text-xs mt-0.5', isOverTarget ? 'text-red-500 font-semibold' : 'text-gray-500')}>
                             {groupTotal.toFixed(2)} CHF ({groupPercentage.toFixed(1)}%)
                           </Text>
                         </View>
                       </View>
                     </View>
+                    {/* Warning if over target */}
+                    {isOverTarget && (
+                      <View className="mt-2 p-2 bg-red-50 rounded-lg">
+                        <Text className="text-xs text-red-600 font-medium">
+                          Exceeds target by {(groupPercentage - group.targetPercentage).toFixed(1)}%
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
                   {/* Categories in Group */}
@@ -463,23 +473,29 @@ export default function BudgetSetupScreen() {
                           <View className="flex-row gap-2">
                             <View className="flex-1">
                               <TextInput
-                                value={isEditingAmount ? (allocations[category.id]?.toString() || '') : (amount > 0 ? amount.toFixed(2) : '')}
+                                value={isEditingAmount ? editingValue : (amount > 0 ? amount.toFixed(2) : '')}
                                 onChangeText={(text) => {
-                                  setEditingField(`amount-${category.id}`);
                                   // Allow only numbers and decimal point
-                                  const filtered = text.replace(/[^0-9.]/g, '');
+                                  const filtered = text.replace(/[^0-9.,]/g, '').replace(',', '.');
                                   // Prevent multiple decimal points
                                   const parts = filtered.split('.');
-                                  if (parts.length > 2) {
-                                    handleAmountChange(category.id, parts[0] + '.' + parts.slice(1).join(''));
-                                  } else {
-                                    handleAmountChange(category.id, filtered);
-                                  }
+                                  const cleanValue = parts.length > 2
+                                    ? parts[0] + '.' + parts.slice(1).join('')
+                                    : filtered;
+                                  setEditingValue(cleanValue);
+                                  handleAmountChange(category.id, cleanValue);
                                 }}
-                                onBlur={() => setEditingField(null)}
+                                onFocus={() => {
+                                  setEditingField(`amount-${category.id}`);
+                                  setEditingValue(amount > 0 ? amount.toString() : '');
+                                }}
+                                onBlur={() => {
+                                  setEditingField(null);
+                                  setEditingValue('');
+                                }}
                                 placeholder="0.00"
                                 placeholderTextColor="#D1D5DB"
-                                keyboardType="numbers-and-punctuation"
+                                keyboardType="decimal-pad"
                                 className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
                                 style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
                               />
@@ -488,23 +504,29 @@ export default function BudgetSetupScreen() {
 
                             <View className="flex-1">
                               <TextInput
-                                value={isEditingPercentage ? (allocations[category.id] > 0 ? calculatePercentage(allocations[category.id], income).toString() : '') : (percentage > 0 ? percentage.toFixed(1) : '')}
+                                value={isEditingPercentage ? editingValue : (percentage > 0 ? percentage.toFixed(1) : '')}
                                 onChangeText={(text) => {
-                                  setEditingField(`percentage-${category.id}`);
                                   // Allow only numbers and decimal point
-                                  const filtered = text.replace(/[^0-9.]/g, '');
+                                  const filtered = text.replace(/[^0-9.,]/g, '').replace(',', '.');
                                   // Prevent multiple decimal points
                                   const parts = filtered.split('.');
-                                  if (parts.length > 2) {
-                                    handlePercentageChange(category.id, parts[0] + '.' + parts.slice(1).join(''));
-                                  } else {
-                                    handlePercentageChange(category.id, filtered);
-                                  }
+                                  const cleanValue = parts.length > 2
+                                    ? parts[0] + '.' + parts.slice(1).join('')
+                                    : filtered;
+                                  setEditingValue(cleanValue);
+                                  handlePercentageChange(category.id, cleanValue);
                                 }}
-                                onBlur={() => setEditingField(null)}
+                                onFocus={() => {
+                                  setEditingField(`percentage-${category.id}`);
+                                  setEditingValue(percentage > 0 ? percentage.toString() : '');
+                                }}
+                                onBlur={() => {
+                                  setEditingField(null);
+                                  setEditingValue('');
+                                }}
                                 placeholder="0.0"
                                 placeholderTextColor="#D1D5DB"
-                                keyboardType="numbers-and-punctuation"
+                                keyboardType="decimal-pad"
                                 className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
                                 style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
                               />
@@ -515,7 +537,7 @@ export default function BudgetSetupScreen() {
                           {/* Progress Bar */}
                           <View className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
                             <View
-                              className="h-full bg-teal-500"
+                              className={cn('h-full', isOverTarget ? 'bg-red-500' : 'bg-teal-500')}
                               style={{ width: `${Math.min(100, percentage)}%` }}
                             />
                           </View>
