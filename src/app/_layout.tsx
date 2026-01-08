@@ -71,13 +71,14 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
 
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  // Force light mode for now
+  const colorScheme = 'light';
 
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardProvider>
-          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+          <StatusBar style="dark" />
           <RootLayoutNav colorScheme={colorScheme} />
         </KeyboardProvider>
       </GestureHandlerRootView>
