@@ -96,7 +96,26 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
       return categoryGroups[catId] === 'savings' ? sum + amount : sum;
     }, 0);
 
-    // Create budget summary
+    // Check if budget summary already exists for this period
+    const existingSummary = await db.queryOnce({
+      budgetSummary: {
+        $: {
+          where: {
+            userId,
+            periodStart: budgetPeriod.start,
+          },
+        },
+      },
+    });
+
+    const existingSummaryRecord = existingSummary.data.budgetSummary?.[0];
+
+    // Delete existing summary if it exists (to handle income updates)
+    if (existingSummaryRecord) {
+      await db.transact([db.tx.budgetSummary[existingSummaryRecord.id].delete()]);
+    }
+
+    // Create new budget summary with updated values
     const summaryId = generateId();
     await db.transact([
       db.tx.budgetSummary[summaryId].update({
@@ -106,10 +125,13 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
         periodEnd: budgetPeriod.end,
         totalIncome,
         totalAllocated: totalAllocated,
-        totalSpent: 0,
+        totalSpent: existingSummaryRecord?.totalSpent ?? 0, // Preserve spent amount if updating
         needsAllocated,
         wantsAllocated,
         savingsAllocated,
+        needsSpent: existingSummaryRecord?.needsSpent ?? 0, // Preserve spent amounts
+        wantsSpent: existingSummaryRecord?.wantsSpent ?? 0,
+        savingsSpent: existingSummaryRecord?.savingsSpent ?? 0,
         createdAt: now,
         updatedAt: now,
       }),
