@@ -129,7 +129,7 @@ export default function BudgetOverviewScreen() {
               Allocate your monthly income to track spending and ensure every franc has a purpose.
             </Text>
             <Pressable
-              onPress={() => router.push('/budget/setup')}
+              onPress={() => router.push('/budget/category-group-allocation')}
               className="bg-teal-600 py-3 px-8 rounded-lg"
             >
               <Text className="text-white font-semibold text-center">Create My First Budget</Text>
@@ -149,7 +149,7 @@ export default function BudgetOverviewScreen() {
         options={{
           title: 'Budget',
           headerRight: () => (
-            <Pressable onPress={() => router.push('/budget/setup')} className="mr-4 flex-row items-center gap-2">
+            <Pressable onPress={() => router.push('/budget/category-group-allocation')} className="mr-4 flex-row items-center gap-2">
               <Edit3 size={20} color="#006A6A" />
             </Pressable>
           ),

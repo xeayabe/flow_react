@@ -187,12 +187,24 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Stored in households table
 
 ### Zero-Based Budget Allocation (US-034)
-- ✅ **Budget Setup** - Allocate 100% of monthly income across categories
-  - Route: `/budget/setup` from navigation
+- ✅ **Category Group Allocation** (New) - Customize budget percentage distribution
+  - Route: `/budget/category-group-allocation` - Primary budget setup screen
+  - Allocate income across Needs, Wants, and Savings category groups
+  - Flexible allocation: 50/30/20 framework OR custom percentages
+  - Each category group must total exactly 100% of income
+  - Dual input fields: CHF amount and percentage (auto-sync)
+  - Quick action buttons:
+    - 50/30/20 preset split
+    - Equal split (33/33/33)
+  - Real-time validation with error messages
+  - Pass allocations to detailed category setup
+- ✅ **Budget Setup** - Allocate category group budgets to individual categories
+  - Route: `/budget/setup` from category group allocation screen
   - Monthly income input with CHF formatting
   - Category allocation with dual CHF/percentage inputs
   - Real-time sync between amount and percentage
   - Grouped by 50/30/20 framework (Needs/Wants/Savings)
+  - Respects category group allocations from previous step
 - ✅ **Budget Features**
   - Auto-Balance button distributes remaining amount proportionally
   - 50/30/20 Quick Split button applies framework allocation
@@ -203,7 +215,7 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Overall progress with visual progress bar
   - 50/30/20 summary cards with spent percentages
   - Category breakdown with status indicators
-  - Edit Budget button to modify allocations
+  - Edit Budget button to modify allocations (goes to category group allocation first)
 - ✅ **Real-Time Spent Tracking**
   - Creating expense transactions updates budget spent amounts
   - Editing transactions updates spent amounts (handles category/amount changes)
@@ -218,6 +230,7 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Monthly periods based on payday
   - Simple allocation interface
   - Basic tracking (allocated vs spent)
+  - Category group allocation first, then category details
 
 ### Category Charts & Analytics (US-052)
 - ✅ **Analytics Page** - Visual breakdown of spending by category

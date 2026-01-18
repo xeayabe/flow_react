@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, X, Zap } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/db';
@@ -38,6 +38,10 @@ interface GroupedCategories {
 }
 
 export default function BudgetSetupScreen() {
+  const params = useLocalSearchParams<{
+    groupAllocations?: string;
+    monthlyIncome?: string;
+  }>();
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
   const [monthlyIncome, setMonthlyIncome] = useState<string>('');
@@ -47,6 +51,12 @@ export default function BudgetSetupScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showSaveError, setShowSaveError] = useState('');
+
+  // Get passed category group allocations from params
+  const passedGroupAllocations = params.groupAllocations
+    ? JSON.parse(params.groupAllocations)
+    : null;
+  const passedIncome = params.monthlyIncome || '';
 
   // Get household and categories
   const householdQuery = useQuery({
@@ -156,10 +166,13 @@ export default function BudgetSetupScreen() {
   });
 
   useEffect(() => {
-    if (budgetSummaryQuery.data?.totalIncome && !monthlyIncome) {
+    // Initialize with passed income from category group allocation screen
+    if (passedIncome && !monthlyIncome) {
+      setMonthlyIncome(passedIncome);
+    } else if (budgetSummaryQuery.data?.totalIncome && !monthlyIncome) {
       setMonthlyIncome(budgetSummaryQuery.data.totalIncome.toString());
     }
-  }, [budgetSummaryQuery.data, monthlyIncome]);
+  }, [budgetSummaryQuery.data, monthlyIncome, passedIncome]);
 
   // Group categories by type
   const groupedCategories: GroupedCategories = {
