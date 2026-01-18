@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Upload,
   FileSpreadsheet,
@@ -46,6 +46,7 @@ interface FileInfo {
 
 export default function ImportScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = db.useAuth();
 
   // Step state
@@ -168,6 +169,18 @@ export default function ImportScreen() {
       return result;
     },
     onSuccess: (result) => {
+      console.log('✅ Import completed:', result);
+
+      // Invalidate transaction caches to refetch the data
+      const userId = userDataQuery.data?.userRecord?.id;
+      if (userId) {
+        queryClient.invalidateQueries({ queryKey: ['transactions', userId] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-transactions'] });
+
       setImportResult({
         importedCount: result.importedCount,
         skippedCount: result.skippedCount,
