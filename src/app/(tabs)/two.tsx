@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronRight, Tag, LogOut, Wallet, User, Calendar, PieChart } from 'lucide-react-native';
+import { ChevronRight, Tag, LogOut, Wallet, User, Calendar, PieChart, Upload, Download } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { signOut } from '@/lib/auth-api';
 
@@ -75,6 +75,18 @@ export default function TabTwoScreen() {
       label: 'Categories',
       description: 'Organize your income and expenses',
       onPress: () => router.push('/settings/categories'),
+    },
+    {
+      icon: <Upload size={24} color="#006A6A" />,
+      label: 'Import Data',
+      description: 'Import transactions from CSV or Excel',
+      onPress: () => router.push('/settings/import'),
+    },
+    {
+      icon: <Download size={24} color="#006A6A" />,
+      label: 'Export Data',
+      description: 'Export your transactions to CSV or Excel',
+      onPress: () => router.push('/settings/export'),
     },
     {
       icon: <User size={24} color="#006A6A" />,
