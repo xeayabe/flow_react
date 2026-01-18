@@ -414,13 +414,19 @@ export default function ImportScreen() {
             />
 
             {/* Amount Mapping */}
-            <MappingRow
-              label="Amount"
-              required
-              value={columnMapping.amount}
-              options={parseResult.headers}
-              onChange={(v) => updateMapping('amount', v)}
-            />
+            <View>
+              <MappingRow
+                label="Amount"
+                required
+                value={columnMapping.amount}
+                options={parseResult.headers}
+                onChange={(v) => updateMapping('amount', v)}
+              />
+              <Text className="text-xs text-gray-500 px-4 py-2">
+                For separate income/expense columns (Inflow/Outflow), select the appropriate column.
+                The type will be detected automatically based on the column name.
+              </Text>
+            </View>
 
             <Text className="text-xs font-semibold text-gray-500 uppercase mt-4 mb-2">
               Optional

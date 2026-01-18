@@ -87,7 +87,7 @@ export interface ExportTransaction {
 // Smart column detection patterns
 const COLUMN_PATTERNS = {
   date: ['date', 'datum', 'time', 'created', 'transaction date', 'trans date', 'booking date'],
-  amount: ['amount', 'betrag', 'value', 'price', 'cost', 'sum', 'total', 'inflow', 'outflow'],
+  amount: ['amount', 'betrag', 'value', 'price', 'cost', 'sum', 'total', 'inflow', 'outflow', 'in', 'out'],
   type: ['type', 'typ', 'kind', 'transaction type', 'trans type', 'cleared'],
   category: ['category', 'kategorie', 'cat', 'group', 'classification', 'category group/category'],
   note: ['note', 'memo', 'description', 'desc', 'comment', 'remarks', 'payee', 'merchant'],
@@ -561,16 +561,38 @@ export function validateAndTransformData(
       errors.push('Invalid or missing date');
     }
 
-    // Parse amount
-    const amountValue = mapping.amount ? row[mapping.amount] : null;
-    const parsedAmount = amountValue ? parseAmount(amountValue) : null;
+    // Parse amount - handle separate inflow/outflow columns
+    let parsedAmount: number | null = null;
+    let type: 'income' | 'expense' = 'expense';
+
+    // Check for separate inflow/outflow columns
+    if (mapping.amount) {
+      const amountValue = row[mapping.amount];
+      const parsedVal = amountValue ? parseAmount(amountValue) : null;
+
+      // Determine type based on column name
+      const columnName = mapping.amount.toLowerCase();
+      if (columnName.includes('inflow') || columnName.includes('income') || columnName.includes('in')) {
+        if (parsedVal && parsedVal > 0) {
+          parsedAmount = parsedVal;
+          type = 'income';
+        }
+      } else if (columnName.includes('outflow') || columnName.includes('expense') || columnName.includes('out')) {
+        if (parsedVal && parsedVal > 0) {
+          parsedAmount = parsedVal;
+          type = 'expense';
+        }
+      } else {
+        // Fallback to regular amount parsing
+        parsedAmount = parsedVal;
+        const typeValue = mapping.type ? row[mapping.type] : undefined;
+        type = detectType(typeValue, amountValue ?? undefined);
+      }
+    }
+
     if (parsedAmount === null || parsedAmount <= 0) {
       errors.push('Invalid or missing amount');
     }
-
-    // Detect type
-    const typeValue = mapping.type ? row[mapping.type] : undefined;
-    const type = detectType(typeValue, amountValue ?? undefined);
 
     // Get category
     const category = mapping.category
