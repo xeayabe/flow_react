@@ -55,7 +55,6 @@ export default function AddTransactionScreen() {
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Auto-scroll to date picker when it opens
   useEffect(() => {
@@ -183,9 +182,7 @@ export default function AddTransactionScreen() {
 
   const handleSubmit = () => {
     if (!validateForm()) return;
-    setIsSubmitting(true);
     createMutation.mutate();
-    setIsSubmitting(false);
   };
 
   // Filter categories by type
@@ -516,10 +513,10 @@ export default function AddTransactionScreen() {
               <View className="gap-3">
                 <Pressable
                   onPress={handleSubmit}
-                  disabled={isSubmitting || createMutation.isPending}
+                  disabled={createMutation.isPending}
                   className="py-4 rounded-lg bg-teal-600 items-center justify-center"
                 >
-                  {isSubmitting || createMutation.isPending ? (
+                  {createMutation.isPending ? (
                     <ActivityIndicator color="white" />
                   ) : (
                     <Text className="text-base font-semibold text-white">Add Transaction</Text>
@@ -528,7 +525,7 @@ export default function AddTransactionScreen() {
 
                 <Pressable
                   onPress={() => router.back()}
-                  disabled={isSubmitting || createMutation.isPending}
+                  disabled={createMutation.isPending}
                   className="py-4 rounded-lg border-2 border-gray-200 items-center justify-center"
                 >
                   <Text className="text-base font-semibold text-gray-700">Cancel</Text>
