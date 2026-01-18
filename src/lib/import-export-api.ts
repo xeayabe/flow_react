@@ -21,6 +21,7 @@ export interface ParsedRow {
   amount: number;
   type: 'income' | 'expense';
   category: string;
+  categoryGroup?: string;
   note: string;
   account?: string;
   originalRow: Record<string, string>;
@@ -34,8 +35,13 @@ export interface ColumnMapping {
   amount: string | null;
   type: string | null;
   category: string | null;
+  categoryGroup: string | null;
   note: string | null;
   account: string | null;
+}
+
+export interface CategoryGroupMapping {
+  [key: string]: 'needs' | 'wants' | 'savings' | 'other';
 }
 
 export interface ParseResult {
@@ -54,6 +60,7 @@ export interface ValidationResult {
   incomeCount: number;
   expenseCount: number;
   categories: string[];
+  categoryGroups: string[];
   dateRange: { start: string; end: string } | null;
 }
 
@@ -90,6 +97,7 @@ const COLUMN_PATTERNS = {
   amount: ['amount', 'betrag', 'value', 'price', 'cost', 'sum', 'total', 'inflow', 'outflow', 'in', 'out'],
   type: ['type', 'typ', 'kind', 'transaction type', 'trans type', 'cleared'],
   category: ['category', 'kategorie', 'cat', 'group', 'classification', 'category group/category'],
+  categoryGroup: ['category group', 'categorygroup', 'cat group', 'catgroup', 'group'],
   note: ['note', 'memo', 'description', 'desc', 'comment', 'remarks', 'payee', 'merchant'],
   account: ['account', 'konto', 'bank', 'wallet', 'source'],
 };
@@ -374,6 +382,7 @@ export function autoDetectColumnMappings(headers: string[]): ColumnMapping {
     amount: null,
     type: null,
     category: null,
+    categoryGroup: null,
     note: null,
     account: null,
   };
@@ -548,6 +557,7 @@ export function validateAndTransformData(
   let incomeCount = 0;
   let expenseCount = 0;
   const categoriesSet = new Set<string>();
+  const categoryGroupsSet = new Set<string>();
   let minDate: string | null = null;
   let maxDate: string | null = null;
 
@@ -599,6 +609,11 @@ export function validateAndTransformData(
       ? (row[mapping.category] || '').trim() || 'Other'
       : 'Other';
 
+    // Get category group if available
+    const categoryGroup = mapping.categoryGroup
+      ? (row[mapping.categoryGroup] || '').trim()
+      : '';
+
     // Get note
     const note = mapping.note ? (row[mapping.note] || '').trim() : '';
 
@@ -610,6 +625,7 @@ export function validateAndTransformData(
       amount: parsedAmount || 0,
       type,
       category,
+      categoryGroup: categoryGroup || undefined,
       note,
       account,
       originalRow: row,
@@ -630,6 +646,9 @@ export function validateAndTransformData(
       }
 
       categoriesSet.add(category);
+      if (categoryGroup) {
+        categoryGroupsSet.add(categoryGroup);
+      }
 
       // Track date range
       if (!minDate || parsedRow.date < minDate) minDate = parsedRow.date;
@@ -647,6 +666,7 @@ export function validateAndTransformData(
     incomeCount,
     expenseCount,
     categories: Array.from(categoriesSet).sort(),
+    categoryGroups: Array.from(categoryGroupsSet).sort(),
     dateRange: minDate && maxDate ? { start: minDate, end: maxDate } : null,
   };
 }
@@ -659,7 +679,8 @@ export async function importTransactions(
   userId: string,
   householdId: string,
   accountId: string,
-  existingCategories: { id: string; name: string; type: string }[]
+  existingCategories: { id: string; name: string; type: string }[],
+  categoryGroupMapping?: CategoryGroupMapping
 ): Promise<ImportResult> {
   const errors: string[] = [];
   const newCategoriesCreated: string[] = [];
@@ -693,12 +714,24 @@ export async function importTransactions(
       categoryMap.set(categoryName.toLowerCase(), categoryId);
       newCategoriesCreated.push(categoryName);
 
+      // Find the category group mapping for this category
+      let categoryGroup = 'other';
+      if (categoryGroupMapping) {
+        // Look through the validRows to find the categoryGroup for this category
+        const rowWithCategory = validRows.find(
+          (row) => row.category.toLowerCase() === categoryName.toLowerCase()
+        );
+        if (rowWithCategory?.categoryGroup && categoryGroupMapping[rowWithCategory.categoryGroup]) {
+          categoryGroup = categoryGroupMapping[rowWithCategory.categoryGroup];
+        }
+      }
+
       categoryCreationTxs.push(
         db.tx.categories[categoryId].update({
           householdId,
           name: categoryName,
           type: 'expense', // Default to expense
-          categoryGroup: 'other',
+          categoryGroup,
           isShareable: false,
           isDefault: false,
           createdByUserId: userId,

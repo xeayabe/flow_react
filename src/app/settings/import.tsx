@@ -36,12 +36,16 @@ import {
 } from '@/lib/import-export-api';
 import { formatCurrency } from '@/lib/transactions-api';
 
-type Step = 'upload' | 'mapping' | 'preview' | 'importing' | 'success';
+type Step = 'upload' | 'mapping' | 'categoryGroupMapping' | 'preview' | 'importing' | 'success';
 
 interface FileInfo {
   name: string;
   uri: string;
   rowCount: number;
+}
+
+interface CategoryGroupMappingState {
+  [key: string]: 'needs' | 'wants' | 'savings' | 'other';
 }
 
 export default function ImportScreen() {
@@ -58,9 +62,11 @@ export default function ImportScreen() {
     amount: null,
     type: null,
     category: null,
+    categoryGroup: null,
     note: null,
     account: null,
   });
+  const [categoryGroupMapping, setCategoryGroupMapping] = useState<CategoryGroupMappingState>({});
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [importResult, setImportResult] = useState<{
     importedCount: number;
@@ -159,7 +165,8 @@ export default function ImportScreen() {
           id: c.id,
           name: c.name,
           type: c.type,
-        }))
+        })),
+        categoryGroupMapping && Object.keys(categoryGroupMapping).length > 0 ? categoryGroupMapping : undefined
       );
 
       if (!result.success) {
@@ -191,7 +198,7 @@ export default function ImportScreen() {
       setStep('success');
     },
     onError: (error) => {
-      setStep('preview');
+      setStep(validationResult?.categoryGroups.length ? 'categoryGroupMapping' : 'preview');
       Alert.alert('Import Failed', error.message);
     },
   });
@@ -207,7 +214,18 @@ export default function ImportScreen() {
 
     const result = validateAndTransformData(parseResult.rawData, columnMapping);
     setValidationResult(result);
-    setStep('preview');
+
+    // Initialize category group mapping with default value 'other'
+    if (result.categoryGroups.length > 0) {
+      const initialMapping: CategoryGroupMappingState = {};
+      result.categoryGroups.forEach((group) => {
+        initialMapping[group] = 'other';
+      });
+      setCategoryGroupMapping(initialMapping);
+      setStep('categoryGroupMapping');
+    } else {
+      setStep('preview');
+    }
   }, [parseResult, columnMapping]);
 
   // Reset everything
@@ -220,9 +238,11 @@ export default function ImportScreen() {
       amount: null,
       type: null,
       category: null,
+      categoryGroup: null,
       note: null,
       account: null,
     });
+    setCategoryGroupMapping({});
     setValidationResult(null);
     setImportResult(null);
   }, []);
@@ -249,8 +269,13 @@ export default function ImportScreen() {
         {/* Progress Steps */}
         <View className="px-6 py-4">
           <View className="flex-row items-center justify-center">
-            {['Upload', 'Map', 'Preview'].map((label, index) => {
-              const stepIndex = ['upload', 'mapping', 'preview'].indexOf(step);
+            {['Upload', 'Map', 'Categories', 'Preview'].map((label, index) => {
+              const stepOrder = ['upload', 'mapping', 'categoryGroupMapping', 'preview'];
+              let stepIndex = stepOrder.indexOf(step);
+              // If there are no category groups, skip the categoryGroupMapping step
+              if (!validationResult?.categoryGroups.length && step === 'preview') {
+                stepIndex = 2; // Show preview as 3rd step visually
+              }
               const isActive = index <= stepIndex;
               const isCurrent = index === stepIndex;
 
@@ -282,7 +307,7 @@ export default function ImportScreen() {
                       {label}
                     </Text>
                   </View>
-                  {index < 2 && (
+                  {index < 3 && (
                     <View
                       className={`w-12 h-0.5 mx-2 ${
                         index < stepIndex ? 'bg-teal-600' : 'bg-gray-200'
@@ -510,12 +535,74 @@ export default function ImportScreen() {
           </View>
         )}
 
-        {/* Step 3: Preview */}
+        {/* Step 3: Category Group Mapping (only if category groups detected) */}
+        {step === 'categoryGroupMapping' && validationResult && validationResult.categoryGroups.length > 0 && (
+          <View className="px-6 py-4">
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-xl font-bold text-gray-900">Map Category Groups</Text>
+              <Pressable onPress={() => setStep('mapping')}>
+                <RefreshCw size={20} color="#6B7280" />
+              </Pressable>
+            </View>
+
+            <Text className="text-sm text-gray-600 mb-4">
+              Your CSV has category groups. Map them to your budget categories (Needs, Wants, Savings, Other):
+            </Text>
+
+            {/* Category Group Mapping */}
+            <View className="bg-white rounded-xl p-4 mb-6">
+              {validationResult.categoryGroups.map((categoryGroup) => (
+                <View key={categoryGroup} className="mb-4 pb-4 border-b border-gray-200 last:border-b-0">
+                  <Text className="text-sm font-semibold text-gray-900 mb-2">{categoryGroup}</Text>
+                  <View className="flex-row gap-2">
+                    {(['needs', 'wants', 'savings', 'other'] as const).map((groupType) => (
+                      <Pressable
+                        key={groupType}
+                        onPress={() =>
+                          setCategoryGroupMapping((prev) => ({
+                            ...prev,
+                            [categoryGroup]: groupType,
+                          }))
+                        }
+                        className={`flex-1 py-2 px-3 rounded-lg border-2 ${
+                          categoryGroupMapping[categoryGroup] === groupType
+                            ? 'bg-teal-50 border-teal-600'
+                            : 'bg-white border-gray-200'
+                        }`}
+                      >
+                        <Text
+                          className={`text-xs font-semibold text-center ${
+                            categoryGroupMapping[categoryGroup] === groupType
+                              ? 'text-teal-700'
+                              : 'text-gray-600'
+                          }`}
+                        >
+                          {groupType.charAt(0).toUpperCase() + groupType.slice(1)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* Continue Button */}
+            <Pressable
+              onPress={() => setStep('preview')}
+              className="py-4 rounded-xl flex-row items-center justify-center bg-teal-600"
+            >
+              <Text className="text-base font-semibold text-white mr-2">Continue</Text>
+              <ChevronRight size={20} color="white" />
+            </Pressable>
+          </View>
+        )}
+
+        {/* Step 4: Preview */}
         {step === 'preview' && validationResult && (
           <View className="px-6 py-4">
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-xl font-bold text-gray-900">Preview Import</Text>
-              <Pressable onPress={() => setStep('mapping')}>
+              <Pressable onPress={() => setStep(validationResult.categoryGroups.length > 0 ? 'categoryGroupMapping' : 'mapping')}>
                 <RefreshCw size={20} color="#6B7280" />
               </Pressable>
             </View>

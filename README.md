@@ -319,12 +319,19 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
     - Category: category, kategorie, cat, group, classification, category group/category
     - Note: note, memo, description, desc, comment, remarks, payee, merchant
     - Account: account, konto, bank, wallet, source
+    - Category Group: category group, categorygroup, cat group, catgroup, group
 - ✅ **Dual-Column Format Support**
   - Handles CSV files with separate Inflow/Outflow columns
   - Auto-detection of transaction type based on column name
   - Users must import twice for dual-column format:
     1. First import with Inflow column → Creates income transactions
     2. Second import with Outflow column → Creates expense transactions
+- ✅ **Category Group Mapping** (New)
+  - Detects category groups in CSV data (e.g., "Needs", "Wants", "Savings", "Bedarf", "Sparen")
+  - Multi-step import wizard with category group mapping step
+  - Map CSV category groups to app budget groups (Needs/Wants/Savings/Other)
+  - Automatically assigns correct category group when creating new categories
+  - Skip category mapping step if no category groups detected
 - ✅ **CSV Export** - Export transactions with filters
   - Filter by date range, type (income/expense/all), categories, accounts
   - Format selection (CSV or Excel)
