@@ -81,9 +81,7 @@ export default function TransactionsTabScreen() {
     queryKey: ['transactions', householdQuery.data?.userRecord?.id],
     queryFn: async () => {
       if (!householdQuery.data?.userRecord?.id) return [];
-      const txs = await getUserTransactions(householdQuery.data.userRecord.id);
-      console.log('✅ Fetched transactions:', { count: txs.length, userId: householdQuery.data.userRecord.id, txs });
-      return txs;
+      return getUserTransactions(householdQuery.data.userRecord.id);
     },
     enabled: !!householdQuery.data?.userRecord?.id,
   });
@@ -138,11 +136,11 @@ export default function TransactionsTabScreen() {
       case 'this_week': {
         const day = today.getDay();
         startDate.setDate(today.getDate() - day);
-        break;
+        return [startDate.toISOString().split('T')[0], '2099-12-31'];
       }
       case 'this_month': {
         startDate.setDate(1);
-        break;
+        return [startDate.toISOString().split('T')[0], '2099-12-31'];
       }
       case 'last_month': {
         startDate.setMonth(today.getMonth() - 1);
@@ -152,19 +150,19 @@ export default function TransactionsTabScreen() {
       }
       case 'last_3_months': {
         startDate.setMonth(today.getMonth() - 3);
-        break;
+        return [startDate.toISOString().split('T')[0], '2099-12-31'];
       }
       case 'this_year': {
         startDate.setMonth(0);
         startDate.setDate(1);
-        break;
+        return [startDate.toISOString().split('T')[0], '2099-12-31'];
       }
       case 'all_time': {
-        return ['1900-01-01', today.toISOString().split('T')[0]];
+        return ['1900-01-01', '2099-12-31'];
       }
     }
 
-    return [startDate.toISOString().split('T')[0], today.toISOString().split('T')[0]];
+    return [startDate.toISOString().split('T')[0], '2099-12-31'];
   };
 
   // Filter transactions
@@ -172,23 +170,11 @@ export default function TransactionsTabScreen() {
     if (!transactionsQuery.data) return [];
 
     const [startDate, endDate] = getDateRangeFilter(dateRange);
-    console.log('📊 Filtering transactions:', {
-      total: transactionsQuery.data.length,
-      startDate,
-      endDate,
-      dateRange,
-      transactionType,
-      selectedCategories: selectedCategories.length,
-      selectedAccounts: selectedAccounts.length
-    });
 
-    const filtered = (transactionsQuery.data ?? [])
+    return (transactionsQuery.data ?? [])
       .filter((tx) => {
         // Date range filter
-        if (tx.date < startDate || tx.date > endDate) {
-          console.log('❌ Filtered out by date:', { tx: tx.date, startDate, endDate });
-          return false;
-        }
+        if (tx.date < startDate || tx.date > endDate) return false;
 
         // Type filter
         if (transactionType !== 'all' && tx.type !== transactionType) return false;
@@ -201,9 +187,6 @@ export default function TransactionsTabScreen() {
 
         return true;
       });
-
-    console.log('✅ Filtered result:', { count: filtered.length, filtered });
-    return filtered;
   }, [transactionsQuery.data, dateRange, transactionType, selectedCategories, selectedAccounts]);
 
   // Enrich transactions with category and account names
@@ -332,12 +315,6 @@ export default function TransactionsTabScreen() {
             <Text className="text-sm text-center mb-6" style={{ color: '#6B7280' }}>
               {hasActiveFilters ? 'Try adjusting your filters' : 'Start tracking your finances by adding your first transaction'}
             </Text>
-            {/* Debug Info */}
-            <View className="bg-gray-100 rounded-lg p-3 mb-4">
-              <Text className="text-xs text-gray-600 font-mono">Raw DB: {transactionsQuery.data?.length ?? 0}</Text>
-              <Text className="text-xs text-gray-600 font-mono">Filtered: {filteredTransactions.length}</Text>
-              <Text className="text-xs text-gray-600 font-mono">Range: {dateRange}</Text>
-            </View>
             {hasActiveFilters ? (
               <Pressable
                 onPress={() => {
