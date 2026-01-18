@@ -129,8 +129,8 @@ export default function AddTransactionScreen() {
 
   // Create transaction mutation
   const createMutation = useMutation({
-    mutationFn: () =>
-      createTransaction({
+    mutationFn: async () => {
+      const result = await createTransaction({
         userId: householdQuery.data!.userRecord.id,
         householdId: householdQuery.data!.household.id,
         accountId: formData.accountId,
@@ -141,7 +141,15 @@ export default function AddTransactionScreen() {
         note: formData.note || undefined,
         isRecurring: formData.isRecurring,
         recurringDay: formData.isRecurring ? formData.recurringDay : undefined,
-      }),
+      });
+
+      // Check if the transaction creation was successful
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create transaction');
+      }
+
+      return result;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
@@ -153,7 +161,7 @@ export default function AddTransactionScreen() {
     },
     onError: (error) => {
       console.error('Transaction creation failed:', error);
-      Alert.alert('Error', 'Failed to create transaction. Please try again.');
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to create transaction. Please try again.');
     },
   });
 

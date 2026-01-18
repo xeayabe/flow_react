@@ -133,6 +133,7 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
     // Update budget spent amount if this is an expense transaction
     if (request.type === 'expense') {
       try {
+        console.log('Updating budget for expense transaction');
         // Get household to retrieve payday info
         const householdResult = await db.queryOnce({
           households: {
@@ -167,6 +168,7 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
             if (budget) {
               const newSpentAmount = (budget.spentAmount || 0) + request.amount;
               await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
+              console.log('Budget updated for expense transaction');
             }
           }
         }
@@ -176,12 +178,17 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
       }
     }
 
+    console.log('✅ Transaction fully completed and committed to database');
     return { success: true, data: { id: transactionId, ...request, isShared: false, createdAt: now, updatedAt: now } as Transaction };
   } catch (error) {
     console.error('Create transaction error:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : '',
+    });
     return {
       success: false,
-      error: 'Failed to create transaction',
+      error: error instanceof Error ? error.message : 'Failed to create transaction',
     };
   }
 }
