@@ -544,8 +544,6 @@ export default function AddTransactionScreen() {
         </KeyboardAvoidingView>
       </SafeAreaView>
 
-      {/* Date Picker Modal - Simple text input with validation */}
-
       {/* Category Dropdown Modal */}
       <Modal visible={showCategoryModal} animationType="slide" transparent>
         <View className="flex-1 bg-black/30">
