@@ -114,12 +114,13 @@ export default function ImportScreen() {
       const file = await pickFile();
       if (!file) throw new Error('No file selected');
 
-      const result = await parseFile(file.uri, file.name);
+      const result = await parseFile(file.uri, file.name, file.file);
       if (!result.success) throw new Error(result.error || 'Failed to parse file');
 
       return { file, result };
     },
     onSuccess: ({ file, result }) => {
+      console.log('Parse result:', { headers: result.headers, rowCount: result.rowCount });
       setFileInfo({
         name: file.name,
         uri: file.uri,
@@ -129,6 +130,7 @@ export default function ImportScreen() {
 
       // Auto-detect column mappings
       const autoMapping = autoDetectColumnMappings(result.headers);
+      console.log('Auto mapping:', autoMapping);
       setColumnMapping(autoMapping);
 
       setStep('mapping');

@@ -97,30 +97,56 @@ const COLUMN_PATTERNS = {
 /**
  * Pick a file from device storage
  */
-export async function pickFile(): Promise<{ uri: string; name: string; mimeType: string } | null> {
+export async function pickFile(): Promise<{ uri: string; name: string; mimeType: string; file?: File } | null> {
   try {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: [
-        'text/csv',
-        'text/comma-separated-values',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'text/tab-separated-values',
-        'text/plain',
-      ],
-      copyToCacheDirectory: true,
-    });
+    if (Platform.OS === 'web') {
+      // On web, use native file input for better compatibility
+      return new Promise((resolve) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.csv,.xlsx,.xls,.tsv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        input.onchange = (e) => {
+          const target = e.target as HTMLInputElement;
+          const file = target.files?.[0];
+          if (file) {
+            resolve({
+              uri: URL.createObjectURL(file),
+              name: file.name,
+              mimeType: file.type || 'text/csv',
+              file: file,
+            });
+          } else {
+            resolve(null);
+          }
+        };
+        input.oncancel = () => resolve(null);
+        input.click();
+      });
+    } else {
+      // On native, use DocumentPicker
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          'text/csv',
+          'text/comma-separated-values',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'text/tab-separated-values',
+          'text/plain',
+        ],
+        copyToCacheDirectory: true,
+      });
 
-    if (result.canceled) {
-      return null;
+      if (result.canceled) {
+        return null;
+      }
+
+      const asset = result.assets[0];
+      return {
+        uri: asset.uri,
+        name: asset.name,
+        mimeType: asset.mimeType || 'text/csv',
+      };
     }
-
-    const asset = result.assets[0];
-    return {
-      uri: asset.uri,
-      name: asset.name,
-      mimeType: asset.mimeType || 'text/csv',
-    };
   } catch (error) {
     console.error('File picker error:', error);
     return null;
@@ -130,19 +156,30 @@ export async function pickFile(): Promise<{ uri: string; name: string; mimeType:
 /**
  * Parse a CSV or Excel file
  */
-export async function parseFile(uri: string, fileName: string): Promise<ParseResult> {
+export async function parseFile(uri: string, fileName: string, file?: File): Promise<ParseResult> {
   try {
     const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
 
     if (Platform.OS === 'web') {
-      // On web, fetch the file content
-      const response = await fetch(uri);
-      if (isExcel) {
-        const arrayBuffer = await response.arrayBuffer();
-        return parseExcelFromArrayBuffer(arrayBuffer);
+      // On web, read file directly if provided
+      if (file) {
+        if (isExcel) {
+          const arrayBuffer = await file.arrayBuffer();
+          return parseExcelFromArrayBuffer(arrayBuffer);
+        } else {
+          const content = await file.text();
+          return parseCSV(content);
+        }
       } else {
-        const content = await response.text();
-        return parseCSV(content);
+        // Fallback to fetch for blob URLs
+        const response = await fetch(uri);
+        if (isExcel) {
+          const arrayBuffer = await response.arrayBuffer();
+          return parseExcelFromArrayBuffer(arrayBuffer);
+        } else {
+          const content = await response.text();
+          return parseCSV(content);
+        }
       }
     } else {
       // On native, use FileSystem
@@ -182,10 +219,22 @@ export async function parseFile(uri: string, fileName: string): Promise<ParseRes
  */
 function parseCSV(content: string): ParseResult {
   try {
+    console.log('Parsing CSV content, length:', content.length);
+    console.log('First 500 chars:', content.substring(0, 500));
+
     const result = Papa.parse<Record<string, string>>(content, {
       header: true,
       skipEmptyLines: true,
       transformHeader: (header) => header.trim(),
+      delimiter: '', // Auto-detect delimiter
+      dynamicTyping: false,
+    });
+
+    console.log('Parse result:', {
+      fields: result.meta.fields,
+      rowCount: result.data.length,
+      errors: result.errors,
+      delimiter: result.meta.delimiter,
     });
 
     if (result.errors.length > 0) {
@@ -196,6 +245,11 @@ function parseCSV(content: string): ParseResult {
     const data = result.data.filter((row) =>
       Object.values(row).some((val) => val && val.trim() !== '')
     );
+
+    console.log('Filtered data count:', data.length);
+    if (data.length > 0) {
+      console.log('First row:', data[0]);
+    }
 
     return {
       success: true,
