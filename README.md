@@ -118,7 +118,7 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Amount: Required, must be > 0, max 2 decimals
   - Category: Required, filtered by transaction type
   - Account: Required, shows current balance
-  - Date: Required, cannot be future date, prevents future dates in calendar
+  - Date: Required, accepts past, present, or future dates (for planning ahead)
   - Note: Optional, max 200 characters
 - ✅ **Database Integration**:
   - Transactions stored with all metadata

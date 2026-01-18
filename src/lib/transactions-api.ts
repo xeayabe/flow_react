@@ -62,13 +62,11 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
       return { success: false, error: 'Please select a date' };
     }
 
-    // Check date is not in future
+    // Allow any valid date (past, present, or future)
+    // This allows users to plan ahead for expenses like rent
     const transactionDate = new Date(request.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (transactionDate > today) {
-      return { success: false, error: 'Date cannot be in the future' };
+    if (isNaN(transactionDate.getTime())) {
+      return { success: false, error: 'Invalid date format' };
     }
 
     const transactionId = uuidv4();

@@ -375,10 +375,7 @@ export default function AddTransactionScreen() {
                       onPress={() => {
                         const next = new Date(calendarMonth);
                         next.setMonth(next.getMonth() + 1);
-                        const today = new Date();
-                        if (next <= today) {
-                          setCalendarMonth(next);
-                        }
+                        setCalendarMonth(next);
                       }}
                       className="p-2"
                     >
@@ -421,14 +418,13 @@ export default function AddTransactionScreen() {
                             : `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                         const isSelected = dateStr === tempDate;
                         const isToday = dateStr === new Date().toISOString().split('T')[0];
-                        const isFuture = dateStr && dateStr > new Date().toISOString().split('T')[0];
 
-                        const isDisabled = !dateStr || Boolean(isFuture);
+                        const isDisabled = !dateStr;
                         return (
                           <Pressable
                             key={index}
                             onPress={() => {
-                              if (dateStr && !isFuture) {
+                              if (dateStr) {
                                 setTempDate(dateStr);
                                 setFormData({ ...formData, date: dateStr });
                                 if (errors.date) setErrors({ ...errors, date: undefined });
@@ -440,8 +436,7 @@ export default function AddTransactionScreen() {
                               'w-12 h-12 items-center justify-center rounded-lg mb-2',
                               isSelected && 'bg-teal-600',
                               isToday && !isSelected && 'bg-teal-100 border-2 border-teal-600',
-                              !dateStr && 'bg-transparent',
-                              isFuture && 'opacity-30'
+                              !dateStr && 'bg-transparent'
                             )}
                           >
                             {day && (
