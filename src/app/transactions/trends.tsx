@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, TrendingUp, Calendar } from 'lucide-react-native';
+import { TrendingUp, Calendar } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { db } from '@/lib/db';
 import { getTrendData, formatCurrency, formatPercentage, MonthlySummary } from '@/lib/trends-api';
@@ -102,19 +100,7 @@ export default function TrendsScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      <Stack.Screen
-        options={{
-          title: 'Income vs Expenses Trend',
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()} className="pl-4">
-              <ChevronLeft size={24} color="#006A6A" />
-            </Pressable>
-          ),
-        }}
-      />
-
-      <SafeAreaView edges={['bottom']} className="flex-1">
-        <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false}>
           {/* Header */}
           <View className="px-6 py-6">
             <View className="flex-row items-center justify-between mb-4">
@@ -286,7 +272,6 @@ export default function TrendsScreen() {
             </>
           )}
         </ScrollView>
-      </SafeAreaView>
     </View>
   );
 }

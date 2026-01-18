@@ -20,8 +20,16 @@ export default function TransactionsLayout() {
       <Stack.Screen
         name="trends"
         options={{
-          headerShown: false,
+          headerShown: true,
           title: 'Trends',
+          headerStyle: {
+            backgroundColor: '#FFFFFF',
+          },
+          headerTintColor: '#006A6A',
+          headerTitleStyle: {
+            fontWeight: '600',
+            color: '#111827',
+          },
         }}
       />
       <Stack.Screen
