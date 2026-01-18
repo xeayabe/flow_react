@@ -225,11 +225,38 @@ function parseCSV(content: string): ParseResult {
       cleanContent = cleanContent.slice(1);
     }
 
-    console.log('Parsing CSV content, length:', cleanContent.length);
-    console.log('First 500 chars:', cleanContent.substring(0, 500));
+    console.log('=== CSV PARSING DEBUG ===');
+    console.log('Total content length:', cleanContent.length);
+    console.log('First 1000 chars:', cleanContent.substring(0, 1000));
+    console.log('=== END DEBUG ===');
+
+    // Split by lines to find the actual header
+    const lines = cleanContent.split('\n');
+    console.log('Total lines:', lines.length);
+    console.log('First 5 lines:');
+    lines.slice(0, 5).forEach((line, idx) => {
+      console.log(`Line ${idx}: [${line.substring(0, 100)}...]`);
+    });
+
+    // Find the first non-empty line that looks like headers
+    let headerLineIndex = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line && line.length > 0) {
+        // Check if line contains common delimiters
+        if (line.includes('\t') || line.includes(',') || line.includes(';')) {
+          headerLineIndex = i;
+          console.log(`Found potential header at line ${i}: ${line.substring(0, 100)}`);
+          break;
+        }
+      }
+    }
+
+    // Extract content from header line onwards
+    const contentFromHeader = lines.slice(headerLineIndex).join('\n');
 
     // First, try to detect the delimiter by checking the first line
-    const firstLine = cleanContent.split('\n')[0];
+    const firstLine = contentFromHeader.split('\n')[0];
     let detectedDelimiter = ',';
 
     // Count potential delimiters in first line
@@ -247,7 +274,7 @@ function parseCSV(content: string): ParseResult {
 
     console.log('Using delimiter:', detectedDelimiter === '\t' ? 'TAB' : detectedDelimiter);
 
-    const result = Papa.parse<Record<string, string>>(cleanContent, {
+    const result = Papa.parse<Record<string, string>>(contentFromHeader, {
       header: true,
       skipEmptyLines: 'greedy',
       transformHeader: (header) => header.trim(),
