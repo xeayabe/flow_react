@@ -300,6 +300,45 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - "Need more data" message when < 2 months available
   - Encourages users to continue tracking
 
+### Import/Export (US-046, US-050)
+- ✅ **CSV Import Wizard** - Multi-step process to import transactions
+  - Step 1: File Upload - Pick CSV or Excel file from device
+  - Step 2: Column Mapping - Auto-detect and manually map columns
+  - Step 3: Preview - Review data before importing
+  - Automatic category creation for new categories found in import
+  - Validation with error reporting (invalid dates, missing amounts)
+- ✅ **Supported Formats**
+  - CSV (.csv) - Comma-separated values
+  - Excel (.xlsx, .xls) - Excel spreadsheets
+  - TSV (.tsv) - Tab-separated values (displays as .csv option)
+- ✅ **Column Auto-Detection**
+  - Automatically detects standard column names:
+    - Date: date, datum, time, created, transaction date, trans date, booking date
+    - Amount: amount, betrag, value, price, cost, sum, total, inflow, outflow, in, out
+    - Type: type, typ, kind, transaction type, trans type, cleared
+    - Category: category, kategorie, cat, group, classification, category group/category
+    - Note: note, memo, description, desc, comment, remarks, payee, merchant
+    - Account: account, konto, bank, wallet, source
+- ✅ **Dual-Column Format Support**
+  - Handles CSV files with separate Inflow/Outflow columns
+  - Auto-detection of transaction type based on column name
+  - Users must import twice for dual-column format:
+    1. First import with Inflow column → Creates income transactions
+    2. Second import with Outflow column → Creates expense transactions
+- ✅ **CSV Export** - Export transactions with filters
+  - Filter by date range, type (income/expense/all), categories, accounts
+  - Format selection (CSV or Excel)
+  - Includes all transaction details
+- ✅ **Data Validation**
+  - Date format support: DD/MM/YYYY, DD/MM/YY, YYYY-MM-DD, MM/DD/YYYY
+  - Amount parsing: Handles CHF currency, thousands separators, decimals
+  - Invalid rows shown in preview with specific error messages
+  - Only valid rows are imported
+- ✅ **BOM Handling** - Properly handles UTF-8 BOM character in CSV files
+- ✅ **Web & Native Support** - Works on both web (browser) and native (iOS/Android)
+  - Uses File API on web
+  - Uses expo-file-system and expo-sharing on native
+
 ### Dashboard (US-051 - Comprehensive Overview)
 - ✅ **Welcome Header** - Personalized greeting with user name, current date, and budget period
 - ✅ **Total Balance Card** - Sum of all account balances with clickable link to accounts

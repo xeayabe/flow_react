@@ -422,9 +422,17 @@ export default function ImportScreen() {
                 options={parseResult.headers}
                 onChange={(v) => updateMapping('amount', v)}
               />
-              <Text className="text-xs text-gray-500 px-4 py-2">
-                For separate income/expense columns (Inflow/Outflow): Select ONE column per import. Rows without a value in the selected column will be skipped. You may need to import twice—once mapping Inflow, once mapping Outflow.
+              <Text className="text-xs text-gray-500 px-4 py-2 mb-2">
+                For dual-column formats (Inflow/Outflow), import twice:
               </Text>
+              <View className="px-4 pb-2 bg-gray-50 rounded-lg border border-gray-200">
+                <Text className="text-xs font-medium text-gray-700 py-1">
+                  1. Select "Inflow" → imports income transactions
+                </Text>
+                <Text className="text-xs font-medium text-gray-700 py-1">
+                  2. Select "Outflow" → imports expense transactions
+                </Text>
+              </View>
             </View>
 
             <Text className="text-xs font-semibold text-gray-500 uppercase mt-4 mb-2">
