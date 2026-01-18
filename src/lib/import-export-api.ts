@@ -1,11 +1,19 @@
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
+import { Platform } from 'react-native';
 import { db } from './db';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+
+// Conditionally import native-only modules
+let FileSystem: typeof import('expo-file-system') | null = null;
+let Sharing: typeof import('expo-sharing') | null = null;
+
+if (Platform.OS !== 'web') {
+  FileSystem = require('expo-file-system');
+  Sharing = require('expo-sharing');
+}
 
 // Types
 export interface ParsedRow {
@@ -125,14 +133,37 @@ export async function pickFile(): Promise<{ uri: string; name: string; mimeType:
 export async function parseFile(uri: string, fileName: string): Promise<ParseResult> {
   try {
     const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
-    const content = await FileSystem.readAsStringAsync(uri, {
-      encoding: isExcel ? FileSystem.EncodingType.Base64 : FileSystem.EncodingType.UTF8,
-    });
 
-    if (isExcel) {
-      return parseExcel(content);
+    if (Platform.OS === 'web') {
+      // On web, fetch the file content
+      const response = await fetch(uri);
+      if (isExcel) {
+        const arrayBuffer = await response.arrayBuffer();
+        return parseExcelFromArrayBuffer(arrayBuffer);
+      } else {
+        const content = await response.text();
+        return parseCSV(content);
+      }
     } else {
-      return parseCSV(content);
+      // On native, use FileSystem
+      if (!FileSystem) {
+        return {
+          success: false,
+          headers: [],
+          rawData: [],
+          rowCount: 0,
+          error: 'File system not available.',
+        };
+      }
+      const content = await FileSystem.readAsStringAsync(uri, {
+        encoding: isExcel ? FileSystem.EncodingType.Base64 : FileSystem.EncodingType.UTF8,
+      });
+
+      if (isExcel) {
+        return parseExcel(content);
+      } else {
+        return parseCSV(content);
+      }
     }
   } catch (error) {
     console.error('Parse file error:', error);
@@ -190,6 +221,49 @@ function parseCSV(content: string): ParseResult {
 function parseExcel(base64Content: string): ParseResult {
   try {
     const workbook = XLSX.read(base64Content, { type: 'base64' });
+    const firstSheet = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheet];
+    const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet, {
+      defval: '',
+      raw: false,
+    });
+
+    if (jsonData.length === 0) {
+      return {
+        success: false,
+        headers: [],
+        rawData: [],
+        rowCount: 0,
+        error: 'Excel file is empty or has no valid data.',
+      };
+    }
+
+    const headers = Object.keys(jsonData[0]);
+
+    return {
+      success: true,
+      headers,
+      rawData: jsonData,
+      rowCount: jsonData.length,
+    };
+  } catch (error) {
+    console.error('Excel parse error:', error);
+    return {
+      success: false,
+      headers: [],
+      rawData: [],
+      rowCount: 0,
+      error: 'Failed to parse Excel file.',
+    };
+  }
+}
+
+/**
+ * Parse Excel content from ArrayBuffer (for web)
+ */
+function parseExcelFromArrayBuffer(arrayBuffer: ArrayBuffer): ParseResult {
+  try {
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
     const firstSheet = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheet];
     const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet, {
@@ -651,11 +725,6 @@ export async function exportToCSV(
   filename: string = 'transactions.csv'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const csv = Papa.unparse(transactions, {
-      header: true,
-      columns: ['Date', 'Type', 'Amount', 'Category', 'Account', 'Note'],
-    });
-
     // Format data for export
     const formattedData = transactions.map((t) => ({
       Date: t.date,
@@ -667,22 +736,41 @@ export async function exportToCSV(
     }));
 
     const csvContent = Papa.unparse(formattedData);
-    const fileUri = `${FileSystem.cacheDirectory}${filename}`;
 
-    await FileSystem.writeAsStringAsync(fileUri, csvContent, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
+    if (Platform.OS === 'web') {
+      // On web, trigger download via blob
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return { success: true };
+    } else {
+      // On native, use FileSystem and Sharing
+      if (!FileSystem || !Sharing) {
+        return { success: false, error: 'Export not available on this platform.' };
+      }
 
-    const canShare = await Sharing.isAvailableAsync();
-    if (canShare) {
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'text/csv',
-        dialogTitle: 'Export Transactions',
-        UTI: 'public.comma-separated-values-text',
+      const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+      await FileSystem.writeAsStringAsync(fileUri, csvContent, {
+        encoding: FileSystem.EncodingType.UTF8,
       });
-    }
 
-    return { success: true };
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Export Transactions',
+          UTI: 'public.comma-separated-values-text',
+        });
+      }
+
+      return { success: true };
+    }
   } catch (error) {
     console.error('Export CSV error:', error);
     return { success: false, error: 'Failed to export CSV file.' };
@@ -722,23 +810,43 @@ export async function exportToExcel(
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Transactions');
 
-    // Write to base64
-    const wbout = XLSX.write(workbook, { type: 'base64', bookType: 'xlsx' });
-
-    const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-    await FileSystem.writeAsStringAsync(fileUri, wbout, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-
-    const canShare = await Sharing.isAvailableAsync();
-    if (canShare) {
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        dialogTitle: 'Export Transactions',
+    if (Platform.OS === 'web') {
+      // On web, trigger download via blob
+      const wbout = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+      const blob = new Blob([wbout], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
-    }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return { success: true };
+    } else {
+      // On native, use FileSystem and Sharing
+      if (!FileSystem || !Sharing) {
+        return { success: false, error: 'Export not available on this platform.' };
+      }
 
-    return { success: true };
+      const wbout = XLSX.write(workbook, { type: 'base64', bookType: 'xlsx' });
+      const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+      await FileSystem.writeAsStringAsync(fileUri, wbout, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          dialogTitle: 'Export Transactions',
+        });
+      }
+
+      return { success: true };
+    }
   } catch (error) {
     console.error('Export Excel error:', error);
     return { success: false, error: 'Failed to export Excel file.' };
@@ -831,22 +939,41 @@ export async function downloadTemplate(): Promise<{ success: boolean; error?: st
     ];
 
     const csv = Papa.unparse(templateData);
-    const fileUri = `${FileSystem.cacheDirectory}transactions_template.csv`;
 
-    await FileSystem.writeAsStringAsync(fileUri, csv, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
+    if (Platform.OS === 'web') {
+      // On web, trigger download via blob
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'transactions_template.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return { success: true };
+    } else {
+      // On native, use FileSystem and Sharing
+      if (!FileSystem || !Sharing) {
+        return { success: false, error: 'Download not available on this platform.' };
+      }
 
-    const canShare = await Sharing.isAvailableAsync();
-    if (canShare) {
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'text/csv',
-        dialogTitle: 'Download Template',
-        UTI: 'public.comma-separated-values-text',
+      const fileUri = `${FileSystem.cacheDirectory}transactions_template.csv`;
+      await FileSystem.writeAsStringAsync(fileUri, csv, {
+        encoding: FileSystem.EncodingType.UTF8,
       });
-    }
 
-    return { success: true };
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Download Template',
+          UTI: 'public.comma-separated-values-text',
+        });
+      }
+
+      return { success: true };
+    }
   } catch (error) {
     console.error('Download template error:', error);
     return { success: false, error: 'Failed to download template.' };
