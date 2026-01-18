@@ -219,89 +219,46 @@ export async function parseFile(uri: string, fileName: string, file?: File): Pro
  */
 function parseCSV(content: string): ParseResult {
   try {
-    // Remove BOM if present
+    // Remove BOM if present (VERY IMPORTANT!)
     let cleanContent = content;
     if (cleanContent.charCodeAt(0) === 0xFEFF) {
       cleanContent = cleanContent.slice(1);
+      console.log('✅ BOM removed');
     }
 
     console.log('=== CSV PARSING DEBUG ===');
     console.log('Total content length:', cleanContent.length);
-    console.log('First 1000 chars:', cleanContent.substring(0, 1000));
-    console.log('=== END DEBUG ===');
+    console.log('First 200 chars:', cleanContent.substring(0, 200));
 
-    // Split by lines to find the actual header
-    const lines = cleanContent.split('\n');
-    console.log('Total lines:', lines.length);
-    console.log('First 5 lines:');
-    lines.slice(0, 5).forEach((line, idx) => {
-      console.log(`Line ${idx}: [${line.substring(0, 100)}...]`);
-    });
-
-    // Find the first non-empty line that looks like headers
-    let headerLineIndex = 0;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line && line.length > 0) {
-        // Check if line contains common delimiters
-        if (line.includes('\t') || line.includes(',') || line.includes(';')) {
-          headerLineIndex = i;
-          console.log(`Found potential header at line ${i}: ${line.substring(0, 100)}`);
-          break;
-        }
-      }
-    }
-
-    // Extract content from header line onwards
-    const contentFromHeader = lines.slice(headerLineIndex).join('\n');
-
-    // First, try to detect the delimiter by checking the first line
-    const firstLine = contentFromHeader.split('\n')[0];
-    let detectedDelimiter = ',';
-
-    // Count potential delimiters in first line
-    const tabCount = (firstLine.match(/\t/g) || []).length;
-    const commaCount = (firstLine.match(/,/g) || []).length;
-    const semicolonCount = (firstLine.match(/;/g) || []).length;
-
-    console.log('Delimiter counts - tabs:', tabCount, 'commas:', commaCount, 'semicolons:', semicolonCount);
-
-    if (tabCount > commaCount && tabCount > semicolonCount) {
-      detectedDelimiter = '\t';
-    } else if (semicolonCount > commaCount) {
-      detectedDelimiter = ';';
-    }
-
-    console.log('Using delimiter:', detectedDelimiter === '\t' ? 'TAB' : detectedDelimiter);
-
-    const result = Papa.parse<Record<string, string>>(contentFromHeader, {
+    // Parse with auto-delimiter detection
+    const result = Papa.parse<Record<string, string>>(cleanContent, {
       header: true,
       skipEmptyLines: 'greedy',
-      transformHeader: (header) => header.trim(),
-      delimiter: detectedDelimiter,
+      transformHeader: (header: string) => {
+        // Remove any remaining invisible characters and trim
+        const cleaned = header.replace(/^\uFEFF/, '').trim();
+        return cleaned;
+      },
+      delimiter: '', // Auto-detect
       dynamicTyping: false,
     });
 
     console.log('Parse result:', {
       fields: result.meta.fields,
       rowCount: result.data.length,
-      errors: result.errors.slice(0, 5),
       delimiter: result.meta.delimiter,
     });
-
-    if (result.errors.length > 0) {
-      console.warn('CSV parse warnings:', result.errors.slice(0, 5));
-    }
+    console.log('=== END DEBUG ===');
 
     const headers = result.meta.fields || [];
     const data = result.data.filter((row) =>
       Object.values(row).some((val) => val && String(val).trim() !== '')
     );
 
-    console.log('Headers found:', headers);
-    console.log('Filtered data count:', data.length);
+    console.log('✅ Headers found:', headers);
+    console.log('✅ Data rows:', data.length);
     if (data.length > 0) {
-      console.log('First row:', data[0]);
+      console.log('✅ First row keys:', Object.keys(data[0]));
     }
 
     return {
