@@ -184,41 +184,62 @@ export default function TrendsScreen() {
                 <View className="px-6 mb-6">
                   <Animated.View entering={FadeIn.duration(600)} className="bg-gray-50 rounded-lg p-4">
                     <View className="h-64" style={{ width: Dimensions.get('window').width - 48 }}>
-                      {/* Simple bar chart */}
-                      <View className="flex-row items-flex-end justify-between h-56">
-                        {data.data.map((month) => {
-                          const maxValue = Math.max(...data.data.flatMap((d) => [d.income, d.expenses]), 1);
-                          const incomeHeight = (month.income / maxValue) * 200;
-                          const expenseHeight = (month.expenses / maxValue) * 200;
+                      {/* Simple bar chart - limit to last 12 months for readability */}
+                      {(() => {
+                        const chartData = data.data.length > 12 ? data.data.slice(-12) : data.data;
+                        const maxValue = Math.max(...chartData.flatMap((d) => [d.income, d.expenses]), 1);
 
-                          return (
-                            <View key={month.month} className="items-center flex-1 mx-0.5">
-                              {/* Income bar */}
-                              <View
-                                className="w-1.5 bg-green-500 rounded-t"
-                                style={{ height: incomeHeight }}
-                              />
-                              {/* Expense bar */}
-                              <View
-                                className="w-1.5 bg-red-500 rounded-t mt-1"
-                                style={{ height: expenseHeight }}
-                              />
+                        // Determine label frequency based on data length
+                        const labelFrequency = chartData.length > 6 ? Math.ceil(chartData.length / 6) : 1;
+
+                        return (
+                          <>
+                            {data.data.length > 12 && (
+                              <Text className="text-xs text-gray-500 text-center mb-2">
+                                Showing last 12 months
+                              </Text>
+                            )}
+                            <View className="flex-row items-end justify-between h-48">
+                              {chartData.map((month) => {
+                                const incomeHeight = (month.income / maxValue) * 180;
+                                const expenseHeight = (month.expenses / maxValue) * 180;
+
+                                return (
+                                  <View key={month.month} className="items-center flex-1 mx-0.5">
+                                    {/* Income bar */}
+                                    <View
+                                      className="w-2 bg-green-500 rounded-t"
+                                      style={{ height: Math.max(incomeHeight, 2) }}
+                                    />
+                                    {/* Expense bar */}
+                                    <View
+                                      className="w-2 bg-red-500 rounded-t mt-1"
+                                      style={{ height: Math.max(expenseHeight, 2) }}
+                                    />
+                                  </View>
+                                );
+                              })}
                             </View>
-                          );
-                        })}
-                      </View>
 
-                      {/* X-axis labels */}
-                      <View className="flex-row justify-between mt-2 px-1">
-                        {data.data.map((d, i) => {
-                          if (data.data.length > 6 && i % 2 !== 0) return <View key={`empty-${i}`} className="flex-1" />;
-                          return (
-                            <Text key={`label-${i}`} className="text-xs text-gray-600 flex-1 text-center">
-                              {d.monthLabel.split(' ')[0]}
-                            </Text>
-                          );
-                        })}
-                      </View>
+                            {/* X-axis labels */}
+                            <View className="flex-row justify-between mt-2 px-1">
+                              {chartData.map((d, i) => {
+                                // Only show labels at regular intervals
+                                if (i % labelFrequency !== 0) {
+                                  return <View key={`empty-${i}`} className="flex-1" />;
+                                }
+                                // Show abbreviated month (first 3 chars)
+                                const label = d.monthLabel.split(' ')[0].substring(0, 3);
+                                return (
+                                  <Text key={`label-${i}`} className="text-xs text-gray-600 flex-1 text-center">
+                                    {label}
+                                  </Text>
+                                );
+                              })}
+                            </View>
+                          </>
+                        );
+                      })()}
                     </View>
 
                     {/* Legend */}
