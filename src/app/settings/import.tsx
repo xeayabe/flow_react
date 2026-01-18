@@ -377,6 +377,24 @@ export default function ImportScreen() {
               </View>
             )}
 
+            {/* Debug: Show detected columns */}
+            {parseResult.headers.length > 0 ? (
+              <View className="bg-blue-50 rounded-lg p-3 mb-4">
+                <Text className="text-xs font-semibold text-blue-700 mb-1">
+                  Detected columns ({parseResult.headers.length}):
+                </Text>
+                <Text className="text-xs text-blue-600">
+                  {parseResult.headers.join(', ')}
+                </Text>
+              </View>
+            ) : (
+              <View className="bg-amber-50 rounded-lg p-3 mb-4">
+                <Text className="text-xs font-semibold text-amber-700">
+                  No columns detected. Check your CSV format.
+                </Text>
+              </View>
+            )}
+
             <Text className="text-sm text-gray-600 mb-4">
               Match your file columns to the app fields
             </Text>
@@ -759,34 +777,42 @@ function MappingRow({
       </Pressable>
 
       {showOptions && (
-        <View className="mt-1 bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <Pressable
-            onPress={() => {
-              onChange(null);
-              setShowOptions(false);
-            }}
-            className="px-4 py-3 border-b border-gray-100"
-          >
-            <Text className="text-gray-400 italic">None</Text>
-          </Pressable>
-          {options.map((option) => (
+        <View className="mt-1 bg-white rounded-lg border border-gray-200 overflow-hidden max-h-64">
+          <ScrollView nestedScrollEnabled>
             <Pressable
-              key={option}
               onPress={() => {
-                onChange(option);
+                onChange(null);
                 setShowOptions(false);
               }}
-              className={`px-4 py-3 border-b border-gray-100 ${
-                value === option ? 'bg-teal-50' : ''
-              }`}
+              className="px-4 py-3 border-b border-gray-100"
             >
-              <Text
-                className={value === option ? 'text-teal-700 font-medium' : 'text-gray-900'}
-              >
-                {option}
-              </Text>
+              <Text className="text-gray-400 italic">None</Text>
             </Pressable>
-          ))}
+            {options.length === 0 ? (
+              <View className="px-4 py-3">
+                <Text className="text-gray-500 text-sm">No columns found in file</Text>
+              </View>
+            ) : (
+              options.map((option, index) => (
+                <Pressable
+                  key={`${option}-${index}`}
+                  onPress={() => {
+                    onChange(option);
+                    setShowOptions(false);
+                  }}
+                  className={`px-4 py-3 border-b border-gray-100 ${
+                    value === option ? 'bg-teal-50' : ''
+                  }`}
+                >
+                  <Text
+                    className={value === option ? 'text-teal-700 font-medium' : 'text-gray-900'}
+                  >
+                    {option}
+                  </Text>
+                </Pressable>
+              ))
+            )}
+          </ScrollView>
         </View>
       )}
     </View>
