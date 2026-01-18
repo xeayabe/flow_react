@@ -86,10 +86,10 @@ export interface ExportTransaction {
 
 // Smart column detection patterns
 const COLUMN_PATTERNS = {
-  date: ['date', 'datum', 'time', 'created', 'transaction date', 'trans date'],
+  date: ['date', 'datum', 'time', 'created', 'transaction date', 'trans date', 'booking date'],
   amount: ['amount', 'betrag', 'value', 'price', 'cost', 'sum', 'total', 'inflow', 'outflow'],
-  type: ['type', 'typ', 'kind', 'transaction type', 'trans type'],
-  category: ['category', 'kategorie', 'cat', 'group', 'classification'],
+  type: ['type', 'typ', 'kind', 'transaction type', 'trans type', 'cleared'],
+  category: ['category', 'kategorie', 'cat', 'group', 'classification', 'category group/category'],
   note: ['note', 'memo', 'description', 'desc', 'comment', 'remarks', 'payee', 'merchant'],
   account: ['account', 'konto', 'bank', 'wallet', 'source'],
 };
@@ -219,33 +219,59 @@ export async function parseFile(uri: string, fileName: string, file?: File): Pro
  */
 function parseCSV(content: string): ParseResult {
   try {
-    console.log('Parsing CSV content, length:', content.length);
-    console.log('First 500 chars:', content.substring(0, 500));
+    // Remove BOM if present
+    let cleanContent = content;
+    if (cleanContent.charCodeAt(0) === 0xFEFF) {
+      cleanContent = cleanContent.slice(1);
+    }
 
-    const result = Papa.parse<Record<string, string>>(content, {
+    console.log('Parsing CSV content, length:', cleanContent.length);
+    console.log('First 500 chars:', cleanContent.substring(0, 500));
+
+    // First, try to detect the delimiter by checking the first line
+    const firstLine = cleanContent.split('\n')[0];
+    let detectedDelimiter = ',';
+
+    // Count potential delimiters in first line
+    const tabCount = (firstLine.match(/\t/g) || []).length;
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const semicolonCount = (firstLine.match(/;/g) || []).length;
+
+    console.log('Delimiter counts - tabs:', tabCount, 'commas:', commaCount, 'semicolons:', semicolonCount);
+
+    if (tabCount > commaCount && tabCount > semicolonCount) {
+      detectedDelimiter = '\t';
+    } else if (semicolonCount > commaCount) {
+      detectedDelimiter = ';';
+    }
+
+    console.log('Using delimiter:', detectedDelimiter === '\t' ? 'TAB' : detectedDelimiter);
+
+    const result = Papa.parse<Record<string, string>>(cleanContent, {
       header: true,
-      skipEmptyLines: true,
+      skipEmptyLines: 'greedy',
       transformHeader: (header) => header.trim(),
-      delimiter: '', // Auto-detect delimiter
+      delimiter: detectedDelimiter,
       dynamicTyping: false,
     });
 
     console.log('Parse result:', {
       fields: result.meta.fields,
       rowCount: result.data.length,
-      errors: result.errors,
+      errors: result.errors.slice(0, 5),
       delimiter: result.meta.delimiter,
     });
 
     if (result.errors.length > 0) {
-      console.warn('CSV parse warnings:', result.errors);
+      console.warn('CSV parse warnings:', result.errors.slice(0, 5));
     }
 
     const headers = result.meta.fields || [];
     const data = result.data.filter((row) =>
-      Object.values(row).some((val) => val && val.trim() !== '')
+      Object.values(row).some((val) => val && String(val).trim() !== '')
     );
 
+    console.log('Headers found:', headers);
     console.log('Filtered data count:', data.length);
     if (data.length > 0) {
       console.log('First row:', data[0]);
