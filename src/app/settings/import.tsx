@@ -439,13 +439,31 @@ export default function ImportScreen() {
               Optional
             </Text>
 
-            {/* Type Mapping */}
-            <MappingRow
-              label="Type (Income/Expense)"
-              value={columnMapping.type}
-              options={parseResult.headers}
-              onChange={(v) => updateMapping('type', v)}
-            />
+            {/* Auto-Type Detection Info */}
+            {columnMapping.amount &&
+            (columnMapping.amount.toLowerCase().includes('inflow') ||
+              columnMapping.amount.toLowerCase().includes('outflow')) && (
+              <View className="bg-teal-50 rounded-lg p-3 mb-4 border border-teal-200">
+                <Text className="text-xs font-medium text-teal-800">
+                  ✓ Type automatically detected as{' '}
+                  {columnMapping.amount.toLowerCase().includes('inflow')
+                    ? 'Income'
+                    : 'Expense'}
+                </Text>
+              </View>
+            )}
+
+            {/* Type Mapping - Hidden if amount column is Inflow/Outflow */}
+            {columnMapping.amount &&
+            !columnMapping.amount.toLowerCase().includes('inflow') &&
+            !columnMapping.amount.toLowerCase().includes('outflow') && (
+              <MappingRow
+                label="Type (Income/Expense)"
+                value={columnMapping.type}
+                options={parseResult.headers}
+                onChange={(v) => updateMapping('type', v)}
+              />
+            )}
 
             {/* Category Mapping */}
             <MappingRow
