@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronRight, Tag, LogOut, Wallet, User, Calendar, PieChart, Upload, Download } from 'lucide-react-native';
+import { ChevronRight, Tag, LogOut, Wallet, User, Calendar, PieChart, Upload, Download, Layers } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { signOut } from '@/lib/auth-api';
 
@@ -75,6 +75,12 @@ export default function TabTwoScreen() {
       label: 'Categories',
       description: 'Organize your income and expenses',
       onPress: () => router.push('/settings/categories'),
+    },
+    {
+      icon: <Layers size={24} color="#006A6A" />,
+      label: 'Category Groups',
+      description: 'Create and manage budget category groups',
+      onPress: () => router.push('/settings/category-groups'),
     },
     {
       icon: <Upload size={24} color="#006A6A" />,

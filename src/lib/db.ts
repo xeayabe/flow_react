@@ -104,6 +104,20 @@ const schema = i.schema({
       createdAt: i.number(),
       updatedAt: i.number(),
     }),
+    categoryGroups: i.entity({
+      householdId: i.string(),
+      key: i.string(), // 'needs' | 'wants' | 'savings' | custom key
+      name: i.string(), // Display name (e.g., "Needs", "Custom Group")
+      type: i.string(), // 'expense' | 'income'
+      icon: i.string().optional(),
+      color: i.string().optional(),
+      isDefault: i.boolean(), // true for needs, wants, savings; false for custom
+      displayOrder: i.number().optional(), // For sorting
+      isActive: i.boolean(),
+      createdByUserId: i.string().optional(),
+      createdAt: i.number(),
+      updatedAt: i.number(),
+    }),
   },
   links: {
     householdsByCreator: {
@@ -236,6 +250,18 @@ const schema = i.schema({
         on: 'households',
         has: 'many',
         label: 'transactions',
+      },
+    },
+    categoryGroupsByHousehold: {
+      forward: {
+        on: 'categoryGroups',
+        has: 'one',
+        label: 'household',
+      },
+      reverse: {
+        on: 'households',
+        has: 'many',
+        label: 'categoryGroups',
       },
     },
   },

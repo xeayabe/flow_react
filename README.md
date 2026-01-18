@@ -73,6 +73,15 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Edit custom categories (name, icon, color only)
   - Delete custom categories (soft delete, with validation)
   - Default categories are read-only
+- ✅ **Category Groups Management** (New) - Customize budget category groups
+  - Route: `/settings/category-groups` from Profile tab menu
+  - View all category groups (Needs, Wants, Savings, custom groups)
+  - Rename default category groups (Needs, Wants, Savings, Income)
+  - Create custom category groups with name and type (Expense or Income)
+  - Delete custom category groups (with validation)
+  - Cannot delete default groups (Needs, Wants, Savings, Income)
+  - Groups are organized by type (Expense/Income sections)
+  - Easy-to-use management UI with edit/delete buttons
 - ✅ **Category Validation**:
   - Category name: 2-30 characters, unique per household (case-insensitive)
   - Type: Income or Expense (required)
@@ -89,6 +98,7 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - ✅ **Phase 1 Implementation**:
   - All categories personal to user (is_shareable = false)
   - No shared expense functionality yet
+  - Customizable category groups for flexible budget allocation
 
 ### Transaction System (US-014, US-018, & US-020)
 - ✅ **Add Transaction Page** - Full form to track income and expenses
