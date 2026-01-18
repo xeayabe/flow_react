@@ -423,8 +423,7 @@ export default function ImportScreen() {
                 onChange={(v) => updateMapping('amount', v)}
               />
               <Text className="text-xs text-gray-500 px-4 py-2">
-                For separate income/expense columns (Inflow/Outflow), select the appropriate column.
-                The type will be detected automatically based on the column name.
+                For separate income/expense columns (Inflow/Outflow): Select ONE column per import. Rows without a value in the selected column will be skipped. You may need to import twice—once mapping Inflow, once mapping Outflow.
               </Text>
             </View>
 

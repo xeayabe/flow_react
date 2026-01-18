@@ -591,7 +591,7 @@ export function validateAndTransformData(
     }
 
     if (parsedAmount === null || parsedAmount <= 0) {
-      errors.push('Invalid or missing amount');
+      errors.push(`Missing amount (${mapping.amount || 'amount field'} is empty)`);
     }
 
     // Get category
