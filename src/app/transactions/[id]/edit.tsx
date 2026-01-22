@@ -501,14 +501,16 @@ export default function EditTransactionScreen() {
       </SafeAreaView>
 
       {/* Date Picker Modal */}
-      <Modal visible={showDatePicker} transparent animationType="slide">
-        <SafeAreaView className="flex-1 bg-white">
-          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
-            <Text className="text-lg font-bold">Select Date</Text>
-            <Pressable onPress={() => setShowDatePicker(false)}>
-              <X size={24} color="#006A6A" />
-            </Pressable>
-          </View>
+      <Modal visible={showDatePicker} transparent={false} animationType="slide">
+        <View className="flex-1 bg-white">
+          <SafeAreaView edges={['top']} className="bg-white">
+            <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
+              <Text className="text-lg font-bold">Select Date</Text>
+              <Pressable onPress={() => setShowDatePicker(false)}>
+                <X size={24} color="#006A6A" />
+              </Pressable>
+            </View>
+          </SafeAreaView>
 
           <ScrollView className="flex-1 px-6 py-4">
             {/* Month/Year Navigation */}
@@ -597,104 +599,100 @@ export default function EditTransactionScreen() {
               })()}
             </View>
           </ScrollView>
-        </SafeAreaView>
+        </View>
       </Modal>
 
       {/* Category Modal */}
-      <Modal visible={showCategoryModal} animationType="slide" transparent>
-        <View className="flex-1 bg-black/30">
-          <SafeAreaView className="flex-1" edges={['bottom']}>
-            <View className="flex-1 bg-white rounded-t-3xl pt-6">
-              <View className="flex-row items-center justify-between px-6 pb-6 border-b border-gray-100">
-                <Text className="text-xl font-semibold text-gray-900">Select Category</Text>
-                <Pressable onPress={() => setShowCategoryModal(false)}>
-                  <X size={24} color="#6B7280" />
-                </Pressable>
-              </View>
-
-              <ScrollView className="flex-1 px-6">
-                {groupOrder.map((group) => {
-                  const groupCategories = groupedCategories[group] || [];
-                  if (groupCategories.length === 0) return null;
-
-                  const groupLabels: Record<string, string> = {
-                    income: 'Income',
-                    needs: 'Needs (50%)',
-                    wants: 'Wants (30%)',
-                    savings: 'Savings (20%)',
-                    other: 'Other',
-                  };
-
-                  return (
-                    <View key={group}>
-                      <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{groupLabels[group]}</Text>
-                      {groupCategories.map((category: any) => (
-                        <Pressable
-                          key={category.id}
-                          onPress={() => {
-                            setFormData({ ...formData, categoryId: category.id });
-                            setShowCategoryModal(false);
-                          }}
-                          className={cn(
-                            'p-4 rounded-lg mb-2 flex-row items-center justify-between',
-                            formData.categoryId === category.id ? 'bg-teal-50' : 'bg-gray-50'
-                          )}
-                        >
-                          <View className="flex-row items-center gap-3 flex-1">
-                            {category.icon && <Text className="text-lg">{category.icon}</Text>}
-                            <Text className={cn('font-medium', formData.categoryId === category.id ? 'text-teal-600' : 'text-gray-900')}>
-                              {category.name}
-                            </Text>
-                          </View>
-                          {formData.categoryId === category.id && <Check size={20} color="#006A6A" />}
-                        </Pressable>
-                      ))}
-                    </View>
-                  );
-                })}
-              </ScrollView>
+      <Modal visible={showCategoryModal} animationType="slide" transparent={false}>
+        <View className="flex-1 bg-white">
+          <SafeAreaView edges={['top']} className="bg-white">
+            <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
+              <Text className="text-xl font-semibold text-gray-900">Select Category</Text>
+              <Pressable onPress={() => setShowCategoryModal(false)}>
+                <X size={24} color="#6B7280" />
+              </Pressable>
             </View>
           </SafeAreaView>
+
+          <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 40 }}>
+            {groupOrder.map((group) => {
+              const groupCategories = groupedCategories[group] || [];
+              if (groupCategories.length === 0) return null;
+
+              const groupLabels: Record<string, string> = {
+                income: 'Income',
+                needs: 'Needs (50%)',
+                wants: 'Wants (30%)',
+                savings: 'Savings (20%)',
+                other: 'Other',
+              };
+
+              return (
+                <View key={group}>
+                  <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{groupLabels[group]}</Text>
+                  {groupCategories.map((category: any) => (
+                    <Pressable
+                      key={category.id}
+                      onPress={() => {
+                        setFormData({ ...formData, categoryId: category.id });
+                        setShowCategoryModal(false);
+                      }}
+                      className={cn(
+                        'p-4 rounded-lg mb-2 flex-row items-center justify-between',
+                        formData.categoryId === category.id ? 'bg-teal-50' : 'bg-gray-50'
+                      )}
+                    >
+                      <View className="flex-row items-center gap-3 flex-1">
+                        {category.icon && <Text className="text-lg">{category.icon}</Text>}
+                        <Text className={cn('font-medium', formData.categoryId === category.id ? 'text-teal-600' : 'text-gray-900')}>
+                          {category.name}
+                        </Text>
+                      </View>
+                      {formData.categoryId === category.id && <Check size={20} color="#006A6A" />}
+                    </Pressable>
+                  ))}
+                </View>
+              );
+            })}
+          </ScrollView>
         </View>
       </Modal>
 
       {/* Account Modal */}
-      <Modal visible={showAccountModal} animationType="slide" transparent>
-        <View className="flex-1 bg-black/30">
-          <SafeAreaView className="flex-1" edges={['bottom']}>
-            <View className="flex-1 bg-white rounded-t-3xl pt-6">
-              <View className="flex-row items-center justify-between px-6 pb-6 border-b border-gray-100">
-                <Text className="text-xl font-semibold text-gray-900">Select Account</Text>
-                <Pressable onPress={() => setShowAccountModal(false)}>
-                  <X size={24} color="#6B7280" />
-                </Pressable>
-              </View>
-
-              <ScrollView className="flex-1 px-6">
-                {accountsQuery.data?.map((account) => (
-                  <Pressable
-                    key={account.id}
-                    onPress={() => {
-                      setFormData({ ...formData, accountId: account.id });
-                      setShowAccountModal(false);
-                    }}
-                    className={cn(
-                      'p-4 rounded-lg mb-2 flex-row items-center justify-between',
-                      formData.accountId === account.id ? 'bg-teal-50' : 'bg-gray-50'
-                    )}
-                  >
-                    <View className="flex-1">
-                      <Text className={cn('font-semibold', formData.accountId === account.id ? 'text-teal-600' : 'text-gray-900')}>
-                        {account.name}
-                      </Text>
-                      <Text className="text-sm text-gray-500 mt-1">{formatBalance(account.balance, account.currency)}</Text>
-                    </View>
-                    {formData.accountId === account.id && <Check size={20} color="#006A6A" />}
-                  </Pressable>
-                ))}
-              </ScrollView>
+      <Modal visible={showAccountModal} animationType="slide" transparent={false}>
+        <View className="flex-1 bg-white">
+          <SafeAreaView edges={['top']} className="bg-white">
+            <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
+              <Text className="text-xl font-semibold text-gray-900">Select Account</Text>
+              <Pressable onPress={() => setShowAccountModal(false)}>
+                <X size={24} color="#6B7280" />
+              </Pressable>
             </View>
           </SafeAreaView>
+
+          <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 40, paddingTop: 16 }}>
+            {accountsQuery.data?.map((account) => (
+              <Pressable
+                key={account.id}
+                onPress={() => {
+                  setFormData({ ...formData, accountId: account.id });
+                  setShowAccountModal(false);
+                }}
+                className={cn(
+                  'p-4 rounded-lg mb-2 flex-row items-center justify-between',
+                  formData.accountId === account.id ? 'bg-teal-50' : 'bg-gray-50'
+                )}
+              >
+                <View className="flex-1">
+                  <Text className={cn('font-semibold', formData.accountId === account.id ? 'text-teal-600' : 'text-gray-900')}>
+                    {account.name}
+                  </Text>
+                  <Text className="text-sm text-gray-500 mt-1">{formatBalance(account.balance, account.currency)}</Text>
+                </View>
+                {formData.accountId === account.id && <Check size={20} color="#006A6A" />}
+              </Pressable>
+            ))}
+          </ScrollView>
         </View>
       </Modal>
 
