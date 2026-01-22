@@ -442,7 +442,17 @@ export async function recalculateBudgetSpentAmounts(
 
     const summary = summaryResult.data.budgetSummary?.[0];
     if (summary) {
+      // Calculate total spent from actual transactions (will be 0 if no transactions)
       const totalSpent = Object.values(spentByCategory).reduce((sum: number, amount: number) => sum + amount, 0);
+
+      console.log('Recalculating budget summary:', {
+        totalSpent,
+        needsSpent,
+        wantsSpent,
+        savingsSpent,
+        transactionCount: transactions.length,
+      });
+
       await db.transact([
         db.tx.budgetSummary[summary.id].update({
           totalSpent,

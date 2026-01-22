@@ -129,20 +129,23 @@ export default function DashboardScreen() {
     }, [refetchBudgetSummary, refetchAccounts, refetchRecentTransactions])
   );
 
-  // Recalculate spent amounts on first load
+  // Recalculate spent amounts when user/period data is available
+  const [hasRecalculated, setHasRecalculated] = React.useState(false);
+
   React.useEffect(() => {
-    if (userId && householdId && !summaryQuery.isLoading && summaryQuery.data) {
+    if (userId && householdId && !summaryQuery.isLoading && summaryQuery.data && !hasRecalculated) {
+      setHasRecalculated(true);
       recalculateBudgetSpentAmounts(
         userId,
         budgetPeriod.start,
         budgetPeriod.end
       ).then(() => {
-        setTimeout(() => refetchBudgetSummary(), 500);
+        refetchBudgetSummary();
       }).catch((error) => {
         console.warn('Failed to recalculate budget spent amounts:', error);
       });
     }
-  }, []);
+  }, [userId, householdId, summaryQuery.isLoading, summaryQuery.data, budgetPeriod.start, budgetPeriod.end, hasRecalculated, refetchBudgetSummary]);
 
   // Check if budget reset is needed on component mount
   React.useEffect(() => {
