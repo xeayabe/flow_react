@@ -43,7 +43,7 @@
     "@shopify/react-native-skia": "v2.0.3",
     "@tanstack/react-query": "5.90.2",
     "@types/papaparse": "^5.5.2",
-    "@vibecodeapp/sdk": "^0.4.13",
+    "@vibecodeapp/sdk": "^0.4.14",
     "bcryptjs": "^3.0.3",
     "burnt": "^0.13.0",
     "clsx": "^2.1.1",
