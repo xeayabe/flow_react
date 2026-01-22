@@ -210,18 +210,21 @@ export default function PaydaySettingsScreen() {
       </View>
 
       {/* Payday Picker Modal */}
-      <Modal visible={showPaydayPicker} transparent animationType="slide">
-        <SafeAreaView className="flex-1 bg-white">
-          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
-            <Text className="text-lg font-bold">Select Payday</Text>
-            <Pressable onPress={() => setShowPaydayPicker(false)}>
-              <X size={24} color="#006A6A" />
-            </Pressable>
-          </View>
+      <Modal visible={showPaydayPicker} transparent={false} animationType="slide">
+        <View className="flex-1 bg-white">
+          <SafeAreaView edges={['top']} className="bg-white">
+            <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
+              <Text className="text-lg font-bold">Select Payday</Text>
+              <Pressable onPress={() => setShowPaydayPicker(false)}>
+                <X size={24} color="#006A6A" />
+              </Pressable>
+            </View>
+          </SafeAreaView>
 
           <FlatList
             data={paydayOptions}
             keyExtractor={(item) => String(item.value)}
+            contentContainerStyle={{ paddingBottom: 40 }}
             renderItem={({ item }) => (
               <Pressable
                 onPress={() => {
@@ -245,7 +248,7 @@ export default function PaydaySettingsScreen() {
               </Pressable>
             )}
           />
-        </SafeAreaView>
+        </View>
       </Modal>
     </>
   );
