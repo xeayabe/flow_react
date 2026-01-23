@@ -30,6 +30,7 @@ export default function CategoriesScreen() {
   const { user } = db.useAuth();
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<any | null>(null);
+  const [selectedType, setSelectedType] = useState<CategoryType>('expense');
   const [formData, setFormData] = useState<FormData>({
     name: '',
     type: '',
@@ -157,7 +158,7 @@ export default function CategoriesScreen() {
       newErrors.type = 'Please select a type';
     }
 
-    if (formData.type === 'expense' && !formData.groupKey) {
+    if (!formData.groupKey) {
       newErrors.groupKey = 'Please select a group';
     }
 
@@ -167,6 +168,7 @@ export default function CategoriesScreen() {
 
   const handleCreateClick = () => {
     resetForm();
+    setFormData({ name: '', type: selectedType, groupKey: '', icon: '', color: '' });
     setShowModal(true);
   };
 
@@ -197,7 +199,7 @@ export default function CategoriesScreen() {
   };
 
   // Group categories by type and group
-  const groupCategories = (categories: any[]): SectionData[] => {
+  const groupCategories = (categories: any[], type: CategoryType): SectionData[] => {
     const sections: SectionData[] = [];
     const allGroups = categoryGroupsQuery.data || [];
 
@@ -207,9 +209,9 @@ export default function CategoriesScreen() {
     // Sort groups by displayOrder
     const sortedGroups = allGroups.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
-    // Add sections for each group
+    // Add sections for each group matching the selected type
     sortedGroups.forEach((group) => {
-      const categoriesForGroup = categories.filter((cat) => cat.categoryGroup === group.key && cat.type === group.type);
+      const categoriesForGroup = categories.filter((cat) => cat.categoryGroup === group.key && cat.type === group.type && group.type === type);
       if (categoriesForGroup.length > 0) {
         sections.push({
           title: group.icon ? `${group.icon} ${group.name}` : group.name,
@@ -222,7 +224,7 @@ export default function CategoriesScreen() {
   };
 
   const categories = (categoriesQuery.data as any[]) || [];
-  const sections = groupCategories(categories);
+  const sections = groupCategories(categories, selectedType);
 
   if (householdQuery.isLoading || categoriesQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
@@ -260,6 +262,33 @@ export default function CategoriesScreen() {
       />
 
       <SafeAreaView edges={['bottom']} className="flex-1">
+        {/* Type Selector */}
+        <View className="px-6 py-4 gap-3">
+          <View className="flex-row gap-3">
+            {(['expense', 'income'] as const).map((type) => (
+              <Pressable
+                key={type}
+                onPress={() => setSelectedType(type)}
+                className={cn(
+                  'flex-1 py-3 rounded-lg border-2 items-center',
+                  selectedType === type
+                    ? 'bg-teal-50 border-teal-600'
+                    : 'border-gray-200'
+                )}
+              >
+                <Text
+                  className={cn(
+                    'font-medium capitalize',
+                    selectedType === type ? 'text-teal-600' : 'text-gray-700'
+                  )}
+                >
+                  {type}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
         {sections.length === 0 ? (
           <View className="flex-1 items-center justify-center px-6">
             <Text className="text-base text-gray-500">No categories yet</Text>
@@ -351,7 +380,7 @@ export default function CategoriesScreen() {
                           setFormData({
                             ...formData,
                             type,
-                            groupKey: type === 'income' ? 'income' : '',
+                            groupKey: '',
                           });
                           if (errors.type) setErrors({ ...errors, type: '' });
                         }}
