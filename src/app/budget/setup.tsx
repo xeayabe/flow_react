@@ -257,9 +257,20 @@ export default function BudgetSetupScreen() {
       return;
     }
     const amount = parseFloat(newAmount) || 0;
+    const income = parseFloat(monthlyIncome) || 0;
+
+    // Calculate how much is already allocated (excluding this category)
+    const otherAllocations = Object.entries(allocations)
+      .filter(([id]) => id !== categoryId)
+      .reduce((sum, [, value]) => sum + value, 0);
+
+    // Cap the allocation to not exceed income
+    const maxAllowable = Math.max(0, income - otherAllocations);
+    const cappedAmount = Math.min(Math.max(0, amount), maxAllowable);
+
     setAllocations((prev) => ({
       ...prev,
-      [categoryId]: Math.max(0, amount),
+      [categoryId]: cappedAmount,
     }));
   };
 
@@ -347,6 +358,13 @@ export default function BudgetSetupScreen() {
 
     if (Object.keys(nonZeroAllocations).length === 0) {
       setShowSaveError('Please allocate at least one category');
+      return;
+    }
+
+    // Check that total allocations don't exceed income
+    const totalAllocated = Object.values(nonZeroAllocations).reduce((sum, amount) => sum + amount, 0);
+    if (totalAllocated > income) {
+      setShowSaveError(`Total allocations (${totalAllocated.toFixed(2)} CHF) exceed your income (${income.toFixed(2)} CHF)`);
       return;
     }
 
