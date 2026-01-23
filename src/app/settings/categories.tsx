@@ -7,9 +7,7 @@ import { ChevronLeft, Plus, Edit2, Trash2, X } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '@/lib/categories-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
-import { ensureDefaultCategoryGroups } from '@/lib/setup-category-groups';
 import { cn } from '@/lib/cn';
-import { ensureDefaultCategories } from '@/lib/setup-category-groups';
 
 type CategoryType = 'income' | 'expense';
 
@@ -80,17 +78,11 @@ export default function CategoriesScreen() {
     enabled: !!user?.email,
   });
 
-  // Get categories
+  // Get categories - fetch directly from DB without auto-creating
   const categoriesQuery = useQuery({
-    queryKey: ['categories', householdQuery.data?.household?.id, householdQuery.data?.userRecord?.id],
+    queryKey: ['categories', householdQuery.data?.household?.id],
     queryFn: async () => {
       if (!householdQuery.data?.household?.id) return [];
-
-      // Ensure default categories and groups exist
-      if (householdQuery.data?.userRecord?.id) {
-        await ensureDefaultCategories(householdQuery.data.household.id, householdQuery.data.userRecord.id);
-      }
-
       return getCategories(householdQuery.data.household.id);
     },
     enabled: !!householdQuery.data?.household?.id,
