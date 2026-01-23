@@ -565,6 +565,9 @@ export default function AddTransactionScreen() {
               <Text className="text-xs text-yellow-800">
                 Debug: categories={categories.length}, filtered={filteredCategories.length}, type={formData.type}
               </Text>
+              <Text className="text-xs text-yellow-800">
+                Groups: {Object.keys(groupedCategories).join(', ') || 'none'}
+              </Text>
             </View>
           )}
 
