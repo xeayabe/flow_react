@@ -5,7 +5,7 @@ import { Category } from './categories-api';
 export interface CategorySpending {
   categoryId: string;
   categoryName: string;
-  categoryGroup: 'income' | 'needs' | 'wants' | 'savings' | 'other';
+  categoryGroup: string; // Can be default keys or custom keys like 'custom_123456'
   amount: number;
   percentage: number;
   color: string;

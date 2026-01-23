@@ -7,7 +7,7 @@ export interface Category {
   householdId: string;
   name: string;
   type: 'income' | 'expense';
-  categoryGroup: 'income' | 'needs' | 'wants' | 'savings' | 'other';
+  categoryGroup: string; // Can be default keys like 'income', 'needs', 'wants', 'savings', 'other' or custom keys like 'custom_123456'
   isShareable: boolean;
   isDefault: boolean;
   createdByUserId?: string;
