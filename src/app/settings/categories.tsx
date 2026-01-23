@@ -196,79 +196,29 @@ export default function CategoriesScreen() {
   // Group categories by type and group
   const groupCategories = (categories: any[]): SectionData[] => {
     const sections: SectionData[] = [];
-    const incomeGroups = (categoryGroupsQuery.data || []).filter((group) => group.type === 'income');
+    const allGroups = categoryGroupsQuery.data || [];
 
-    // Income categories - group by category groups
-    if (incomeGroups.length > 0) {
-      incomeGroups.forEach((incomeGroup) => {
-        const incomeCategoriesForGroup = categories.filter(
-          (cat) => cat.type === 'income' && cat.categoryGroup === incomeGroup.key
-        );
-        if (incomeCategoriesForGroup.length > 0) {
-          sections.push({
-            title: incomeGroup.icon ? `${incomeGroup.icon} ${incomeGroup.name}` : incomeGroup.name,
-            data: incomeCategoriesForGroup,
-          });
-        }
-      });
-    } else {
-      // Fallback if no income groups
-      const incomeCategories = categories.filter((cat) => cat.type === 'income');
-      if (incomeCategories.length > 0) {
+    // Get all unique group keys from categories
+    const groupKeysWithCategories = new Set<string>();
+    categories.forEach((cat) => {
+      if (cat.categoryGroup) {
+        groupKeysWithCategories.add(cat.categoryGroup);
+      }
+    });
+
+    // Sort groups by displayOrder
+    const sortedGroups = allGroups.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+
+    // Add sections for each group that has categories
+    sortedGroups.forEach((group) => {
+      if (groupKeysWithCategories.has(group.key)) {
+        const categoriesForGroup = categories.filter((cat) => cat.categoryGroup === group.key);
         sections.push({
-          title: 'Income',
-          data: incomeCategories,
+          title: group.icon ? `${group.icon} ${group.name}` : group.name,
+          data: categoriesForGroup,
         });
       }
-    }
-
-    // Needs categories
-    const needsCategories = categories.filter(
-      (cat) => cat.type === 'expense' && cat.categoryGroup === 'needs'
-    );
-    if (needsCategories.length > 0) {
-      const needsGroup = (categoryGroupsQuery.data || []).find((g) => g.key === 'needs');
-      sections.push({
-        title: needsGroup ? (needsGroup.icon ? `${needsGroup.icon} ${needsGroup.name}` : needsGroup.name) : 'Needs (50%)',
-        data: needsCategories,
-      });
-    }
-
-    // Wants categories
-    const wantsCategories = categories.filter(
-      (cat) => cat.type === 'expense' && cat.categoryGroup === 'wants'
-    );
-    if (wantsCategories.length > 0) {
-      const wantsGroup = (categoryGroupsQuery.data || []).find((g) => g.key === 'wants');
-      sections.push({
-        title: wantsGroup ? (wantsGroup.icon ? `${wantsGroup.icon} ${wantsGroup.name}` : wantsGroup.name) : 'Wants (30%)',
-        data: wantsCategories,
-      });
-    }
-
-    // Savings categories
-    const savingsCategories = categories.filter(
-      (cat) => cat.type === 'expense' && cat.categoryGroup === 'savings'
-    );
-    if (savingsCategories.length > 0) {
-      const savingsGroup = (categoryGroupsQuery.data || []).find((g) => g.key === 'savings');
-      sections.push({
-        title: savingsGroup ? (savingsGroup.icon ? `${savingsGroup.icon} ${savingsGroup.name}` : savingsGroup.name) : 'Savings (20%)',
-        data: savingsCategories,
-      });
-    }
-
-    // Other categories
-    const otherCategories = categories.filter(
-      (cat) => cat.type === 'expense' && cat.categoryGroup === 'other'
-    );
-    if (otherCategories.length > 0) {
-      const otherGroup = (categoryGroupsQuery.data || []).find((g) => g.key === 'other');
-      sections.push({
-        title: otherGroup ? (otherGroup.icon ? `${otherGroup.icon} ${otherGroup.name}` : otherGroup.name) : 'Other',
-        data: otherCategories,
-      });
-    }
+    });
 
     return sections;
   };
