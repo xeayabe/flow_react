@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import { createTransaction, formatCurrency, formatDateSwiss, parseSwissDate } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
 import { getUserAccounts, formatBalance } from '@/lib/accounts-api';
+import { migrateCategoryGroups } from '@/lib/migrate-categories';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -120,6 +121,13 @@ export default function AddTransactionScreen() {
         console.warn('Household ID not available for categories query');
         return [];
       }
+
+      // Run migration first (only migrates if needed)
+      const migration = await migrateCategoryGroups(householdQuery.data.household.id);
+      if (migration.migrated > 0) {
+        console.log(`Migrated ${migration.migrated} categories to proper groups`);
+      }
+
       const cats = await getCategories(householdQuery.data.household.id);
       console.log('Categories loaded:', { count: cats.length, categories: cats.map(c => ({ id: c.id, name: c.name, type: c.type, group: c.categoryGroup })) });
       return cats;
@@ -568,6 +576,9 @@ export default function AddTransactionScreen() {
               <Text className="text-xs text-yellow-800">
                 Groups: {Object.keys(groupedCategories).join(', ') || 'none'}
               </Text>
+              <Text className="text-xs text-yellow-800">
+                Sample: {filteredCategories.slice(0, 2).map(c => `${c.name}:${c.categoryGroup}`).join(', ')}
+              </Text>
             </View>
           )}
 
@@ -587,45 +598,51 @@ export default function AddTransactionScreen() {
                 )}
               </View>
             ) : (
-              groupOrder.map((group) => {
-                const groupCategories = groupedCategories[group] || [];
-                if (groupCategories.length === 0) return null;
+              <>
+                {/* Render all groups that exist in the data */}
+                {Object.keys(groupedCategories).map((group) => {
+                  const groupCategories = groupedCategories[group] || [];
+                  if (groupCategories.length === 0) return null;
 
-                const groupLabels: Record<string, string> = {
-                  income: 'Income',
-                  needs: 'Needs (50%)',
-                  wants: 'Wants (30%)',
-                  savings: 'Savings (20%)',
-                  other: 'Other',
-                };
+                  const groupLabels: Record<string, string> = {
+                    income: 'Income',
+                    needs: 'Needs (50%)',
+                    wants: 'Wants (30%)',
+                    savings: 'Savings (20%)',
+                    other: 'Other',
+                  };
 
-                return (
-                  <View key={group}>
-                    <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{groupLabels[group]}</Text>
-                    {groupCategories.map((category: any) => (
-                      <Pressable
-                        key={category.id}
-                        onPress={() => {
-                          setFormData({ ...formData, categoryId: category.id });
-                          setShowCategoryModal(false);
-                        }}
-                        className={cn(
-                          'p-4 rounded-lg mb-2 flex-row items-center justify-between',
-                          formData.categoryId === category.id ? 'bg-teal-50' : 'bg-gray-50'
-                        )}
-                      >
-                        <View className="flex-row items-center gap-3 flex-1">
-                          {category.icon && <Text className="text-lg">{category.icon}</Text>}
-                          <Text className={cn('font-medium', formData.categoryId === category.id ? 'text-teal-600' : 'text-gray-900')}>
-                            {category.name}
-                          </Text>
-                        </View>
-                        {formData.categoryId === category.id && <Check size={20} color="#006A6A" />}
-                      </Pressable>
-                    ))}
-                  </View>
-                );
-              })
+                  // Use proper label or fallback to "Categories"
+                  const label = groupLabels[group] || 'Categories';
+
+                  return (
+                    <View key={group}>
+                      <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{label}</Text>
+                      {groupCategories.map((category: any) => (
+                        <Pressable
+                          key={category.id}
+                          onPress={() => {
+                            setFormData({ ...formData, categoryId: category.id });
+                            setShowCategoryModal(false);
+                          }}
+                          className={cn(
+                            'p-4 rounded-lg mb-2 flex-row items-center justify-between',
+                            formData.categoryId === category.id ? 'bg-teal-50' : 'bg-gray-50'
+                          )}
+                        >
+                          <View className="flex-row items-center gap-3 flex-1">
+                            {category.icon && <Text className="text-lg">{category.icon}</Text>}
+                            <Text className={cn('font-medium', formData.categoryId === category.id ? 'text-teal-600' : 'text-gray-900')}>
+                              {category.name}
+                            </Text>
+                          </View>
+                          {formData.categoryId === category.id && <Check size={20} color="#006A6A" />}
+                        </Pressable>
+                      ))}
+                    </View>
+                  );
+                })}
+              </>
             )}
           </ScrollView>
         </View>
