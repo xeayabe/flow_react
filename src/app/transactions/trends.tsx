@@ -7,7 +7,7 @@ import { db } from '@/lib/db';
 import { getTrendData, formatCurrency, formatPercentage, BudgetPeriodSummary } from '@/lib/trends-api';
 import { cn } from '@/lib/cn';
 
-type TimeRange = '3months' | '6months' | '12months' | 'all';
+type TimeRange = 'current' | 'last' | '3months' | '6months' | '12months' | 'all';
 
 export default function TrendsScreen() {
   const { user } = db.useAuth();
@@ -50,8 +50,10 @@ export default function TrendsScreen() {
     enabled: !!user?.email,
   });
 
-  // Map time range to months
-  const monthsMap: Record<TimeRange, number> = {
+  // Map time range to periods count
+  const periodsMap: Record<TimeRange, number> = {
+    'current': 1,
+    'last': 2,
     '3months': 3,
     '6months': 6,
     '12months': 12,
@@ -65,7 +67,7 @@ export default function TrendsScreen() {
       householdQuery.data?.userRecord?.id,
       householdQuery.data?.household?.id,
       timeRange,
-      monthsMap[timeRange],
+      periodsMap[timeRange],
     ],
     queryFn: async () => {
       if (!householdQuery.data?.userRecord?.id || !householdQuery.data?.household?.id) {
@@ -75,16 +77,18 @@ export default function TrendsScreen() {
       return getTrendData(
         householdQuery.data.userRecord.id,
         householdQuery.data.household.id,
-        monthsMap[timeRange]
+        periodsMap[timeRange]
       );
     },
     enabled: !!householdQuery.data?.userRecord?.id && !!householdQuery.data?.household?.id,
   });
 
   const timeRangeLabels: Record<TimeRange, string> = {
-    '3months': 'Last 3 Months',
-    '6months': 'Last 6 Months',
-    '12months': 'Last 12 Months',
+    'current': 'Current Period',
+    'last': 'Last Period',
+    '3months': 'Last 3 Periods',
+    '6months': 'Last 6 Periods',
+    '12months': 'Last 12 Periods',
     'all': 'All Time',
   };
 
@@ -113,8 +117,8 @@ export default function TrendsScreen() {
               <Pressable
                 className="flex-row items-center gap-2 px-3 py-2 rounded-lg bg-gray-100"
                 onPress={() => {
-                  // Simple toggle for now - will enhance later
-                  const ranges: TimeRange[] = ['3months', '6months', '12months', 'all'];
+                  // Toggle through all time ranges
+                  const ranges: TimeRange[] = ['current', 'last', '3months', '6months', '12months', 'all'];
                   const currentIndex = ranges.indexOf(timeRange);
                   const nextIndex = (currentIndex + 1) % ranges.length;
                   setTimeRange(ranges[nextIndex]);
