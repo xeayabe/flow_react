@@ -9,6 +9,7 @@ import { createTransaction, formatCurrency, formatDateSwiss, parseSwissDate } fr
 import { getCategories } from '@/lib/categories-api';
 import { getUserAccounts, formatBalance } from '@/lib/accounts-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
+import { migrateCategoryGroups } from '@/lib/migrate-categories';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -122,6 +123,9 @@ export default function AddTransactionScreen() {
         return [];
       }
 
+      // Run migration first to fix any categories with old hardcoded group values
+      await migrateCategoryGroups(householdQuery.data.household.id);
+
       const cats = await getCategories(householdQuery.data.household.id);
       console.log('Categories loaded:', { count: cats.length, categories: cats.map(c => ({ id: c.id, name: c.name, type: c.type, group: c.categoryGroup })) });
       return cats;
@@ -225,50 +229,25 @@ export default function AddTransactionScreen() {
   // Get category groups
   const categoryGroups = categoryGroupsQuery.data || [];
 
-  // Create a map of group keys to group names
-  const groupKeyToName: Record<string, string> = {
-    // Fallback labels for standard groups
-    income: 'Income',
-    needs: 'Needs (50%)',
-    wants: 'Wants (30%)',
-    savings: 'Savings (20%)',
-    other: 'Other',
-  };
-  // Override with actual group names from database
+  // Create a map of group keys to group info
+  const groupKeyToInfo: Record<string, { name: string; icon?: string; type: string }> = {};
   categoryGroups.forEach((group) => {
-    groupKeyToName[group.key] = group.name;
+    groupKeyToInfo[group.key] = { name: group.name, icon: group.icon, type: group.type };
   });
 
-  // Group categories by their categoryGroup field
+  // Group categories by their categoryGroup field (which stores the group key)
   const groupedCategories = filteredCategories.reduce((acc, cat) => {
-    const group = cat.categoryGroup;
-    if (!acc[group]) acc[group] = [];
-    acc[group].push(cat);
+    const groupKey = cat.categoryGroup;
+    if (!acc[groupKey]) acc[groupKey] = [];
+    acc[groupKey].push(cat);
     return acc;
   }, {} as Record<string, any[]>);
 
-  // Get the order of groups - first from categoryGroups query, then add any missing standard groups
-  const categoryGroupKeys = categoryGroups
+  // Get the order of groups - sorted by displayOrder from the database
+  const groupOrder = categoryGroups
     .filter((g) => g.type === formData.type)
+    .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
     .map((g) => g.key);
-
-  // Add standard group keys that might have categories but aren't in categoryGroups table
-  const standardGroupOrder = formData.type === 'income' ? ['income'] : ['needs', 'wants', 'savings', 'other'];
-  const allGroupKeys = [...categoryGroupKeys];
-  standardGroupOrder.forEach((key) => {
-    if (!allGroupKeys.includes(key) && groupedCategories[key]) {
-      allGroupKeys.push(key);
-    }
-  });
-
-  // Also add any other group keys that have categories
-  Object.keys(groupedCategories).forEach((key) => {
-    if (!allGroupKeys.includes(key)) {
-      allGroupKeys.push(key);
-    }
-  });
-
-  const groupOrder = allGroupKeys;
 
   if (householdQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
@@ -648,12 +627,13 @@ export default function AddTransactionScreen() {
                   const groupCategories = groupedCategories[groupKey] || [];
                   if (groupCategories.length === 0) return null;
 
-                  // Get the group name from the categoryGroups data
-                  const groupName = groupKeyToName[groupKey] || 'Categories';
+                  // Get the group info from the map
+                  const groupInfo = groupKeyToInfo[groupKey];
+                  const displayName = groupInfo ? (groupInfo.icon ? `${groupInfo.icon} ${groupInfo.name}` : groupInfo.name) : 'Categories';
 
                   return (
                     <View key={groupKey}>
-                      <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{groupName}</Text>
+                      <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{displayName}</Text>
                       {groupCategories.map((category: any) => (
                         <Pressable
                           key={category.id}
