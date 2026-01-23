@@ -274,8 +274,8 @@ export default function BudgetSetupScreen() {
     }));
   };
 
-  // Handle percentage change
-  const handlePercentageChange = (categoryId: string, newPercentage: string) => {
+  // Handle percentage change (relative to group budget, not total income)
+  const handlePercentageChange = (categoryId: string, newPercentage: string, groupKey?: string) => {
     if (!newPercentage) {
       setAllocations((prev) => ({
         ...prev,
@@ -283,13 +283,27 @@ export default function BudgetSetupScreen() {
       }));
       return;
     }
-    const income = parseFloat(monthlyIncome) || 0;
     const percentage = parseFloat(newPercentage) || 0;
-    const amount = calculateAmountFromPercentage(Math.max(0, percentage), income);
-    setAllocations((prev) => ({
-      ...prev,
-      [categoryId]: amount,
-    }));
+
+    // If groupKey is provided, calculate based on group budget
+    if (groupKey) {
+      const groupPercentageValue = groupPercentages[groupKey] || 0;
+      const income = parseFloat(monthlyIncome) || 0;
+      const groupBudgetAmount = calculateAmountFromPercentage(groupPercentageValue, income);
+      const amount = calculateAmountFromPercentage(Math.max(0, percentage), groupBudgetAmount);
+      setAllocations((prev) => ({
+        ...prev,
+        [categoryId]: amount,
+      }));
+    } else {
+      // Fallback to total income (shouldn't happen in normal usage)
+      const income = parseFloat(monthlyIncome) || 0;
+      const amount = calculateAmountFromPercentage(Math.max(0, percentage), income);
+      setAllocations((prev) => ({
+        ...prev,
+        [categoryId]: amount,
+      }));
+    }
   };
 
   // Handle group percentage change
@@ -607,7 +621,8 @@ export default function BudgetSetupScreen() {
                       {hasCategories ? (
                         group!.categories.map((category) => {
                           const amount = allocations[category.id] || 0;
-                          const percentage = income > 0 ? calculatePercentage(amount, income) : 0;
+                          // Calculate percentage relative to the group's budget, not total income
+                          const percentage = groupBudgetAmount > 0 ? calculatePercentage(amount, groupBudgetAmount) : 0;
                           const isEditingAmount = editingField === `amount-${category.id}`;
                           const isEditingPercentage = editingField === `percentage-${category.id}`;
                           const isOverGroupBudget = amount > groupBudgetAmount;
@@ -666,7 +681,7 @@ export default function BudgetSetupScreen() {
                                     ? parts[0] + '.' + parts.slice(1).join('')
                                     : filtered;
                                   setEditingValue(cleanValue);
-                                  handlePercentageChange(category.id, cleanValue);
+                                  handlePercentageChange(category.id, cleanValue, categoryGroup.key);
                                 }}
                                 onFocus={() => {
                                   setEditingField(`percentage-${category.id}`);
