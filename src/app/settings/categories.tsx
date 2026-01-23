@@ -228,6 +228,15 @@ export default function CategoriesScreen() {
     );
   }
 
+  // Debug output
+  if (__DEV__) {
+    console.log('Categories screen debug:', {
+      allCategories: categories.length,
+      allCategoryGroups: (categoryGroupsQuery.data || []).map(g => ({ key: g.key, name: g.name, type: g.type })),
+      sections: sections.map(s => ({ title: s.title, count: s.data.length })),
+    });
+  }
+
   return (
     <View className="flex-1 bg-white">
       <Stack.Screen
