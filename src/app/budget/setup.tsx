@@ -47,6 +47,7 @@ export default function BudgetSetupScreen() {
   const { user } = db.useAuth();
   const [monthlyIncome, setMonthlyIncome] = useState<string>('');
   const [allocations, setAllocations] = useState<Record<string, number>>({});
+  const [groupPercentages, setGroupPercentages] = useState<Record<string, number>>({});
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
@@ -250,6 +251,22 @@ export default function BudgetSetupScreen() {
     }));
   };
 
+  // Handle group percentage change
+  const handleGroupPercentageChange = (groupKey: string, newPercentage: string) => {
+    if (!newPercentage) {
+      setGroupPercentages((prev) => ({
+        ...prev,
+        [groupKey]: 0,
+      }));
+      return;
+    }
+    const percentage = parseFloat(newPercentage) || 0;
+    setGroupPercentages((prev) => ({
+      ...prev,
+      [groupKey]: Math.max(0, percentage),
+    }));
+  };
+
   // Auto-balance remaining
   const handleAutoBalance = () => {
     if (remaining <= 0 || income === 0) return;
@@ -437,27 +454,81 @@ export default function BudgetSetupScreen() {
                 if (!group || !group.categories || group.categories.length === 0) {
                   return null;
                 }
+                const groupPercentageValue = groupPercentages[categoryGroup.key] || 0;
+                const groupBudgetAmount = calculateAmountFromPercentage(groupPercentageValue, income);
                 const groupTotal = group.categories.reduce((sum, cat) => sum + cat.allocatedAmount, 0);
-                const groupPercentage = income > 0 ? (groupTotal / income) * 100 : 0;
-                const isOverTarget = group.targetPercentage > 0 && groupPercentage > group.targetPercentage;
+                const groupActualPercentage = income > 0 ? (groupTotal / income) * 100 : 0;
+                const isGroupOverBudget = groupTotal > groupBudgetAmount;
+                const isEditingGroupPercentage = editingField === `group-percentage-${categoryGroup.key}`;
 
                 return (
                   <View key={categoryGroup.key} className="mb-8">
-                    {/* Group Header */}
-                    <View className="mb-4 pb-3 border-b border-gray-200">
-                      <View className="flex-row items-center justify-between">
-                        <View className="flex-row items-center gap-2">
-                          <Text className="text-xl">{categoryGroup.icon || group.icon}</Text>
-                          <View>
-                            <Text className="text-sm font-semibold text-gray-700 uppercase">
-                              {categoryGroup.name}
-                            </Text>
-                            <Text className={cn('text-xs mt-0.5', isOverTarget ? 'text-red-500 font-semibold' : 'text-gray-500')}>
-                              {groupTotal.toFixed(2)} CHF ({groupPercentage.toFixed(1)}%)
-                            </Text>
-                          </View>
+                    {/* Group Header with Percentage Input */}
+                    <View className="mb-4 pb-4 border-b border-gray-200">
+                      <View className="flex-row items-center gap-2 mb-3">
+                        <Text className="text-xl">{categoryGroup.icon || group.icon}</Text>
+                        <View className="flex-1">
+                          <Text className="text-sm font-semibold text-gray-700 uppercase">
+                            {categoryGroup.name}
+                          </Text>
                         </View>
                       </View>
+
+                      {/* Group Percentage and Amount Input */}
+                      <View className="flex-row gap-2">
+                        <View className="flex-1">
+                          <TextInput
+                            value={isEditingGroupPercentage ? editingValue : (groupPercentageValue > 0 ? groupPercentageValue.toString() : '')}
+                            onChangeText={(text) => {
+                              const filtered = text.replace(/[^0-9.,]/g, '').replace(',', '.');
+                              const parts = filtered.split('.');
+                              const cleanValue = parts.length > 2
+                                ? parts[0] + '.' + parts.slice(1).join('')
+                                : filtered;
+                              setEditingValue(cleanValue);
+                              handleGroupPercentageChange(categoryGroup.key, cleanValue);
+                            }}
+                            onFocus={() => {
+                              setEditingField(`group-percentage-${categoryGroup.key}`);
+                              setEditingValue(groupPercentageValue > 0 ? groupPercentageValue.toString() : '');
+                            }}
+                            onBlur={() => {
+                              setEditingField(null);
+                              setEditingValue('');
+                            }}
+                            placeholder="0"
+                            placeholderTextColor="#D1D5DB"
+                            keyboardType="decimal-pad"
+                            className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
+                            style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+                          />
+                          <Text className="text-xs text-gray-500 mt-1">Budget %</Text>
+                        </View>
+                        <View className="flex-1">
+                          <View className="px-3 py-2 rounded-lg bg-blue-50" style={{ borderWidth: 1, borderColor: '#BFDBFE' }}>
+                            <Text className="text-sm font-semibold text-blue-900">
+                              {groupBudgetAmount.toFixed(2)}
+                            </Text>
+                          </View>
+                          <Text className="text-xs text-gray-500 mt-1">Budget CHF</Text>
+                        </View>
+                        <View className="flex-1">
+                          <View className={cn('px-3 py-2 rounded-lg', isGroupOverBudget ? 'bg-red-50' : 'bg-green-50')} style={{ borderWidth: 1, borderColor: isGroupOverBudget ? '#FECACA' : '#BBFBEE' }}>
+                            <Text className={cn('text-sm font-semibold', isGroupOverBudget ? 'text-red-900' : 'text-green-900')}>
+                              {groupTotal.toFixed(2)}
+                            </Text>
+                          </View>
+                          <Text className="text-xs text-gray-500 mt-1">Used CHF</Text>
+                        </View>
+                      </View>
+
+                      {isGroupOverBudget && (
+                        <View className="mt-2 p-2 bg-red-50 rounded-lg">
+                          <Text className="text-xs text-red-600 font-medium">
+                            Over budget by {(groupTotal - groupBudgetAmount).toFixed(2)} CHF
+                          </Text>
+                        </View>
+                      )}
                     </View>
 
                     {/* Categories in Group */}
@@ -467,6 +538,7 @@ export default function BudgetSetupScreen() {
                         const percentage = income > 0 ? calculatePercentage(amount, income) : 0;
                         const isEditingAmount = editingField === `amount-${category.id}`;
                         const isEditingPercentage = editingField === `percentage-${category.id}`;
+                        const isOverGroupBudget = amount > groupBudgetAmount;
 
                         return (
                           <View key={category.id} className="mb-5">
@@ -505,7 +577,7 @@ export default function BudgetSetupScreen() {
                                 placeholderTextColor="#D1D5DB"
                                 keyboardType="decimal-pad"
                                 className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
-                                style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+                                style={{ borderWidth: 1, borderColor: isOverGroupBudget ? '#FCA5A5' : '#E5E7EB' }}
                               />
                               <Text className="text-xs text-gray-500 mt-0.5">CHF</Text>
                             </View>
@@ -536,7 +608,7 @@ export default function BudgetSetupScreen() {
                                 placeholderTextColor="#D1D5DB"
                                 keyboardType="decimal-pad"
                                 className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
-                                style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+                                style={{ borderWidth: 1, borderColor: isOverGroupBudget ? '#FCA5A5' : '#E5E7EB' }}
                               />
                               <Text className="text-xs text-gray-500 mt-0.5">%</Text>
                             </View>
@@ -545,7 +617,7 @@ export default function BudgetSetupScreen() {
                           {/* Progress Bar */}
                           <View className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
                             <View
-                              className={cn('h-full', isOverTarget ? 'bg-red-500' : 'bg-teal-500')}
+                              className={cn('h-full', isOverGroupBudget ? 'bg-red-500' : 'bg-teal-500')}
                               style={{ width: `${Math.min(100, percentage)}%` }}
                             />
                           </View>
