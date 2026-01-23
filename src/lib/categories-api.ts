@@ -274,7 +274,11 @@ export async function getCategories(householdId: string): Promise<Category[]> {
       },
     });
 
+    console.log('getCategories query result:', { householdId, rawCategories: result.data.categories });
+
     const categories = (result.data.categories ?? []).filter((cat: any) => cat.isActive) as Category[];
+
+    console.log('getCategories filtered:', { householdId, count: categories.length, categories: categories.map(c => ({ id: c.id, name: c.name, type: c.type, group: c.categoryGroup })) });
 
     // Sort: default categories first, then custom, then alphabetical
     categories.sort((a: Category, b: Category) => {

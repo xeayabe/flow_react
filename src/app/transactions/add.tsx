@@ -559,6 +559,15 @@ export default function AddTransactionScreen() {
             </View>
           </SafeAreaView>
 
+          {/* Debug info */}
+          {__DEV__ && (
+            <View className="px-6 py-2 bg-yellow-50 border-b border-yellow-200">
+              <Text className="text-xs text-yellow-800">
+                Debug: categories={categories.length}, filtered={filteredCategories.length}, type={formData.type}
+              </Text>
+            </View>
+          )}
+
           <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 40 }}>
             {categoriesQuery.isLoading ? (
               <View className="items-center justify-center py-8">
@@ -567,6 +576,12 @@ export default function AddTransactionScreen() {
             ) : filteredCategories.length === 0 ? (
               <View className="items-center justify-center py-8">
                 <Text className="text-gray-500 text-center">No categories available for {formData.type}</Text>
+                {__DEV__ && (
+                  <Text className="text-xs text-gray-400 mt-2 text-center">
+                    Total categories: {categories.length}{'\n'}
+                    Query data exists: {categoriesQuery.data ? 'yes' : 'no'}
+                  </Text>
+                )}
               </View>
             ) : (
               groupOrder.map((group) => {
