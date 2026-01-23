@@ -16,7 +16,8 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, X, Zap } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/db';
-import { saveBudget, getBudgetDetails } from '@/lib/budget-api';
+import { saveBudget, getBudgetDetails, getBudgetSummary } from '@/lib/budget-api';
+import { getCategoryGroups } from '@/lib/category-groups-api';
 import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
 import { calculatePercentage, calculateAmountFromPercentage, autoBalanceRemaining, apply503020Split } from '@/lib/budget-utils';
 import { cn } from '@/lib/cn';
@@ -104,6 +105,15 @@ export default function BudgetSetupScreen() {
     enabled: !!householdQuery.data?.household?.id,
   });
 
+  const categoryGroupsQuery = useQuery({
+    queryKey: ['categoryGroups', householdQuery.data?.household?.id],
+    queryFn: async () => {
+      if (!householdQuery.data?.household?.id) return [];
+      return getCategoryGroups(householdQuery.data.household.id);
+    },
+    enabled: !!householdQuery.data?.household?.id,
+  });
+
   // Get existing budget if available (for editing)
   const paydayDay = householdQuery.data?.household?.paydayDay ?? 25;
   const budgetPeriod = calculateBudgetPeriod(paydayDay);
@@ -147,22 +157,12 @@ export default function BudgetSetupScreen() {
 
   // Load monthly income from budget summary if in edit mode - will auto-populate when editing
   const budgetSummaryQuery = useQuery({
-    queryKey: ['budget-summary-income', householdQuery.data?.userRecord?.id, budgetPeriod.start],
+    queryKey: ['budget-summary-income', householdQuery.data?.userRecord?.id, householdQuery.data?.household?.id, budgetPeriod.start],
     queryFn: async () => {
-      if (!householdQuery.data?.userRecord?.id) return null;
-      const result = await db.queryOnce({
-        budgetSummary: {
-          $: {
-            where: {
-              userId: householdQuery.data.userRecord.id,
-              periodStart: budgetPeriod.start,
-            },
-          },
-        },
-      });
-      return result.data.budgetSummary?.[0] || null;
+      if (!householdQuery.data?.userRecord?.id || !householdQuery.data?.household?.id) return null;
+      return getBudgetSummary(householdQuery.data.userRecord.id, householdQuery.data.household.id, budgetPeriod.start);
     },
-    enabled: !!householdQuery.data?.userRecord?.id,
+    enabled: !!householdQuery.data?.userRecord?.id && !!householdQuery.data?.household?.id,
   });
 
   useEffect(() => {
@@ -170,45 +170,45 @@ export default function BudgetSetupScreen() {
     if (passedIncome && !monthlyIncome) {
       setMonthlyIncome(passedIncome);
     } else if (budgetSummaryQuery.data?.totalIncome && !monthlyIncome) {
+      // Load from budget summary (existing budget)
       setMonthlyIncome(budgetSummaryQuery.data.totalIncome.toString());
     }
-  }, [budgetSummaryQuery.data, monthlyIncome, passedIncome]);
+  }, [budgetSummaryQuery.data?.totalIncome, monthlyIncome, passedIncome]);
 
-  // Group categories by type
-  const groupedCategories: GroupedCategories = {
-    needs: {
-      group: 'needs',
-      icon: '🏠',
-      targetPercentage: 50,
-      categories: [],
-    },
-    wants: {
-      group: 'wants',
-      icon: '🎭',
-      targetPercentage: 30,
-      categories: [],
-    },
-    savings: {
-      group: 'savings',
-      icon: '💎',
-      targetPercentage: 20,
-      categories: [],
-    },
+  // Build grouped categories dynamically from category groups
+  const buildGroupedCategories = (): GroupedCategories => {
+    const grouped: GroupedCategories = {};
+    const allGroups = (categoryGroupsQuery.data || []).filter((g) => g.type === 'expense');
+
+    // Initialize groups from database
+    allGroups.forEach((group) => {
+      grouped[group.key] = {
+        group: group.key,
+        icon: group.icon || '📂',
+        targetPercentage: 0, // Will be set by user
+        categories: [],
+      };
+    });
+
+    // Add categories to their groups
+    if (categoriesQuery.data) {
+      categoriesQuery.data.forEach((cat: any) => {
+        const group = cat.categoryGroup || 'other';
+        if (grouped[group]) {
+          grouped[group].categories.push({
+            id: cat.id,
+            name: cat.name,
+            group: cat.categoryGroup,
+            allocatedAmount: allocations[cat.id] || 0,
+          });
+        }
+      });
+    }
+
+    return grouped;
   };
 
-  if (categoriesQuery.data) {
-    categoriesQuery.data.forEach((cat: any) => {
-      const group = cat.categoryGroup || 'other';
-      if (groupedCategories[group]) {
-        groupedCategories[group].categories.push({
-          id: cat.id,
-          name: cat.name,
-          group: cat.categoryGroup,
-          allocatedAmount: allocations[cat.id] || 0,
-        });
-      }
-    });
-  }
+  const groupedCategories = buildGroupedCategories();
 
   // Calculate totals
   const income = parseFloat(monthlyIncome) || 0;
