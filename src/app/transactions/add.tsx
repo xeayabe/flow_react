@@ -8,7 +8,7 @@ import { db } from '@/lib/db';
 import { createTransaction, formatCurrency, formatDateSwiss, parseSwissDate } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
 import { getUserAccounts, formatBalance } from '@/lib/accounts-api';
-import { migrateCategoryGroups } from '@/lib/migrate-categories';
+import { getCategoryGroups } from '@/lib/category-groups-api';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -122,15 +122,21 @@ export default function AddTransactionScreen() {
         return [];
       }
 
-      // Run migration first (only migrates if needed)
-      const migration = await migrateCategoryGroups(householdQuery.data.household.id);
-      if (migration.migrated > 0) {
-        console.log(`Migrated ${migration.migrated} categories to proper groups`);
-      }
-
       const cats = await getCategories(householdQuery.data.household.id);
       console.log('Categories loaded:', { count: cats.length, categories: cats.map(c => ({ id: c.id, name: c.name, type: c.type, group: c.categoryGroup })) });
       return cats;
+    },
+    enabled: !!householdQuery.data?.household?.id,
+  });
+
+  // Get category groups
+  const categoryGroupsQuery = useQuery({
+    queryKey: ['categoryGroups', householdQuery.data?.household?.id],
+    queryFn: async () => {
+      if (!householdQuery.data?.household?.id) {
+        return [];
+      }
+      return getCategoryGroups(householdQuery.data.household.id);
     },
     enabled: !!householdQuery.data?.household?.id,
   });
@@ -216,7 +222,16 @@ export default function AddTransactionScreen() {
   const selectedCategory = categories.find((cat) => cat.id === formData.categoryId);
   const selectedAccount = accountsQuery.data?.find((acc) => acc.id === formData.accountId);
 
-  // Group categories
+  // Get category groups
+  const categoryGroups = categoryGroupsQuery.data || [];
+
+  // Create a map of group keys to group names
+  const groupKeyToName: Record<string, string> = {};
+  categoryGroups.forEach((group) => {
+    groupKeyToName[group.key] = group.name;
+  });
+
+  // Group categories by their categoryGroup field
   const groupedCategories = filteredCategories.reduce((acc, cat) => {
     const group = cat.categoryGroup;
     if (!acc[group]) acc[group] = [];
@@ -224,9 +239,12 @@ export default function AddTransactionScreen() {
     return acc;
   }, {} as Record<string, any[]>);
 
-  const groupOrder = formData.type === 'income' ? ['income'] : ['needs', 'wants', 'savings', 'other'];
+  // Get the order of groups from categoryGroups query (sorted by displayOrder)
+  const groupOrder = categoryGroups
+    .filter((g) => g.type === formData.type)
+    .map((g) => g.key);
 
-  if (householdQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading) {
+  if (householdQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
       <View className="flex-1 bg-white items-center justify-center">
         <ActivityIndicator size="large" color="#006A6A" />
@@ -599,25 +617,17 @@ export default function AddTransactionScreen() {
               </View>
             ) : (
               <>
-                {/* Render all groups that exist in the data */}
-                {Object.keys(groupedCategories).map((group) => {
-                  const groupCategories = groupedCategories[group] || [];
+                {/* Render all groups in the proper order */}
+                {groupOrder.map((groupKey) => {
+                  const groupCategories = groupedCategories[groupKey] || [];
                   if (groupCategories.length === 0) return null;
 
-                  const groupLabels: Record<string, string> = {
-                    income: 'Income',
-                    needs: 'Needs (50%)',
-                    wants: 'Wants (30%)',
-                    savings: 'Savings (20%)',
-                    other: 'Other',
-                  };
-
-                  // Use proper label or fallback to "Categories"
-                  const label = groupLabels[group] || 'Categories';
+                  // Get the group name from the categoryGroups data
+                  const groupName = groupKeyToName[groupKey] || 'Categories';
 
                   return (
-                    <View key={group}>
-                      <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{label}</Text>
+                    <View key={groupKey}>
+                      <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{groupName}</Text>
                       {groupCategories.map((category: any) => (
                         <Pressable
                           key={category.id}
