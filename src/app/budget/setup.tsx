@@ -296,6 +296,20 @@ export default function BudgetSetupScreen() {
       return;
     }
 
+    // Check if at least one group percentage is set
+    const groupPercentagesSet = Object.values(groupPercentages).filter(p => p > 0);
+    if (groupPercentagesSet.length === 0) {
+      setShowSaveError('Please set a percentage for at least one category group');
+      return;
+    }
+
+    // Check if group percentages total 100%
+    const totalGroupPercentage = Object.values(groupPercentages).reduce((sum, p) => sum + p, 0);
+    if (totalGroupPercentage < 99.99 || totalGroupPercentage > 100.01) {
+      setShowSaveError(`Category group percentages must total 100%. Currently: ${Math.round(totalGroupPercentage * 10) / 10}%`);
+      return;
+    }
+
     // Filter out zero allocations
     const nonZeroAllocations = Object.fromEntries(
       Object.entries(allocations).filter(([_, amount]) => (amount || 0) > 0)
@@ -303,13 +317,6 @@ export default function BudgetSetupScreen() {
 
     if (Object.keys(nonZeroAllocations).length === 0) {
       setShowSaveError('Please allocate at least one category');
-      return;
-    }
-
-    const totalAllocatedFiltered = Object.values(nonZeroAllocations).reduce((sum, amount) => sum + amount, 0);
-    const allocPercentage = (totalAllocatedFiltered / income) * 100;
-    if (allocPercentage < 99.99 || allocPercentage > 100.01) {
-      setShowSaveError(`Budget must total 100%. Currently: ${Math.round(allocPercentage * 10) / 10}%`);
       return;
     }
 
@@ -410,18 +417,18 @@ export default function BudgetSetupScreen() {
                   <Text className="text-lg font-bold text-blue-900">{income.toFixed(2)} CHF</Text>
                 </View>
                 <View className="items-end">
-                  <Text className="text-xs text-blue-600 mb-1">Allocated</Text>
-                  <Text className="text-lg font-bold text-blue-900">{totalAllocated.toFixed(2)} CHF</Text>
+                  <Text className="text-xs text-blue-600 mb-1">Group Allocation</Text>
+                  <Text className="text-lg font-bold text-blue-900">{Object.values(groupPercentages).reduce((sum, p) => sum + p, 0).toFixed(1)}%</Text>
                 </View>
               </View>
               <View className="h-2 bg-blue-200 rounded-full overflow-hidden">
                 <View
                   className="h-full bg-blue-600"
-                  style={{ width: `${Math.min(100, (totalAllocated / income) * 100)}%` }}
+                  style={{ width: `${Math.min(100, Object.values(groupPercentages).reduce((sum, p) => sum + p, 0))}%` }}
                 />
               </View>
               <Text className="text-xs text-blue-600 mt-2">
-                {allocatedPercentage.toFixed(1)}% • {remaining.toFixed(2)} CHF remaining
+                Set percentages for each category group to total 100%
               </Text>
             </View>
 
