@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, Dimensions } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { MonthlySummary } from '@/lib/trends-api';
+import { BudgetPeriodSummary } from '@/lib/trends-api';
 
 interface LineChartProps {
-  data: MonthlySummary[];
+  data: BudgetPeriodSummary[];
 }
 
 export default function LineChart({ data }: LineChartProps) {
@@ -46,13 +46,13 @@ export default function LineChart({ data }: LineChartProps) {
 
         {/* Data visualization - bars/columns instead of lines for simplicity */}
         <View className="flex-row items-flex-end justify-between px-2" style={{ height: chartHeight - 40 }}>
-          {data.map((month, i) => {
-            const incomHeight = normalizeValue(month.income);
-            const expenseHeight = normalizeValue(month.expenses);
+          {data.map((period, i) => {
+            const incomHeight = normalizeValue(period.income);
+            const expenseHeight = normalizeValue(period.expenses);
             const maxHeight = Math.max(incomHeight, expenseHeight);
 
             return (
-              <View key={`${month.month}-${i}`} className="items-center flex-1 mx-0.5">
+              <View key={`${period.periodStart}-${i}`} className="items-center flex-1 mx-0.5">
                 {/* Income bar */}
                 <View className="absolute w-1.5 bg-green-500 rounded-t" style={{ height: incomHeight }} />
                 {/* Expense bar */}
@@ -69,7 +69,7 @@ export default function LineChart({ data }: LineChartProps) {
             if (data.length > 6 && i % 2 !== 0) return <View key={`label-empty-${i}`} className="flex-1" />;
             return (
               <Text key={`label-${i}`} className="text-xs text-gray-600 flex-1 text-center">
-                {d.monthLabel.split(' ')[0]}
+                {d.periodLabel.split(' ')[0]}
               </Text>
             );
           })}

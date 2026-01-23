@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, Calendar } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { db } from '@/lib/db';
-import { getTrendData, formatCurrency, formatPercentage, MonthlySummary } from '@/lib/trends-api';
+import { getTrendData, formatCurrency, formatPercentage, BudgetPeriodSummary } from '@/lib/trends-api';
 import { cn } from '@/lib/cn';
 
 type TimeRange = '3months' | '6months' | '12months' | 'all';
@@ -200,12 +200,12 @@ export default function TrendsScreen() {
                               </Text>
                             )}
                             <View className="flex-row items-end justify-between h-48">
-                              {chartData.map((month) => {
-                                const incomeHeight = (month.income / maxValue) * 180;
-                                const expenseHeight = (month.expenses / maxValue) * 180;
+                              {chartData.map((period) => {
+                                const incomeHeight = (period.income / maxValue) * 180;
+                                const expenseHeight = (period.expenses / maxValue) * 180;
 
                                 return (
-                                  <View key={month.month} className="items-center flex-1 mx-0.5">
+                                  <View key={period.periodStart} className="items-center flex-1 mx-0.5">
                                     {/* Income bar */}
                                     <View
                                       className="w-2 bg-green-500 rounded-t"
@@ -228,8 +228,8 @@ export default function TrendsScreen() {
                                 if (i % labelFrequency !== 0) {
                                   return <View key={`empty-${i}`} className="flex-1" />;
                                 }
-                                // Show abbreviated month (first 3 chars)
-                                const label = d.monthLabel.split(' ')[0].substring(0, 3);
+                                // Show abbreviated period label (extract month from period label)
+                                const label = d.periodLabel.split(' ')[0].substring(0, 3);
                                 return (
                                   <Text key={`label-${i}`} className="text-xs text-gray-600 flex-1 text-center">
                                     {label}
@@ -274,17 +274,17 @@ export default function TrendsScreen() {
                   </View>
 
                   {/* Rows - reversed to show newest first */}
-                  {[...data.data].reverse().map((month) => (
-                    <View key={month.month} className="flex-row border-b border-gray-100 px-3 py-2 last:border-b-0">
-                      <Text className="flex-1 text-xs text-gray-900 font-medium">{month.monthLabel}</Text>
+                  {[...data.data].reverse().map((period) => (
+                    <View key={period.periodStart} className="flex-row border-b border-gray-100 px-3 py-2 last:border-b-0">
+                      <Text className="flex-1 text-xs text-gray-900 font-medium">{period.periodLabel}</Text>
                       <Text className="flex-1 text-right text-xs text-green-700 font-medium">
-                        {formatCurrency(month.income)}
+                        {formatCurrency(period.income)}
                       </Text>
                       <Text className="flex-1 text-right text-xs text-red-700 font-medium">
-                        {formatCurrency(month.expenses)}
+                        {formatCurrency(period.expenses)}
                       </Text>
-                      <Text className={cn('flex-1 text-right text-xs font-semibold', month.net >= 0 ? 'text-teal-700' : 'text-red-700')}>
-                        {(month.net >= 0 ? '+' : '') + formatCurrency(month.net)}
+                      <Text className={cn('flex-1 text-right text-xs font-semibold', period.net >= 0 ? 'text-teal-700' : 'text-red-700')}>
+                        {(period.net >= 0 ? '+' : '') + formatCurrency(period.net)}
                       </Text>
                     </View>
                   ))}
