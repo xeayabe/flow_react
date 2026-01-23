@@ -176,6 +176,36 @@ export default function BudgetSetupScreen() {
     }
   }, [budgetSummaryQuery.data?.totalIncome, monthlyIncome, passedIncome]);
 
+  // Calculate group percentages from existing allocations when editing
+  useEffect(() => {
+    const incomeValue = parseFloat(monthlyIncome) || 0;
+    if (existingBudgetQuery.data && existingBudgetQuery.data.length > 0 && incomeValue > 0) {
+      const newGroupPercentages: Record<string, number> = {};
+
+      // Get categories to map ID -> group
+      const categoryMap: Record<string, string> = {};
+      if (categoriesQuery.data) {
+        categoriesQuery.data.forEach((cat: any) => {
+          categoryMap[cat.id] = cat.categoryGroup || 'other';
+        });
+      }
+
+      // Calculate total for each group
+      const groupTotals: Record<string, number> = {};
+      existingBudgetQuery.data.forEach((budget: any) => {
+        const group = categoryMap[budget.categoryId] || 'other';
+        groupTotals[group] = (groupTotals[group] || 0) + budget.allocatedAmount;
+      });
+
+      // Convert group totals to percentages
+      Object.entries(groupTotals).forEach(([group, total]) => {
+        newGroupPercentages[group] = Math.round((total / incomeValue) * 1000) / 10; // Round to 1 decimal
+      });
+
+      setGroupPercentages(newGroupPercentages);
+    }
+  }, [existingBudgetQuery.data, categoriesQuery.data, monthlyIncome]);
+
   // Build grouped categories dynamically from category groups
   const buildGroupedCategories = (): GroupedCategories => {
     const grouped: GroupedCategories = {};
@@ -333,6 +363,9 @@ export default function BudgetSetupScreen() {
       normalizedAllocations[lastKey] = Math.round((normalizedAllocations[lastKey] + difference) * 100) / 100;
     }
 
+    // Also ensure income is properly rounded
+    const roundedIncome = Math.round(income * 100) / 100;
+
     setIsSaving(true);
     setShowSaveError('');
 
@@ -348,7 +381,7 @@ export default function BudgetSetupScreen() {
       const result = await saveBudget({
         userId: householdQuery.data.userRecord.id,
         householdId: householdQuery.data.household.id,
-        totalIncome: income,
+        totalIncome: roundedIncome,
         allocations: normalizedAllocations,
         categoryGroups,
       });
