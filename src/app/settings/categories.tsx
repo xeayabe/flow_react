@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Plus, Edit2, Trash2, X } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '@/lib/categories-api';
+import { getCategoryGroups } from '@/lib/category-groups-api';
 import { cn } from '@/lib/cn';
 
 type CategoryType = 'income' | 'expense';
@@ -84,6 +85,13 @@ export default function CategoriesScreen() {
     enabled: !!householdQuery.data?.household?.id,
   });
 
+  // Get category groups
+  const categoryGroupsQuery = useQuery({
+    queryKey: ['categoryGroups', householdQuery.data?.household?.id],
+    queryFn: () => getCategoryGroups(householdQuery.data!.household.id),
+    enabled: !!householdQuery.data?.household?.id,
+  });
+
   const createMutation = useMutation({
     mutationFn: () =>
       createCategory({
@@ -106,6 +114,8 @@ export default function CategoriesScreen() {
     mutationFn: () =>
       updateCategory(editingCategory.id, {
         name: formData.name !== editingCategory.name ? formData.name : undefined,
+        type: formData.type !== editingCategory.type ? (formData.type as 'income' | 'expense') : undefined,
+        categoryGroup: formData.group !== editingCategory.categoryGroup ? (formData.group as 'income' | 'needs' | 'wants' | 'savings' | 'other') : undefined,
         icon: formData.icon !== editingCategory.icon ? formData.icon : undefined,
         color: formData.color !== editingCategory.color ? formData.color : undefined,
       }),
@@ -246,7 +256,7 @@ export default function CategoriesScreen() {
   const categories = (categoriesQuery.data as any[]) || [];
   const sections = groupCategories(categories);
 
-  if (householdQuery.isLoading || categoriesQuery.isLoading) {
+  if (householdQuery.isLoading || categoriesQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
       <View className="flex-1 bg-white items-center justify-center">
         <ActivityIndicator size="large" color="#006A6A" />
@@ -394,36 +404,33 @@ export default function CategoriesScreen() {
                   <View className="mb-6">
                     <Text className="text-sm font-medium text-gray-700 mb-2">Category Group</Text>
                     <View className="gap-2">
-                      {(['needs', 'wants', 'savings', 'other'] as const).map((group) => (
-                        <Pressable
-                          key={group}
-                          onPress={() => {
-                            setFormData({ ...formData, group });
-                            if (errors.group) setErrors({ ...errors, group: '' });
-                          }}
-                          className={cn(
-                            'py-3 px-4 rounded-lg border-2',
-                            formData.group === group
-                              ? 'bg-teal-50 border-teal-600'
-                              : 'border-gray-200'
-                          )}
-                        >
-                          <Text
+                      {(categoryGroupsQuery.data || [])
+                        .filter((group) => group.type === 'expense')
+                        .map((group) => (
+                          <Pressable
+                            key={group.id}
+                            onPress={() => {
+                              setFormData({ ...formData, group: group.key as any });
+                              if (errors.group) setErrors({ ...errors, group: '' });
+                            }}
                             className={cn(
-                              'font-medium capitalize',
-                              formData.group === group ? 'text-teal-600' : 'text-gray-700'
+                              'py-3 px-4 rounded-lg border-2',
+                              formData.group === group.key
+                                ? 'bg-teal-50 border-teal-600'
+                                : 'border-gray-200'
                             )}
                           >
-                            {group === 'needs'
-                              ? 'Needs (50%)'
-                              : group === 'wants'
-                              ? 'Wants (30%)'
-                              : group === 'savings'
-                              ? 'Savings (20%)'
-                              : 'Other'}
-                          </Text>
-                        </Pressable>
-                      ))}
+                            <Text
+                              className={cn(
+                                'font-medium',
+                                formData.group === group.key ? 'text-teal-600' : 'text-gray-700'
+                              )}
+                            >
+                              {group.icon && `${group.icon} `}
+                              {group.name}
+                            </Text>
+                          </Pressable>
+                        ))}
                     </View>
                     {errors.group && <Text className="text-xs text-red-500 mt-1">{errors.group}</Text>}
                   </View>

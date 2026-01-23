@@ -292,12 +292,14 @@ export async function getCategories(householdId: string): Promise<Category[]> {
 }
 
 /**
- * Update a custom category (name, icon, color only)
+ * Update a custom category
  */
 export async function updateCategory(
   categoryId: string,
   updates: {
     name?: string;
+    type?: 'income' | 'expense';
+    categoryGroup?: 'income' | 'needs' | 'wants' | 'savings' | 'other';
     icon?: string;
     color?: string;
   }
@@ -323,6 +325,8 @@ export async function updateCategory(
     const updateData: any = { updatedAt: now };
 
     if (updates.name !== undefined) updateData.name = updates.name.trim();
+    if (updates.type !== undefined) updateData.type = updates.type;
+    if (updates.categoryGroup !== undefined) updateData.categoryGroup = updates.categoryGroup;
     if (updates.icon !== undefined) updateData.icon = updates.icon;
     if (updates.color !== undefined) updateData.color = updates.color;
 
