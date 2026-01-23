@@ -60,12 +60,15 @@ export function getCategoryIcon(categoryName: string): any {
 
 /**
  * Format currency for display
+ * Rounds to 2 decimal places first to avoid floating-point precision issues
  */
 export function formatCurrency(amount: number, currency: string = 'CHF'): string {
+  // Round to 2 decimal places first to fix floating-point precision issues
+  const rounded = Math.round(Math.abs(amount) * 100) / 100;
   const formatted = new Intl.NumberFormat('de-CH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(Math.abs(amount));
+  }).format(rounded);
 
   return `${formatted} ${currency}`;
 }

@@ -50,10 +50,17 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
 
     const now = Date.now();
 
-    // Calculate total allocated and group totals - round to avoid floating point errors
-    const totalAllocated = Math.round(
-      Object.values(allocations).reduce((sum, amount) => sum + amount, 0) * 100
-    ) / 100;
+    // Calculate total allocated - round each allocation first, then sum
+    const rawTotal = Object.values(allocations).reduce((sum, amount) => {
+      return sum + Math.round(amount * 100) / 100;
+    }, 0);
+    // Round the final total to avoid floating-point errors
+    let totalAllocated = Math.round(rawTotal * 100) / 100;
+
+    // If totalAllocated is within 0.01 of totalIncome, use totalIncome to avoid display discrepancies
+    if (Math.abs(totalAllocated - totalIncome) < 0.01) {
+      totalAllocated = totalIncome;
+    }
 
     // First, delete existing budget for this period (allows re-doing budget)
     const existingBudgets = await db.queryOnce({
@@ -203,9 +210,18 @@ export async function getBudgetSummary(
     if (!summary) return null;
 
     // Apply rounding to all allocated values to fix floating-point precision issues
+    let totalAllocated = Math.round((summary.totalAllocated ?? 0) * 100) / 100;
+    const totalIncome = summary.totalIncome ?? 0;
+
+    // If totalAllocated is within 0.05 of totalIncome, normalize to totalIncome
+    // This fixes cases like 7891.96 vs 7892 caused by floating-point errors
+    if (totalIncome > 0 && Math.abs(totalAllocated - totalIncome) < 0.05) {
+      totalAllocated = totalIncome;
+    }
+
     return {
       ...summary,
-      totalAllocated: Math.round((summary.totalAllocated ?? 0) * 100) / 100,
+      totalAllocated,
       needsAllocated: Math.round((summary.needsAllocated ?? 0) * 100) / 100,
       wantsAllocated: Math.round((summary.wantsAllocated ?? 0) * 100) / 100,
       savingsAllocated: Math.round((summary.savingsAllocated ?? 0) * 100) / 100,
