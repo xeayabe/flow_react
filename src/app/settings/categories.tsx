@@ -9,6 +9,7 @@ import { getCategories, createCategory, updateCategory, deleteCategory } from '@
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { ensureDefaultCategoryGroups } from '@/lib/setup-category-groups';
 import { cn } from '@/lib/cn';
+import { ensureDefaultCategories } from '@/lib/setup-category-groups';
 
 type CategoryType = 'income' | 'expense';
 
@@ -81,8 +82,17 @@ export default function CategoriesScreen() {
 
   // Get categories
   const categoriesQuery = useQuery({
-    queryKey: ['categories', householdQuery.data?.household?.id],
-    queryFn: () => getCategories(householdQuery.data!.household.id),
+    queryKey: ['categories', householdQuery.data?.household?.id, householdQuery.data?.userRecord?.id],
+    queryFn: async () => {
+      if (!householdQuery.data?.household?.id) return [];
+
+      // Ensure default categories and groups exist
+      if (householdQuery.data?.userRecord?.id) {
+        await ensureDefaultCategories(householdQuery.data.household.id, householdQuery.data.userRecord.id);
+      }
+
+      return getCategories(householdQuery.data.household.id);
+    },
     enabled: !!householdQuery.data?.household?.id,
   });
 

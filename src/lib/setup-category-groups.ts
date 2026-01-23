@@ -1,5 +1,6 @@
 import { db } from './db';
 import { v4 as uuidv4 } from 'uuid';
+import { createDefaultCategories } from './categories-api';
 
 /**
  * Ensure default category groups exist for a household
@@ -68,6 +69,45 @@ export async function ensureDefaultCategoryGroups(householdId: string, userId: s
     return true;
   } catch (error) {
     console.error('Error ensuring category groups:', error);
+    return false;
+  }
+}
+
+/**
+ * Ensure default categories exist for a household
+ * This creates missing default categories (especially expense categories)
+ */
+export async function ensureDefaultCategories(householdId: string, userId: string): Promise<boolean> {
+  try {
+    // First ensure category groups exist
+    await ensureDefaultCategoryGroups(householdId, userId);
+
+    // Check if any default categories already exist
+    const existing = await db.queryOnce({
+      categories: {
+        $: {
+          where: {
+            householdId,
+            isDefault: true,
+          },
+        },
+      },
+    });
+
+    const existingCategories = existing.data.categories || [];
+    console.log('Existing default categories:', existingCategories.map(c => ({ name: c.name, type: c.type, group: c.categoryGroup })));
+
+    // If no default categories exist, create them
+    if (existingCategories.length === 0) {
+      console.log('Creating default categories for household:', householdId);
+      const result = await createDefaultCategories(householdId);
+      return result.success !== false;
+    } else {
+      console.log('Default categories already exist for household:', householdId);
+      return true;
+    }
+  } catch (error) {
+    console.error('Error ensuring default categories:', error);
     return false;
   }
 }
