@@ -199,7 +199,17 @@ export async function getBudgetSummary(
       },
     });
 
-    return result.data.budgetSummary?.[0] || null;
+    const summary = result.data.budgetSummary?.[0];
+    if (!summary) return null;
+
+    // Apply rounding to all allocated values to fix floating-point precision issues
+    return {
+      ...summary,
+      totalAllocated: Math.round((summary.totalAllocated ?? 0) * 100) / 100,
+      needsAllocated: Math.round((summary.needsAllocated ?? 0) * 100) / 100,
+      wantsAllocated: Math.round((summary.wantsAllocated ?? 0) * 100) / 100,
+      savingsAllocated: Math.round((summary.savingsAllocated ?? 0) * 100) / 100,
+    };
   } catch (error) {
     console.error('Get budget summary error:', error);
     return null;
