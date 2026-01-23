@@ -198,6 +198,9 @@ export default function CategoriesScreen() {
     const sections: SectionData[] = [];
     const allGroups = categoryGroupsQuery.data || [];
 
+    console.log('Category groups from DB:', allGroups.map(g => ({ key: g.key, name: g.name, type: g.type })));
+    console.log('Categories from DB:', categories.map(c => ({ name: c.name, categoryGroup: c.categoryGroup })));
+
     // Get all unique group keys from categories
     const groupKeysWithCategories = new Set<string>();
     categories.forEach((cat) => {
@@ -205,6 +208,8 @@ export default function CategoriesScreen() {
         groupKeysWithCategories.add(cat.categoryGroup);
       }
     });
+
+    console.log('Group keys with categories:', Array.from(groupKeysWithCategories));
 
     // Sort groups by displayOrder
     const sortedGroups = allGroups.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
@@ -217,6 +222,29 @@ export default function CategoriesScreen() {
           title: group.icon ? `${group.icon} ${group.name}` : group.name,
           data: categoriesForGroup,
         });
+      }
+    });
+
+    // Also add sections for category groups that don't exist in categoryGroups table
+    // (for backwards compatibility with needs/wants/savings/other)
+    const knownGroupLabels: Record<string, string> = {
+      income: '💰 Income',
+      needs: '🏠 Needs',
+      wants: '🎭 Wants',
+      savings: '💎 Savings',
+      other: '📦 Other',
+    };
+
+    groupKeysWithCategories.forEach((groupKey) => {
+      const existsInCategoryGroups = sortedGroups.some((g) => g.key === groupKey);
+      if (!existsInCategoryGroups) {
+        const categoriesForGroup = categories.filter((cat) => cat.categoryGroup === groupKey);
+        if (categoriesForGroup.length > 0) {
+          sections.push({
+            title: knownGroupLabels[groupKey] || groupKey,
+            data: categoriesForGroup,
+          });
+        }
       }
     });
 

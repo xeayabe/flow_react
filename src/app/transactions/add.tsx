@@ -226,7 +226,15 @@ export default function AddTransactionScreen() {
   const categoryGroups = categoryGroupsQuery.data || [];
 
   // Create a map of group keys to group names
-  const groupKeyToName: Record<string, string> = {};
+  const groupKeyToName: Record<string, string> = {
+    // Fallback labels for standard groups
+    income: 'Income',
+    needs: 'Needs (50%)',
+    wants: 'Wants (30%)',
+    savings: 'Savings (20%)',
+    other: 'Other',
+  };
+  // Override with actual group names from database
   categoryGroups.forEach((group) => {
     groupKeyToName[group.key] = group.name;
   });
@@ -239,10 +247,28 @@ export default function AddTransactionScreen() {
     return acc;
   }, {} as Record<string, any[]>);
 
-  // Get the order of groups from categoryGroups query (sorted by displayOrder)
-  const groupOrder = categoryGroups
+  // Get the order of groups - first from categoryGroups query, then add any missing standard groups
+  const categoryGroupKeys = categoryGroups
     .filter((g) => g.type === formData.type)
     .map((g) => g.key);
+
+  // Add standard group keys that might have categories but aren't in categoryGroups table
+  const standardGroupOrder = formData.type === 'income' ? ['income'] : ['needs', 'wants', 'savings', 'other'];
+  const allGroupKeys = [...categoryGroupKeys];
+  standardGroupOrder.forEach((key) => {
+    if (!allGroupKeys.includes(key) && groupedCategories[key]) {
+      allGroupKeys.push(key);
+    }
+  });
+
+  // Also add any other group keys that have categories
+  Object.keys(groupedCategories).forEach((key) => {
+    if (!allGroupKeys.includes(key)) {
+      allGroupKeys.push(key);
+    }
+  });
+
+  const groupOrder = allGroupKeys;
 
   if (householdQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
