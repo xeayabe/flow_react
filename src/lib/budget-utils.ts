@@ -9,7 +9,7 @@ export interface BudgetAllocation {
 }
 
 export interface BudgetGroup {
-  group: 'needs' | 'wants' | 'savings';
+  group: string;
   targetPercentage: number;
   allocatedAmount: number;
   allocatedPercentage: number;
@@ -122,7 +122,60 @@ export function autoBalanceRemaining(
 }
 
 /**
- * Apply 50/30/20 split to categories
+ * Apply equal split across all groups
+ * Distributes budget equally among all category groups, then equally within each group
+ */
+export function applyEqualSplit(
+  categories: Array<{ id: string; group: string }>,
+  totalIncome: number,
+  groupKeys: string[]
+): Record<string, number> {
+  const allocations: Record<string, number> = {};
+
+  if (groupKeys.length === 0) return allocations;
+
+  // Calculate equal amount per group
+  const amountPerGroup = totalIncome / groupKeys.length;
+
+  // Group categories by their group key
+  const categoriesByGroup: Record<string, typeof categories> = {};
+  groupKeys.forEach((key) => {
+    categoriesByGroup[key] = categories.filter((c) => c.group === key);
+  });
+
+  // Distribute proportionally within each group
+  const distributeProportionally = (
+    group: typeof categories,
+    groupAmount: number
+  ) => {
+    if (group.length === 0) return;
+    const amountPerCategory = groupAmount / group.length;
+
+    // Distribute with the last category absorbing rounding error
+    let totalDistributed = 0;
+    group.forEach((cat, index) => {
+      if (index === group.length - 1) {
+        // Last category gets whatever is left to ensure exact total
+        allocations[cat.id] = Math.round((groupAmount - totalDistributed) * 100) / 100;
+      } else {
+        const amount = Math.round(amountPerCategory * 100) / 100;
+        allocations[cat.id] = amount;
+        totalDistributed += amount;
+      }
+    });
+  };
+
+  // Distribute for each group
+  groupKeys.forEach((key) => {
+    const groupCategories = categoriesByGroup[key] || [];
+    distributeProportionally(groupCategories, amountPerGroup);
+  });
+
+  return allocations;
+}
+
+/**
+ * Apply 50/30/20 split to categories (Legacy - only works with needs/wants/savings groups)
  */
 export function apply503020Split(
   categories: Array<{ id: string; group: string }>,

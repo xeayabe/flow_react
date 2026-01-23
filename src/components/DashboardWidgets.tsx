@@ -235,7 +235,80 @@ export const AccountsListWidget: React.FC<{ accounts: Account[]; isLoading?: boo
 };
 
 /**
- * Budget 50/30/20 Breakdown Widget Component
+ * Budget Breakdown Widget Component - Dynamic version
+ */
+export interface BudgetGroupData {
+  key: string;
+  name: string;
+  icon?: string;
+  allocated: number;
+  spent: number;
+}
+
+export const BudgetBreakdownWidget: React.FC<{
+  groups: BudgetGroupData[];
+}> = ({ groups }) => {
+  if (groups.length === 0) {
+    return (
+      <View className="rounded-xl overflow-hidden bg-white border border-gray-100 p-4">
+        <Text className="text-sm text-gray-500 text-center">No budget groups to display</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View className="rounded-xl overflow-hidden bg-white border border-gray-100">
+      {/* Header */}
+      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
+        <Text className="font-semibold text-gray-900">Budget Breakdown</Text>
+        <Pressable
+          onPress={() => router.push('/analytics')}
+          className="flex-row items-center gap-1 active:opacity-60"
+        >
+          <PieChart size={14} color="#0D9488" />
+          <Text className="text-xs font-semibold text-teal-600">Analytics</Text>
+        </Pressable>
+      </View>
+
+      {/* Categories */}
+      <View className="p-4 gap-4">
+        {groups.map((group) => {
+          const percentage = group.allocated > 0 ? (group.spent / group.allocated) * 100 : 0;
+          const statusColor =
+            percentage >= 100 ? '#EF4444' : percentage >= 90 ? '#F59E0B' : '#0D9488';
+
+          return (
+            <View key={group.key}>
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="font-semibold text-gray-900">
+                  {group.icon ? `${group.icon} ` : ''}{group.name}
+                </Text>
+                <Text className="text-sm font-bold text-gray-600">
+                  {Math.round(percentage)}%
+                </Text>
+              </View>
+              <View className="h-2 bg-gray-200 rounded-full overflow-hidden mb-1">
+                <View
+                  style={{
+                    width: `${Math.min(100, percentage)}%`,
+                    height: '100%',
+                    backgroundColor: statusColor,
+                  }}
+                />
+              </View>
+              <Text className="text-xs text-gray-500">
+                {formatCurrency(group.spent)} / {formatCurrency(group.allocated)}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
+/**
+ * Budget 50/30/20 Breakdown Widget Component (Legacy - kept for backward compatibility)
  */
 export const Budget50_30_20Widget: React.FC<{
   needsAllocated: number;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,21 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { ChevronLeft, AlertCircle } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/lib/db';
+import { getCategoryGroups } from '@/lib/category-groups-api';
 import { calculatePercentage, calculateAmountFromPercentage } from '@/lib/budget-utils';
 import { cn } from '@/lib/cn';
-
-interface CategoryGroupAllocation {
-  group: 'needs' | 'wants' | 'savings';
-  icon: string;
-  label: string;
-  allocatedAmount: number;
-  percentage: number;
-}
 
 interface CategoryGroupState {
   [key: string]: number;
@@ -32,11 +24,7 @@ interface CategoryGroupState {
 export default function CategoryGroupAllocationScreen() {
   const { user } = db.useAuth();
   const [monthlyIncome, setMonthlyIncome] = useState<string>('');
-  const [groupAllocations, setGroupAllocations] = useState<CategoryGroupState>({
-    needs: 0,
-    wants: 0,
-    savings: 0,
-  });
+  const [groupAllocations, setGroupAllocations] = useState<CategoryGroupState>({});
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -66,6 +54,21 @@ export default function CategoryGroupAllocationScreen() {
     enabled: !!user?.email,
   });
 
+  // Get category groups from DB
+  const categoryGroupsQuery = useQuery({
+    queryKey: ['categoryGroups', householdQuery.data?.household?.id],
+    queryFn: async () => {
+      if (!householdQuery.data?.household?.id) return [];
+      return getCategoryGroups(householdQuery.data.household.id);
+    },
+    enabled: !!householdQuery.data?.household?.id,
+  });
+
+  // Get expense groups only, sorted by displayOrder
+  const expenseGroups = (categoryGroupsQuery.data || [])
+    .filter((g) => g.type === 'expense')
+    .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+
   // Parse income value
   const income = parseFloat(monthlyIncome) || 0;
 
@@ -74,19 +77,12 @@ export default function CategoryGroupAllocationScreen() {
   const remaining = Math.max(0, income - totalAllocated);
   const allocatedPercentage = income > 0 ? (totalAllocated / income) * 100 : 0;
 
-  // Category groups definition
-  const categoryGroups: Record<string, { label: string; icon: string }> = {
-    needs: { label: 'Needs', icon: '🏠' },
-    wants: { label: 'Wants', icon: '🎭' },
-    savings: { label: 'Savings', icon: '💎' },
-  };
-
   // Handle amount change
-  const handleAmountChange = (group: string, newAmount: string) => {
+  const handleAmountChange = (groupKey: string, newAmount: string) => {
     if (!newAmount) {
       setGroupAllocations((prev) => ({
         ...prev,
-        [group]: 0,
+        [groupKey]: 0,
       }));
       setErrorMessage('');
       return;
@@ -94,17 +90,17 @@ export default function CategoryGroupAllocationScreen() {
     const amount = parseFloat(newAmount) || 0;
     setGroupAllocations((prev) => ({
       ...prev,
-      [group]: Math.max(0, amount),
+      [groupKey]: Math.max(0, amount),
     }));
     setErrorMessage('');
   };
 
   // Handle percentage change
-  const handlePercentageChange = (group: string, newPercentage: string) => {
+  const handlePercentageChange = (groupKey: string, newPercentage: string) => {
     if (!newPercentage) {
       setGroupAllocations((prev) => ({
         ...prev,
-        [group]: 0,
+        [groupKey]: 0,
       }));
       setErrorMessage('');
       return;
@@ -113,7 +109,7 @@ export default function CategoryGroupAllocationScreen() {
     const amount = calculateAmountFromPercentage(Math.max(0, percentage), income);
     setGroupAllocations((prev) => ({
       ...prev,
-      [group]: amount,
+      [groupKey]: amount,
     }));
     setErrorMessage('');
   };
@@ -151,40 +147,27 @@ export default function CategoryGroupAllocationScreen() {
     });
   };
 
-  // Apply quick splits
-  const handleApply503020 = () => {
-    if (income === 0) {
-      setErrorMessage('Please enter your monthly income first');
-      return;
-    }
-    const needs = calculateAmountFromPercentage(50, income);
-    const wants = calculateAmountFromPercentage(30, income);
-    const savings = calculateAmountFromPercentage(20, income);
-
-    setGroupAllocations({
-      needs,
-      wants,
-      savings,
-    });
-    setErrorMessage('');
-  };
-
-  // Equal split
+  // Apply equal split across all expense groups
   const handleApplyEqualSplit = () => {
     if (income === 0) {
       setErrorMessage('Please enter your monthly income first');
       return;
     }
-    const perGroup = income / 3;
-    setGroupAllocations({
-      needs: perGroup,
-      wants: perGroup,
-      savings: perGroup,
+    if (expenseGroups.length === 0) {
+      setErrorMessage('No expense groups found');
+      return;
+    }
+
+    const perGroup = income / expenseGroups.length;
+    const newAllocations: CategoryGroupState = {};
+    expenseGroups.forEach((group) => {
+      newAllocations[group.key] = perGroup;
     });
+    setGroupAllocations(newAllocations);
     setErrorMessage('');
   };
 
-  if (householdQuery.isLoading) {
+  if (householdQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
       <View className="flex-1 bg-white justify-center items-center">
         <ActivityIndicator size="large" color="#006A6A" />
@@ -211,7 +194,7 @@ export default function CategoryGroupAllocationScreen() {
             {/* Title */}
             <Text className="text-3xl font-bold text-gray-900 mb-2">Budget Allocation</Text>
             <Text className="text-sm text-gray-600 mb-8">
-              Allocate your income across Needs, Wants, and Savings. The total must equal 100%.
+              Allocate your income across your category groups. The total must equal 100%.
             </Text>
 
             {/* Income Input */}
@@ -270,13 +253,6 @@ export default function CategoryGroupAllocationScreen() {
             {income > 0 && (
               <View className="flex-row gap-3 mb-8">
                 <Pressable
-                  onPress={handleApply503020}
-                  className="flex-1 py-2 px-3 rounded-lg bg-teal-50"
-                >
-                  <Text className="text-sm font-semibold text-teal-600 text-center">50/30/20</Text>
-                </Pressable>
-
-                <Pressable
                   onPress={handleApplyEqualSplit}
                   className="flex-1 py-2 px-3 rounded-lg bg-amber-50"
                 >
@@ -293,111 +269,116 @@ export default function CategoryGroupAllocationScreen() {
               </View>
             )}
 
-            {/* Category Groups */}
+            {/* Category Groups from DB */}
             <View className="mb-8">
               <Text className="text-sm font-semibold text-gray-700 mb-4 uppercase">Budget Categories</Text>
 
-              {(['needs', 'wants', 'savings'] as const).map((groupKey) => {
-                const groupDef = categoryGroups[groupKey];
-                const amount = groupAllocations[groupKey] || 0;
-                const percentage = income > 0 ? calculatePercentage(amount, income) : 0;
-                const isEditingAmount = editingField === `amount-${groupKey}`;
-                const isEditingPercentage = editingField === `percentage-${groupKey}`;
+              {expenseGroups.length === 0 ? (
+                <View className="p-4 bg-gray-50 rounded-lg">
+                  <Text className="text-sm text-gray-500 text-center">No expense category groups found</Text>
+                </View>
+              ) : (
+                expenseGroups.map((group) => {
+                  const amount = groupAllocations[group.key] || 0;
+                  const percentage = income > 0 ? calculatePercentage(amount, income) : 0;
+                  const isEditingAmount = editingField === `amount-${group.key}`;
+                  const isEditingPercentage = editingField === `percentage-${group.key}`;
 
-                return (
-                  <View key={groupKey} className="mb-6">
-                    {/* Group Header */}
-                    <View className="flex-row items-center gap-2 mb-3">
-                      <Text className="text-2xl">{groupDef.icon}</Text>
-                      <View className="flex-1">
-                        <Text className="text-sm font-semibold text-gray-900">{groupDef.label}</Text>
-                        <Text className="text-xs text-gray-500">
-                          {amount > 0 ? `${percentage.toFixed(1)}%` : 'Not allocated'}
-                        </Text>
+                  return (
+                    <View key={group.key} className="mb-6">
+                      {/* Group Header */}
+                      <View className="flex-row items-center gap-2 mb-3">
+                        <Text className="text-2xl">{group.icon || '📂'}</Text>
+                        <View className="flex-1">
+                          <Text className="text-sm font-semibold text-gray-900">{group.name}</Text>
+                          <Text className="text-xs text-gray-500">
+                            {amount > 0 ? `${percentage.toFixed(1)}%` : 'Not allocated'}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
 
-                    {/* Dual Input Row */}
-                    <View className="flex-row gap-2">
-                      <View className="flex-1">
-                        <TextInput
-                          value={
-                            isEditingAmount
-                              ? editingValue
-                              : amount > 0
-                                ? amount.toFixed(2)
-                                : ''
-                          }
-                          onChangeText={(text) => {
-                            const filtered = text.replace(/[^0-9.,]/g, '').replace(',', '.');
-                            const parts = filtered.split('.');
-                            const cleanValue =
-                              parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : filtered;
-                            setEditingValue(cleanValue);
-                            handleAmountChange(groupKey, cleanValue);
-                          }}
-                          onFocus={() => {
-                            setEditingField(`amount-${groupKey}`);
-                            setEditingValue(amount > 0 ? amount.toString() : '');
-                          }}
-                          onBlur={() => {
-                            setEditingField(null);
-                            setEditingValue('');
-                          }}
-                          placeholder="0.00"
-                          placeholderTextColor="#D1D5DB"
-                          keyboardType="decimal-pad"
-                          className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
-                          style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+                      {/* Dual Input Row */}
+                      <View className="flex-row gap-2">
+                        <View className="flex-1">
+                          <TextInput
+                            value={
+                              isEditingAmount
+                                ? editingValue
+                                : amount > 0
+                                  ? amount.toFixed(2)
+                                  : ''
+                            }
+                            onChangeText={(text) => {
+                              const filtered = text.replace(/[^0-9.,]/g, '').replace(',', '.');
+                              const parts = filtered.split('.');
+                              const cleanValue =
+                                parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : filtered;
+                              setEditingValue(cleanValue);
+                              handleAmountChange(group.key, cleanValue);
+                            }}
+                            onFocus={() => {
+                              setEditingField(`amount-${group.key}`);
+                              setEditingValue(amount > 0 ? amount.toString() : '');
+                            }}
+                            onBlur={() => {
+                              setEditingField(null);
+                              setEditingValue('');
+                            }}
+                            placeholder="0.00"
+                            placeholderTextColor="#D1D5DB"
+                            keyboardType="decimal-pad"
+                            className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
+                            style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+                          />
+                          <Text className="text-xs text-gray-500 mt-0.5">CHF</Text>
+                        </View>
+
+                        <View className="flex-1">
+                          <TextInput
+                            value={
+                              isEditingPercentage
+                                ? editingValue
+                                : percentage > 0
+                                  ? percentage.toFixed(1)
+                                  : ''
+                            }
+                            onChangeText={(text) => {
+                              const filtered = text.replace(/[^0-9.,]/g, '').replace(',', '.');
+                              const parts = filtered.split('.');
+                              const cleanValue =
+                                parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : filtered;
+                              setEditingValue(cleanValue);
+                              handlePercentageChange(group.key, cleanValue);
+                            }}
+                            onFocus={() => {
+                              setEditingField(`percentage-${group.key}`);
+                              setEditingValue(percentage > 0 ? percentage.toString() : '');
+                            }}
+                            onBlur={() => {
+                              setEditingField(null);
+                              setEditingValue('');
+                            }}
+                            placeholder="0.0"
+                            placeholderTextColor="#D1D5DB"
+                            keyboardType="decimal-pad"
+                            className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
+                            style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+                          />
+                          <Text className="text-xs text-gray-500 mt-0.5">%</Text>
+                        </View>
+                      </View>
+
+                      {/* Progress Bar */}
+                      <View className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <View
+                          className="h-full bg-teal-500"
+                          style={{ width: `${Math.min(100, percentage)}%` }}
                         />
-                        <Text className="text-xs text-gray-500 mt-0.5">CHF</Text>
-                      </View>
-
-                      <View className="flex-1">
-                        <TextInput
-                          value={
-                            isEditingPercentage
-                              ? editingValue
-                              : percentage > 0
-                                ? percentage.toFixed(1)
-                                : ''
-                          }
-                          onChangeText={(text) => {
-                            const filtered = text.replace(/[^0-9.,]/g, '').replace(',', '.');
-                            const parts = filtered.split('.');
-                            const cleanValue =
-                              parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : filtered;
-                            setEditingValue(cleanValue);
-                            handlePercentageChange(groupKey, cleanValue);
-                          }}
-                          onFocus={() => {
-                            setEditingField(`percentage-${groupKey}`);
-                            setEditingValue(percentage > 0 ? percentage.toString() : '');
-                          }}
-                          onBlur={() => {
-                            setEditingField(null);
-                            setEditingValue('');
-                          }}
-                          placeholder="0.0"
-                          placeholderTextColor="#D1D5DB"
-                          keyboardType="decimal-pad"
-                          className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-900 bg-gray-50"
-                          style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
-                        />
-                        <Text className="text-xs text-gray-500 mt-0.5">%</Text>
                       </View>
                     </View>
-
-                    {/* Progress Bar */}
-                    <View className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <View
-                        className="h-full bg-teal-500"
-                        style={{ width: `${Math.min(100, percentage)}%` }}
-                      />
-                    </View>
-                  </View>
-                );
-              })}
+                  );
+                })
+              )}
             </View>
 
             {/* Continue Button */}
