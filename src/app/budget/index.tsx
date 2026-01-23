@@ -161,13 +161,13 @@ export default function BudgetOverviewScreen() {
   }
 
   // Round values to fix floating-point display errors
-  // If allocated is within 0.05 of income, treat remaining as 0
   const allocatedRounded = Math.round(summary.totalAllocated * 100) / 100;
   const incomeRounded = Math.round(summary.totalIncome * 100) / 100;
   const rawRemaining = incomeRounded - allocatedRounded;
 
-  // If remaining is less than 0.05, consider it fully allocated (fixes floating-point errors)
-  const remaining = Math.abs(rawRemaining) < 0.05 ? 0 : rawRemaining;
+  // Only treat remaining as 0 if allocated equals income (within floating-point precision)
+  // Don't suppress legitimate remaining amounts
+  const remaining = Math.abs(rawRemaining) < 0.001 ? 0 : rawRemaining;
   const displayAllocated = remaining === 0 ? incomeRounded : allocatedRounded;
 
   const allocatedPercentage = (displayAllocated / incomeRounded) * 100;
