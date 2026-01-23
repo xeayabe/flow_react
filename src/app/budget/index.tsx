@@ -150,8 +150,17 @@ export default function BudgetOverviewScreen() {
     );
   }
 
-  const remaining = summary.totalIncome - summary.totalAllocated;
-  const allocatedPercentage = (summary.totalAllocated / summary.totalIncome) * 100;
+  // Round values to fix floating-point display errors
+  // If allocated is within 0.05 of income, treat remaining as 0
+  const allocatedRounded = Math.round(summary.totalAllocated * 100) / 100;
+  const incomeRounded = Math.round(summary.totalIncome * 100) / 100;
+  const rawRemaining = incomeRounded - allocatedRounded;
+
+  // If remaining is less than 0.05, consider it fully allocated (fixes floating-point errors)
+  const remaining = Math.abs(rawRemaining) < 0.05 ? 0 : rawRemaining;
+  const displayAllocated = remaining === 0 ? incomeRounded : allocatedRounded;
+
+  const allocatedPercentage = (displayAllocated / incomeRounded) * 100;
 
   return (
     <>
@@ -195,7 +204,7 @@ export default function BudgetOverviewScreen() {
               <View className="flex-row justify-between mb-3">
                 <View>
                   <Text className="text-xs text-gray-600 mb-0.5">Allocated</Text>
-                  <Text className="text-xl font-bold text-teal-700">{summary.totalAllocated.toFixed(2)}</Text>
+                  <Text className="text-xl font-bold text-teal-700">{displayAllocated.toFixed(2)}</Text>
                   <Text className="text-xs text-gray-500">CHF</Text>
                 </View>
                 <View className="items-end">
