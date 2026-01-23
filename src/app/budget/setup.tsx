@@ -320,6 +320,19 @@ export default function BudgetSetupScreen() {
       return;
     }
 
+    // Normalize allocations to ensure they total exactly income (fixing floating-point errors)
+    const allocationKeys = Object.keys(nonZeroAllocations);
+    const currentTotal = Object.values(nonZeroAllocations).reduce((sum, amount) => sum + amount, 0);
+    const roundedTotal = Math.round(currentTotal * 100) / 100;
+    const difference = Math.round((income - roundedTotal) * 100) / 100;
+
+    // Apply the difference to the last category to ensure exact total
+    const normalizedAllocations = { ...nonZeroAllocations };
+    if (allocationKeys.length > 0 && Math.abs(difference) > 0.001) {
+      const lastKey = allocationKeys[allocationKeys.length - 1];
+      normalizedAllocations[lastKey] = Math.round((normalizedAllocations[lastKey] + difference) * 100) / 100;
+    }
+
     setIsSaving(true);
     setShowSaveError('');
 
@@ -336,7 +349,7 @@ export default function BudgetSetupScreen() {
         userId: householdQuery.data.userRecord.id,
         householdId: householdQuery.data.household.id,
         totalIncome: income,
-        allocations: nonZeroAllocations,
+        allocations: normalizedAllocations,
         categoryGroups,
       });
 

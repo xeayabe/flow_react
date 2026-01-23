@@ -50,8 +50,10 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
 
     const now = Date.now();
 
-    // Calculate total allocated and group totals
-    const totalAllocated = Object.values(allocations).reduce((sum, amount) => sum + amount, 0);
+    // Calculate total allocated and group totals - round to avoid floating point errors
+    const totalAllocated = Math.round(
+      Object.values(allocations).reduce((sum, amount) => sum + amount, 0) * 100
+    ) / 100;
 
     // First, delete existing budget for this period (allows re-doing budget)
     const existingBudgets = await db.queryOnce({
@@ -77,18 +79,24 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
       }
     }
 
-    // Calculate group totals
-    const needsAllocated = Object.entries(allocations).reduce((sum, [catId, amount]) => {
-      return categoryGroups[catId] === 'needs' ? sum + amount : sum;
-    }, 0);
+    // Calculate group totals - round to avoid floating point errors
+    const needsAllocated = Math.round(
+      Object.entries(allocations).reduce((sum, [catId, amount]) => {
+        return categoryGroups[catId] === 'needs' ? sum + amount : sum;
+      }, 0) * 100
+    ) / 100;
 
-    const wantsAllocated = Object.entries(allocations).reduce((sum, [catId, amount]) => {
-      return categoryGroups[catId] === 'wants' ? sum + amount : sum;
-    }, 0);
+    const wantsAllocated = Math.round(
+      Object.entries(allocations).reduce((sum, [catId, amount]) => {
+        return categoryGroups[catId] === 'wants' ? sum + amount : sum;
+      }, 0) * 100
+    ) / 100;
 
-    const savingsAllocated = Object.entries(allocations).reduce((sum, [catId, amount]) => {
-      return categoryGroups[catId] === 'savings' ? sum + amount : sum;
-    }, 0);
+    const savingsAllocated = Math.round(
+      Object.entries(allocations).reduce((sum, [catId, amount]) => {
+        return categoryGroups[catId] === 'savings' ? sum + amount : sum;
+      }, 0) * 100
+    ) / 100;
 
     // Check if budget summary already exists for this period
     const existingSummary = await db.queryOnce({
