@@ -185,7 +185,7 @@ export default function BudgetSetupScreen() {
       grouped[group.key] = {
         group: group.key,
         icon: group.icon || '📂',
-        targetPercentage: 0, // Will be set by user
+        targetPercentage: 0, // Custom groups don't have a target percentage
         categories: [],
       };
     });
@@ -335,7 +335,7 @@ export default function BudgetSetupScreen() {
     }
   };
 
-  if (householdQuery.isLoading || categoriesQuery.isLoading) {
+  if (householdQuery.isLoading || categoriesQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
       <View className="flex-1 bg-white justify-center items-center">
         <ActivityIndicator size="large" color="#006A6A" />
@@ -429,61 +429,56 @@ export default function BudgetSetupScreen() {
             </View>
 
             {/* Category Groups */}
-            {['needs', 'wants', 'savings'].map((groupKey) => {
-              const group = groupedCategories[groupKey];
-              if (!group || !group.categories || group.categories.length === 0) {
-                return null;
-              }
-              const groupTotal = group.categories.reduce((sum, cat) => sum + cat.allocatedAmount, 0);
-              const groupPercentage = income > 0 ? (groupTotal / income) * 100 : 0;
-              const isOverTarget = groupPercentage > group.targetPercentage;
+            {(categoryGroupsQuery.data || [])
+              .filter((g) => g.type === 'expense')
+              .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+              .map((categoryGroup) => {
+                const group = groupedCategories[categoryGroup.key];
+                if (!group || !group.categories || group.categories.length === 0) {
+                  return null;
+                }
+                const groupTotal = group.categories.reduce((sum, cat) => sum + cat.allocatedAmount, 0);
+                const groupPercentage = income > 0 ? (groupTotal / income) * 100 : 0;
+                const isOverTarget = group.targetPercentage > 0 && groupPercentage > group.targetPercentage;
 
-              return (
-                <View key={groupKey} className="mb-8">
-                  {/* Group Header */}
-                  <View className="mb-4 pb-3 border-b border-gray-200">
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-row items-center gap-2">
-                        <Text className="text-xl">{group.icon}</Text>
-                        <View>
-                          <Text className="text-sm font-semibold text-gray-700 uppercase">
-                            {groupKey} ({group.targetPercentage}%)
-                          </Text>
-                          <Text className={cn('text-xs mt-0.5', isOverTarget ? 'text-red-500 font-semibold' : 'text-gray-500')}>
-                            {groupTotal.toFixed(2)} CHF ({groupPercentage.toFixed(1)}%)
-                          </Text>
+                return (
+                  <View key={categoryGroup.key} className="mb-8">
+                    {/* Group Header */}
+                    <View className="mb-4 pb-3 border-b border-gray-200">
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-row items-center gap-2">
+                          <Text className="text-xl">{categoryGroup.icon || group.icon}</Text>
+                          <View>
+                            <Text className="text-sm font-semibold text-gray-700 uppercase">
+                              {categoryGroup.name}
+                            </Text>
+                            <Text className={cn('text-xs mt-0.5', isOverTarget ? 'text-red-500 font-semibold' : 'text-gray-500')}>
+                              {groupTotal.toFixed(2)} CHF ({groupPercentage.toFixed(1)}%)
+                            </Text>
+                          </View>
                         </View>
                       </View>
                     </View>
-                    {/* Warning if over target */}
-                    {isOverTarget && (
-                      <View className="mt-2 p-2 bg-red-50 rounded-lg">
-                        <Text className="text-xs text-red-600 font-medium">
-                          Exceeds target by {(groupPercentage - group.targetPercentage).toFixed(1)}%
-                        </Text>
-                      </View>
-                    )}
-                  </View>
 
-                  {/* Categories in Group */}
-                  <View>
-                    {group.categories.map((category) => {
-                      const amount = allocations[category.id] || 0;
-                      const percentage = income > 0 ? calculatePercentage(amount, income) : 0;
-                      const isEditingAmount = editingField === `amount-${category.id}`;
-                      const isEditingPercentage = editingField === `percentage-${category.id}`;
+                    {/* Categories in Group */}
+                    <View>
+                      {group.categories.map((category) => {
+                        const amount = allocations[category.id] || 0;
+                        const percentage = income > 0 ? calculatePercentage(amount, income) : 0;
+                        const isEditingAmount = editingField === `amount-${category.id}`;
+                        const isEditingPercentage = editingField === `percentage-${category.id}`;
 
-                      return (
-                        <View key={category.id} className="mb-5">
-                          <View className="flex-row items-center gap-3 mb-2">
-                            <View className="flex-1">
-                              <Text className="text-sm font-semibold text-gray-900">{category.name}</Text>
+                        return (
+                          <View key={category.id} className="mb-5">
+                            <View className="flex-row items-center gap-3 mb-2">
+                              <View className="flex-1">
+                                <Text className="text-sm font-semibold text-gray-900">{category.name}</Text>
+                              </View>
+                              <Text className="text-xs font-medium text-gray-500">{percentage.toFixed(1)}%</Text>
                             </View>
-                            <Text className="text-xs font-medium text-gray-500">{percentage.toFixed(1)}%</Text>
-                          </View>
 
-                          {/* Dual Input Row */}
-                          <View className="flex-row gap-2">
+                            {/* Dual Input Row */}
+                            <View className="flex-row gap-2">
                             <View className="flex-1">
                               <TextInput
                                 value={isEditingAmount ? editingValue : (amount > 0 ? amount.toFixed(2) : '')}
