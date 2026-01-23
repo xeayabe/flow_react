@@ -115,7 +115,15 @@ export default function AddTransactionScreen() {
   // Get categories
   const categoriesQuery = useQuery({
     queryKey: ['categories', householdQuery.data?.household?.id],
-    queryFn: () => getCategories(householdQuery.data!.household.id),
+    queryFn: async () => {
+      if (!householdQuery.data?.household?.id) {
+        console.warn('Household ID not available for categories query');
+        return [];
+      }
+      const cats = await getCategories(householdQuery.data.household.id);
+      console.log('Categories loaded:', { count: cats.length, categories: cats.map(c => ({ id: c.id, name: c.name, type: c.type, group: c.categoryGroup })) });
+      return cats;
+    },
     enabled: !!householdQuery.data?.household?.id,
   });
 
@@ -552,45 +560,55 @@ export default function AddTransactionScreen() {
           </SafeAreaView>
 
           <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 40 }}>
-            {groupOrder.map((group) => {
-              const groupCategories = groupedCategories[group] || [];
-              if (groupCategories.length === 0) return null;
+            {categoriesQuery.isLoading ? (
+              <View className="items-center justify-center py-8">
+                <ActivityIndicator size="large" color="#006A6A" />
+              </View>
+            ) : filteredCategories.length === 0 ? (
+              <View className="items-center justify-center py-8">
+                <Text className="text-gray-500 text-center">No categories available for {formData.type}</Text>
+              </View>
+            ) : (
+              groupOrder.map((group) => {
+                const groupCategories = groupedCategories[group] || [];
+                if (groupCategories.length === 0) return null;
 
-              const groupLabels: Record<string, string> = {
-                income: 'Income',
-                needs: 'Needs (50%)',
-                wants: 'Wants (30%)',
-                savings: 'Savings (20%)',
-                other: 'Other',
-              };
+                const groupLabels: Record<string, string> = {
+                  income: 'Income',
+                  needs: 'Needs (50%)',
+                  wants: 'Wants (30%)',
+                  savings: 'Savings (20%)',
+                  other: 'Other',
+                };
 
-              return (
-                <View key={group}>
-                  <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{groupLabels[group]}</Text>
-                  {groupCategories.map((category: any) => (
-                    <Pressable
-                      key={category.id}
-                      onPress={() => {
-                        setFormData({ ...formData, categoryId: category.id });
-                        setShowCategoryModal(false);
-                      }}
-                      className={cn(
-                        'p-4 rounded-lg mb-2 flex-row items-center justify-between',
-                        formData.categoryId === category.id ? 'bg-teal-50' : 'bg-gray-50'
-                      )}
-                    >
-                      <View className="flex-row items-center gap-3 flex-1">
-                        {category.icon && <Text className="text-lg">{category.icon}</Text>}
-                        <Text className={cn('font-medium', formData.categoryId === category.id ? 'text-teal-600' : 'text-gray-900')}>
-                          {category.name}
-                        </Text>
-                      </View>
-                      {formData.categoryId === category.id && <Check size={20} color="#006A6A" />}
-                    </Pressable>
-                  ))}
-                </View>
-              );
-            })}
+                return (
+                  <View key={group}>
+                    <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{groupLabels[group]}</Text>
+                    {groupCategories.map((category: any) => (
+                      <Pressable
+                        key={category.id}
+                        onPress={() => {
+                          setFormData({ ...formData, categoryId: category.id });
+                          setShowCategoryModal(false);
+                        }}
+                        className={cn(
+                          'p-4 rounded-lg mb-2 flex-row items-center justify-between',
+                          formData.categoryId === category.id ? 'bg-teal-50' : 'bg-gray-50'
+                        )}
+                      >
+                        <View className="flex-row items-center gap-3 flex-1">
+                          {category.icon && <Text className="text-lg">{category.icon}</Text>}
+                          <Text className={cn('font-medium', formData.categoryId === category.id ? 'text-teal-600' : 'text-gray-900')}>
+                            {category.name}
+                          </Text>
+                        </View>
+                        {formData.categoryId === category.id && <Check size={20} color="#006A6A" />}
+                      </Pressable>
+                    ))}
+                  </View>
+                );
+              })
+            )}
           </ScrollView>
         </View>
       </Modal>
