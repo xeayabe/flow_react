@@ -458,12 +458,12 @@ export default function BudgetSetupScreen() {
               .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
               .map((categoryGroup) => {
                 const group = groupedCategories[categoryGroup.key];
-                if (!group || !group.categories || group.categories.length === 0) {
-                  return null;
-                }
+                const hasCategories = group && group.categories && group.categories.length > 0;
+
+                // Show group even if it has no categories yet
                 const groupPercentageValue = groupPercentages[categoryGroup.key] || 0;
                 const groupBudgetAmount = calculateAmountFromPercentage(groupPercentageValue, income);
-                const groupTotal = group.categories.reduce((sum, cat) => sum + cat.allocatedAmount, 0);
+                const groupTotal = group ? group.categories.reduce((sum, cat) => sum + cat.allocatedAmount, 0) : 0;
                 const groupActualPercentage = income > 0 ? (groupTotal / income) * 100 : 0;
                 const isGroupOverBudget = groupTotal > groupBudgetAmount;
                 const isEditingGroupPercentage = editingField === `group-percentage-${categoryGroup.key}`;
@@ -473,7 +473,7 @@ export default function BudgetSetupScreen() {
                     {/* Group Header with Percentage Input */}
                     <View className="mb-4 pb-4 border-b border-gray-200">
                       <View className="flex-row items-center gap-2 mb-3">
-                        <Text className="text-xl">{categoryGroup.icon || group.icon}</Text>
+                        <Text className="text-xl">{categoryGroup.icon || '📂'}</Text>
                         <View className="flex-1">
                           <Text className="text-sm font-semibold text-gray-700 uppercase">
                             {categoryGroup.name}
@@ -540,24 +540,25 @@ export default function BudgetSetupScreen() {
 
                     {/* Categories in Group */}
                     <View>
-                      {group.categories.map((category) => {
-                        const amount = allocations[category.id] || 0;
-                        const percentage = income > 0 ? calculatePercentage(amount, income) : 0;
-                        const isEditingAmount = editingField === `amount-${category.id}`;
-                        const isEditingPercentage = editingField === `percentage-${category.id}`;
-                        const isOverGroupBudget = amount > groupBudgetAmount;
+                      {hasCategories ? (
+                        group!.categories.map((category) => {
+                          const amount = allocations[category.id] || 0;
+                          const percentage = income > 0 ? calculatePercentage(amount, income) : 0;
+                          const isEditingAmount = editingField === `amount-${category.id}`;
+                          const isEditingPercentage = editingField === `percentage-${category.id}`;
+                          const isOverGroupBudget = amount > groupBudgetAmount;
 
-                        return (
-                          <View key={category.id} className="mb-5">
-                            <View className="flex-row items-center gap-3 mb-2">
-                              <View className="flex-1">
-                                <Text className="text-sm font-semibold text-gray-900">{category.name}</Text>
+                          return (
+                            <View key={category.id} className="mb-5">
+                              <View className="flex-row items-center gap-3 mb-2">
+                                <View className="flex-1">
+                                  <Text className="text-sm font-semibold text-gray-900">{category.name}</Text>
+                                </View>
+                                <Text className="text-xs font-medium text-gray-500">{percentage.toFixed(1)}%</Text>
                               </View>
-                              <Text className="text-xs font-medium text-gray-500">{percentage.toFixed(1)}%</Text>
-                            </View>
 
-                            {/* Dual Input Row */}
-                            <View className="flex-row gap-2">
+                              {/* Dual Input Row */}
+                              <View className="flex-row gap-2">
                             <View className="flex-1">
                               <TextInput
                                 value={isEditingAmount ? editingValue : (amount > 0 ? amount.toFixed(2) : '')}
@@ -630,8 +631,13 @@ export default function BudgetSetupScreen() {
                           </View>
                         </View>
                       );
-                    })}
-                  </View>
+                    })
+                      ) : (
+                        <View className="p-3 bg-gray-50 rounded-lg">
+                          <Text className="text-xs text-gray-500">No categories assigned to this group yet</Text>
+                        </View>
+                      )}
+                    </View>
                 </View>
               );
             })}
