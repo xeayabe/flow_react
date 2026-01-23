@@ -32,15 +32,6 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
   try {
     const { userId, householdId, totalIncome, allocations, categoryGroups } = request;
 
-    // Validate total allocation equals 100%
-    const totalAllocated = Object.values(allocations).reduce((sum, amount) => sum + amount, 0);
-    if (!isAllocationValid(totalAllocated, totalIncome)) {
-      return {
-        success: false,
-        error: `Budget must total 100%. Currently: ${Math.round((totalAllocated / totalIncome) * 1000) / 10}%`,
-      };
-    }
-
     // Get household to retrieve payday info
     const householdResult = await db.queryOnce({
       households: {
@@ -58,6 +49,9 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
     const budgetPeriod = calculateBudgetPeriod(paydayDay);
 
     const now = Date.now();
+
+    // Calculate total allocated and group totals
+    const totalAllocated = Object.values(allocations).reduce((sum, amount) => sum + amount, 0);
 
     // First, delete existing budget for this period (allows re-doing budget)
     const existingBudgets = await db.queryOnce({
