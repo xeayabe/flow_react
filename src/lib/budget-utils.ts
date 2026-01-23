@@ -102,13 +102,19 @@ export function autoBalanceRemaining(
     return result;
   }
 
-  // Distribute proportionally
-  Object.keys(allocations).forEach((categoryId) => {
-    if (allocations[categoryId] > 0) {
+  // Distribute proportionally with last category absorbing rounding error
+  const keys = Object.keys(allocations).filter((k) => allocations[k] > 0);
+  let totalDistributed = 0;
+
+  keys.forEach((categoryId, index) => {
+    if (index === keys.length - 1) {
+      // Last category gets whatever is left to ensure exact total
+      result[categoryId] += Math.round((remaining - totalDistributed) * 100) / 100;
+    } else {
       const proportion = allocations[categoryId] / totalAllocated;
-      result[categoryId] += remaining * proportion;
-      // Round to 2 decimal places
-      result[categoryId] = Math.round(result[categoryId] * 100) / 100;
+      const amount = Math.round((remaining * proportion) * 100) / 100;
+      result[categoryId] += amount;
+      totalDistributed += amount;
     }
   });
 
@@ -129,10 +135,10 @@ export function apply503020Split(
   const wantsCategories = categories.filter((c) => c.group === 'wants');
   const savingsCategories = categories.filter((c) => c.group === 'savings');
 
-  // Calculate group amounts
-  const needsAmount = totalIncome * 0.5;
-  const wantsAmount = totalIncome * 0.3;
-  const savingsAmount = totalIncome * 0.2;
+  // Calculate group amounts with proper rounding
+  const needsAmount = Math.round((totalIncome * 0.5) * 100) / 100;
+  const wantsAmount = Math.round((totalIncome * 0.3) * 100) / 100;
+  const savingsAmount = Math.round((totalIncome * 0.2) * 100) / 100;
 
   // Distribute proportionally within each group
   const distributeProportionally = (
@@ -141,8 +147,18 @@ export function apply503020Split(
   ) => {
     if (group.length === 0) return;
     const amountPerCategory = groupAmount / group.length;
-    group.forEach((cat) => {
-      allocations[cat.id] = Math.round(amountPerCategory * 100) / 100;
+
+    // Distribute with the last category absorbing rounding error
+    let totalDistributed = 0;
+    group.forEach((cat, index) => {
+      if (index === group.length - 1) {
+        // Last category gets whatever is left to ensure exact total
+        allocations[cat.id] = Math.round((groupAmount - totalDistributed) * 100) / 100;
+      } else {
+        const amount = Math.round(amountPerCategory * 100) / 100;
+        allocations[cat.id] = amount;
+        totalDistributed += amount;
+      }
     });
   };
 
