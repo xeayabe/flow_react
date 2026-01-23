@@ -123,6 +123,8 @@ export async function getCategoryAnalytics(
       (sum, cat) => sum + cat.amount,
       0
     );
+    // Round total to fix floating-point errors
+    const roundedTotal = Math.round(totalAmount * 100) / 100;
 
     // Build category breakdown with colors
     const groupIndices: Record<string, number> = {};
@@ -145,12 +147,16 @@ export async function getCategoryAnalytics(
         const color = category.color || getCategoryColor(group, groupIndices[group]);
         groupIndices[group]++;
 
+        // Round amount and percentage to fix floating-point precision
+        const roundedAmount = Math.round(data.amount * 100) / 100;
+        const percentage = roundedTotal > 0 ? Math.round((roundedAmount / roundedTotal) * 1000) / 10 : 0;
+
         categoryBreakdown.push({
           categoryId,
           categoryName: category.name,
           categoryGroup: category.categoryGroup,
-          amount: data.amount,
-          percentage: totalAmount > 0 ? Math.round((data.amount / totalAmount) * 1000) / 10 : 0,
+          amount: roundedAmount,
+          percentage,
           color,
           transactionCount: data.count,
         });
@@ -160,10 +166,13 @@ export async function getCategoryAnalytics(
     // Get top category
     const topCategory = categoryBreakdown.length > 0 ? categoryBreakdown[0] : null;
 
+    // Calculate averages with rounding
+    const averagePerCategory = categoryBreakdown.length > 0 ? Math.round((roundedTotal / categoryBreakdown.length) * 100) / 100 : 0;
+
     return {
-      totalAmount,
+      totalAmount: roundedTotal,
       categoryCount: categoryBreakdown.length,
-      averagePerCategory: categoryBreakdown.length > 0 ? totalAmount / categoryBreakdown.length : 0,
+      averagePerCategory,
       topCategory,
       categoryBreakdown,
     };

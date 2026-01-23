@@ -74,9 +74,10 @@ export async function getTrendData(
       const monthLabel = current.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
       const data = monthlyData[monthKey] || { income: 0, expenses: 0 };
-      const income = data.income;
-      const expenses = data.expenses;
-      const net = income - expenses;
+      // Round to fix floating-point precision issues
+      const income = Math.round(data.income * 100) / 100;
+      const expenses = Math.round(data.expenses * 100) / 100;
+      const net = Math.round((income - expenses) * 100) / 100;
       const savingsRate = income > 0 ? (net / income) * 100 : 0;
 
       allMonths.push({
@@ -94,12 +95,12 @@ export async function getTrendData(
     // Sort by date ascending (oldest first)
     allMonths.sort((a, b) => a.month.localeCompare(b.month));
 
-    // Calculate averages
+    // Calculate averages with rounding
     const totalMonths = allMonths.length;
-    const avgIncome = allMonths.reduce((sum, m) => sum + m.income, 0) / totalMonths;
-    const avgExpenses = allMonths.reduce((sum, m) => sum + m.expenses, 0) / totalMonths;
-    const avgNet = allMonths.reduce((sum, m) => sum + m.net, 0) / totalMonths;
-    const avgSavingsRate = allMonths.reduce((sum, m) => sum + m.savingsRate, 0) / totalMonths;
+    const avgIncome = Math.round((allMonths.reduce((sum, m) => sum + m.income, 0) / totalMonths) * 100) / 100;
+    const avgExpenses = Math.round((allMonths.reduce((sum, m) => sum + m.expenses, 0) / totalMonths) * 100) / 100;
+    const avgNet = Math.round((allMonths.reduce((sum, m) => sum + m.net, 0) / totalMonths) * 100) / 100;
+    const avgSavingsRate = Math.round((allMonths.reduce((sum, m) => sum + m.savingsRate, 0) / totalMonths) * 10) / 10;
 
     // Find best and worst months (by net savings)
     const bestMonth = [...allMonths].sort((a, b) => b.net - a.net)[0] || null;
