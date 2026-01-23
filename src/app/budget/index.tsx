@@ -101,22 +101,32 @@ export default function BudgetOverviewScreen() {
   const details = detailsQuery.data || [];
 
   const groupedDetails = useMemo(() => {
-    const groups: Record<string, any[]> = {
-      needs: [],
-      wants: [],
-      savings: [],
-      other: [],
-    };
+    const groups: Record<string, any[]> = {};
+
+    // Initialize groups for all expense category groups from DB
+    (categoryGroupsQuery.data || [])
+      .filter((g: any) => g.type === 'expense')
+      .forEach((g: any) => {
+        groups[g.key] = [];
+      });
+
+    // Also add 'other' as fallback
+    if (!groups['other']) {
+      groups['other'] = [];
+    }
 
     details.forEach((detail: any) => {
       const group = detail.categoryGroup || 'other';
       if (groups[group]) {
         groups[group].push(detail);
+      } else {
+        // If group doesn't exist, add to other
+        groups['other'].push(detail);
       }
     });
 
     return groups;
-  }, [details]);
+  }, [details, categoryGroupsQuery.data]);
 
   if (householdQuery.isLoading || summaryQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
