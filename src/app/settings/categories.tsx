@@ -419,13 +419,13 @@ export default function CategoriesScreen() {
                   {errors.type && <Text className="text-xs text-red-500 mt-1">{errors.type}</Text>}
                 </View>
 
-                {/* Group (only for expense) */}
-                {formData.type === 'expense' && (
+                {/* Group (for both income and expense) */}
+                {formData.type && (
                   <View className="mb-6">
                     <Text className="text-sm font-medium text-gray-700 mb-2">Category Group</Text>
                     <View className="gap-2">
                       {(categoryGroupsQuery.data || [])
-                        .filter((group) => group.type === 'expense')
+                        .filter((group) => group.type === formData.type)
                         .map((group) => (
                           <Pressable
                             key={group.id}
