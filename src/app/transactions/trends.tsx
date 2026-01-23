@@ -11,7 +11,7 @@ type TimeRange = 'current' | 'last' | '3months' | '6months' | '12months' | 'all'
 
 export default function TrendsScreen() {
   const { user } = db.useAuth();
-  const [timeRange, setTimeRange] = useState<TimeRange>('6months');
+  const [timeRange, setTimeRange] = useState<TimeRange>('current');
 
   // Get user and household info
   const householdQuery = useQuery({
