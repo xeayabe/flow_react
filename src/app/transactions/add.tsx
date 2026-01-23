@@ -590,21 +590,6 @@ export default function AddTransactionScreen() {
             </View>
           </SafeAreaView>
 
-          {/* Debug info */}
-          {__DEV__ && (
-            <View className="px-6 py-2 bg-yellow-50 border-b border-yellow-200">
-              <Text className="text-xs text-yellow-800">
-                Debug: categories={categories.length}, filtered={filteredCategories.length}, type={formData.type}
-              </Text>
-              <Text className="text-xs text-yellow-800">
-                Groups: {Object.keys(groupedCategories).join(', ') || 'none'}
-              </Text>
-              <Text className="text-xs text-yellow-800">
-                Sample: {filteredCategories.slice(0, 2).map(c => `${c.name}:${c.categoryGroup}`).join(', ')}
-              </Text>
-            </View>
-          )}
-
           <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 40 }}>
             {categoriesQuery.isLoading ? (
               <View className="items-center justify-center py-8">

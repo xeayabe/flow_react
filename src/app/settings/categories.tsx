@@ -205,27 +205,18 @@ export default function CategoriesScreen() {
     const sections: SectionData[] = [];
     const allGroups = categoryGroupsQuery.data || [];
 
-    console.log('=== Categories Debug ===');
-    console.log('Selected type:', type);
-    console.log('Category groups from DB:', allGroups.map(g => ({ key: g.key, name: g.name, type: g.type, displayOrder: g.displayOrder })));
-    console.log('All categories from DB:', categories.map(c => ({ name: c.name, categoryGroup: c.categoryGroup, type: c.type })));
-
     // Filter categories by the selected type first
     const categoriesOfType = categories.filter((cat) => cat.type === type);
-    console.log('Categories of selected type:', categoriesOfType.map(c => ({ name: c.name, categoryGroup: c.categoryGroup })));
 
     // Filter groups by the selected type and sort by displayOrder
     const groupsOfType = allGroups
       .filter((group) => group.type === type)
       .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
-    console.log('Groups of selected type:', groupsOfType.map(g => ({ key: g.key, name: g.name, displayOrder: g.displayOrder })));
-
     // Add sections for each group matching the selected type
     groupsOfType.forEach((group) => {
       // Find categories that belong to this group by matching categoryGroup to group.key
       const categoriesForGroup = categoriesOfType.filter((cat) => cat.categoryGroup === group.key);
-      console.log(`Group ${group.key} (${group.name}): found ${categoriesForGroup.length} categories`);
 
       if (categoriesForGroup.length > 0) {
         sections.push({
@@ -239,7 +230,6 @@ export default function CategoriesScreen() {
     const groupKeys = new Set(allGroups.map(g => g.key));
     const uncategorized = categoriesOfType.filter((cat) => !groupKeys.has(cat.categoryGroup));
     if (uncategorized.length > 0) {
-      console.log('Categories with unmatched group keys:', uncategorized.map(c => ({ name: c.name, categoryGroup: c.categoryGroup })));
       // Group these by their categoryGroup value
       const uncategorizedByGroup = new Map<string, any[]>();
       uncategorized.forEach((cat) => {
@@ -258,7 +248,6 @@ export default function CategoriesScreen() {
       });
     }
 
-    console.log('Final sections:', sections.map(s => ({ title: s.title, count: s.data.length })));
     return sections;
   };
 
@@ -273,14 +262,6 @@ export default function CategoriesScreen() {
     );
   }
 
-  // Debug output
-  if (__DEV__) {
-    console.log('Categories screen debug:', {
-      allCategories: categories.length,
-      allCategoryGroups: (categoryGroupsQuery.data || []).map(g => ({ key: g.key, name: g.name, type: g.type })),
-      sections: sections.map(s => ({ title: s.title, count: s.data.length })),
-    });
-  }
 
   return (
     <View className="flex-1 bg-white">
