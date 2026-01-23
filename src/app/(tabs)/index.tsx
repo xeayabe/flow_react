@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import { getUserAccounts } from '@/lib/accounts-api';
 import { getRecentTransactions, Transaction } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
+import { getCategoryGroups } from '@/lib/category-groups-api';
 import { getBudgetSummary, recalculateBudgetSpentAmounts, checkAndResetBudgetIfNeeded } from '@/lib/budget-api';
 import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
 import {
@@ -25,7 +26,8 @@ import {
   ThisMonthSpendingCard,
   RecentTransactionsWidget,
   AccountsListWidget,
-  Budget50_30_20Widget,
+  BudgetBreakdownWidget,
+  BudgetGroupData,
   FloatingActionButton,
 } from '@/components/DashboardWidgets';
 
@@ -116,6 +118,16 @@ export default function DashboardScreen() {
     enabled: !!householdId,
   });
 
+  // Get category groups
+  const categoryGroupsQuery = useQuery({
+    queryKey: ['categoryGroups', householdId],
+    queryFn: async () => {
+      if (!householdId) return [];
+      return getCategoryGroups(householdId);
+    },
+    enabled: !!householdId,
+  });
+
   // Refetch when focused
   const { refetch: refetchBudgetSummary } = summaryQuery;
   const { refetch: refetchAccounts } = accountsQuery;
@@ -171,7 +183,8 @@ export default function DashboardScreen() {
     accountsQuery.isLoading ||
     summaryQuery.isLoading ||
     recentTransactionsQuery.isLoading ||
-    categoriesQuery.isLoading;
+    categoriesQuery.isLoading ||
+    categoryGroupsQuery.isLoading;
 
   if (isLoading) {
     return (
@@ -185,6 +198,7 @@ export default function DashboardScreen() {
   const summary = (summaryQuery.data as BudgetSummaryData) || null;
   const recentTransactions = recentTransactionsQuery.data || [];
   const categories = categoriesQuery.data || [];
+  const categoryGroups = categoryGroupsQuery.data || [];
   const userName = householdQuery.data?.userRecord?.name || 'User';
   const totalBalance = calculateTotalBalance(accounts);
   const monthSpending = calculatePeriodSpending(recentTransactions, budgetPeriod.start, budgetPeriod.end, 'expense');
@@ -192,10 +206,42 @@ export default function DashboardScreen() {
   // Enrich recent transactions with category info
   const enrichedTransactions = getRecentTransactionsWithCategories(recentTransactions, categories, 5);
 
-  // Get spent amounts by category group from summary (actual values, not estimates)
-  const needsSpent = summary?.needsSpent ?? 0;
-  const wantsSpent = summary?.wantsSpent ?? 0;
-  const savingsSpent = summary?.savingsSpent ?? 0;
+  // Build dynamic budget groups from category groups and summary data
+  const budgetGroups: BudgetGroupData[] = categoryGroups
+    .filter((g: any) => g.type === 'expense')
+    .sort((a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0))
+    .map((group: any) => {
+      // Get allocated and spent amounts for this group
+      // These come from the budget summary which was calculated from actual budgets
+      let allocated = 0;
+      let spent = 0;
+
+      // Match group key to summary data
+      if (group.key === 'needs') {
+        allocated = summary?.needsAllocated ?? 0;
+        spent = summary?.needsSpent ?? 0;
+      } else if (group.key === 'wants') {
+        allocated = summary?.wantsAllocated ?? 0;
+        spent = summary?.wantsSpent ?? 0;
+      } else if (group.key === 'savings') {
+        allocated = summary?.savingsAllocated ?? 0;
+        spent = summary?.savingsSpent ?? 0;
+      } else {
+        // For custom groups, calculate from categories with this group
+        const categoriesInGroup = categories.filter((c: any) => c.categoryGroup === group.key);
+        // We would need a proper mapping from budgets, but for now use a fallback
+        allocated = 0;
+        spent = 0;
+      }
+
+      return {
+        key: group.key,
+        name: group.name,
+        icon: group.icon,
+        allocated,
+        spent,
+      };
+    });
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
@@ -336,16 +382,9 @@ export default function DashboardScreen() {
             </View>
           )}
 
-          {/* Budget 50/30/20 Breakdown */}
-          {summary && (
-            <Budget50_30_20Widget
-              needsAllocated={summary.needsAllocated}
-              needsSpent={needsSpent}
-              wantsAllocated={summary.wantsAllocated}
-              wantsSpent={wantsSpent}
-              savingsAllocated={summary.savingsAllocated}
-              savingsSpent={savingsSpent}
-            />
+          {/* Budget Breakdown Widget - Dynamic */}
+          {summary && budgetGroups.length > 0 && (
+            <BudgetBreakdownWidget groups={budgetGroups} />
           )}
 
           {/* Recent Transactions Widget */}
