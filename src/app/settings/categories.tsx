@@ -87,16 +87,12 @@ export default function CategoriesScreen() {
 
   // Get category groups
   const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdQuery.data?.household?.id, householdQuery.data?.userRecord?.id],
+    queryKey: ['categoryGroups', householdQuery.data?.household?.id],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id || !householdQuery.data?.userRecord?.id) return [];
-
-      // Ensure all default category groups exist
-      await ensureDefaultCategoryGroups(householdQuery.data.household.id, householdQuery.data.userRecord.id);
-
+      if (!householdQuery.data?.household?.id) return [];
       return getCategoryGroups(householdQuery.data.household.id);
     },
-    enabled: !!householdQuery.data?.household?.id && !!householdQuery.data?.userRecord?.id,
+    enabled: !!householdQuery.data?.household?.id,
   });
 
   const createMutation = useMutation({

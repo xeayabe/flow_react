@@ -1,5 +1,6 @@
 import { db } from './db';
 import { createDefaultCategories } from './categories-api';
+import { createDefaultCategoryGroups } from './category-groups-api';
 import { calculateBudgetPeriod } from './payday-utils';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
@@ -246,6 +247,9 @@ export async function createUserProfile(email: string, name: string): Promise<Au
 
     // Create default categories for household
     await createDefaultCategories(householdId);
+
+    // Create default category groups for household
+    await createDefaultCategoryGroups(householdId, userId);
 
     // Log for debugging (will show in expo.log)
     console.log('User profile created:', { userId, email, name });
