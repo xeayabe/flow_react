@@ -213,15 +213,27 @@ export default function CategoriesScreen() {
     const sections: SectionData[] = [];
     const allGroups = categoryGroupsQuery.data || [];
 
+    console.log('=== Categories Debug ===');
+    console.log('Selected type:', type);
     console.log('Category groups from DB:', allGroups.map(g => ({ key: g.key, name: g.name, type: g.type, displayOrder: g.displayOrder })));
-    console.log('Categories from DB:', categories.map(c => ({ name: c.name, categoryGroup: c.categoryGroup, type: c.type })));
+    console.log('All categories from DB:', categories.map(c => ({ name: c.name, categoryGroup: c.categoryGroup, type: c.type })));
+
+    // Filter categories by the selected type first
+    const categoriesOfType = categories.filter((cat) => cat.type === type);
+    console.log('Categories of selected type:', categoriesOfType.map(c => ({ name: c.name, categoryGroup: c.categoryGroup })));
 
     // Sort groups by displayOrder
-    const sortedGroups = allGroups.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    const sortedGroups = [...allGroups].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
     // Add sections for each group matching the selected type
     sortedGroups.forEach((group) => {
-      const categoriesForGroup = categories.filter((cat) => cat.categoryGroup === group.key && cat.type === group.type && group.type === type);
+      // Only show groups that match the selected type
+      if (group.type !== type) return;
+
+      // Find categories that belong to this group
+      const categoriesForGroup = categoriesOfType.filter((cat) => cat.categoryGroup === group.key);
+      console.log(`Group ${group.key} (${group.name}): found ${categoriesForGroup.length} categories`);
+
       if (categoriesForGroup.length > 0) {
         sections.push({
           title: group.icon ? `${group.icon} ${group.name}` : group.name,
@@ -230,6 +242,18 @@ export default function CategoriesScreen() {
       }
     });
 
+    // Also check for any uncategorized categories (categories with group keys that don't match any group)
+    const groupKeys = new Set(allGroups.map(g => g.key));
+    const uncategorized = categoriesOfType.filter((cat) => !groupKeys.has(cat.categoryGroup));
+    if (uncategorized.length > 0) {
+      console.log('Uncategorized categories found:', uncategorized.map(c => ({ name: c.name, categoryGroup: c.categoryGroup })));
+      sections.push({
+        title: '📦 Other',
+        data: uncategorized,
+      });
+    }
+
+    console.log('Final sections:', sections.map(s => ({ title: s.title, count: s.data.length })));
     return sections;
   };
 
