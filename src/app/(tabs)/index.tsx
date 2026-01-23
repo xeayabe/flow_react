@@ -9,7 +9,7 @@ import { getUserAccounts } from '@/lib/accounts-api';
 import { getRecentTransactions, Transaction } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
-import { getBudgetSummary, recalculateBudgetSpentAmounts, checkAndResetBudgetIfNeeded } from '@/lib/budget-api';
+import { getBudgetSummary, getBudgetDetails, recalculateBudgetSpentAmounts, checkAndResetBudgetIfNeeded } from '@/lib/budget-api';
 import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
 import {
   calculateTotalBalance,
@@ -128,17 +128,29 @@ export default function DashboardScreen() {
     enabled: !!householdId,
   });
 
+  // Get budget details (per-category allocations and spent amounts)
+  const budgetDetailsQuery = useQuery({
+    queryKey: ['budget-details', userId, budgetPeriod.start],
+    queryFn: async () => {
+      if (!userId) return [];
+      return getBudgetDetails(userId, budgetPeriod.start);
+    },
+    enabled: !!userId,
+  });
+
   // Refetch when focused
   const { refetch: refetchBudgetSummary } = summaryQuery;
   const { refetch: refetchAccounts } = accountsQuery;
   const { refetch: refetchRecentTransactions } = recentTransactionsQuery;
+  const { refetch: refetchBudgetDetails } = budgetDetailsQuery;
 
   useFocusEffect(
     useCallback(() => {
       refetchBudgetSummary();
       refetchAccounts();
       refetchRecentTransactions();
-    }, [refetchBudgetSummary, refetchAccounts, refetchRecentTransactions])
+      refetchBudgetDetails();
+    }, [refetchBudgetSummary, refetchAccounts, refetchRecentTransactions, refetchBudgetDetails])
   );
 
   // Recalculate spent amounts when user/period data is available
@@ -184,7 +196,8 @@ export default function DashboardScreen() {
     summaryQuery.isLoading ||
     recentTransactionsQuery.isLoading ||
     categoriesQuery.isLoading ||
-    categoryGroupsQuery.isLoading;
+    categoryGroupsQuery.isLoading ||
+    budgetDetailsQuery.isLoading;
 
   if (isLoading) {
     return (
@@ -198,6 +211,7 @@ export default function DashboardScreen() {
   const summary = (summaryQuery.data as BudgetSummaryData) || null;
   const recentTransactions = recentTransactionsQuery.data || [];
   const categories = categoriesQuery.data || [];
+  const budgetDetails = budgetDetailsQuery.data || [];
   const categoryGroups = categoryGroupsQuery.data || [];
   const userName = householdQuery.data?.userRecord?.name || 'User';
   const totalBalance = calculateTotalBalance(accounts);
@@ -206,40 +220,31 @@ export default function DashboardScreen() {
   // Enrich recent transactions with category info
   const enrichedTransactions = getRecentTransactionsWithCategories(recentTransactions, categories, 5);
 
-  // Build dynamic budget groups from category groups and summary data
+  // Build dynamic budget groups from category groups and budget details
+  // First, aggregate budget details by category group
+  const groupTotals: Record<string, { allocated: number; spent: number }> = {};
+  budgetDetails.forEach((budget: any) => {
+    const groupKey = budget.categoryGroup || 'other';
+    if (!groupTotals[groupKey]) {
+      groupTotals[groupKey] = { allocated: 0, spent: 0 };
+    }
+    groupTotals[groupKey].allocated += budget.allocatedAmount || 0;
+    groupTotals[groupKey].spent += budget.spentAmount || 0;
+  });
+
   const budgetGroups: BudgetGroupData[] = categoryGroups
     .filter((g: any) => g.type === 'expense')
     .sort((a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0))
     .map((group: any) => {
-      // Get allocated and spent amounts for this group
-      // These come from the budget summary which was calculated from actual budgets
-      let allocated = 0;
-      let spent = 0;
-
-      // Match group key to summary data
-      if (group.key === 'needs') {
-        allocated = summary?.needsAllocated ?? 0;
-        spent = summary?.needsSpent ?? 0;
-      } else if (group.key === 'wants') {
-        allocated = summary?.wantsAllocated ?? 0;
-        spent = summary?.wantsSpent ?? 0;
-      } else if (group.key === 'savings') {
-        allocated = summary?.savingsAllocated ?? 0;
-        spent = summary?.savingsSpent ?? 0;
-      } else {
-        // For custom groups, calculate from categories with this group
-        const categoriesInGroup = categories.filter((c: any) => c.categoryGroup === group.key);
-        // We would need a proper mapping from budgets, but for now use a fallback
-        allocated = 0;
-        spent = 0;
-      }
+      // Get allocated and spent amounts from aggregated budget details
+      const totals = groupTotals[group.key] || { allocated: 0, spent: 0 };
 
       return {
         key: group.key,
         name: group.name,
         icon: group.icon,
-        allocated,
-        spent,
+        allocated: Math.round(totals.allocated * 100) / 100,
+        spent: Math.round(totals.spent * 100) / 100,
       };
     });
 
