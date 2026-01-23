@@ -150,8 +150,8 @@ export default function BudgetOverviewScreen() {
     );
   }
 
-  const remaining = summary.totalIncome - summary.totalSpent;
-  const spentPercentage = (summary.totalSpent / summary.totalIncome) * 100;
+  const remaining = summary.totalIncome - summary.totalAllocated;
+  const allocatedPercentage = (summary.totalAllocated / summary.totalIncome) * 100;
 
   return (
     <>
@@ -182,12 +182,12 @@ export default function BudgetOverviewScreen() {
               <View className="mb-4">
                 <View className="flex-row justify-between mb-2">
                   <Text className="text-sm text-gray-600">Total Allocated</Text>
-                  <Text className="text-sm font-semibold text-gray-900">{spentPercentage.toFixed(1)}%</Text>
+                  <Text className="text-sm font-semibold text-gray-900">{allocatedPercentage.toFixed(1)}%</Text>
                 </View>
                 <View className="h-3 bg-teal-200 rounded-full overflow-hidden">
                   <View
                     className="h-full bg-teal-600"
-                    style={{ width: `${Math.min(100, spentPercentage)}%` }}
+                    style={{ width: `${Math.min(100, allocatedPercentage)}%` }}
                   />
                 </View>
               </View>

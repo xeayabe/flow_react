@@ -222,8 +222,11 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Budget period automatically set from payday settings
 - ✅ **Budget Overview** - Track spending against budget
   - Route: `/budget` shows allocated vs spent
-  - Overall progress with visual progress bar
-  - 50/30/20 summary cards with spent percentages
+  - **Allocated**: Total amount you've assigned to categories
+  - **Spent**: Actual expenses recorded in the current period
+  - **Remaining**: Unallocated budget (Income - Allocated)
+  - Overall progress with visual progress bar showing allocation percentage
+  - 50/30/20 summary cards with spent percentages per group
   - Category breakdown with status indicators
   - Edit Budget button to modify allocations (goes to category group allocation first)
 - ✅ **Real-Time Spent Tracking**
