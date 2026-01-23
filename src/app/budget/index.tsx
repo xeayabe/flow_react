@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 import { db } from '@/lib/db';
 import { getBudgetSummary, getBudgetDetails } from '@/lib/budget-api';
+import { getCategoryGroups } from '@/lib/category-groups-api';
 import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
 
 interface BudgetSummaryData {
@@ -80,6 +81,15 @@ export default function BudgetOverviewScreen() {
     enabled: !!householdQuery.data?.userRecord?.id,
   });
 
+  const categoryGroupsQuery = useQuery({
+    queryKey: ['categoryGroups', householdQuery.data?.household?.id],
+    queryFn: async () => {
+      if (!householdQuery.data?.household?.id) return [];
+      return getCategoryGroups(householdQuery.data.household.id);
+    },
+    enabled: !!householdQuery.data?.household?.id,
+  });
+
   useFocusEffect(
     useCallback(() => {
       queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
@@ -108,7 +118,7 @@ export default function BudgetOverviewScreen() {
     return groups;
   }, [details]);
 
-  if (householdQuery.isLoading || summaryQuery.isLoading) {
+  if (householdQuery.isLoading || summaryQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
       <View className="flex-1 bg-white justify-center items-center">
         <ActivityIndicator size="large" color="#006A6A" />
@@ -202,93 +212,96 @@ export default function BudgetOverviewScreen() {
             </View>
 
             <View className="mb-8 gap-3">
-              {[
-                { title: 'Needs', icon: '🏠', allocated: summary.needsAllocated, spent: groupedDetails.needs.reduce((sum: number, d: any) => sum + d.spentAmount, 0), color: '#3B82F6' },
-                { title: 'Wants', icon: '🎭', allocated: summary.wantsAllocated, spent: groupedDetails.wants.reduce((sum: number, d: any) => sum + d.spentAmount, 0), color: '#A855F7' },
-                { title: 'Savings', icon: '💎', allocated: summary.savingsAllocated, spent: groupedDetails.savings.reduce((sum: number, d: any) => sum + d.spentAmount, 0), color: '#10B981' },
-              ].map((item) => {
-                const percentage = item.allocated > 0 ? (item.spent / item.allocated) * 100 : 0;
-                return (
-                  <View key={item.title} className="p-4 rounded-xl" style={{ backgroundColor: `${item.color}15`, borderWidth: 1, borderColor: `${item.color}40` }}>
-                    <View className="flex-row items-center justify-between mb-2">
-                      <View className="flex-row items-center gap-2">
-                        <Text className="text-lg">{item.icon}</Text>
-                        <View>
-                          <Text className="text-sm font-semibold text-gray-900">{item.title}</Text>
-                          <Text className="text-xs text-gray-600">{item.allocated.toFixed(2)} CHF budget</Text>
+              {(categoryGroupsQuery.data || [])
+                .filter((g) => g.type === 'expense')
+                .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+                .map((group) => {
+                  const groupDetails = groupedDetails[group.key] || [];
+                  const allocated = groupDetails.reduce((sum: number, d: any) => sum + d.allocatedAmount, 0);
+                  const spent = groupDetails.reduce((sum: number, d: any) => sum + d.spentAmount, 0);
+                  const percentage = allocated > 0 ? (spent / allocated) * 100 : 0;
+
+                  return (
+                    <View key={group.key} className="p-4 rounded-xl" style={{ backgroundColor: '#F3F4F615', borderWidth: 1, borderColor: '#E5E7EB' }}>
+                      <View className="flex-row items-center justify-between mb-2">
+                        <View className="flex-row items-center gap-2">
+                          <Text className="text-lg">{group.icon || '📂'}</Text>
+                          <View>
+                            <Text className="text-sm font-semibold text-gray-900">{group.name}</Text>
+                            <Text className="text-xs text-gray-600">{allocated.toFixed(2)} CHF budget</Text>
+                          </View>
                         </View>
+                        <Text className="text-sm font-bold" style={{ color: '#006A6A' }}>
+                          {percentage.toFixed(0)}%
+                        </Text>
                       </View>
-                      <Text className="text-sm font-bold" style={{ color: item.color }}>
-                        {percentage.toFixed(0)}%
-                      </Text>
+                      <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <View
+                          className="h-full"
+                          style={{ width: `${Math.min(100, percentage)}%`, backgroundColor: '#006A6A' }}
+                        />
+                      </View>
                     </View>
-                    <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <View
-                        className="h-full"
-                        style={{ width: `${Math.min(100, percentage)}%`, backgroundColor: item.color }}
-                      />
-                    </View>
-                  </View>
-                );
-              })}
+                  );
+                })}
             </View>
 
             <View>
               <Text className="text-sm font-semibold text-gray-900 mb-4 uppercase">Categories</Text>
 
-              {['needs', 'wants', 'savings'].map((groupKey) => {
-                const groupDetails = groupedDetails[groupKey] || [];
-                if (groupDetails.length === 0) return null;
+              {(categoryGroupsQuery.data || [])
+                .filter((g) => g.type === 'expense')
+                .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+                .map((group) => {
+                  const groupDetails = groupedDetails[group.key] || [];
+                  if (groupDetails.length === 0) return null;
 
-                const icons = { needs: '🏠', wants: '🎭', savings: '💎' };
-                const groupLabels = { needs: 'Needs', wants: 'Wants', savings: 'Savings' };
+                  return (
+                    <View key={group.key} className="mb-6">
+                      <Text className="text-xs font-semibold text-gray-500 mb-3 uppercase">
+                        {group.icon && `${group.icon} `}{group.name}
+                      </Text>
 
-                return (
-                  <View key={groupKey} className="mb-6">
-                    <Text className="text-xs font-semibold text-gray-500 mb-3 uppercase">
-                      {icons[groupKey as keyof typeof icons]} {groupLabels[groupKey as keyof typeof groupLabels]}
-                    </Text>
+                      {groupDetails.map((detail: any) => {
+                        const percentage = detail.allocatedAmount > 0 ? (detail.spentAmount / detail.allocatedAmount) * 100 : 0;
+                        const statusColor = getStatusColor(detail.status);
 
-                    {groupDetails.map((detail: any) => {
-                      const percentage = detail.allocatedAmount > 0 ? (detail.spentAmount / detail.allocatedAmount) * 100 : 0;
-                      const statusColor = getStatusColor(detail.status);
-
-                      return (
-                        <View key={detail.id} className="mb-4 p-4 rounded-xl bg-gray-50">
-                          <View className="flex-row items-start justify-between mb-3">
-                            <View className="flex-1">
-                              <Text className="text-sm font-semibold text-gray-900">{detail.categoryName}</Text>
-                              <View className="flex-row gap-3 mt-1">
-                                <Text className="text-xs text-gray-600">
-                                  Budget: <Text className="font-semibold">{detail.allocatedAmount.toFixed(2)}</Text> CHF
-                                </Text>
-                                <Text className="text-xs text-gray-600">
-                                  Spent: <Text className="font-semibold">{detail.spentAmount.toFixed(2)}</Text> CHF
+                        return (
+                          <View key={detail.id} className="mb-4 p-4 rounded-xl bg-gray-50">
+                            <View className="flex-row items-start justify-between mb-3">
+                              <View className="flex-1">
+                                <Text className="text-sm font-semibold text-gray-900">{detail.categoryName}</Text>
+                                <View className="flex-row gap-3 mt-1">
+                                  <Text className="text-xs text-gray-600">
+                                    Budget: <Text className="font-semibold">{detail.allocatedAmount.toFixed(2)}</Text> CHF
+                                  </Text>
+                                  <Text className="text-xs text-gray-600">
+                                    Spent: <Text className="font-semibold">{detail.spentAmount.toFixed(2)}</Text> CHF
+                                  </Text>
+                                </View>
+                              </View>
+                              <View className="items-end">
+                                <Text className="text-sm font-bold" style={{ color: statusColor }}>
+                                  {percentage.toFixed(0)}%
                                 </Text>
                               </View>
                             </View>
-                            <View className="items-end">
-                              <Text className="text-sm font-bold" style={{ color: statusColor }}>
-                                {percentage.toFixed(0)}%
-                              </Text>
+
+                            <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <View
+                                className="h-full"
+                                style={{
+                                  width: `${Math.min(100, percentage)}%`,
+                                  backgroundColor: statusColor,
+                                }}
+                              />
                             </View>
                           </View>
-
-                          <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <View
-                              className="h-full"
-                              style={{
-                                width: `${Math.min(100, percentage)}%`,
-                                backgroundColor: statusColor,
-                              }}
-                            />
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                );
-              })}
+                        );
+                      })}
+                    </View>
+                  );
+                })}
             </View>
           </View>
         </ScrollView>
