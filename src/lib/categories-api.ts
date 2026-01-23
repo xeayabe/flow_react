@@ -22,7 +22,7 @@ export interface CreateCategoryRequest {
   householdId: string;
   name: string;
   type: 'income' | 'expense';
-  categoryGroup: 'income' | 'needs' | 'wants' | 'savings' | 'other';
+  categoryGroup: string;
   createdByUserId?: string;
   icon?: string;
   color?: string;
@@ -303,7 +303,7 @@ export async function updateCategory(
   updates: {
     name?: string;
     type?: 'income' | 'expense';
-    categoryGroup?: 'income' | 'needs' | 'wants' | 'savings' | 'other';
+    categoryGroup?: string;
     icon?: string;
     color?: string;
   }

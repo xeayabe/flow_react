@@ -10,12 +10,11 @@ import { getCategoryGroups } from '@/lib/category-groups-api';
 import { cn } from '@/lib/cn';
 
 type CategoryType = 'income' | 'expense';
-type CategoryGroup = 'income' | 'needs' | 'wants' | 'savings' | 'other';
 
 interface FormData {
   name: string;
   type: CategoryType | '';
-  group: CategoryGroup | '';
+  groupKey: string; // This is the actual category group key from categoryGroups table
   icon: string;
   color: string;
 }
@@ -33,7 +32,7 @@ export default function CategoriesScreen() {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     type: '',
-    group: '',
+    groupKey: '',
     icon: '',
     color: '',
   });
@@ -98,7 +97,7 @@ export default function CategoriesScreen() {
         householdId: householdQuery.data!.household.id,
         name: formData.name,
         type: formData.type as CategoryType,
-        categoryGroup: formData.group as CategoryGroup,
+        categoryGroup: formData.groupKey,
         createdByUserId: householdQuery.data!.userRecord.id,
         icon: formData.icon || undefined,
         color: formData.color || undefined,
@@ -115,7 +114,7 @@ export default function CategoriesScreen() {
       updateCategory(editingCategory.id, {
         name: formData.name !== editingCategory.name ? formData.name : undefined,
         type: formData.type !== editingCategory.type ? (formData.type as 'income' | 'expense') : undefined,
-        categoryGroup: formData.group !== editingCategory.categoryGroup ? (formData.group as 'income' | 'needs' | 'wants' | 'savings' | 'other') : undefined,
+        categoryGroup: formData.groupKey !== editingCategory.categoryGroup ? formData.groupKey : undefined,
         icon: formData.icon !== editingCategory.icon ? formData.icon : undefined,
         color: formData.color !== editingCategory.color ? formData.color : undefined,
       }),
@@ -134,7 +133,7 @@ export default function CategoriesScreen() {
   });
 
   const resetForm = () => {
-    setFormData({ name: '', type: '', group: '', icon: '', color: '' });
+    setFormData({ name: '', type: '', groupKey: '', icon: '', color: '' });
     setErrors({});
     setEditingCategory(null);
   };
@@ -154,8 +153,8 @@ export default function CategoriesScreen() {
       newErrors.type = 'Please select a type';
     }
 
-    if (formData.type === 'expense' && !formData.group) {
-      newErrors.group = 'Please select a group';
+    if (formData.type === 'expense' && !formData.groupKey) {
+      newErrors.groupKey = 'Please select a group';
     }
 
     setErrors(newErrors);
@@ -172,7 +171,7 @@ export default function CategoriesScreen() {
     setFormData({
       name: category.name,
       type: category.type,
-      group: category.categoryGroup,
+      groupKey: category.categoryGroup,
       icon: category.icon || '',
       color: category.color || '',
     });
@@ -198,53 +197,20 @@ export default function CategoriesScreen() {
     const sections: SectionData[] = [];
     const allGroups = categoryGroupsQuery.data || [];
 
-    console.log('Category groups from DB:', allGroups.map(g => ({ key: g.key, name: g.name, type: g.type })));
-    console.log('Categories from DB:', categories.map(c => ({ name: c.name, categoryGroup: c.categoryGroup })));
-
-    // Get all unique group keys from categories
-    const groupKeysWithCategories = new Set<string>();
-    categories.forEach((cat) => {
-      if (cat.categoryGroup) {
-        groupKeysWithCategories.add(cat.categoryGroup);
-      }
-    });
-
-    console.log('Group keys with categories:', Array.from(groupKeysWithCategories));
+    console.log('Category groups from DB:', allGroups.map(g => ({ key: g.key, name: g.name, type: g.type, displayOrder: g.displayOrder })));
+    console.log('Categories from DB:', categories.map(c => ({ name: c.name, categoryGroup: c.categoryGroup, type: c.type })));
 
     // Sort groups by displayOrder
     const sortedGroups = allGroups.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
-    // Add sections for each group that has categories
+    // Add sections for each group
     sortedGroups.forEach((group) => {
-      if (groupKeysWithCategories.has(group.key)) {
-        const categoriesForGroup = categories.filter((cat) => cat.categoryGroup === group.key);
+      const categoriesForGroup = categories.filter((cat) => cat.categoryGroup === group.key && cat.type === group.type);
+      if (categoriesForGroup.length > 0) {
         sections.push({
           title: group.icon ? `${group.icon} ${group.name}` : group.name,
           data: categoriesForGroup,
         });
-      }
-    });
-
-    // Also add sections for category groups that don't exist in categoryGroups table
-    // (for backwards compatibility with needs/wants/savings/other)
-    const knownGroupLabels: Record<string, string> = {
-      income: '💰 Income',
-      needs: '🏠 Needs',
-      wants: '🎭 Wants',
-      savings: '💎 Savings',
-      other: '📦 Other',
-    };
-
-    groupKeysWithCategories.forEach((groupKey) => {
-      const existsInCategoryGroups = sortedGroups.some((g) => g.key === groupKey);
-      if (!existsInCategoryGroups) {
-        const categoriesForGroup = categories.filter((cat) => cat.categoryGroup === groupKey);
-        if (categoriesForGroup.length > 0) {
-          sections.push({
-            title: knownGroupLabels[groupKey] || groupKey,
-            data: categoriesForGroup,
-          });
-        }
       }
     });
 
@@ -372,7 +338,7 @@ export default function CategoriesScreen() {
                           setFormData({
                             ...formData,
                             type,
-                            group: type === 'income' ? 'income' : '',
+                            groupKey: type === 'income' ? 'income' : '',
                           });
                           if (errors.type) setErrors({ ...errors, type: '' });
                         }}
@@ -408,12 +374,12 @@ export default function CategoriesScreen() {
                           <Pressable
                             key={group.id}
                             onPress={() => {
-                              setFormData({ ...formData, group: group.key as any });
-                              if (errors.group) setErrors({ ...errors, group: '' });
+                              setFormData({ ...formData, groupKey: group.key as any });
+                              if (errors.groupKey) setErrors({ ...errors, groupKey: '' });
                             }}
                             className={cn(
                               'py-3 px-4 rounded-lg border-2',
-                              formData.group === group.key
+                              formData.groupKey === group.key
                                 ? 'bg-teal-50 border-teal-600'
                                 : 'border-gray-200'
                             )}
@@ -421,7 +387,7 @@ export default function CategoriesScreen() {
                             <Text
                               className={cn(
                                 'font-medium',
-                                formData.group === group.key ? 'text-teal-600' : 'text-gray-700'
+                                formData.groupKey === group.key ? 'text-teal-600' : 'text-gray-700'
                               )}
                             >
                               {group.icon && `${group.icon} `}
