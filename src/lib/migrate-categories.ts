@@ -20,53 +20,26 @@ export async function migrateCategoryGroups(householdId: string): Promise<{ succ
     });
 
     const categories = result.data.categories || [];
-    console.log('Found categories:', categories.length);
-
-    // Map category names to their proper groups based on default categories
-    const categoryGroupMap: Record<string, string> = {
-      // Income categories
-      'Salary': 'income',
-      'Bonus': 'income',
-      'Freelance': 'income',
-      'Investment': 'income',
-      'Gift': 'income',
-      'Refund': 'income',
-      'Other Income': 'income',
-
-      // Needs categories (50%)
-      'Rent/Housing': 'needs',
-      'Groceries': 'needs',
-      'Utilities': 'needs',
-      'Transportation': 'needs',
-      'Health Insurance': 'needs',
-      'Internet/Phone': 'needs',
-
-      // Wants categories (30%)
-      'Dining Out': 'wants',
-      'Entertainment': 'wants',
-      'Shopping': 'wants',
-      'Hobbies': 'wants',
-      'Subscriptions': 'wants',
-      'Vacations': 'wants',
-
-      // Savings categories (20%)
-      'Emergency Fund': 'savings',
-      'Investments': 'savings',
-      'Savings Goals': 'savings',
-
-      // Other expense categories
-      'Other Expense': 'other',
-    };
+    console.log('Found categories for migration:', categories.length);
 
     let migratedCount = 0;
     const now = Date.now();
 
-    // Update categories with wrong groups
+    // Update ALL categories with wrong groups (those starting with custom_)
     for (const category of categories) {
-      const properGroup = categoryGroupMap[category.name];
+      // Only migrate if the current group starts with custom_
+      if (category.categoryGroup && category.categoryGroup.startsWith('custom_')) {
+        // Determine the proper group based on category type
+        let properGroup = 'other'; // default fallback for expenses
 
-      // Only migrate if we have a mapping and the current group is wrong (starts with custom_)
-      if (properGroup && category.categoryGroup && category.categoryGroup.startsWith('custom_')) {
+        if (category.type === 'income') {
+          properGroup = 'income';
+        } else if (category.type === 'expense') {
+          // Use 'other' as default for all expense categories
+          // Users can organize them later through the budget/category management UI
+          properGroup = 'other';
+        }
+
         console.log(`Migrating category "${category.name}" from "${category.categoryGroup}" to "${properGroup}"`);
 
         await db.transact([
