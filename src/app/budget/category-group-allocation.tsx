@@ -196,6 +196,7 @@ export default function CategoryGroupAllocationScreen() {
     <>
       <Stack.Screen
         options={{
+          title: 'Budget Setup',
           headerLeft: () => (
             <Pressable onPress={() => router.back()} className="mr-4">
               <ChevronLeft size={24} color="#006A6A" />

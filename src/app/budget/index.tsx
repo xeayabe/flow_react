@@ -149,7 +149,7 @@ export default function BudgetOverviewScreen() {
         options={{
           title: 'Budget',
           headerRight: () => (
-            <Pressable onPress={() => router.push('/budget/category-group-allocation')} className="mr-4 flex-row items-center gap-2">
+            <Pressable onPress={() => router.push('/budget/setup')} className="mr-4 flex-row items-center gap-2">
               <Edit3 size={20} color="#006A6A" />
             </Pressable>
           ),
