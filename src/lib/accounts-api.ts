@@ -332,3 +332,139 @@ export function parseBalance(input: string): number | null {
 
   return parsed;
 }
+
+/**
+ * Get a single account by ID
+ */
+export async function getAccountById(accountId: string): Promise<Account | null> {
+  try {
+    const result = await db.queryOnce({
+      accounts: {
+        $: {
+          where: {
+            id: accountId,
+          },
+        },
+      },
+    });
+
+    const account = result.data.accounts?.[0];
+    return account ? (account as Account) : null;
+  } catch (error) {
+    console.error('Get account by ID error:', error);
+    return null;
+  }
+}
+
+export interface UpdateAccountData {
+  name?: string;
+  institution?: Institution;
+  accountType?: AccountType;
+  balance?: number;
+  last4Digits?: string;
+  isDefault?: boolean;
+}
+
+/**
+ * Update an existing account
+ */
+export async function updateAccount(
+  accountId: string,
+  updateData: UpdateAccountData
+): Promise<AccountResponse> {
+  try {
+    // Get existing account
+    const existingAccount = await getAccountById(accountId);
+    if (!existingAccount) {
+      return { success: false, error: 'Account not found' };
+    }
+
+    // If setting as default, unset previous default
+    if (updateData.isDefault === true) {
+      const existingAccounts = await db.queryOnce({
+        accounts: {
+          $: {
+            where: {
+              userId: existingAccount.userId,
+              isDefault: true,
+              isActive: true,
+            },
+          },
+        },
+      });
+
+      // Unset previous default accounts (except current one)
+      for (const account of existingAccounts.data.accounts || []) {
+        if (account.id !== accountId) {
+          await db.transact([
+            db.tx.accounts[account.id].update({
+              isDefault: false,
+              updatedAt: Date.now(),
+            }),
+          ]);
+        }
+      }
+    }
+
+    // Build update object
+    const updates: Record<string, unknown> = {
+      updatedAt: Date.now(),
+    };
+
+    if (updateData.name !== undefined) updates.name = updateData.name;
+    if (updateData.institution !== undefined) updates.institution = updateData.institution;
+    if (updateData.accountType !== undefined) updates.accountType = updateData.accountType;
+    if (updateData.balance !== undefined) updates.balance = updateData.balance;
+    if (updateData.last4Digits !== undefined) updates.last4Digits = updateData.last4Digits;
+    if (updateData.isDefault !== undefined) updates.isDefault = updateData.isDefault;
+
+    await db.transact([
+      db.tx.accounts[accountId].update(updates),
+    ]);
+
+    console.log('Account updated:', { accountId, updates });
+
+    // Fetch updated account
+    const updatedAccount = await getAccountById(accountId);
+
+    return {
+      success: true,
+      account: updatedAccount || undefined,
+    };
+  } catch (error) {
+    console.error('Update account error:', error);
+    return {
+      success: false,
+      error: 'Failed to update account. Please try again',
+    };
+  }
+}
+
+/**
+ * Delete an account (soft delete)
+ */
+export async function deleteAccount(accountId: string): Promise<AccountResponse> {
+  try {
+    const existingAccount = await getAccountById(accountId);
+    if (!existingAccount) {
+      return { success: false, error: 'Account not found' };
+    }
+
+    await db.transact([
+      db.tx.accounts[accountId].update({
+        isActive: false,
+        updatedAt: Date.now(),
+      }),
+    ]);
+
+    console.log('Account deleted:', accountId);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Delete account error:', error);
+    return {
+      success: false,
+      error: 'Failed to delete account. Please try again',
+    };
+  }
+}
