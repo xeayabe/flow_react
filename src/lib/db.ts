@@ -51,8 +51,9 @@ const schema = i.schema({
       isShareable: i.boolean(),
       isDefault: i.boolean(),
       createdByUserId: i.string().optional(),
-      icon: i.string().optional(),
-      color: i.string().optional(),
+      // DEPRECATED: icon and color are no longer used - emoji is stored directly in name field
+      icon: i.string().optional(), // @deprecated
+      color: i.string().optional(), // @deprecated
       isActive: i.boolean(),
       createdAt: i.number(),
       updatedAt: i.number(),
