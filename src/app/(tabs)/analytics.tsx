@@ -63,7 +63,7 @@ function PieChartComponent({ data, size, onSegmentPress }: { data: CategorySpend
 
   let startAngle = -90;
 
-  const paths = data.map((item) => {
+  const segments = data.map((item) => {
     const percentage = item.amount / total;
     const angle = percentage * 360;
     const endAngle = startAngle + angle;
@@ -93,27 +93,47 @@ function PieChartComponent({ data, size, onSegmentPress }: { data: CategorySpend
 
     startAngle = endAngle;
 
-    return (
-      <Pressable
-        key={item.categoryId}
-        onPress={() => onSegmentPress(item.categoryId)}
-        style={{ position: 'absolute', width: size, height: size }}
-      >
-        <Path
-          d={path}
-          fill={item.color}
-          stroke="#FFFFFF"
-          strokeWidth={2}
-        />
-      </Pressable>
-    );
+    return {
+      categoryId: item.categoryId,
+      path,
+      color: item.color,
+    };
   });
 
   return (
-    <View style={{ width: size, height: size }}>
+    <View style={{ width: size, height: size, position: 'relative' }}>
       <Svg width={size} height={size}>
-        <G>{paths}</G>
+        <G>
+          {segments.map((segment) => (
+            <Path
+              key={segment.categoryId}
+              d={segment.path}
+              fill={segment.color}
+              stroke="#FFFFFF"
+              strokeWidth={2}
+            />
+          ))}
+        </G>
       </Svg>
+      {/* Clickable overlay segments */}
+      <View style={{ position: 'absolute', width: size, height: size }}>
+        {segments.map((segment) => (
+          <Pressable
+            key={`pressable-${segment.categoryId}`}
+            onPress={() => onSegmentPress(segment.categoryId)}
+            style={{ position: 'absolute', width: size, height: size }}
+          >
+            {/* Transparent overlay */}
+            <Svg width={size} height={size} style={{ position: 'absolute' }}>
+              <Path
+                d={segment.path}
+                fill="transparent"
+                strokeWidth={0}
+              />
+            </Svg>
+          </Pressable>
+        ))}
+      </View>
       <View
         style={{
           position: 'absolute',
