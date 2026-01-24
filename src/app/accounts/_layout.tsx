@@ -16,6 +16,13 @@ export default function AccountsLayout() {
           presentation: 'modal',
         }}
       />
+      <Stack.Screen
+        name="edit"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
     </Stack>
   );
 }

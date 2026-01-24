@@ -11,6 +11,13 @@ export default function SettingsLayout() {
         }}
       />
       <Stack.Screen
+        name="category-groups"
+        options={{
+          headerShown: true,
+          title: 'Category Groups',
+        }}
+      />
+      <Stack.Screen
         name="payday"
         options={{
           headerShown: true,

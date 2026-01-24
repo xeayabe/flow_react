@@ -11,6 +11,7 @@ import {
   Keyboard,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Info, ChevronDown, Trash2 } from 'lucide-react-native';
@@ -254,16 +255,17 @@ export default function EditWalletScreen() {
   return (
     <View className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <View className="flex-1 rounded-t-3xl" style={{ overflow: 'hidden' }}>
-        {/* Modal Handle */}
-        <View className="pt-3 pb-2 items-center bg-white">
-          <View style={{ width: 32, height: 4, backgroundColor: '#D1D5DB', borderRadius: 2 }} />
-        </View>
+      <SafeAreaView edges={['top']} className="flex-1">
+        <View className="flex-1 rounded-t-3xl" style={{ overflow: 'hidden' }}>
+          {/* Modal Handle */}
+          <View className="pt-3 pb-2 items-center bg-white">
+            <View style={{ width: 32, height: 4, backgroundColor: '#D1D5DB', borderRadius: 2 }} />
+          </View>
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          className="flex-1"
-        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            className="flex-1"
+          >
           <ScrollView
             className="flex-1"
             contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 }}
@@ -556,6 +558,7 @@ export default function EditWalletScreen() {
           </View>
         </KeyboardAvoidingView>
       </View>
+      </SafeAreaView>
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
