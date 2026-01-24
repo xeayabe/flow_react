@@ -179,7 +179,7 @@ export default function BudgetTabScreen() {
             {formatDateSwiss(budgetPeriod.start)} - {formatDateSwiss(budgetPeriod.end)}
           </Text>
         </View>
-        <Pressable onPress={() => router.push('/budget/setup')} className="p-2">
+        <Pressable onPress={() => router.push('/(tabs)/budget/setup')} className="p-2">
           <Edit3 size={24} color="#006A6A" />
         </Pressable>
       </View>

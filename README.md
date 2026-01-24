@@ -805,6 +805,19 @@ bun start
 
 ## Recent Updates
 
+### Budget Tab - Edit Button Navigation Fixed (2026-01-24)
+- Fixed issue where edit button was routing back to dashboard instead of opening edit screen
+- Restructured Budget tab to support nested routes with Stack navigation
+- Budget tab is now a folder with `index.tsx` (overview) and `setup.tsx` (edit)
+- Edit button navigation updated to `/(tabs)/budget/setup` (was incorrectly pointing to `/budget/setup`)
+- Users can now click the pencil icon on Budget tab to edit their budget allocation
+
+### Analytics - Pie Chart Fixed (2026-01-24)
+- Fixed pie chart interaction issue - chart now responds to clicks/touches properly
+- Separated rendering layer (visible chart) from interaction layer (invisible overlays)
+- Clicking any pie segment now navigates to filtered transactions for that category
+- Improved click detection using transparent overlay segments
+
 ### Language & Date Format Fix (2026-01-24)
 - Changed all date formatting to European format (DD/MM/YYYY)
 - Locale changed to it-IT for all date/month formatting
