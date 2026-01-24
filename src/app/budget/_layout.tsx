@@ -21,6 +21,15 @@ export default function BudgetLayout() {
           headerTitleStyle: { fontSize: 18, fontWeight: '600' },
         }}
       />
+      <Stack.Screen
+        name="category-group-allocation"
+        options={{
+          title: 'Allocate Budget',
+          headerStyle: { backgroundColor: '#FFFFFF' },
+          headerTintColor: '#006A6A',
+          headerTitleStyle: { fontSize: 18, fontWeight: '600' },
+        }}
+      />
     </Stack>
   );
 }
