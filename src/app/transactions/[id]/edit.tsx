@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import { getTransaction, updateTransaction, deleteTransaction, formatCurrency, formatDateSwiss, parseSwissDate, Transaction } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
 import { getUserAccounts, formatBalance } from '@/lib/accounts-api';
+import { getCategoryGroups } from '@/lib/category-groups-api';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -124,6 +125,18 @@ export default function EditTransactionScreen() {
     enabled: !!householdQuery.data?.household?.id,
   });
 
+  // Get category groups
+  const categoryGroupsQuery = useQuery({
+    queryKey: ['categoryGroups', householdQuery.data?.household?.id],
+    queryFn: async () => {
+      if (!householdQuery.data?.household?.id) {
+        return [];
+      }
+      return getCategoryGroups(householdQuery.data.household.id);
+    },
+    enabled: !!householdQuery.data?.household?.id,
+  });
+
   // Pre-fill form when transaction loads
   useEffect(() => {
     if (transactionQuery.data) {
@@ -232,15 +245,28 @@ export default function EditTransactionScreen() {
   const selectedCategory = categories.find((cat) => cat.id === formData.categoryId);
   const selectedAccount = accountsQuery.data?.find((acc) => acc.id === formData.accountId);
 
-  // Group categories
+  // Get category groups
+  const categoryGroups = categoryGroupsQuery.data || [];
+
+  // Create a map of group keys to group info
+  const groupKeyToInfo: Record<string, { name: string; icon?: string; type: string }> = {};
+  categoryGroups.forEach((group) => {
+    groupKeyToInfo[group.key] = { name: group.name, icon: group.icon, type: group.type };
+  });
+
+  // Group categories by their categoryGroup field
   const groupedCategories = filteredCategories.reduce((acc, cat) => {
-    const group = cat.categoryGroup;
-    if (!acc[group]) acc[group] = [];
-    acc[group].push(cat);
+    const groupKey = cat.categoryGroup;
+    if (!acc[groupKey]) acc[groupKey] = [];
+    acc[groupKey].push(cat);
     return acc;
   }, {} as Record<string, any[]>);
 
-  const groupOrder = formData.type === 'income' ? ['income'] : ['needs', 'wants', 'savings', 'other'];
+  // Get the order of groups - sorted by displayOrder from the database
+  const groupOrder = categoryGroups
+    .filter((g) => g.type === formData.type)
+    .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+    .map((g) => g.key);
 
   // Error states
   if (!id) {
@@ -257,7 +283,7 @@ export default function EditTransactionScreen() {
     );
   }
 
-  if (transactionQuery.isLoading || householdQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading) {
+  if (transactionQuery.isLoading || householdQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
       <View className="flex-1 bg-white items-center justify-center">
         <ActivityIndicator size="large" color="#006A6A" />
@@ -615,21 +641,27 @@ export default function EditTransactionScreen() {
           </SafeAreaView>
 
           <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 40 }}>
-            {groupOrder.map((group) => {
-              const groupCategories = groupedCategories[group] || [];
+            {categoriesQuery.isLoading || categoryGroupsQuery.isLoading ? (
+              <View className="items-center justify-center py-8">
+                <ActivityIndicator size="large" color="#006A6A" />
+              </View>
+            ) : filteredCategories.length === 0 ? (
+              <View className="items-center justify-center py-8">
+                <Text className="text-gray-500 text-center">No categories available for {formData.type}</Text>
+              </View>
+            ) : (
+              <>
+            {groupOrder.map((groupKey) => {
+              const groupCategories = groupedCategories[groupKey] || [];
               if (groupCategories.length === 0) return null;
 
-              const groupLabels: Record<string, string> = {
-                income: 'Income',
-                needs: 'Needs (50%)',
-                wants: 'Wants (30%)',
-                savings: 'Savings (20%)',
-                other: 'Other',
-              };
+                  // Get the group info from the map
+                  const groupInfo = groupKeyToInfo[groupKey];
+                  const displayName = groupInfo ? (groupInfo.icon ? `${groupInfo.icon} ${groupInfo.name}` : groupInfo.name) : 'Categories';
 
               return (
-                <View key={group}>
-                  <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{groupLabels[group]}</Text>
+                    <View key={groupKey}>
+                      <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{displayName}</Text>
                   {groupCategories.map((category: any) => (
                     <Pressable
                       key={category.id}
@@ -654,6 +686,8 @@ export default function EditTransactionScreen() {
                 </View>
               );
             })}
+              </>
+            )}
           </ScrollView>
         </View>
       </Modal>
