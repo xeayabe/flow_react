@@ -1,16 +1,26 @@
 import { db } from './db';
 import { v4 as uuidv4 } from 'uuid';
-import Constants from 'expo-constants';
 
-export async function createInvite(userId: string, householdId: string) {
-  const inviteToken = uuidv4().replace(/-/g, '').substring(0, 16);
-  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+// Generate random 6-character alphanumeric code
+function generateInviteCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid confusing chars: I,1,O,0
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+// Create invite with 6-digit code
+export async function createInviteCode(userId: string, householdId: string) {
+  const inviteCode = generateInviteCode();
+  const expiresAt = Date.now() + 60 * 1000; // 60 seconds
 
   const invite = {
     id: uuidv4(),
     householdId,
     invitedByUserId: userId,
-    inviteToken,
+    inviteToken: inviteCode,  // Store the 6-digit code
     status: 'pending',
     expiresAt,
     createdAt: Date.now(),
@@ -21,19 +31,22 @@ export async function createInvite(userId: string, householdId: string) {
     db.tx.household_invites[invite.id].update(invite)
   ]);
 
-  // Generate invite link using Vibecode preview URL
-  const baseUrl = process.env.EXPO_PUBLIC_APP_URL || 'https://www.vibecodeapp.com/s/cmk38a5o4006l07hq23ky1svy';
-  const inviteLink = `${baseUrl}/signup?invite=${inviteToken}`;
-
-  return { invite, inviteLink };
+  return {
+    invite,
+    inviteCode,
+    expiresAt
+  };
 }
 
-export async function getInviteByToken(token: string) {
+// Validate invite code
+export async function validateInviteCode(code: string) {
+  const upperCode = code.toUpperCase().trim();
+
   const { data } = await db.queryOnce({
     household_invites: {
       $: {
         where: {
-          inviteToken: token,
+          inviteToken: upperCode,
           status: 'pending'
         }
       }
@@ -42,30 +55,36 @@ export async function getInviteByToken(token: string) {
 
   const invite = data.household_invites[0];
 
-  if (!invite) return null;
+  if (!invite) {
+    return { valid: false, error: 'Invalid code' };
+  }
 
-  // Check if expired
+  // Check expiration
   if (invite.expiresAt < Date.now()) {
+    // Mark as expired
     await db.transact([
       db.tx.household_invites[invite.id].update({
         status: 'expired',
         updatedAt: Date.now()
       })
     ]);
-    return null;
+    return { valid: false, error: 'Code expired' };
   }
 
-  return invite;
+  return { valid: true, invite };
 }
 
-export async function acceptInvite(inviteToken: string, newUserId: string) {
-  const invite = await getInviteByToken(inviteToken);
+// Accept invite code (after signup)
+export async function acceptInviteCode(code: string, newUserId: string) {
+  const validation = await validateInviteCode(code);
 
-  if (!invite) {
-    throw new Error('Invalid or expired invite');
+  if (!validation.valid) {
+    throw new Error(validation.error);
   }
 
-  // Check if household is full
+  const invite = validation.invite!;
+
+  // Check household member limit (max 2)
   const { data } = await db.queryOnce({
     householdMembers: {
       $: {
@@ -81,7 +100,7 @@ export async function acceptInvite(inviteToken: string, newUserId: string) {
     throw new Error('Household is full (max 2 members)');
   }
 
-  // Accept invite and add member
+  // Add user to household
   const memberId = uuidv4();
   await db.transact([
     db.tx.household_invites[invite.id].update({
@@ -102,11 +121,15 @@ export async function acceptInvite(inviteToken: string, newUserId: string) {
   return { householdId: invite.householdId };
 }
 
-export async function getInvitePreview(token: string) {
-  const invite = await getInviteByToken(token);
+// Get invite details for preview (used in signup)
+export async function getInviteCodePreview(code: string) {
+  const validation = await validateInviteCode(code);
 
-  if (!invite) return null;
+  if (!validation.valid) return null;
 
+  const invite = validation.invite!;
+
+  // Get household and inviter details
   const { data } = await db.queryOnce({
     households: {
       $: { where: { id: invite.householdId } }

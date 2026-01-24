@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, Pressable, Dimensions } from 'react-native';
+import { View, Text, Pressable, Dimensions, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { validateInviteCode, getInviteCodePreview } from '@/lib/invites-api';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -94,9 +95,39 @@ function AnimatedDroplet({ delay = 0, x = 0 }: { delay?: number; x?: number }) {
 
 export default function WelcomeScreen() {
   const [buttonPressed, setButtonPressed] = React.useState<boolean>(false);
+  const [showInviteInput, setShowInviteInput] = React.useState<boolean>(false);
+  const [inviteCode, setInviteCode] = React.useState<string>('');
+  const [isValidating, setIsValidating] = React.useState<boolean>(false);
 
   const handleGetStarted = () => {
     router.push('/signup');
+  };
+
+  const handleValidateCode = async () => {
+    if (inviteCode.length !== 6) {
+      Alert.alert('Invalid Code', 'Code must be 6 characters');
+      return;
+    }
+
+    setIsValidating(true);
+    try {
+      const preview = await getInviteCodePreview(inviteCode);
+
+      if (!preview) {
+        Alert.alert('Invalid Code', 'Code is invalid or expired');
+        return;
+      }
+
+      // Navigate to signup with code
+      router.push({
+        pathname: '/signup',
+        params: { invite: inviteCode }
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Could not validate code');
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   return (
@@ -202,6 +233,58 @@ export default function WelcomeScreen() {
               Already have an account? <Text className="font-semibold underline">Log in</Text>
             </Text>
           </Pressable>
+        </Animated.View>
+
+        {/* Invite code section */}
+        <Animated.View entering={FadeInDown.delay(900).duration(800)} className="border-t border-gray-200 pt-4 mt-2">
+          {!showInviteInput ? (
+            <Pressable
+              onPress={() => setShowInviteInput(true)}
+              className="py-3"
+            >
+              <Text className="text-center text-teal-600 font-medium" style={{ fontSize: 15 }}>
+                Have an invite code?
+              </Text>
+            </Pressable>
+          ) : (
+            <View>
+              <Text className="text-center text-sm text-gray-600 mb-3">
+                Enter the 6-character code
+              </Text>
+              <TextInput
+                value={inviteCode}
+                onChangeText={(text) => setInviteCode(text.toUpperCase())}
+                placeholder="AB12CD"
+                maxLength={6}
+                autoCapitalize="characters"
+                className="border-2 border-teal-600 rounded-xl p-4 text-center text-2xl font-bold tracking-widest mb-3"
+                style={{ color: '#006A6A' }}
+              />
+              <Pressable
+                onPress={handleValidateCode}
+                disabled={isValidating || inviteCode.length !== 6}
+                className="bg-teal-600 py-4 rounded-xl mb-2"
+                style={{ opacity: (isValidating || inviteCode.length !== 6) ? 0.5 : 1 }}
+              >
+                {isValidating ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text className="text-white text-center font-semibold" style={{ fontSize: 16 }}>
+                    Continue
+                  </Text>
+                )}
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setShowInviteInput(false);
+                  setInviteCode('');
+                }}
+                className="py-3"
+              >
+                <Text className="text-center text-gray-600">Cancel</Text>
+              </Pressable>
+            </View>
+          )}
         </Animated.View>
 
         {/* Terms hint */}

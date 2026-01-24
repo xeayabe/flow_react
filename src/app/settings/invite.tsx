@@ -1,23 +1,23 @@
-import React from 'react';
-import { View, Text, Pressable, Share, Alert } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, Pressable, Alert } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
-import { Copy, Share2, ArrowLeft } from 'lucide-react-native';
-import * as Clipboard from 'expo-clipboard';
+import { ArrowLeft, RefreshCw } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { createInvite } from '@/lib/invites-api';
+import { createInviteCode } from '@/lib/invites-api';
 import { db } from '@/lib/db';
 
 export default function InviteScreen() {
-  const [generatedLink, setGeneratedLink] = React.useState<string | null>(null);
+  const [inviteCode, setInviteCode] = React.useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = React.useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = React.useState<number>(60);
 
   // Get current user from InstantDB auth
   const { isLoading: authLoading, user, error: authError } = db.useAuth();
 
-  const createInviteMutation = useMutation({
+  const createCodeMutation = useMutation({
     mutationFn: async () => {
-      console.log('=== DEBUG: Starting invite creation ===');
+      console.log('=== DEBUG: Starting invite code creation ===');
       console.log('Current user (from auth):', user);
-      console.log('User ID:', user?.id);
       console.log('User email:', user?.email);
 
       if (!user?.email) {
@@ -51,61 +51,50 @@ export default function InviteScreen() {
         }
       });
 
-      console.log('Query result:', memberData);
       console.log('HouseholdMembers found:', memberData.householdMembers);
-      console.log('Number of members:', memberData.householdMembers?.length || 0);
-
       const member = memberData.householdMembers[0];
-
-      console.log('First member:', member);
-      console.log('Household ID:', member?.householdId);
 
       if (!member) {
         console.error('No household member found!');
-        // Query ALL members for debugging
-        const { data: allMembers } = await db.queryOnce({
-          householdMembers: {}
-        });
-        console.log('ALL household members in database:', allMembers.householdMembers);
         throw new Error('No household found');
       }
 
-      console.log('Creating invite for household:', member.householdId);
-      return createInvite(userProfile.id, member.householdId);
+      console.log('Creating invite code for household:', member.householdId);
+      return createInviteCode(userProfile.id, member.householdId);
     },
-    onSuccess: ({ inviteLink }) => {
-      console.log('Invite created successfully:', inviteLink);
-      setGeneratedLink(inviteLink);
+    onSuccess: ({ inviteCode: code, expiresAt: expires }) => {
+      console.log('Invite code created successfully:', code);
+      setInviteCode(code);
+      setExpiresAt(expires);
     },
     onError: (error: Error) => {
-      console.error('Error creating invite:', error);
-      Alert.alert('Error', error.message || 'Could not generate invite link');
+      console.error('Error creating invite code:', error);
+      Alert.alert('Error', error.message || 'Could not generate code');
     }
   });
 
-  const handleCopyLink = async () => {
-    if (!generatedLink) return;
-    await Clipboard.setStringAsync(generatedLink);
-    Alert.alert('Copied!', 'Invite link copied to clipboard');
-  };
+  // Countdown timer
+  useEffect(() => {
+    if (!expiresAt) return;
 
-  const handleShareLink = async () => {
-    if (!generatedLink) return;
-    try {
-      await Share.share({
-        message: `Join my household on Flow! ${generatedLink}`,
-        title: 'Invite to Flow'
-      });
-    } catch (error: any) {
-      console.error('Share error:', error);
-      // If share fails (e.g., on web or permission denied), copy to clipboard instead
-      if (error?.message?.includes('Permission denied') || error?.message?.includes('NotAllowedError')) {
-        await Clipboard.setStringAsync(generatedLink);
-        Alert.alert('Link Copied', 'Share is not available on this platform, but the link has been copied to your clipboard!');
-      } else {
-        Alert.alert('Share Failed', 'Could not share the link. Please try copying it instead.');
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      setTimeRemaining(remaining);
+
+      if (remaining === 0) {
+        setInviteCode(null);
+        setExpiresAt(null);
+        Alert.alert('Code Expired', 'The invite code has expired. Generate a new one.');
       }
-    }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  const handleGenerateNew = () => {
+    setInviteCode(null);
+    setExpiresAt(null);
+    createCodeMutation.mutate();
   };
 
   if (authLoading) {
@@ -136,54 +125,66 @@ export default function InviteScreen() {
       <View className="p-4">
         <Text className="text-2xl font-bold mb-2">Invite Your Partner</Text>
         <Text className="text-gray-600 mb-6">
-          Share this link with your partner to join your household
+          Generate a code and share it with your partner
         </Text>
 
-        {!generatedLink ? (
+        {!inviteCode ? (
           <Pressable
-            onPress={() => createInviteMutation.mutate()}
-            disabled={createInviteMutation.isPending}
+            onPress={() => createCodeMutation.mutate()}
+            disabled={createCodeMutation.isPending}
             className="bg-teal-600 py-4 px-6 rounded-xl active:bg-teal-700"
           >
             <Text className="text-white text-center font-semibold text-lg">
-              {createInviteMutation.isPending ? 'Generating...' : 'Generate Invite Link'}
+              {createCodeMutation.isPending ? 'Generating...' : 'Generate Invite Code'}
             </Text>
           </Pressable>
         ) : (
           <View>
-            <View className="bg-gray-50 p-4 rounded-xl mb-4">
-              <Text className="text-sm text-gray-600 mb-2">Invite Link:</Text>
-              <Text className="text-sm font-mono" numberOfLines={3}>
-                {generatedLink}
+            {/* Large code display */}
+            <View className="bg-teal-50 border-2 border-teal-600 rounded-2xl p-8 mb-4">
+              <Text className="text-center text-sm text-teal-700 mb-2">
+                Invite Code
+              </Text>
+              <Text className="text-center text-5xl font-bold text-teal-900 tracking-widest">
+                {inviteCode}
               </Text>
             </View>
 
-            <View className="flex-row gap-3">
-              <Pressable
-                onPress={handleCopyLink}
-                className="flex-1 flex-row items-center justify-center gap-2 bg-gray-100 py-4 rounded-xl active:bg-gray-200"
-              >
-                <Copy size={20} color="#374151" />
-                <Text className="font-semibold text-gray-700">Copy</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={handleShareLink}
-                className="flex-1 flex-row items-center justify-center gap-2 bg-teal-600 py-4 rounded-xl active:bg-teal-700"
-              >
-                <Share2 size={20} color="white" />
-                <Text className="font-semibold text-white">Share</Text>
-              </Pressable>
+            {/* Timer */}
+            <View className="bg-amber-50 p-4 rounded-xl mb-4">
+              <Text className="text-center text-amber-900 font-semibold">
+                ⏱️ Expires in {timeRemaining} seconds
+              </Text>
+              <View className="mt-2 h-2 bg-amber-200 rounded-full overflow-hidden">
+                <View
+                  className="h-full bg-amber-600 rounded-full"
+                  style={{ width: `${(timeRemaining / 60) * 100}%` }}
+                />
+              </View>
             </View>
 
-            <Text className="text-xs text-gray-500 text-center mt-4">
-              Link expires in 7 days
-            </Text>
+            {/* Generate new button */}
+            <Pressable
+              onPress={handleGenerateNew}
+              className="flex-row items-center justify-center gap-2 bg-gray-100 py-4 rounded-xl active:bg-gray-200"
+            >
+              <RefreshCw size={20} color="#374151" />
+              <Text className="font-semibold text-gray-700">Generate New Code</Text>
+            </Pressable>
 
+            {/* Instructions */}
             <View className="mt-6 bg-blue-50 p-4 rounded-xl">
-              <Text className="text-blue-900 font-semibold mb-1">💡 How it works</Text>
+              <Text className="text-blue-900 font-semibold mb-2">
+                💡 How to use
+              </Text>
+              <Text className="text-blue-700 text-sm mb-1">
+                1. Tell your partner this code (call, text, or in person)
+              </Text>
+              <Text className="text-blue-700 text-sm mb-1">
+                2. They open the app and tap "Have an invite code?"
+              </Text>
               <Text className="text-blue-700 text-sm">
-                Send this link to your partner via WhatsApp or SMS. They'll sign up and automatically join your household!
+                3. They enter the code within 60 seconds
               </Text>
             </View>
           </View>

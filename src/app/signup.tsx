@@ -6,7 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { CheckCircle2, ArrowLeft, Info } from 'lucide-react-native';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { sendMagicCode, verifyMagicCode, createUserProfile, checkUserProfile } from '@/lib/auth-api';
-import { getInvitePreview, acceptInvite } from '@/lib/invites-api';
+import { getInviteCodePreview, acceptInviteCode } from '@/lib/invites-api';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import SuccessModal from '@/components/SuccessModal';
 
@@ -43,7 +43,7 @@ export default function SignupScreen() {
   // Fetch invite preview if token exists
   const { data: invitePreview } = useQuery({
     queryKey: ['invite-preview', inviteToken],
-    queryFn: () => getInvitePreview(inviteToken!),
+    queryFn: () => getInviteCodePreview(inviteToken!),
     enabled: !!inviteToken,
   });
 
@@ -87,7 +87,7 @@ export default function SignupScreen() {
         if (inviteToken) {
           try {
             const userId = profileCheck.exists ? profileCheck.profile!.id : (await checkUserProfile(formData.email)).profile!.id;
-            await acceptInvite(inviteToken, userId);
+            await acceptInviteCode(inviteToken, userId);
             console.log('Successfully joined household via invite');
           } catch (error) {
             console.error('Failed to accept invite:', error);
