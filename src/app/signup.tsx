@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -26,6 +26,8 @@ interface ValidationErrors {
 
 export default function SignupScreen() {
   const { invite: inviteToken } = useLocalSearchParams<{ invite?: string }>();
+
+  console.log('SignupScreen mounted with inviteToken:', inviteToken);
 
   const [step, setStep] = useState<Step>('details');
   const [formData, setFormData] = useState<FormData>({
@@ -76,25 +78,51 @@ export default function SignupScreen() {
     mutationFn: () => verifyMagicCode(formData.email, formData.code),
     onSuccess: async (response) => {
       if (response.success) {
+        console.log('=== SIGNUP FLOW START ===');
+        console.log('Email:', formData.email);
+        console.log('Name:', formData.name);
+        console.log('Has inviteToken:', !!inviteToken);
+        console.log('InviteToken value:', inviteToken);
+
         // Check if profile exists, if not create it
         const profileCheck = await checkUserProfile(formData.email);
+        console.log('Profile check result:', profileCheck);
+
+        let userId: string;
         if (!profileCheck.exists) {
           // Create profile with user-provided name
+          console.log('Step 1: Creating user profile...');
           await createUserProfile(formData.email, formData.name);
+          const updatedCheck = await checkUserProfile(formData.email);
+          userId = updatedCheck.profile!.id;
+          console.log('User profile created with ID:', userId);
+        } else {
+          userId = profileCheck.profile!.id;
+          console.log('User profile already exists with ID:', userId);
         }
 
         // Accept invite if token exists
-        if (inviteToken) {
+        if (inviteToken && inviteToken.trim() !== '') {
           try {
-            const userId = profileCheck.exists ? profileCheck.profile!.id : (await checkUserProfile(formData.email)).profile!.id;
+            console.log('Step 2a: User has invite code, accepting invite...');
+            console.log('Calling acceptInviteCode with code:', inviteToken, 'userId:', userId);
+
             await acceptInviteCode(inviteToken, userId);
-            console.log('Successfully joined household via invite');
+
+            console.log('Invite accepted successfully!');
+            console.log('User should have role: member');
+
+            Alert.alert('Success!', "You've joined the household!");
           } catch (error) {
             console.error('Failed to accept invite:', error);
             // Don't block signup if invite fails
           }
+        } else {
+          console.log('Step 2b: No invite code, household already created during signup');
+          console.log('User should have role: admin (created by createUserProfile)');
         }
 
+        console.log('=== SIGNUP FLOW COMPLETE ===');
         // Show success modal instead of navigating immediately
         setShowSuccessModal(true);
       } else {
@@ -102,6 +130,7 @@ export default function SignupScreen() {
       }
     },
     onError: () => {
+      console.error('=== SIGNUP ERROR ===');
       setErrors({ code: 'Something went wrong. Please try again' });
     },
   });

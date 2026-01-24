@@ -76,15 +76,26 @@ export async function validateInviteCode(code: string) {
 
 // Accept invite code (after signup)
 export async function acceptInviteCode(code: string, newUserId: string) {
+  console.log('=== acceptInviteCode START ===');
+  console.log('Code:', code);
+  console.log('New user ID:', newUserId);
+
   const validation = await validateInviteCode(code);
+  console.log('Validation result:', validation);
 
   if (!validation.valid) {
+    console.error('Invalid code:', validation.error);
     throw new Error(validation.error);
   }
 
   const invite = validation.invite!;
+  console.log('Valid invite found:', {
+    inviteId: invite.id,
+    householdId: invite.householdId,
+    invitedBy: invite.invitedByUserId
+  });
 
-  // Check household member limit (max 2)
+  // Check household member limit (max 2 for Phase 2)
   const { data } = await db.queryOnce({
     householdMembers: {
       $: {
@@ -96,27 +107,43 @@ export async function acceptInviteCode(code: string, newUserId: string) {
     }
   });
 
+  console.log('Current active members:', data.householdMembers.length);
+
   if (data.householdMembers.length >= 2) {
+    console.error('Household full');
     throw new Error('Household is full (max 2 members)');
   }
 
-  // Add user to household
+  // Add user to household as MEMBER
   const memberId = uuidv4();
+
+  console.log('Creating household member:');
+  console.log('- Member ID:', memberId);
+  console.log('- Household ID:', invite.householdId);
+  console.log('- User ID:', newUserId);
+  console.log('- Role: member');
+  console.log('- Status: active');
+
   await db.transact([
+    // Mark invite as accepted
     db.tx.household_invites[invite.id].update({
       status: 'accepted',
       acceptedByUserId: newUserId,
       acceptedAt: Date.now(),
       updatedAt: Date.now()
     }),
+    // Add user as MEMBER (not admin)
     db.tx.householdMembers[memberId].update({
       householdId: invite.householdId,
       userId: newUserId,
-      role: 'member',
+      role: 'member',  // ← CRITICAL: Must be 'member' not 'admin'
       status: 'active',
       joinedAt: Date.now()
     })
   ]);
+
+  console.log('Transaction complete - member added with role: member');
+  console.log('=== acceptInviteCode END ===');
 
   return { householdId: invite.householdId };
 }

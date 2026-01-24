@@ -3,6 +3,7 @@ import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronRight, Tag, LogOut, Wallet, User, Calendar, PieChart, Upload, Download, Layers, UserPlus } from 'lucide-react-native';
+import { useQuery } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 import { signOut } from '@/lib/auth-api';
 
@@ -31,6 +32,27 @@ export default function TabTwoScreen() {
   const userProfile = profileData?.users?.[0];
   const displayName = userProfile?.name || user?.email?.split('@')[0] || 'User';
 
+  // Get user's role in household
+  const { data: userRole, isLoading: isLoadingRole } = useQuery({
+    queryKey: ['user-role', userProfile?.id],
+    queryFn: async () => {
+      console.log('Fetching user role for user ID:', userProfile?.id);
+
+      // Get household member record
+      const { data: memberData } = await db.queryOnce({
+        householdMembers: {
+          $: { where: { userId: userProfile!.id, status: 'active' } }
+        }
+      });
+
+      console.log('Household members found:', memberData.householdMembers);
+      const role = memberData.householdMembers[0]?.role || null;
+      console.log('User role:', role);
+      return role;
+    },
+    enabled: !!userProfile?.id
+  });
+
   const handleSignOut = async () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', onPress: () => {}, style: 'cancel' },
@@ -58,12 +80,17 @@ export default function TabTwoScreen() {
       description: 'Manage your accounts and wallets',
       onPress: () => router.push('/accounts'),
     },
-    {
-      icon: <UserPlus size={24} color="#006A6A" />,
-      label: 'Invite Partner',
-      description: 'Share a link to invite your partner',
-      onPress: () => router.push('/settings/invite'),
-    },
+    // Only show invite button for admins (Phase 2)
+    ...(userRole === 'admin'
+      ? [
+          {
+            icon: <UserPlus size={24} color="#006A6A" />,
+            label: 'Invite Partner',
+            description: 'Share a code to invite your partner',
+            onPress: () => router.push('/settings/invite'),
+          },
+        ]
+      : []),
     {
       icon: <Calendar size={24} color="#006A6A" />,
       label: 'Payday & Budget Period',
@@ -145,6 +172,15 @@ export default function TabTwoScreen() {
               </Pressable>
             ))}
           </View>
+
+          {/* Show message for members (Phase 2) */}
+          {userRole === 'member' && (
+            <View className="p-4 bg-gray-50 rounded-xl mx-6 my-4">
+              <Text className="text-gray-600 text-sm text-center">
+                💡 Only the household admin can invite new members
+              </Text>
+            </View>
+          )}
 
           {/* Sign Out Button */}
           <View className="mt-12 px-6">
