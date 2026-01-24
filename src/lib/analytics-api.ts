@@ -214,6 +214,8 @@ export function getDateRange(option: DateRangeOption, paydayDay: number = 25): {
   const month = today.getMonth();
   const day = today.getDate();
 
+  console.log(`📅 getDateRange called: today=${day}/${month + 1}/${year}, paydayDay=${paydayDay}, option=${option}`);
+
   const formatDate = (d: Date): string => {
     return d.toISOString().split('T')[0];
   };
@@ -239,12 +241,14 @@ export function getDateRange(option: DateRangeOption, paydayDay: number = 25): {
         const nextMonth = month === 11 ? 0 : month + 1;
         const nextYear = month === 11 ? year + 1 : year;
         periodEnd = new Date(nextYear, nextMonth, paydayDay - 1);
+        console.log(`✓ After payday: ${formatDate(periodStart)} to ${formatDate(periodEnd)}`);
       } else {
         // Previous period: payday last month to today (still in current period until payday)
         const lastMonth = month === 0 ? 11 : month - 1;
         const lastYear = month === 0 ? year - 1 : year;
         periodStart = new Date(lastYear, lastMonth, paydayDay);
         periodEnd = today; // Use today's date, not paydayDay - 1
+        console.log(`✓ Before payday: ${formatDate(periodStart)} to ${formatDate(periodEnd)}`);
       }
 
       return {
