@@ -16,28 +16,38 @@ export default function InviteScreen() {
   const createInviteMutation = useMutation({
     mutationFn: async () => {
       console.log('=== DEBUG: Starting invite creation ===');
-      console.log('Current user:', user);
+      console.log('Current user (from auth):', user);
       console.log('User ID:', user?.id);
       console.log('User email:', user?.email);
 
-      if (!user?.id) {
-        console.error('User not authenticated!');
+      if (!user?.email) {
+        console.error('User email not found!');
         throw new Error('User not authenticated');
       }
 
-      // First, query ALL householdMembers to see what's in the table
-      console.log('Querying ALL household members...');
-      const { data: allMembers } = await db.queryOnce({
-        householdMembers: {}
+      // First, get the user profile from the users table using email
+      console.log('Looking up user profile by email:', user.email);
+      const { data: userData } = await db.queryOnce({
+        users: {
+          $: { where: { email: user.email } }
+        }
       });
-      console.log('ALL household members:', allMembers.householdMembers);
-      console.log('Total members in database:', allMembers.householdMembers?.length || 0);
 
-      // Now query for this specific user's household
-      console.log('Querying for user household with userId:', user.id);
+      console.log('User profile found:', userData.users);
+      const userProfile = userData.users?.[0];
+
+      if (!userProfile) {
+        console.error('No user profile found for email:', user.email);
+        throw new Error('User profile not found');
+      }
+
+      console.log('User profile ID:', userProfile.id);
+
+      // Now query householdMembers using the profile ID
+      console.log('Querying household members with profile userId:', userProfile.id);
       const { data: memberData } = await db.queryOnce({
         householdMembers: {
-          $: { where: { userId: user.id, status: 'active' } }
+          $: { where: { userId: userProfile.id, status: 'active' } }
         }
       });
 
@@ -51,13 +61,17 @@ export default function InviteScreen() {
       console.log('Household ID:', member?.householdId);
 
       if (!member) {
-        console.error('No member found!');
-        console.error('User may not have a household record. Check if householdMembers was created during signup.');
+        console.error('No household member found!');
+        // Query ALL members for debugging
+        const { data: allMembers } = await db.queryOnce({
+          householdMembers: {}
+        });
+        console.log('ALL household members in database:', allMembers.householdMembers);
         throw new Error('No household found');
       }
 
       console.log('Creating invite for household:', member.householdId);
-      return createInvite(user.id, member.householdId);
+      return createInvite(userProfile.id, member.householdId);
     },
     onSuccess: ({ inviteLink }) => {
       console.log('Invite created successfully:', inviteLink);
