@@ -392,9 +392,20 @@ export const Budget50_30_20Widget: React.FC<{
  */
 /**
  * Floating Action Button Component
+ * Opens menu with Add Transaction and Add Account options
  */
 export const FloatingActionButton: React.FC = () => {
   const [isOpen, setIsOpen] = React.useState(false);
+
+  const handleAddTransaction = React.useCallback(() => {
+    setIsOpen(false);
+    router.push('/transactions/add');
+  }, []);
+
+  const handleAddAccount = React.useCallback(() => {
+    setIsOpen(false);
+    router.push('/accounts/add');
+  }, []);
 
   return (
     <View className="absolute bottom-6 right-6">
@@ -403,10 +414,7 @@ export const FloatingActionButton: React.FC = () => {
         <View className="absolute bottom-20 right-0 gap-3 mb-2">
           {/* Add Transaction Option */}
           <Pressable
-            onPress={() => {
-              setIsOpen(false);
-              router.push('/transactions/add');
-            }}
+            onPress={handleAddTransaction}
             className="flex-row items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-200 active:bg-gray-50"
           >
             <Plus size={18} color="#006A6A" />
@@ -415,10 +423,7 @@ export const FloatingActionButton: React.FC = () => {
 
           {/* Add Account Option */}
           <Pressable
-            onPress={() => {
-              setIsOpen(false);
-              router.push('/accounts/add');
-            }}
+            onPress={handleAddAccount}
             className="flex-row items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-200 active:bg-gray-50"
           >
             <Plus size={18} color="#006A6A" />
@@ -431,6 +436,13 @@ export const FloatingActionButton: React.FC = () => {
       <Pressable
         onPress={() => setIsOpen(!isOpen)}
         className="w-14 h-14 rounded-full bg-teal-600 active:bg-teal-700 items-center justify-center shadow-lg"
+        style={{
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 8,
+        }}
       >
         <Plus size={24} color="white" />
       </Pressable>

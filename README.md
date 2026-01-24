@@ -802,3 +802,17 @@ bun start
 - [ ] Create expense reports and analytics
 - [ ] Phase 2: Implement shareable transactions for household splitting
 - [ ] Phase 2: Add transaction edit history/audit log
+
+## Recent Updates
+
+### Analytics Period Fix (2026-01-24)
+- Fixed analytics date range calculation for "This Period" when viewing before payday
+- Now correctly shows period from last payday until today (not paydayDay - 1)
+- Example: For payday on 25th, viewing on 24th now shows period ending on 24th (today) instead of 23rd
+
+### Floating Action Button - Improved UX (2026-01-24)
+- Enhanced FAB with better shadow styling for visual depth
+- Added "Don't have an account? Add one" link in the Add Transaction modal
+- Link appears below the Account selector for easy wallet creation
+- Allows users to quickly add a wallet without closing the transaction form
+- FAB maintains menu with both "Add Transaction" and "Add Account" options

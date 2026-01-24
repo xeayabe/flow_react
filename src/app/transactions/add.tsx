@@ -362,6 +362,13 @@ export default function AddTransactionScreen() {
                   <Text className="text-gray-400">›</Text>
                 </Pressable>
                 {errors.accountId && <Text className="text-xs text-red-500 mt-2">{errors.accountId}</Text>}
+                <Pressable
+                  onPress={() => router.push('/accounts/add')}
+                  className="mt-2 flex-row items-center gap-1"
+                >
+                  <Text className="text-xs font-semibold text-teal-600">Don't have an account?</Text>
+                  <Text className="text-xs font-semibold text-teal-600">Add one</Text>
+                </Pressable>
               </View>
 
               {/* Date Input */}
