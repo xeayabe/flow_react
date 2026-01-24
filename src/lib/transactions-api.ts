@@ -496,35 +496,45 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
 
     // Step 3: Update transaction and balance(s)
     const now = Date.now();
-    const transactionsToUpdate = [
-      db.tx.transactions[request.id].update({
-        type: request.type,
-        amount: request.amount,
-        categoryId: request.categoryId,
-        accountId: request.accountId,
-        date: request.date,
-        note: request.note,
-        isRecurring: request.isRecurring || false,
-        recurringDay: request.recurringDay,
-        updatedAt: now,
-      }),
-      db.tx.accounts[originalTx.accountId].update({
-        balance: oldAccountNewBalance,
-        updatedAt: now,
-      }),
-    ];
 
-    // If account changed, update the new account as well
+    // Build the transaction update
+    const txUpdate = db.tx.transactions[request.id].update({
+      type: request.type,
+      amount: request.amount,
+      categoryId: request.categoryId,
+      accountId: request.accountId,
+      date: request.date,
+      note: request.note,
+      isRecurring: request.isRecurring || false,
+      recurringDay: request.recurringDay,
+      updatedAt: now,
+    });
+
+    // If account changed, update both old and new accounts separately
     if (needsSecondAccountUpdate) {
-      transactionsToUpdate.push(
+      await db.transact([
+        txUpdate,
+        // Update old account (with reversal only)
+        db.tx.accounts[originalTx.accountId].update({
+          balance: oldAccountNewBalance,
+          updatedAt: now,
+        }),
+        // Update new account (with new transaction applied)
         db.tx.accounts[request.accountId].update({
           balance: newAccountNewBalance,
           updatedAt: now,
-        })
-      );
+        }),
+      ]);
+    } else {
+      // Same account - use the final calculated balance (newAccountNewBalance has both reversal and new transaction)
+      await db.transact([
+        txUpdate,
+        db.tx.accounts[originalTx.accountId].update({
+          balance: newAccountNewBalance,
+          updatedAt: now,
+        }),
+      ]);
     }
-
-    await db.transact(transactionsToUpdate);
 
     console.log('Transaction updated successfully:', request.id);
 
