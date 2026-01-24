@@ -60,9 +60,9 @@ export default function TabTwoScreen() {
     },
     {
       icon: <PieChart size={24} color="#006A6A" />,
-      label: 'Budget',
+      label: 'Budget Settings',
       description: 'Set up and manage your budget allocation',
-      onPress: () => router.push('/budget'),
+      onPress: () => router.push('/budget/setup'),
     },
     {
       icon: <Calendar size={24} color="#006A6A" />,

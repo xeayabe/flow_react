@@ -261,7 +261,7 @@ export const BudgetBreakdownWidget: React.FC<{
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
         <Text className="font-semibold text-gray-900">Budget Breakdown</Text>
         <Pressable
-          onPress={() => router.push('/budget')}
+          onPress={() => router.push('/(tabs)/budget')}
           className="flex-row items-center gap-1 active:opacity-60"
         >
           <Text className="text-xs font-semibold text-teal-600">View Full Budget</Text>
@@ -344,7 +344,7 @@ export const Budget50_30_20Widget: React.FC<{
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
         <Text className="font-semibold text-gray-900">Budget Breakdown</Text>
         <Pressable
-          onPress={() => router.push('/budget')}
+          onPress={() => router.push('/(tabs)/budget')}
           className="flex-row items-center gap-1 active:opacity-60"
         >
           <Text className="text-xs font-semibold text-teal-600">View Full Budget</Text>

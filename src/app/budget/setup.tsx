@@ -428,7 +428,7 @@ export default function BudgetSetupScreen() {
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
         queryClient.invalidateQueries({ queryKey: ['budget-details'] });
-        router.push('/budget');
+        router.push('/(tabs)/budget');
       }, 1500);
     } catch (error) {
       console.error('Save error:', error);
