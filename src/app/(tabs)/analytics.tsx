@@ -23,6 +23,7 @@ import {
   getDateRange,
   DateRangeOption,
   CategorySpending,
+  formatISOtoEuropean,
 } from '@/lib/analytics-api';
 import { formatCurrency } from '@/lib/transactions-api';
 
@@ -432,7 +433,7 @@ export default function AnalyticsTabScreen() {
           </Pressable>
         </View>
         <Text style={{ fontSize: 14, color: '#6B7280' }}>
-          {range.label} ({range.start} to {range.end})
+          {range.label} ({formatISOtoEuropean(range.start)} to {formatISOtoEuropean(range.end)})
         </Text>
       </View>
 

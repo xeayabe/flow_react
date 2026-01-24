@@ -189,6 +189,14 @@ export async function getCategoryAnalytics(
 }
 
 /**
+ * Format ISO date (YYYY-MM-DD) to DD/MM/YYYY
+ */
+export function formatISOtoEuropean(dateString: string): string {
+  const [year, month, day] = dateString.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+/**
  * Get date range options
  */
 export type DateRangeOption =

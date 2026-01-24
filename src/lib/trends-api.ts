@@ -118,18 +118,20 @@ export async function getTrendData(
       const periodKey = `${period.start}_${period.end}`;
       const data = periodData[periodKey] || { income: 0, expenses: 0, start: period.start, end: period.end };
 
-      // Format period label
+      // Format period label with English month abbreviations and DD/MM/YY format
       const startDate = new Date(period.start);
       const endDate = new Date(period.end);
-      const periodLabel = `${startDate.toLocaleDateString('it-IT', {
-        day: '2-digit',
-        month: 'short',
-        year: '2-digit',
-      })} - ${endDate.toLocaleDateString('it-IT', {
-        day: '2-digit',
-        month: 'short',
-        year: '2-digit',
-      })}`;
+
+      const monthsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const startDay = String(startDate.getDate()).padStart(2, '0');
+      const startMonth = monthsEn[startDate.getMonth()];
+      const startYear = String(startDate.getFullYear()).slice(-2);
+
+      const endDay = String(endDate.getDate()).padStart(2, '0');
+      const endMonth = monthsEn[endDate.getMonth()];
+      const endYear = String(endDate.getFullYear()).slice(-2);
+
+      const periodLabel = `${startDay}/${startMonth}/${startYear} - ${endDay}/${endMonth}/${endYear}`;
 
       // Round to fix floating-point precision issues
       const income = Math.round(data.income * 100) / 100;
