@@ -1,5 +1,6 @@
 import { db } from './db';
 import { calculateBudgetPeriod } from './payday-utils';
+import { getMemberBudgetPeriod } from './budget-api';
 
 export interface BudgetPeriodSummary {
   periodStart: string; // YYYY-MM-DD format
@@ -28,19 +29,9 @@ export async function getTrendData(
   paydayDay: number = 25
 ): Promise<TrendsSummary> {
   try {
-    // Get household info to get payday day if not provided
-    const householdResult = await db.queryOnce({
-      households: {
-        $: {
-          where: {
-            id: householdId,
-          },
-        },
-      },
-    });
-
-    const household = householdResult.data.households?.[0];
-    const actualPaydayDay = household?.paydayDay ?? paydayDay;
+    // Get member's personal budget period (or fallback to household)
+    const memberPeriod = await getMemberBudgetPeriod(userId, householdId);
+    const actualPaydayDay = memberPeriod.paydayDay;
 
     // Get transactions for the user in household
     const transactionsResult = await db.queryOnce({

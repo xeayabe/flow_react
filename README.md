@@ -523,6 +523,12 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - `role`: String ("admin" | "member")
 - `status`: String ("active" | "invited" | "removed")
 - `joinedAt`: Timestamp
+- `paydayDay`: Number (1-31, or -1 for last day of month) - Personal payday
+- `payFrequency`: String (default: "monthly")
+- `budgetPeriodStart`: String (ISO format YYYY-MM-DD) - Personal budget period start
+- `budgetPeriodEnd`: String (ISO format YYYY-MM-DD) - Personal budget period end
+- `lastBudgetReset`: Number (timestamp of last budget reset)
+- `monthlyIncome`: Number (for shared expense calculations)
 
 #### Wallets (formerly Accounts)
 - `id`: UUID (primary key)
@@ -917,3 +923,23 @@ bun start
 - Link appears below the Account selector for easy wallet creation
 - Allows users to quickly add a wallet without closing the transaction form
 - FAB maintains menu with both "Add Transaction" and "Add Account" options
+
+### ARCHITECTURE: Personal Budget Periods (2026-01-24)
+- **Changed**: Budget period fields moved from `households` table to `householdMembers` table
+- **Reason**: Support different paydays for each household member (e.g., Alexander paid on 25th, Cecilia paid on 10th)
+- **New Fields on householdMembers**:
+  - `paydayDay`: Number (1-31 or -1 for last day)
+  - `payFrequency`: String (default: "monthly")
+  - `budgetPeriodStart`: String (ISO YYYY-MM-DD)
+  - `budgetPeriodEnd`: String (ISO YYYY-MM-DD)
+  - `lastBudgetReset`: Number (timestamp)
+  - `monthlyIncome`: Number (for future shared expense splits)
+- **New API Function**: `getMemberBudgetPeriod(userId, householdId)` returns member's personal budget period
+  - Falls back to household period for backward compatibility
+  - Returns `{ start, end, paydayDay, source: 'member' | 'household' }`
+- **Payday Settings**: Now sets personal payday on `householdMembers` record (not household)
+- **Dashboard**: Shows user's own budget period, not household's
+- **Budget Setup/Overview**: Uses personal budget period for budget tracking
+- **Transactions**: Budget spent amounts tracked against personal budget period
+- **Analytics**: Uses personal payday for date range calculations
+- **Invited Members**: Join with budget fields null - must set their own payday in settings

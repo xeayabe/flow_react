@@ -6,7 +6,7 @@ import { Edit3 } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 import { db } from '@/lib/db';
-import { getBudgetSummary, getBudgetDetails } from '@/lib/budget-api';
+import { getBudgetSummary, getBudgetDetails, getMemberBudgetPeriod } from '@/lib/budget-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
 
@@ -36,8 +36,9 @@ export default function BudgetOverviewScreen() {
   const { user } = db.useAuth();
   const queryClient = useQueryClient();
 
-  const householdQuery = useQuery({
-    queryKey: ['household', user?.email],
+  // Get user profile and household membership
+  const userProfileQuery = useQuery({
+    queryKey: ['user-profile', user?.email],
     queryFn: async () => {
       if (!user?.email) throw new Error('No user email');
 
@@ -48,46 +49,66 @@ export default function BudgetOverviewScreen() {
       const userRecord = userResult.data.users?.[0];
       if (!userRecord) throw new Error('User not found');
 
-      const householdsResult = await db.queryOnce({
-        households: { $: { where: { createdByUserId: userRecord.id } } },
+      // Get household membership
+      const memberResult = await db.queryOnce({
+        householdMembers: {
+          $: { where: { userId: userRecord.id, status: 'active' } },
+        },
       });
 
-      const household = householdsResult.data.households?.[0];
-      if (!household) throw new Error('No household found');
+      const member = memberResult.data.householdMembers?.[0];
+      if (!member) throw new Error('No household membership found');
 
-      return { userRecord, household };
+      return { userRecord, member };
     },
     enabled: !!user?.email,
   });
 
-  const paydayDay = householdQuery.data?.household?.paydayDay ?? 25;
-  const budgetPeriod = calculateBudgetPeriod(paydayDay);
+  const userId = userProfileQuery.data?.userRecord?.id;
+  const householdId = userProfileQuery.data?.member?.householdId;
+
+  // Get personal budget period
+  const budgetPeriodQuery = useQuery({
+    queryKey: ['my-budget-period', userId, householdId],
+    queryFn: async () => {
+      if (!userId || !householdId) throw new Error('Missing user or household');
+      return getMemberBudgetPeriod(userId, householdId);
+    },
+    enabled: !!userId && !!householdId,
+  });
+
+  const budgetPeriod = budgetPeriodQuery.data ?? {
+    start: calculateBudgetPeriod(25).start,
+    end: calculateBudgetPeriod(25).end,
+    paydayDay: 25,
+    source: 'household' as const,
+  };
 
   const summaryQuery = useQuery({
-    queryKey: ['budget-summary', householdQuery.data?.userRecord?.id, householdQuery.data?.household?.id, budgetPeriod.start],
+    queryKey: ['budget-summary', userId, householdId, budgetPeriod.start],
     queryFn: async () => {
-      if (!householdQuery.data?.userRecord?.id) return null;
-      return getBudgetSummary(householdQuery.data.userRecord.id, householdQuery.data.household.id, budgetPeriod.start);
+      if (!userId || !householdId) return null;
+      return getBudgetSummary(userId, householdId, budgetPeriod.start);
     },
-    enabled: !!householdQuery.data?.userRecord?.id,
+    enabled: !!userId && !!householdId,
   });
 
   const detailsQuery = useQuery({
-    queryKey: ['budget-details', householdQuery.data?.userRecord?.id, budgetPeriod.start],
+    queryKey: ['budget-details', userId, budgetPeriod.start],
     queryFn: async () => {
-      if (!householdQuery.data?.userRecord?.id) return [];
-      return getBudgetDetails(householdQuery.data.userRecord.id, budgetPeriod.start);
+      if (!userId) return [];
+      return getBudgetDetails(userId, budgetPeriod.start);
     },
-    enabled: !!householdQuery.data?.userRecord?.id,
+    enabled: !!userId,
   });
 
   const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdQuery.data?.household?.id],
+    queryKey: ['categoryGroups', householdId],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id) return [];
-      return getCategoryGroups(householdQuery.data.household.id);
+      if (!householdId) return [];
+      return getCategoryGroups(householdId);
     },
-    enabled: !!householdQuery.data?.household?.id,
+    enabled: !!householdId,
   });
 
   useFocusEffect(
@@ -128,7 +149,7 @@ export default function BudgetOverviewScreen() {
     return groups;
   }, [details, categoryGroupsQuery.data]);
 
-  if (householdQuery.isLoading || summaryQuery.isLoading || categoryGroupsQuery.isLoading) {
+  if (userProfileQuery.isLoading || budgetPeriodQuery.isLoading || summaryQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
       <View className="flex-1 bg-white justify-center items-center">
         <ActivityIndicator size="large" color="#006A6A" />

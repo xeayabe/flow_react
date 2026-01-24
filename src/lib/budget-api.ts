@@ -26,27 +26,73 @@ export interface BudgetWithDetails {
 }
 
 /**
+ * Get user's personal budget period from their household membership
+ * Falls back to household period for backward compatibility
+ */
+export async function getMemberBudgetPeriod(userId: string, householdId: string): Promise<{
+  start: string;
+  end: string;
+  paydayDay: number;
+  source: 'member' | 'household';
+}> {
+  // First try to get member's personal budget period
+  const memberResult = await db.queryOnce({
+    householdMembers: {
+      $: {
+        where: {
+          userId,
+          householdId,
+          status: 'active',
+        },
+      },
+    },
+  });
+
+  const member = memberResult.data.householdMembers?.[0];
+
+  // If member has personal budget period set, use it
+  if (member?.budgetPeriodStart && member?.budgetPeriodEnd && member?.paydayDay) {
+    return {
+      start: member.budgetPeriodStart,
+      end: member.budgetPeriodEnd,
+      paydayDay: member.paydayDay,
+      source: 'member',
+    };
+  }
+
+  // Fall back to household period for backward compatibility
+  const householdResult = await db.queryOnce({
+    households: {
+      $: {
+        where: { id: householdId },
+      },
+    },
+  });
+
+  const household = householdResult.data.households?.[0];
+  const paydayDay = household?.paydayDay ?? 25;
+  const period = household?.budgetPeriodStart && household?.budgetPeriodEnd
+    ? { start: household.budgetPeriodStart, end: household.budgetPeriodEnd }
+    : calculateBudgetPeriod(paydayDay);
+
+  return {
+    start: period.start,
+    end: period.end,
+    paydayDay,
+    source: 'household',
+  };
+}
+
+/**
  * Save budget for current period
  */
 export async function saveBudget(request: BudgetSetupRequest): Promise<{ success: boolean; error?: string }> {
   try {
     const { userId, householdId, totalIncome, allocations, categoryGroups } = request;
 
-    // Get household to retrieve payday info
-    const householdResult = await db.queryOnce({
-      households: {
-        $: {
-          where: { id: householdId },
-        },
-      },
-    });
-
-    const household = householdResult.data.households?.[0];
-    if (!household) throw new Error('Household not found');
-
-    // Calculate budget period
-    const paydayDay = household.paydayDay ?? 25;
-    const budgetPeriod = calculateBudgetPeriod(paydayDay);
+    // Get budget period from member (personal) or household (fallback)
+    const budgetPeriod = await getMemberBudgetPeriod(userId, householdId);
+    console.log('Using budget period from:', budgetPeriod.source, budgetPeriod.start, '-', budgetPeriod.end);
 
     const now = Date.now();
 
@@ -626,9 +672,37 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
 /**
  * Check if budget reset is needed and perform it if required
  * Call this on app load (dashboard, budget pages)
+ * NOTE: This now checks the member's personal budget period
  */
-export async function checkAndResetBudgetIfNeeded(householdId: string): Promise<boolean> {
+export async function checkAndResetBudgetIfNeeded(householdId: string, userId?: string): Promise<boolean> {
   try {
+    // If userId provided, check member's personal period
+    if (userId) {
+      const memberResult = await db.queryOnce({
+        householdMembers: {
+          $: {
+            where: { userId, householdId, status: 'active' },
+          },
+        },
+      });
+
+      const member = memberResult.data.householdMembers?.[0];
+      if (member?.budgetPeriodEnd) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const periodEnd = new Date(member.budgetPeriodEnd + 'T00:00:00');
+        periodEnd.setHours(0, 0, 0, 0);
+
+        if (today > periodEnd) {
+          console.log('Member budget period has ended, triggering reset...');
+          return resetMemberBudgetPeriod(userId, householdId);
+        }
+        return false;
+      }
+    }
+
+    // Fall back to household-level check for backward compatibility
     const householdResult = await db.queryOnce({
       households: { $: { where: { id: householdId } } },
     });
@@ -652,6 +726,91 @@ export async function checkAndResetBudgetIfNeeded(householdId: string): Promise<
     return false;
   } catch (error) {
     console.error('Error checking budget reset:', error);
+    return false;
+  }
+}
+
+/**
+ * Reset budget period for a specific member
+ */
+export async function resetMemberBudgetPeriod(userId: string, householdId: string): Promise<boolean> {
+  try {
+    // Get member's payday
+    const memberResult = await db.queryOnce({
+      householdMembers: {
+        $: {
+          where: { userId, householdId, status: 'active' },
+        },
+      },
+    });
+
+    const member = memberResult.data.householdMembers?.[0];
+    if (!member || !member.paydayDay) {
+      console.error('Member not found or payday not set');
+      return false;
+    }
+
+    // Calculate new period based on member's payday
+    const newPeriod = calculateBudgetPeriod(member.paydayDay);
+
+    // Update member's budget period
+    await db.transact([
+      db.tx.householdMembers[member.id].update({
+        budgetPeriodStart: newPeriod.start,
+        budgetPeriodEnd: newPeriod.end,
+        lastBudgetReset: Date.now(),
+      }),
+    ]);
+
+    // Get and reset member's budgets
+    const budgetsResult = await db.queryOnce({
+      budgets: {
+        $: {
+          where: {
+            userId,
+            periodEnd: member.budgetPeriodEnd,
+            isActive: true,
+          },
+        },
+      },
+    });
+
+    const oldBudgets = budgetsResult.data.budgets || [];
+
+    // Archive old budgets
+    const archiveOps = oldBudgets.map((budget: any) =>
+      db.tx.budgets[budget.id].update({
+        isActive: false,
+        updatedAt: Date.now(),
+      })
+    );
+
+    // Create new budgets with reset spent amounts
+    const newBudgetOps = oldBudgets.map((oldBudget: any) =>
+      db.tx.budgets[generateId()].update({
+        userId: oldBudget.userId,
+        householdId,
+        categoryId: oldBudget.categoryId,
+        periodStart: newPeriod.start,
+        periodEnd: newPeriod.end,
+        allocatedAmount: oldBudget.allocatedAmount,
+        spentAmount: 0,
+        percentage: oldBudget.percentage,
+        categoryGroup: oldBudget.categoryGroup,
+        isActive: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      })
+    );
+
+    if (archiveOps.length > 0 || newBudgetOps.length > 0) {
+      await db.transact([...archiveOps, ...newBudgetOps]);
+    }
+
+    console.log('Member budget reset successful for user:', userId);
+    return true;
+  } catch (error) {
+    console.error('Member budget reset error:', error);
     return false;
   }
 }

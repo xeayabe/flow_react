@@ -242,13 +242,13 @@ export async function createDefaultHousehold(userId: string, name: string): Prom
     const budgetPeriod = calculateBudgetPeriod(defaultPaydayDay);
     const now = Date.now();
 
-    // Create household
+    // Create household (keep payday fields for backward compatibility, but they're now per-member)
     await db.transact([
       db.tx.households[householdId].update({
         name: householdName,
         currency: 'CHF',
         createdByUserId: userId,
-        paydayDay: defaultPaydayDay,
+        paydayDay: defaultPaydayDay, // Keep for backward compatibility
         payFrequency: 'monthly',
         budgetPeriodStart: budgetPeriod.start,
         budgetPeriodEnd: budgetPeriod.end,
@@ -257,7 +257,7 @@ export async function createDefaultHousehold(userId: string, name: string): Prom
       }),
     ]);
 
-    // Create household member record with ADMIN role
+    // Create household member record with ADMIN role AND personal budget fields
     const memberId = uuidv4();
     await db.transact([
       db.tx.householdMembers[memberId].update({
@@ -266,10 +266,18 @@ export async function createDefaultHousehold(userId: string, name: string): Prom
         role: 'admin',
         status: 'active',
         joinedAt: now,
+        // Personal budget fields - admin gets default payday setup
+        paydayDay: defaultPaydayDay,
+        payFrequency: 'monthly',
+        budgetPeriodStart: budgetPeriod.start,
+        budgetPeriodEnd: budgetPeriod.end,
+        lastBudgetReset: now,
+        monthlyIncome: 0, // User will set this in budget setup
       }),
     ]);
 
     console.log('✅ Household member created with role: admin');
+    console.log('✅ Personal budget period set:', budgetPeriod.start, '-', budgetPeriod.end);
 
     // Create default categories for household
     await createDefaultCategories(householdId);

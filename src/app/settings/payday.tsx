@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator, Modal, FlatList } from 'react-native';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, Modal, FlatList, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { ChevronLeft, X } from 'lucide-react-native';
@@ -11,17 +11,18 @@ import { cn } from '@/lib/cn';
 export default function PaydaySettingsScreen() {
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
-  const [selectedPayday, setSelectedPayday] = useState<number>(25);
+  const [selectedPayday, setSelectedPayday] = useState<number | null>(null);
   const [showPaydayPicker, setShowPaydayPicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Get household info
-  const householdQuery = useQuery({
-    queryKey: ['household', user?.email],
+  // Get current member's data (personal payday)
+  const memberQuery = useQuery({
+    queryKey: ['member-payday', user?.email],
     queryFn: async () => {
       if (!user?.email) throw new Error('No user email');
 
+      // Get user profile
       const userResult = await db.queryOnce({
         users: {
           $: {
@@ -35,72 +36,89 @@ export default function PaydaySettingsScreen() {
       const userRecord = userResult.data.users?.[0];
       if (!userRecord) throw new Error('User not found');
 
-      const householdsResult = await db.queryOnce({
-        households: {
+      // Get household membership with personal budget fields
+      const memberResult = await db.queryOnce({
+        householdMembers: {
           $: {
             where: {
-              createdByUserId: userRecord.id,
+              userId: userRecord.id,
+              status: 'active',
             },
           },
         },
       });
 
-      const household = householdsResult.data.households?.[0];
-      if (!household) throw new Error('No household found');
+      const member = memberResult.data.householdMembers?.[0];
+      if (!member) throw new Error('No household membership found');
 
-      return { userRecord, household };
+      return { userRecord, member };
     },
     enabled: !!user?.email,
   });
 
   // Initialize form with current payday
   useEffect(() => {
-    if (householdQuery.data?.household?.paydayDay) {
-      setSelectedPayday(householdQuery.data.household.paydayDay);
+    if (memberQuery.data?.member?.paydayDay && selectedPayday === null) {
+      setSelectedPayday(memberQuery.data.member.paydayDay);
     }
-  }, [householdQuery.data?.household?.paydayDay]);
+  }, [memberQuery.data?.member?.paydayDay]);
 
-  // Calculate current budget period
-  const budgetPeriod = calculateBudgetPeriod(selectedPayday);
+  // Calculate budget period based on selected payday
+  const budgetPeriod = selectedPayday ? calculateBudgetPeriod(selectedPayday) : null;
 
-  // Handle save
-  const handleSave = async () => {
-    if (!householdQuery.data?.household?.id) return;
+  // Save mutation
+  const saveMutation = useMutation({
+    mutationFn: async (paydayDay: number) => {
+      if (!memberQuery.data?.member?.id) throw new Error('No member ID');
 
-    setIsSaving(true);
-    try {
+      const period = calculateBudgetPeriod(paydayDay);
       const now = Date.now();
+
       await db.transact([
-        db.tx.households[householdQuery.data.household.id].update({
-          paydayDay: selectedPayday,
+        db.tx.householdMembers[memberQuery.data.member.id].update({
+          paydayDay,
           payFrequency: 'monthly',
-          budgetPeriodStart: budgetPeriod.start,
-          budgetPeriodEnd: budgetPeriod.end,
-          updatedAt: now,
+          budgetPeriodStart: period.start,
+          budgetPeriodEnd: period.end,
+          lastBudgetReset: now,
         }),
       ]);
-
+    },
+    onSuccess: () => {
       setSuccessMessage('Payday saved!');
+      queryClient.invalidateQueries({ queryKey: ['member-payday'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      queryClient.invalidateQueries({ queryKey: ['my-budget-period'] });
       setTimeout(() => {
         setSuccessMessage('');
-        queryClient.invalidateQueries({ queryKey: ['household', user?.email] });
         router.back();
       }, 1500);
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error('Error saving payday:', error);
-      alert('Failed to save payday. Please try again.');
-    } finally {
-      setIsSaving(false);
+      Alert.alert('Error', 'Failed to save payday. Please try again.');
+    },
+  });
+
+  // Handle save
+  const handleSave = () => {
+    if (!selectedPayday) {
+      Alert.alert('Required', 'Please select your payday');
+      return;
     }
+    saveMutation.mutate(selectedPayday);
   };
 
-  if (householdQuery.isLoading) {
+  if (memberQuery.isLoading) {
     return (
       <View className="flex-1 bg-white justify-center items-center">
         <ActivityIndicator size="large" color="#006A6A" />
       </View>
     );
   }
+
+  const currentMember = memberQuery.data?.member;
+  const hasPaydaySet = currentMember?.paydayDay != null;
 
   const paydayOptions = [
     { label: 'Last day of month', value: -1 },
@@ -114,7 +132,7 @@ export default function PaydaySettingsScreen() {
     <>
       <Stack.Screen
         options={{
-          title: 'Payday & Budget Period',
+          title: 'My Payday',
           headerLeft: () => (
             <Pressable onPress={() => router.back()} className="mr-4">
               <ChevronLeft size={24} color="#006A6A" />
@@ -130,8 +148,41 @@ export default function PaydaySettingsScreen() {
         <SafeAreaView edges={['bottom']} className="flex-1">
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
             <View className="px-6 py-6">
-              {/* Payday Section */}
-              <View className="mb-8">
+              {/* Header */}
+              <View className="mb-6">
+                <Text className="text-2xl font-bold text-gray-900 mb-2">Set Your Payday</Text>
+                <Text className="text-gray-600">
+                  When do you receive your monthly salary?
+                </Text>
+              </View>
+
+              {/* Current Setting (if exists) */}
+              {hasPaydaySet && (
+                <View className="bg-teal-50 p-4 rounded-xl mb-6 border border-teal-100">
+                  <Text className="text-teal-900 font-semibold mb-1">Current Setting</Text>
+                  <Text className="text-teal-700">
+                    Day {currentMember.paydayDay === -1 ? 'Last day' : currentMember.paydayDay} of each month
+                  </Text>
+                  {currentMember.budgetPeriodStart && currentMember.budgetPeriodEnd && (
+                    <Text className="text-teal-600 text-sm mt-1">
+                      Period: {formatDateSwiss(currentMember.budgetPeriodStart)} - {formatDateSwiss(currentMember.budgetPeriodEnd)}
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              {/* No payday set message */}
+              {!hasPaydaySet && (
+                <View className="bg-amber-50 p-4 rounded-xl mb-6 border border-amber-200">
+                  <Text className="text-amber-900 font-semibold mb-1">⚠️ Payday Not Set</Text>
+                  <Text className="text-amber-700 text-sm">
+                    Please set your payday to start tracking your personal budget cycle.
+                  </Text>
+                </View>
+              )}
+
+              {/* Payday Selection */}
+              <View className="mb-6">
                 <Text className="text-sm font-semibold text-gray-700 mb-3">WHEN DO YOU GET PAID?</Text>
 
                 <Pressable
@@ -142,41 +193,49 @@ export default function PaydaySettingsScreen() {
                   <View className="flex-1">
                     <Text className="text-gray-600 text-sm mb-1">I get paid on:</Text>
                     <Text className="text-lg font-bold text-gray-900">
-                      {selectedPayday === -1 ? 'Last day of month' : `Day ${selectedPayday}`} of each month
+                      {selectedPayday === null
+                        ? 'Select your payday'
+                        : selectedPayday === -1
+                          ? 'Last day of month'
+                          : `Day ${selectedPayday}`}{' '}
+                      {selectedPayday !== null && 'of each month'}
                     </Text>
                   </View>
                   <Text className="text-2xl text-gray-400">›</Text>
                 </Pressable>
               </View>
 
-              {/* Budget Period Info */}
-              <View className="mb-8 p-4 rounded-xl" style={{ backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#86EFAC' }}>
-                <Text className="text-sm font-semibold text-green-700 mb-3">CURRENT BUDGET PERIOD</Text>
+              {/* Budget Period Preview */}
+              {budgetPeriod && (
+                <View className="mb-6 p-4 rounded-xl" style={{ backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#86EFAC' }}>
+                  <Text className="text-sm font-semibold text-green-700 mb-3">YOUR BUDGET PERIOD</Text>
 
-                <View className="mb-3">
-                  <Text className="text-xs text-green-600 mb-1">Period:</Text>
-                  <Text className="text-base font-semibold text-green-800">
-                    {formatDateSwiss(budgetPeriod.start)} - {formatDateSwiss(budgetPeriod.end)}
-                  </Text>
-                </View>
+                  <View className="mb-3">
+                    <Text className="text-xs text-green-600 mb-1">Period:</Text>
+                    <Text className="text-base font-semibold text-green-800">
+                      {formatDateSwiss(budgetPeriod.start)} - {formatDateSwiss(budgetPeriod.end)}
+                    </Text>
+                  </View>
 
-                <View className="flex-row justify-between">
-                  <View className="flex-1">
-                    <Text className="text-xs text-green-600 mb-1">Days remaining:</Text>
-                    <Text className="text-base font-semibold text-green-800">{budgetPeriod.daysRemaining} days</Text>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-xs text-green-600 mb-1">Resets on:</Text>
-                    <Text className="text-base font-semibold text-green-800">{formatDateSwiss(budgetPeriod.resetsOn)}</Text>
+                  <View className="flex-row justify-between">
+                    <View className="flex-1">
+                      <Text className="text-xs text-green-600 mb-1">Days remaining:</Text>
+                      <Text className="text-base font-semibold text-green-800">{budgetPeriod.daysRemaining} days</Text>
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-xs text-green-600 mb-1">Resets on:</Text>
+                      <Text className="text-base font-semibold text-green-800">{formatDateSwiss(budgetPeriod.resetsOn)}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+              )}
 
               {/* Info Box */}
-              <View className="p-4 rounded-xl" style={{ backgroundColor: '#F3F4F6' }}>
-                <Text className="text-sm text-gray-700 leading-5">
-                  Your budget period starts on your payday and ends the day before your next payday. This aligns your
-                  budget with when you receive income.
+              <View className="p-4 rounded-xl" style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' }}>
+                <Text className="text-sm font-semibold text-blue-900 mb-2">💡 Your Personal Budget Cycle</Text>
+                <Text className="text-sm text-blue-700 leading-5">
+                  Your budget period starts on your payday and ends the day before your next payday.
+                  This is separate from your household partner's budget cycle - each person can have a different payday!
                 </Text>
               </View>
             </View>
@@ -186,16 +245,16 @@ export default function PaydaySettingsScreen() {
           <View className="px-6 py-4 border-t border-gray-200">
             <Pressable
               onPress={handleSave}
-              disabled={isSaving}
+              disabled={saveMutation.isPending || !selectedPayday}
               className={cn(
-                'py-3 px-4 rounded-xl items-center justify-center',
-                isSaving ? 'bg-gray-300' : 'bg-teal-600'
+                'py-4 px-4 rounded-xl items-center justify-center',
+                saveMutation.isPending || !selectedPayday ? 'bg-gray-300' : 'bg-teal-600'
               )}
             >
-              {isSaving ? (
+              {saveMutation.isPending ? (
                 <ActivityIndicator color="white" />
               ) : (
-                <Text className="text-white font-semibold text-base">Save Changes</Text>
+                <Text className="text-white font-semibold text-base">Save Payday</Text>
               )}
             </Pressable>
           </View>
@@ -214,7 +273,7 @@ export default function PaydaySettingsScreen() {
         <View className="flex-1 bg-white">
           <SafeAreaView edges={['top']} className="bg-white">
             <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
-              <Text className="text-lg font-bold">Select Payday</Text>
+              <Text className="text-lg font-bold">Select Your Payday</Text>
               <Pressable onPress={() => setShowPaydayPicker(false)}>
                 <X size={24} color="#006A6A" />
               </Pressable>

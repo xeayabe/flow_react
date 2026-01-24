@@ -114,7 +114,7 @@ export async function acceptInviteCode(code: string, newUserId: string) {
     throw new Error('Household is full (max 2 members)');
   }
 
-  // Add user to household as MEMBER
+  // Add user to household as MEMBER (without budget fields - they'll set their own payday)
   const memberId = uuidv4();
 
   console.log('Creating household member:');
@@ -123,6 +123,7 @@ export async function acceptInviteCode(code: string, newUserId: string) {
   console.log('- User ID:', newUserId);
   console.log('- Role: member');
   console.log('- Status: active');
+  console.log('- Budget fields: NOT SET (member will configure their own payday)');
 
   await db.transact([
     // Mark invite as accepted
@@ -132,13 +133,20 @@ export async function acceptInviteCode(code: string, newUserId: string) {
       acceptedAt: Date.now(),
       updatedAt: Date.now()
     }),
-    // Add user as MEMBER (not admin)
+    // Add user as MEMBER (not admin) - budget fields left null for member to set
     db.tx.householdMembers[memberId].update({
       householdId: invite.householdId,
       userId: newUserId,
       role: 'member',  // ← CRITICAL: Must be 'member' not 'admin'
       status: 'active',
-      joinedAt: Date.now()
+      joinedAt: Date.now(),
+      // Personal budget fields - left null, member will set their own payday
+      paydayDay: null,
+      payFrequency: 'monthly',
+      budgetPeriodStart: null,
+      budgetPeriodEnd: null,
+      lastBudgetReset: null,
+      monthlyIncome: 0,
     })
   ]);
 

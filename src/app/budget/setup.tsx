@@ -16,7 +16,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, X, Zap } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/db';
-import { saveBudget, getBudgetDetails, getBudgetSummary } from '@/lib/budget-api';
+import { saveBudget, getBudgetDetails, getBudgetSummary, getMemberBudgetPeriod } from '@/lib/budget-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
 import { calculatePercentage, calculateAmountFromPercentage, autoBalanceRemaining, apply503020Split } from '@/lib/budget-utils';
@@ -61,8 +61,8 @@ export default function BudgetSetupScreen() {
   const passedIncome = params.monthlyIncome || '';
 
   // Get household and categories
-  const householdQuery = useQuery({
-    queryKey: ['household', user?.email],
+  const userProfileQuery = useQuery({
+    queryKey: ['user-profile', user?.email],
     queryFn: async () => {
       if (!user?.email) throw new Error('No user email');
 
@@ -73,28 +73,51 @@ export default function BudgetSetupScreen() {
       const userRecord = userResult.data.users?.[0];
       if (!userRecord) throw new Error('User not found');
 
-      const householdsResult = await db.queryOnce({
-        households: { $: { where: { createdByUserId: userRecord.id } } },
+      // Get household membership
+      const memberResult = await db.queryOnce({
+        householdMembers: {
+          $: { where: { userId: userRecord.id, status: 'active' } },
+        },
       });
 
-      const household = householdsResult.data.households?.[0];
-      if (!household) throw new Error('No household found');
+      const member = memberResult.data.householdMembers?.[0];
+      if (!member) throw new Error('No household membership found');
 
-      return { userRecord, household };
+      return { userRecord, member };
     },
     enabled: !!user?.email,
   });
 
-  const categoriesQuery = useQuery({
-    queryKey: ['categories', householdQuery.data?.household?.id],
+  const userId = userProfileQuery.data?.userRecord?.id;
+  const householdId = userProfileQuery.data?.member?.householdId;
+
+  // Get personal budget period
+  const budgetPeriodQuery = useQuery({
+    queryKey: ['my-budget-period', userId, householdId],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id) return [];
+      if (!userId || !householdId) throw new Error('Missing user or household');
+      return getMemberBudgetPeriod(userId, householdId);
+    },
+    enabled: !!userId && !!householdId,
+  });
+
+  const budgetPeriod = budgetPeriodQuery.data ?? {
+    start: calculateBudgetPeriod(25).start,
+    end: calculateBudgetPeriod(25).end,
+    paydayDay: 25,
+    source: 'household' as const,
+  };
+
+  const categoriesQuery = useQuery({
+    queryKey: ['categories', householdId],
+    queryFn: async () => {
+      if (!householdId) return [];
 
       const result = await db.queryOnce({
         categories: {
           $: {
             where: {
-              householdId: householdQuery.data.household.id,
+              householdId: householdId,
               type: 'expense',
             },
           },
@@ -103,29 +126,25 @@ export default function BudgetSetupScreen() {
 
       return result.data.categories || [];
     },
-    enabled: !!householdQuery.data?.household?.id,
+    enabled: !!householdId,
   });
 
   const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdQuery.data?.household?.id],
+    queryKey: ['categoryGroups', householdId],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id) return [];
-      return getCategoryGroups(householdQuery.data.household.id);
+      if (!householdId) return [];
+      return getCategoryGroups(householdId);
     },
-    enabled: !!householdQuery.data?.household?.id,
+    enabled: !!householdId,
   });
 
-  // Get existing budget if available (for editing)
-  const paydayDay = householdQuery.data?.household?.paydayDay ?? 25;
-  const budgetPeriod = calculateBudgetPeriod(paydayDay);
-
   const existingBudgetQuery = useQuery({
-    queryKey: ['budget-edit-details', householdQuery.data?.userRecord?.id, budgetPeriod.start],
+    queryKey: ['budget-edit-details', userId, budgetPeriod.start],
     queryFn: async () => {
-      if (!householdQuery.data?.userRecord?.id) return [];
-      return getBudgetDetails(householdQuery.data.userRecord.id, budgetPeriod.start);
+      if (!userId) return [];
+      return getBudgetDetails(userId, budgetPeriod.start);
     },
-    enabled: !!householdQuery.data?.userRecord?.id,
+    enabled: !!userId,
   });
 
   // Initialize allocations when categories load
@@ -146,7 +165,7 @@ export default function BudgetSetupScreen() {
         setAllocations(existingAllocations);
 
         // Also load the monthly income from the budget summary
-        if (householdQuery.data?.household?.id) {
+        if (householdId) {
           // We'll need to fetch the budget summary to get the total income
           const totalAllocated = Object.values(existingAllocations).reduce((sum, amount) => sum + amount, 0);
           // For now, estimate it based on allocation percentage, but we should ideally load from summary
@@ -154,16 +173,16 @@ export default function BudgetSetupScreen() {
         }
       }
     }
-  }, [categoriesQuery.data, existingBudgetQuery.data, householdQuery.data?.household?.id]);
+  }, [categoriesQuery.data, existingBudgetQuery.data, householdId]);
 
   // Load monthly income from budget summary if in edit mode - will auto-populate when editing
   const budgetSummaryQuery = useQuery({
-    queryKey: ['budget-summary-income', householdQuery.data?.userRecord?.id, householdQuery.data?.household?.id, budgetPeriod.start],
+    queryKey: ['budget-summary-income', userId, householdId, budgetPeriod.start],
     queryFn: async () => {
-      if (!householdQuery.data?.userRecord?.id || !householdQuery.data?.household?.id) return null;
-      return getBudgetSummary(householdQuery.data.userRecord.id, householdQuery.data.household.id, budgetPeriod.start);
+      if (!userId || !householdId) return null;
+      return getBudgetSummary(userId, householdId, budgetPeriod.start);
     },
-    enabled: !!householdQuery.data?.userRecord?.id && !!householdQuery.data?.household?.id,
+    enabled: !!userId && !!householdId,
   });
 
   useEffect(() => {
@@ -344,7 +363,7 @@ export default function BudgetSetupScreen() {
 
   // Save budget
   const handleSave = async () => {
-    if (!householdQuery.data?.household?.id || !householdQuery.data?.userRecord?.id) return;
+    if (!householdId || !userId) return;
 
     if (income === 0) {
       setShowSaveError('Please enter your monthly income');
@@ -411,8 +430,8 @@ export default function BudgetSetupScreen() {
       }
 
       const result = await saveBudget({
-        userId: householdQuery.data.userRecord.id,
-        householdId: householdQuery.data.household.id,
+        userId: userId,
+        householdId: householdId,
         totalIncome: roundedIncome,
         allocations: normalizedAllocations,
         categoryGroups,
@@ -437,7 +456,7 @@ export default function BudgetSetupScreen() {
     }
   };
 
-  if (householdQuery.isLoading || categoriesQuery.isLoading || categoryGroupsQuery.isLoading) {
+  if (userProfileQuery.isLoading || budgetPeriodQuery.isLoading || categoriesQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
       <View className="flex-1 bg-white justify-center items-center">
         <ActivityIndicator size="large" color="#006A6A" />

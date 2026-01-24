@@ -1,6 +1,6 @@
 import { db } from './db';
 import { getUserAccounts } from './accounts-api';
-import { updateBudgetSpentAmount } from './budget-api';
+import { updateBudgetSpentAmount, getMemberBudgetPeriod } from './budget-api';
 import { calculateBudgetPeriod } from './payday-utils';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
@@ -132,42 +132,30 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
     if (request.type === 'expense') {
       try {
         console.log('Updating budget for expense transaction');
-        // Get household to retrieve payday info
-        const householdResult = await db.queryOnce({
-          households: {
-            $: {
-              where: { id: request.householdId },
-            },
-          },
-        });
+        // Get member's personal budget period (or fallback to household)
+        const budgetPeriod = await getMemberBudgetPeriod(request.userId, request.householdId);
 
-        const household = householdResult.data.households?.[0];
-        if (household) {
-          const paydayDay = household.paydayDay ?? 25;
-          const budgetPeriod = calculateBudgetPeriod(paydayDay);
-
-          // Check if transaction date falls within this budget period
-          const txDate = request.date;
-          if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
-            // Get current budget spent amount
-            const budgetResult = await db.queryOnce({
-              budgets: {
-                $: {
-                  where: {
-                    userId: request.userId,
-                    categoryId: request.categoryId,
-                    periodStart: budgetPeriod.start,
-                  },
+        // Check if transaction date falls within this budget period
+        const txDate = request.date;
+        if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
+          // Get current budget spent amount
+          const budgetResult = await db.queryOnce({
+            budgets: {
+              $: {
+                where: {
+                  userId: request.userId,
+                  categoryId: request.categoryId,
+                  periodStart: budgetPeriod.start,
                 },
               },
-            });
+            },
+          });
 
-            const budget = budgetResult.data.budgets?.[0];
-            if (budget) {
-              const newSpentAmount = (budget.spentAmount || 0) + request.amount;
-              await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
-              console.log('Budget updated for expense transaction');
-            }
+          const budget = budgetResult.data.budgets?.[0];
+          if (budget) {
+            const newSpentAmount = (budget.spentAmount || 0) + request.amount;
+            await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
+            console.log('Budget updated for expense transaction');
           }
         }
       } catch (error) {
@@ -312,41 +300,29 @@ export async function deleteTransaction(transactionId: string): Promise<Transact
     // Update budget spent amount if this was an expense transaction
     if (transaction.type === 'expense') {
       try {
-        // Get household to retrieve payday info
-        const householdResult = await db.queryOnce({
-          households: {
-            $: {
-              where: { id: transaction.householdId },
-            },
-          },
-        });
+        // Get member's personal budget period (or fallback to household)
+        const budgetPeriod = await getMemberBudgetPeriod(transaction.userId, transaction.householdId);
 
-        const household = householdResult.data.households?.[0];
-        if (household) {
-          const paydayDay = household.paydayDay ?? 25;
-          const budgetPeriod = calculateBudgetPeriod(paydayDay);
-
-          // Check if transaction date falls within this budget period
-          const txDate = transaction.date;
-          if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
-            // Get current budget spent amount
-            const budgetResult = await db.queryOnce({
-              budgets: {
-                $: {
-                  where: {
-                    userId: transaction.userId,
-                    categoryId: transaction.categoryId,
-                    periodStart: budgetPeriod.start,
-                  },
+        // Check if transaction date falls within this budget period
+        const txDate = transaction.date;
+        if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
+          // Get current budget spent amount
+          const budgetResult = await db.queryOnce({
+            budgets: {
+              $: {
+                where: {
+                  userId: transaction.userId,
+                  categoryId: transaction.categoryId,
+                  periodStart: budgetPeriod.start,
                 },
               },
-            });
+            },
+          });
 
-            const budget = budgetResult.data.budgets?.[0];
-            if (budget) {
-              const newSpentAmount = Math.max(0, (budget.spentAmount || 0) - transaction.amount);
-              await updateBudgetSpentAmount(transaction.userId, transaction.categoryId, budgetPeriod.start, newSpentAmount);
-            }
+          const budget = budgetResult.data.budgets?.[0];
+          if (budget) {
+            const newSpentAmount = Math.max(0, (budget.spentAmount || 0) - transaction.amount);
+            await updateBudgetSpentAmount(transaction.userId, transaction.categoryId, budgetPeriod.start, newSpentAmount);
           }
         }
       } catch (error) {
@@ -555,81 +531,69 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
     // Update budget spent amounts if category or amount changed
     if (request.type === 'expense' && originalTx.type === 'expense') {
       try {
-        // Get household for budget period calculation
-        const householdResult = await db.queryOnce({
-          households: {
-            $: {
-              where: { id: request.householdId },
-            },
-          },
-        });
+        // Get member's personal budget period
+        const budgetPeriod = await getMemberBudgetPeriod(request.userId, request.householdId);
 
-        const household = householdResult.data.households?.[0];
-        if (household) {
-          const paydayDay = household.paydayDay ?? 25;
-          const budgetPeriod = calculateBudgetPeriod(paydayDay);
-
-          const txDate = request.date;
-          if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
-            // If category changed, update both old and new categories
-            if (originalTx.categoryId !== request.categoryId) {
-              // Update old category
-              const oldBudgetResult = await db.queryOnce({
-                budgets: {
-                  $: {
-                    where: {
-                      userId: request.userId,
-                      categoryId: originalTx.categoryId,
-                      periodStart: budgetPeriod.start,
-                    },
+        const txDate = request.date;
+        if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
+          // If category changed, update both old and new categories
+          if (originalTx.categoryId !== request.categoryId) {
+            // Update old category
+            const oldBudgetResult = await db.queryOnce({
+              budgets: {
+                $: {
+                  where: {
+                    userId: request.userId,
+                    categoryId: originalTx.categoryId,
+                    periodStart: budgetPeriod.start,
                   },
                 },
-              });
+              },
+            });
 
-              const oldBudget = oldBudgetResult.data.budgets?.[0];
-              if (oldBudget) {
-                const newSpentAmount = Math.max(0, (oldBudget.spentAmount || 0) - originalTx.amount);
-                await updateBudgetSpentAmount(request.userId, originalTx.categoryId, budgetPeriod.start, newSpentAmount);
-              }
+            const oldBudget = oldBudgetResult.data.budgets?.[0];
+            if (oldBudget) {
+              const newSpentAmount = Math.max(0, (oldBudget.spentAmount || 0) - originalTx.amount);
+              await updateBudgetSpentAmount(request.userId, originalTx.categoryId, budgetPeriod.start, newSpentAmount);
+            }
 
-              // Update new category
-              const newBudgetResult = await db.queryOnce({
-                budgets: {
-                  $: {
-                    where: {
-                      userId: request.userId,
-                      categoryId: request.categoryId,
-                      periodStart: budgetPeriod.start,
-                    },
+            // Update new category
+            const newBudgetResult = await db.queryOnce({
+              budgets: {
+                $: {
+                  where: {
+                    userId: request.userId,
+                    categoryId: request.categoryId,
+                    periodStart: budgetPeriod.start,
                   },
                 },
-              });
+              },
+            });
 
-              const newBudget = newBudgetResult.data.budgets?.[0];
-              if (newBudget) {
-                const newSpentAmount = (newBudget.spentAmount || 0) + request.amount;
-                await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
-              }
-            } else if (originalTx.amount !== request.amount) {
-              // If amount changed but category didn't
-              const budgetResult = await db.queryOnce({
-                budgets: {
-                  $: {
-                    where: {
-                      userId: request.userId,
-                      categoryId: request.categoryId,
-                      periodStart: budgetPeriod.start,
-                    },
+            const newBudget = newBudgetResult.data.budgets?.[0];
+            if (newBudget) {
+              const newSpentAmount = (newBudget.spentAmount || 0) + request.amount;
+              await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
+            }
+          } else if (originalTx.amount !== request.amount) {
+            // If amount changed but category didn't
+            const budgetResult = await db.queryOnce({
+              budgets: {
+                $: {
+                  where: {
+                    userId: request.userId,
+                    categoryId: request.categoryId,
+                    periodStart: budgetPeriod.start,
                   },
                 },
-              });
+              },
+            });
 
-              const budget = budgetResult.data.budgets?.[0];
-              if (budget) {
-                const amountDiff = request.amount - originalTx.amount;
-                const newSpentAmount = (budget.spentAmount || 0) + amountDiff;
-                await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
-              }
+            const budget = budgetResult.data.budgets?.[0];
+            if (budget) {
+              const amountDiff = request.amount - originalTx.amount;
+              const newSpentAmount = (budget.spentAmount || 0) + amountDiff;
+              await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
             }
           }
         }

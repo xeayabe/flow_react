@@ -27,6 +27,8 @@ import {
   formatISOtoEuropean,
 } from '@/lib/analytics-api';
 import { formatCurrency } from '@/lib/transactions-api';
+import { getMemberBudgetPeriod } from '@/lib/budget-api';
+import { calculateBudgetPeriod } from '@/lib/payday-utils';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_SIZE = Math.min(SCREEN_WIDTH - 80, 280);
@@ -430,8 +432,9 @@ export default function AnalyticsTabScreen() {
 
   const { user } = db.useAuth();
 
-  const householdQuery = useQuery({
-    queryKey: ['household', user?.email],
+  // Get user profile and household membership
+  const userProfileQuery = useQuery({
+    queryKey: ['user-profile', user?.email],
     queryFn: async () => {
       if (!user?.email) throw new Error('No user email');
 
@@ -442,21 +445,35 @@ export default function AnalyticsTabScreen() {
       const userRecord = userResult.data.users?.[0];
       if (!userRecord) throw new Error('User not found');
 
-      const householdsResult = await db.queryOnce({
-        households: { $: { where: { createdByUserId: userRecord.id } } },
+      // Get household membership
+      const memberResult = await db.queryOnce({
+        householdMembers: {
+          $: { where: { userId: userRecord.id, status: 'active' } },
+        },
       });
 
-      const household = householdsResult.data.households?.[0];
-      if (!household) throw new Error('No household found');
+      const member = memberResult.data.householdMembers?.[0];
+      if (!member) throw new Error('No household membership found');
 
-      return { userRecord, household };
+      return { userRecord, member };
     },
     enabled: !!user?.email,
   });
 
-  const userId = householdQuery.data?.userRecord?.id;
-  const householdId = householdQuery.data?.household?.id;
-  const paydayDay = householdQuery.data?.household?.paydayDay ?? 25;
+  const userId = userProfileQuery.data?.userRecord?.id;
+  const householdId = userProfileQuery.data?.member?.householdId;
+
+  // Get personal budget period
+  const budgetPeriodQuery = useQuery({
+    queryKey: ['my-budget-period', userId, householdId],
+    queryFn: async () => {
+      if (!userId || !householdId) throw new Error('Missing user or household');
+      return getMemberBudgetPeriod(userId, householdId);
+    },
+    enabled: !!userId && !!householdId,
+  });
+
+  const paydayDay = budgetPeriodQuery.data?.paydayDay ?? 25;
 
   const range = getDateRange(dateRange, paydayDay);
 
@@ -469,7 +486,7 @@ export default function AnalyticsTabScreen() {
     enabled: !!userId && !!householdId,
   });
 
-  const isLoading = householdQuery.isLoading || analyticsQuery.isLoading;
+  const isLoading = userProfileQuery.isLoading || budgetPeriodQuery.isLoading || analyticsQuery.isLoading;
   const analytics = analyticsQuery.data;
 
   return (

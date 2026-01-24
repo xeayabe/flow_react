@@ -27,6 +27,13 @@ const schema = i.schema({
       role: i.string(),
       status: i.string(),
       joinedAt: i.number(),
+      // Personal budget fields (moved from households for per-member budget cycles)
+      paydayDay: i.number().optional(), // 1-31 or -1 for last day
+      payFrequency: i.string().optional(), // 'monthly'
+      budgetPeriodStart: i.string().optional(), // ISO format YYYY-MM-DD
+      budgetPeriodEnd: i.string().optional(), // ISO format YYYY-MM-DD
+      lastBudgetReset: i.number().optional(), // timestamp
+      monthlyIncome: i.number().optional(), // For shared expense splits
     }),
     accounts: i.entity({
       userId: i.string(),

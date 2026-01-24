@@ -9,7 +9,7 @@ import { getUserAccounts } from '@/lib/accounts-api';
 import { getRecentTransactions, Transaction } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
-import { getBudgetSummary, getBudgetDetails, recalculateBudgetSpentAmounts, checkAndResetBudgetIfNeeded } from '@/lib/budget-api';
+import { getBudgetSummary, getBudgetDetails, recalculateBudgetSpentAmounts, checkAndResetBudgetIfNeeded, getMemberBudgetPeriod } from '@/lib/budget-api';
 import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
 import {
   calculateTotalBalance,
@@ -47,9 +47,9 @@ export default function DashboardScreen() {
   const { user } = db.useAuth();
   const [showResetNotification, setShowResetNotification] = React.useState(false);
 
-  // Get household for payday info
-  const householdQuery = useQuery({
-    queryKey: ['household', user?.email],
+  // Get user profile and household membership
+  const userProfileQuery = useQuery({
+    queryKey: ['user-profile', user?.email],
     queryFn: async () => {
       if (!user?.email) throw new Error('No user email');
 
@@ -60,23 +60,41 @@ export default function DashboardScreen() {
       const userRecord = userResult.data.users?.[0];
       if (!userRecord) throw new Error('User not found');
 
-      const householdsResult = await db.queryOnce({
-        households: { $: { where: { createdByUserId: userRecord.id } } },
+      // Get household membership to get householdId and personal budget period
+      const memberResult = await db.queryOnce({
+        householdMembers: {
+          $: { where: { userId: userRecord.id, status: 'active' } },
+        },
       });
 
-      const household = householdsResult.data.households?.[0];
-      if (!household) throw new Error('No household found');
+      const member = memberResult.data.householdMembers?.[0];
+      if (!member) throw new Error('No household membership found');
 
-      return { userRecord, household };
+      return { userRecord, member };
     },
     enabled: !!user?.email,
   });
 
-  // Calculate budget period
-  const paydayDay = householdQuery.data?.household?.paydayDay ?? 25;
-  const budgetPeriod = calculateBudgetPeriod(paydayDay);
-  const userId = householdQuery.data?.userRecord?.id;
-  const householdId = householdQuery.data?.household?.id;
+  const userId = userProfileQuery.data?.userRecord?.id;
+  const householdId = userProfileQuery.data?.member?.householdId;
+  const member = userProfileQuery.data?.member;
+
+  // Get personal budget period from member (or fallback to household)
+  const budgetPeriodQuery = useQuery({
+    queryKey: ['my-budget-period', userId, householdId],
+    queryFn: async () => {
+      if (!userId || !householdId) throw new Error('Missing user or household');
+      return getMemberBudgetPeriod(userId, householdId);
+    },
+    enabled: !!userId && !!householdId,
+  });
+
+  const budgetPeriod = budgetPeriodQuery.data ?? {
+    start: calculateBudgetPeriod(25).start,
+    end: calculateBudgetPeriod(25).end,
+    paydayDay: 25,
+    source: 'household' as const,
+  };
 
   // Get all accounts
   const accountsQuery = useQuery({
@@ -191,7 +209,8 @@ export default function DashboardScreen() {
   }, [householdId]);
 
   const isLoading =
-    householdQuery.isLoading ||
+    userProfileQuery.isLoading ||
+    budgetPeriodQuery.isLoading ||
     accountsQuery.isLoading ||
     summaryQuery.isLoading ||
     recentTransactionsQuery.isLoading ||
@@ -213,7 +232,7 @@ export default function DashboardScreen() {
   const categories = categoriesQuery.data || [];
   const budgetDetails = budgetDetailsQuery.data || [];
   const categoryGroups = categoryGroupsQuery.data || [];
-  const userName = householdQuery.data?.userRecord?.name || 'User';
+  const userName = userProfileQuery.data?.userRecord?.name || 'User';
   const totalBalance = calculateTotalBalance(accounts);
   const monthSpending = calculatePeriodSpending(recentTransactions, budgetPeriod.start, budgetPeriod.end, 'expense');
 
