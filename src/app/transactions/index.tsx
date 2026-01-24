@@ -405,10 +405,14 @@ export default function TransactionsListScreen() {
 
               <Pressable
                 onPress={() => setShowCategoryModal(true)}
-                className="px-3 py-2 rounded-full border border-gray-300 flex-row items-center gap-1"
+                className={cn('px-3 py-2 rounded-full flex-row items-center gap-1',
+                  selectedCategories.length === 0 ? 'border border-gray-300' : 'bg-teal-100 border-0'
+                )}
               >
                 <Text className="text-xs font-medium text-gray-700">🏷️</Text>
-                <Text className="text-xs font-medium text-gray-700">
+                <Text className={cn('text-xs font-medium',
+                  selectedCategories.length === 0 ? 'text-gray-700' : 'text-teal-700'
+                )}>
                   {selectedCategories.length === 0
                     ? 'All Categories'
                     : selectedCategories.length === 1
@@ -419,16 +423,26 @@ export default function TransactionsListScreen() {
                         })()
                       : `${selectedCategories.length} selected`}
                 </Text>
+                {selectedCategories.length > 0 && (
+                  <Text className="text-xs font-medium text-teal-700">×</Text>
+                )}
               </Pressable>
 
               <Pressable
                 onPress={() => setShowAccountModal(true)}
-                className="px-3 py-2 rounded-full border border-gray-300 flex-row items-center gap-1"
+                className={cn('px-3 py-2 rounded-full flex-row items-center gap-1',
+                  selectedAccounts.length === 0 ? 'border border-gray-300' : 'bg-teal-100 border-0'
+                )}
               >
                 <Text className="text-xs font-medium text-gray-700">💳</Text>
-                <Text className="text-xs font-medium text-gray-700">
+                <Text className={cn('text-xs font-medium',
+                  selectedAccounts.length === 0 ? 'text-gray-700' : 'text-teal-700'
+                )}>
                   {selectedAccounts.length === 0 ? 'All Accounts' : `${selectedAccounts.length} selected`}
                 </Text>
+                {selectedAccounts.length > 0 && (
+                  <Text className="text-xs font-medium text-teal-700">×</Text>
+                )}
               </Pressable>
 
               {monthFilterLabel && (
