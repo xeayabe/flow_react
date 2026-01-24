@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, SectionList, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, Trash2, ArrowDownLeft, ArrowUpRight, AlertCircle, Plus, X, TrendingUp, TrendingDown } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { db } from '@/lib/db';
 import { getUserTransactions, deleteTransaction, formatCurrency, formatDateSwiss, Transaction } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
@@ -26,6 +26,7 @@ type TransactionType = 'all' | 'income' | 'expense';
 export default function TransactionsListScreen() {
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
+  const { category: categoryParam } = useLocalSearchParams<{ category?: string }>();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Filter states
@@ -37,6 +38,13 @@ export default function TransactionsListScreen() {
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
+
+  // Apply category filter from URL parameter
+  useEffect(() => {
+    if (categoryParam) {
+      setSelectedCategories([categoryParam]);
+    }
+  }, [categoryParam]);
 
   // Get user and household info
   const householdQuery = useQuery({
@@ -353,7 +361,15 @@ export default function TransactionsListScreen() {
               >
                 <Text className="text-xs font-medium text-gray-700">🏷️</Text>
                 <Text className="text-xs font-medium text-gray-700">
-                  {selectedCategories.length === 0 ? 'All Categories' : `${selectedCategories.length} selected`}
+                  {selectedCategories.length === 0
+                    ? 'All Categories'
+                    : selectedCategories.length === 1
+                      ? (() => {
+                          const cats = categoriesQuery.data || [];
+                          const cat = cats.find((c: any) => c.id === selectedCategories[0]);
+                          return cat ? `${cat.icon || ''} ${cat.name}`.trim() : `${selectedCategories.length} selected`;
+                        })()
+                      : `${selectedCategories.length} selected`}
                 </Text>
               </Pressable>
 

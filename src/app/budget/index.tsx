@@ -283,7 +283,11 @@ export default function BudgetOverviewScreen() {
                         const statusColor = getStatusColor(detail.status);
 
                         return (
-                          <View key={detail.id} className="mb-4 p-4 rounded-xl bg-gray-50">
+                          <Pressable
+                            key={detail.id}
+                            onPress={() => router.push(`/(tabs)/transactions?category=${detail.categoryId}`)}
+                            className="mb-4 p-4 rounded-xl bg-gray-50 active:bg-gray-100"
+                          >
                             <View className="flex-row items-start justify-between mb-3">
                               <View className="flex-1">
                                 <Text className="text-sm font-semibold text-gray-900">{detail.categoryName}</Text>
@@ -312,7 +316,7 @@ export default function BudgetOverviewScreen() {
                                 }}
                               />
                             </View>
-                          </View>
+                          </Pressable>
                         );
                       })}
                     </View>

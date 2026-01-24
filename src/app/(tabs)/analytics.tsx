@@ -43,7 +43,7 @@ const DATE_RANGE_OPTIONS: { value: DateRangeOption; label: string }[] = [
 ];
 
 // Pie chart component using SVG
-function PieChartComponent({ data, size }: { data: CategorySpending[]; size: number }) {
+function PieChartComponent({ data, size, onSegmentPress }: { data: CategorySpending[]; size: number; onSegmentPress: (categoryId: string) => void }) {
   if (data.length === 0) {
     return (
       <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
@@ -93,13 +93,18 @@ function PieChartComponent({ data, size }: { data: CategorySpending[]; size: num
     startAngle = endAngle;
 
     return (
-      <Path
+      <Pressable
         key={item.categoryId}
-        d={path}
-        fill={item.color}
-        stroke="#FFFFFF"
-        strokeWidth={2}
-      />
+        onPress={() => onSegmentPress(item.categoryId)}
+        style={{ position: 'absolute', width: size, height: size }}
+      >
+        <Path
+          d={path}
+          fill={item.color}
+          stroke="#FFFFFF"
+          strokeWidth={2}
+        />
+      </Pressable>
     );
   });
 
@@ -129,7 +134,7 @@ function PieChartComponent({ data, size }: { data: CategorySpending[]; size: num
 }
 
 // Bar chart component
-function BarChartComponent({ data, maxWidth }: { data: CategorySpending[]; maxWidth: number }) {
+function BarChartComponent({ data, maxWidth, onBarPress }: { data: CategorySpending[]; maxWidth: number; onBarPress: (categoryId: string) => void }) {
   if (data.length === 0) {
     return (
       <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 32 }}>
@@ -146,7 +151,11 @@ function BarChartComponent({ data, maxWidth }: { data: CategorySpending[]; maxWi
         const barWidth = maxAmount > 0 ? (item.amount / maxAmount) * (maxWidth - 100) : 0;
 
         return (
-          <View key={item.categoryId} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Pressable
+            key={item.categoryId}
+            onPress={() => onBarPress(item.categoryId)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+          >
             <View style={{ width: 96 }}>
               <Text style={{ fontSize: 12, color: '#4B5563' }} numberOfLines={1}>
                 {item.categoryName}
@@ -166,7 +175,7 @@ function BarChartComponent({ data, maxWidth }: { data: CategorySpending[]; maxWi
                 {formatCurrency(item.amount)}
               </Text>
             </View>
-          </View>
+          </Pressable>
         );
       })}
     </View>
@@ -542,7 +551,13 @@ export default function AnalyticsTabScreen() {
                     <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 16 }}>
                       {typeFilter === 'expense' ? 'Spending' : 'Income'} by Category
                     </Text>
-                    <PieChartComponent data={analytics.categoryBreakdown} size={CHART_SIZE} />
+                    <PieChartComponent
+                      data={analytics.categoryBreakdown}
+                      size={CHART_SIZE}
+                      onSegmentPress={(categoryId) => {
+                        router.push(`/(tabs)/transactions?category=${categoryId}`);
+                      }}
+                    />
                     {/* Legend */}
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 16 }}>
                       {analytics.categoryBreakdown.slice(0, 6).map((item) => (
@@ -560,7 +575,13 @@ export default function AnalyticsTabScreen() {
                     <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 16 }}>
                       Top Categories
                     </Text>
-                    <BarChartComponent data={analytics.categoryBreakdown} maxWidth={SCREEN_WIDTH - 80} />
+                    <BarChartComponent
+                      data={analytics.categoryBreakdown}
+                      maxWidth={SCREEN_WIDTH - 80}
+                      onBarPress={(categoryId) => {
+                        router.push(`/(tabs)/transactions?category=${categoryId}`);
+                      }}
+                    />
                   </View>
                 )}
 
@@ -570,7 +591,11 @@ export default function AnalyticsTabScreen() {
                     Category Breakdown
                   </Text>
                   {analytics.categoryBreakdown.map((item) => (
-                    <CategoryRow key={item.categoryId} item={item} onPress={() => {}} />
+                    <CategoryRow
+                      key={item.categoryId}
+                      item={item}
+                      onPress={() => router.push(`/(tabs)/transactions?category=${item.categoryId}`)}
+                    />
                   ))}
                 </View>
               </>
