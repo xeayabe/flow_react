@@ -9,7 +9,7 @@ import { db } from '@/lib/db';
 export default function InviteScreen() {
   const [inviteCode, setInviteCode] = React.useState<string | null>(null);
   const [expiresAt, setExpiresAt] = React.useState<number | null>(null);
-  const [timeRemaining, setTimeRemaining] = React.useState<number>(60);
+  const [timeRemaining, setTimeRemaining] = React.useState<number>(300);
 
   // Get current user from InstantDB auth
   const { isLoading: authLoading, user, error: authError } = db.useAuth();
@@ -153,12 +153,12 @@ export default function InviteScreen() {
             {/* Timer */}
             <View className="bg-amber-50 p-4 rounded-xl mb-4">
               <Text className="text-center text-amber-900 font-semibold">
-                ⏱️ Expires in {timeRemaining} seconds
+                ⏱️ Expires in {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
               </Text>
               <View className="mt-2 h-2 bg-amber-200 rounded-full overflow-hidden">
                 <View
                   className="h-full bg-amber-600 rounded-full"
-                  style={{ width: `${(timeRemaining / 60) * 100}%` }}
+                  style={{ width: `${(timeRemaining / 300) * 100}%` }}
                 />
               </View>
             </View>
@@ -184,7 +184,7 @@ export default function InviteScreen() {
                 2. They open the app and tap "Have an invite code?"
               </Text>
               <Text className="text-blue-700 text-sm">
-                3. They enter the code within 60 seconds
+                3. They enter the code within 5 minutes
               </Text>
             </View>
           </View>

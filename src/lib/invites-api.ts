@@ -14,7 +14,7 @@ function generateInviteCode(): string {
 // Create invite with 6-digit code
 export async function createInviteCode(userId: string, householdId: string) {
   const inviteCode = generateInviteCode();
-  const expiresAt = Date.now() + 60 * 1000; // 60 seconds
+  const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes (300 seconds)
 
   const invite = {
     id: uuidv4(),
