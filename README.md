@@ -309,6 +309,10 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Net savings amount (color-coded, positive=teal, negative=red)
   - Monthly data sorted newest first
   - Precise numbers for verification
+  - **Drill-Down**: Tap any row to view transactions for that budget period
+    - Correctly filters by budget period dates (not calendar month)
+    - Example: "25 Dec 2025 - 24 Jan 2026" shows transactions from Dec 25 to Jan 24
+    - Works with any payday setting (1st, 25th, or custom)
 - ✅ **Chart Features**
   - Animated chart rendering (FadeIn effect)
   - Proportional scaling to max value in range

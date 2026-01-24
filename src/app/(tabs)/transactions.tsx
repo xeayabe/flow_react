@@ -27,7 +27,7 @@ type TransactionType = 'all' | 'income' | 'expense';
 export default function TransactionsTabScreen() {
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
-  const { category: categoryParam, month: monthParam } = useLocalSearchParams<{ category?: string; month?: string }>();
+  const { category: categoryParam, month: monthParam, start: startParam, end: endParam } = useLocalSearchParams<{ category?: string; month?: string; start?: string; end?: string }>();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Filter states
@@ -55,8 +55,29 @@ export default function TransactionsTabScreen() {
         setMonthFilterLabel(null);
       }
 
-      // Apply month filter
-      if (monthParam) {
+      // Apply budget period date range filter (from trends drill-down)
+      if (startParam && endParam) {
+        setCustomDateStart(startParam);
+        setCustomDateEnd(endParam);
+
+        // Format period label (e.g., "25/12/2025 - 24/01/2026")
+        const startDate = new Date(startParam);
+        const endDate = new Date(endParam);
+        const formatDate = (date: Date) => {
+          const day = String(date.getDate()).padStart(2, '0');
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const year = date.getFullYear();
+          return `${day}/${month}/${year}`;
+        };
+        setMonthFilterLabel(`${formatDate(startDate)} - ${formatDate(endDate)}`);
+
+        // Clear category filter when date range is set
+        setSelectedCategories([]);
+        setDateRange('all_time');
+      }
+
+      // Apply month filter (calendar month)
+      if (monthParam && !startParam && !endParam) {
         const [year, month] = monthParam.split('-');
         const monthNumber = parseInt(month);
 
@@ -85,7 +106,7 @@ export default function TransactionsTabScreen() {
         setSelectedCategories([]);
         setDateRange('all_time');
       }
-    }, [categoryParam, monthParam])
+    }, [categoryParam, monthParam, startParam, endParam])
   );
 
   // Get user and household info

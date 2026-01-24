@@ -280,18 +280,14 @@ export default function TrendsScreen() {
 
                   {/* Rows - reversed to show newest first */}
                   {[...data.data].reverse().map((period) => {
-                    // Parse period dates to extract year/month for filter URL
-                    const startDate = new Date(period.periodStart);
-                    const year = startDate.getFullYear();
-                    const month = String(startDate.getMonth() + 1).padStart(2, '0');
-                    const monthYear = `${year}-${month}`;
-
                     return (
                       <Pressable
                         key={period.periodStart}
                         onPress={() => {
-                          // Navigate to transactions with month filter
-                          router.push(`/(tabs)/transactions?month=${monthYear}`);
+                          // Navigate to transactions with budget period date range
+                          router.push(
+                            `/(tabs)/transactions?start=${period.periodStart}&end=${period.periodEnd}`
+                          );
                         }}
                         className="flex-row border-b border-gray-100 px-3 py-2 last:border-b-0 active:bg-teal-50"
                       >
