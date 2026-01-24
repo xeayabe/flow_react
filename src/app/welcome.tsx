@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, Dimensions, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, Dimensions, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
@@ -78,7 +78,8 @@ function AnimatedDroplet({ delay = 0, x = 0 }: { delay?: number; x?: number }) {
     >
       <View className="items-center justify-center">
         {/* Droplet shape */}
-        <View className="w-16 h-20 rounded-full rounded-tl-full rotate-45"
+        <View
+          className="w-16 h-20 rounded-full rounded-tl-full rotate-45"
           style={{
             backgroundColor: 'rgba(0, 106, 106, 0.1)',
             transform: [{ rotate: '45deg' }]
@@ -131,172 +132,184 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <View className="flex-1 bg-white">
-      <StatusBar style="dark" />
-      {/* Top section with animated illustration (40%) */}
-      <View style={{ height: height * 0.4 }} className="relative overflow-hidden">
-        {/* Subtle gradient background */}
-        <LinearGradient
-          colors={['rgba(0, 106, 106, 0.03)', 'rgba(255, 255, 255, 0)']}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-        />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      className="flex-1"
+    >
+      <View className="flex-1 bg-white">
+        <StatusBar style="dark" />
 
-        {/* Animated droplets forming currency symbols */}
-        <AnimatedDroplet delay={0} x={50} />
-        <AnimatedDroplet delay={600} x={150} />
-        <AnimatedDroplet delay={1200} x={250} />
+        {/* Top section with animated illustration (40%) */}
+        <View style={{ height: height * 0.4 }} className="relative overflow-hidden">
+          {/* Subtle gradient background */}
+          <LinearGradient
+            colors={['rgba(0, 106, 106, 0.03)', 'rgba(255, 255, 255, 0)']}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
 
-        {/* Decorative flowing lines */}
-        <Animated.View
-          entering={FadeIn.delay(400).duration(1000)}
-          className="absolute top-32 left-0 right-0"
-        >
-          <View className="h-1 mx-8 rounded-full opacity-10" style={{ backgroundColor: '#006A6A' }} />
-        </Animated.View>
-        <Animated.View
-          entering={FadeIn.delay(800).duration(1000)}
-          className="absolute top-40 left-0 right-0"
-        >
-          <View className="h-0.5 mx-16 rounded-full opacity-5" style={{ backgroundColor: '#006A6A' }} />
-        </Animated.View>
-      </View>
+          {/* Animated droplets forming currency symbols */}
+          <AnimatedDroplet delay={0} x={50} />
+          <AnimatedDroplet delay={600} x={150} />
+          <AnimatedDroplet delay={1200} x={250} />
 
-      {/* Middle section with branding */}
-      <View className="flex-1 px-6 pt-4">
-        <Animated.View entering={FadeInDown.delay(200).duration(800)}>
-          <Text
-            className="text-center font-bold mb-3"
-            style={{
-              fontSize: 48,
-              letterSpacing: -1,
-              color: '#006A6A',
-              fontFamily: 'System'
-            }}
+          {/* Decorative flowing lines */}
+          <Animated.View
+            entering={FadeIn.delay(400).duration(1000)}
+            className="absolute top-32 left-0 right-0"
           >
-            Flow
-          </Text>
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(400).duration(800)}>
-          <Text
-            className="text-center mb-12"
-            style={{
-              fontSize: 16,
-              color: 'rgba(0, 106, 106, 0.6)',
-              fontFamily: 'System',
-              fontWeight: '400'
-            }}
+            <View className="h-1 mx-8 rounded-full opacity-10" style={{ backgroundColor: '#006A6A' }} />
+          </Animated.View>
+          <Animated.View
+            entering={FadeIn.delay(800).duration(1000)}
+            className="absolute top-40 left-0 right-0"
           >
-            Calm Financial Control
-          </Text>
-        </Animated.View>
-      </View>
+            <View className="h-0.5 mx-16 rounded-full opacity-5" style={{ backgroundColor: '#006A6A' }} />
+          </Animated.View>
+        </View>
 
-      {/* Bottom section with CTA buttons */}
-      <SafeAreaView edges={['bottom']} className="px-6 pb-4">
-        {/* Get Started Button */}
-        <Animated.View entering={FadeInDown.delay(600).duration(800)}>
-          <Pressable
-            onPressIn={() => setButtonPressed(true)}
-            onPressOut={() => setButtonPressed(false)}
-            onPress={handleGetStarted}
-            className="rounded-full py-5 items-center justify-center shadow-lg mb-3"
-            style={{
-              backgroundColor: '#006A6A',
-              shadowColor: '#006A6A',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: buttonPressed ? 0.15 : 0.3,
-              shadowRadius: 16,
-              elevation: 8,
-              transform: [{ scale: buttonPressed ? 0.98 : 1 }],
-            }}
-          >
+        {/* Middle section with branding */}
+        <View className="flex-1 px-6 pt-4">
+          <Animated.View entering={FadeInDown.delay(200).duration(800)}>
             <Text
-              className="text-white font-semibold tracking-wide"
-              style={{ fontSize: 17 }}
+              className="text-center font-bold mb-3"
+              style={{
+                fontSize: 48,
+                letterSpacing: -1,
+                color: '#006A6A',
+                fontFamily: 'System'
+              }}
             >
-              Get Started
+              Flow
             </Text>
-          </Pressable>
-        </Animated.View>
+          </Animated.View>
 
-        {/* Login Link */}
-        <Animated.View entering={FadeInDown.delay(800).duration(800)}>
-          <Pressable
-            onPress={() => router.push('/login')}
-            className="py-3 items-center"
-          >
+          <Animated.View entering={FadeInDown.delay(400).duration(800)}>
             <Text
-              className="font-medium"
-              style={{ fontSize: 15, color: '#006A6A' }}
+              className="text-center mb-12"
+              style={{
+                fontSize: 16,
+                color: 'rgba(0, 106, 106, 0.6)',
+                fontFamily: 'System',
+                fontWeight: '400'
+              }}
             >
-              Already have an account? <Text className="font-semibold underline">Log in</Text>
+              Calm Financial Control
             </Text>
-          </Pressable>
-        </Animated.View>
+          </Animated.View>
+        </View>
 
-        {/* Invite code section */}
-        <Animated.View entering={FadeInDown.delay(900).duration(800)} className="border-t border-gray-200 pt-4 mt-2">
-          {!showInviteInput ? (
-            <Pressable
-              onPress={() => setShowInviteInput(true)}
-              className="py-3"
-            >
-              <Text className="text-center text-teal-600 font-medium" style={{ fontSize: 15 }}>
-                Have an invite code?
-              </Text>
-            </Pressable>
-          ) : (
-            <View>
-              <Text className="text-center text-sm text-gray-600 mb-3">
-                Enter the 6-character code
-              </Text>
-              <TextInput
-                value={inviteCode}
-                onChangeText={(text) => setInviteCode(text.toUpperCase())}
-                placeholder="AB12CD"
-                maxLength={6}
-                autoCapitalize="characters"
-                className="border-2 border-teal-600 rounded-xl p-4 text-center text-2xl font-bold tracking-widest mb-3"
-                style={{ color: '#006A6A' }}
-              />
+        {/* Bottom section with CTA buttons and invite code input */}
+        <SafeAreaView edges={['bottom']} className="flex-1">
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 16 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Get Started Button */}
+            <Animated.View entering={FadeInDown.delay(600).duration(800)}>
               <Pressable
-                onPress={handleValidateCode}
-                disabled={isValidating || inviteCode.length !== 6}
-                className="bg-teal-600 py-4 rounded-xl mb-2"
-                style={{ opacity: (isValidating || inviteCode.length !== 6) ? 0.5 : 1 }}
-              >
-                {isValidating ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text className="text-white text-center font-semibold" style={{ fontSize: 16 }}>
-                    Continue
-                  </Text>
-                )}
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  setShowInviteInput(false);
-                  setInviteCode('');
+                onPressIn={() => setButtonPressed(true)}
+                onPressOut={() => setButtonPressed(false)}
+                onPress={handleGetStarted}
+                className="rounded-full py-5 items-center justify-center shadow-lg mb-3"
+                style={{
+                  backgroundColor: '#006A6A',
+                  shadowColor: '#006A6A',
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: buttonPressed ? 0.15 : 0.3,
+                  shadowRadius: 16,
+                  elevation: 8,
+                  transform: [{ scale: buttonPressed ? 0.98 : 1 }],
                 }}
-                className="py-3"
               >
-                <Text className="text-center text-gray-600">Cancel</Text>
+                <Text
+                  className="text-white font-semibold tracking-wide"
+                  style={{ fontSize: 17 }}
+                >
+                  Get Started
+                </Text>
               </Pressable>
-            </View>
-          )}
-        </Animated.View>
+            </Animated.View>
 
-        {/* Terms hint */}
-        <Animated.View entering={FadeIn.delay(1000).duration(800)}>
-          <Text
-            className="text-center mt-2 px-8 text-xs"
-            style={{ color: 'rgba(0, 106, 106, 0.4)' }}
-          >
-            By continuing, you agree to our Terms of Service and Privacy Policy
-          </Text>
-        </Animated.View>
-      </SafeAreaView>
-    </View>
+            {/* Login Link */}
+            <Animated.View entering={FadeInDown.delay(800).duration(800)}>
+              <Pressable
+                onPress={() => router.push('/login')}
+                className="py-3 items-center"
+              >
+                <Text
+                  className="font-medium"
+                  style={{ fontSize: 15, color: '#006A6A' }}
+                >
+                  Already have an account? <Text className="font-semibold underline">Log in</Text>
+                </Text>
+              </Pressable>
+            </Animated.View>
+
+            {/* Invite code section */}
+            <Animated.View entering={FadeInDown.delay(900).duration(800)} className="border-t border-gray-200 pt-4 mt-2">
+              {!showInviteInput ? (
+                <Pressable
+                  onPress={() => setShowInviteInput(true)}
+                  className="py-3"
+                >
+                  <Text className="text-center text-teal-600 font-medium" style={{ fontSize: 15 }}>
+                    Have an invite code?
+                  </Text>
+                </Pressable>
+              ) : (
+                <View>
+                  <Text className="text-center text-sm text-gray-600 mb-3">
+                    Enter the 6-character code
+                  </Text>
+                  <TextInput
+                    value={inviteCode}
+                    onChangeText={(text) => setInviteCode(text.toUpperCase())}
+                    placeholder="AB12CD"
+                    maxLength={6}
+                    autoCapitalize="characters"
+                    className="border-2 border-teal-600 rounded-xl p-4 text-center text-2xl font-bold tracking-widest mb-3"
+                    style={{ color: '#006A6A' }}
+                  />
+                  <Pressable
+                    onPress={handleValidateCode}
+                    disabled={isValidating || inviteCode.length !== 6}
+                    className="bg-teal-600 py-4 rounded-xl mb-2"
+                    style={{ opacity: (isValidating || inviteCode.length !== 6) ? 0.5 : 1 }}
+                  >
+                    {isValidating ? (
+                      <ActivityIndicator color="white" />
+                    ) : (
+                      <Text className="text-white text-center font-semibold" style={{ fontSize: 16 }}>
+                        Continue
+                      </Text>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      setShowInviteInput(false);
+                      setInviteCode('');
+                    }}
+                    className="py-3"
+                  >
+                    <Text className="text-center text-gray-600">Cancel</Text>
+                  </Pressable>
+                </View>
+              )}
+            </Animated.View>
+
+            {/* Terms hint */}
+            <Animated.View entering={FadeIn.delay(1000).duration(800)}>
+              <Text
+                className="text-center mt-2 px-8 text-xs"
+                style={{ color: 'rgba(0, 106, 106, 0.4)' }}
+              >
+                By continuing, you agree to our Terms of Service and Privacy Policy
+              </Text>
+            </Animated.View>
+          </ScrollView>
+        </SafeAreaView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }

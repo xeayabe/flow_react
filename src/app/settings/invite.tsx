@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
 import { View, Text, Pressable, Alert } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
-import { ArrowLeft, RefreshCw } from 'lucide-react-native';
+import { ArrowLeft, RefreshCw, Copy } from 'lucide-react-native';
 import { router } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 import { createInviteCode } from '@/lib/invites-api';
 import { db } from '@/lib/db';
 
@@ -140,15 +141,21 @@ export default function InviteScreen() {
           </Pressable>
         ) : (
           <View>
-            {/* Large code display */}
-            <View className="bg-teal-50 border-2 border-teal-600 rounded-2xl p-8 mb-4">
+            {/* Large code display - tappable to copy */}
+            <Pressable
+              onPress={async () => {
+                await Clipboard.setStringAsync(inviteCode!);
+                Alert.alert('Copied!', 'Invite code copied to clipboard');
+              }}
+              className="bg-teal-50 border-2 border-teal-600 rounded-2xl p-8 mb-4 active:bg-teal-100"
+            >
               <Text className="text-center text-sm text-teal-700 mb-2">
-                Invite Code
+                Invite Code (tap to copy)
               </Text>
               <Text className="text-center text-5xl font-bold text-teal-900 tracking-widest">
                 {inviteCode}
               </Text>
-            </View>
+            </Pressable>
 
             {/* Timer */}
             <View className="bg-amber-50 p-4 rounded-xl mb-4">

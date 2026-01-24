@@ -31,6 +31,38 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - ✅ Default household creation on signup
 - ✅ Automatic household member assignment
 
+### Invite Partner (US-005)
+- ✅ **6-Digit Invite Code System** - Generate shareable codes instead of links
+  - Codes are 6 characters (uppercase alphanumeric, excluding confusing chars: I, 1, O, 0)
+  - Codes expire after 5 minutes
+  - Live countdown timer displays remaining time
+  - Progress bar shows expiration visually
+- ✅ **Admin-Only Invitations** - Only household admin can generate invite codes
+  - "Invite Partner" option only visible to admin users
+  - Members see explanatory message: "Only the household admin can invite new members"
+  - Role-based access control with comprehensive logging
+- ✅ **Welcome Screen Integration** - Seamless code entry for new users
+  - "Have an invite code?" toggle on welcome screen
+  - Text input with auto-uppercase and 6-character limit
+  - Code validation before signup navigation
+  - Keyboard avoidance prevents overlapping UI
+- ✅ **Copy-on-Tap Functionality** - Easy code sharing
+  - Tap the large code display to copy to clipboard
+  - Confirmation alert provides user feedback
+  - Works across mobile and web platforms
+- ✅ **Member Role Assignment** - Invited users get "member" role
+  - Invited users are added as "member" to the household
+  - Only the inviting user maintains "admin" role
+  - Role assignment validated with detailed logging
+- ✅ **Invite Preview** - New users see who invited them
+  - Shows inviter name and household on signup screen
+  - Confirmation banner displays before account creation
+- ✅ **UX Improvements**
+  - Keyboard handling optimized with KeyboardAvoidingView
+  - ScrollView allows input field visibility
+  - Smooth animations and transitions
+  - Material Design 3 consistent styling
+
 ### Wallet Management
 - ✅ **Add Multiple Wallets** - Track different bank accounts, cards, and cash
 - ✅ **Wallet Types**: Checking, Savings, Credit Card, Cash, Investment
@@ -853,6 +885,17 @@ bun start
 ### Floating Action Button - Improved UX (2026-01-24)
 - Enhanced FAB with better shadow styling for visual depth
 - Added "Don't have an account? Add one" link in the Add Transaction modal
+
+### Welcome Screen & Invite UX Fixes (2026-01-24)
+- **Keyboard Avoidance**: Fixed welcome screen where keyboard was hiding invite code input
+  - Wrapped bottom section in KeyboardAvoidingView with ScrollView
+  - `keyboardShouldPersistTaps="handled"` allows dismissing keyboard by tapping
+  - Input field now remains visible when typing
+- **Copy-on-Tap for Invite Codes**: Added clipboard integration in Invite Partner screen
+  - Users can tap the large 6-digit code to copy it to clipboard
+  - "Invite Code (tap to copy)" label provides clear affordance
+  - Confirmation alert shows code was copied successfully
+  - Uses expo-clipboard for cross-platform compatibility
 - Link appears below the Account selector for easy wallet creation
 - Allows users to quickly add a wallet without closing the transaction form
 - FAB maintains menu with both "Add Transaction" and "Add Account" options
