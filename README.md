@@ -971,6 +971,8 @@ bun start
   - Added `toggleCategorySharing()` function to allow owners to share categories with household
   - Updated all callers of `getCategories()` and `getCategoryGroups()` to pass both `householdId` and `userId`
   - Added `isShareable` parameter to `updateCategory()` function
+  - Fixed duplicate check to only check within user's own categories (not household-wide)
+  - Added proper error handling in category creation UI
 - **User Experience**:
   - Each user has their own personal categories and category groups
   - Default categories/groups created on signup are personal to that user
@@ -979,6 +981,7 @@ bun start
 - **Result**:
   - Alexander's categories → Only Alexander sees them
   - Cecilia's categories → Only Cecilia sees them
+  - Alexander can create "Groceries" and Cecilia can also create "Groceries" (no conflict)
   - If Alexander marks a category as "shareable" → Cecilia can see and use it
   - Each user manages their own budget category groups independently
 - **Future Enhancement**: UI to toggle sharing in category management screen

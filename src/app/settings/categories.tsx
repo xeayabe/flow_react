@@ -77,7 +77,11 @@ export default function CategoriesScreen() {
 
   const createMutation = useMutation({
     mutationFn: () => {
-      if (!householdId || !userId) throw new Error('No household or user');
+      if (!householdId || !userId) {
+        console.error('Missing householdId or userId:', { householdId, userId });
+        throw new Error('No household or user');
+      }
+      console.log('Creating category:', { householdId, userId, name: formData.name, type: formData.type, group: formData.groupKey });
       return createCategory({
         householdId,
         name: formData.name,
@@ -88,10 +92,20 @@ export default function CategoriesScreen() {
         color: formData.color || undefined,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      resetForm();
-      setShowModal(false);
+    onSuccess: (result) => {
+      console.log('Category creation result:', result);
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ['categories'] });
+        resetForm();
+        setShowModal(false);
+      } else {
+        console.error('Category creation failed:', result.error);
+        setErrors({ name: result.error || 'Failed to create category' });
+      }
+    },
+    onError: (error) => {
+      console.error('Category creation error:', error);
+      setErrors({ name: 'Failed to create category. Please try again.' });
     },
   });
 

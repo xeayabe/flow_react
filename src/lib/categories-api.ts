@@ -207,25 +207,26 @@ export async function createCategory(request: CreateCategoryRequest): Promise<Ca
       };
     }
 
-    // Check for duplicate (case-insensitive)
+    // Check for duplicate within user's own categories (case-insensitive)
     const existingResult = await db.queryOnce({
       categories: {
         $: {
           where: {
             householdId: request.householdId,
+            createdByUserId: request.createdByUserId,
           },
         },
       },
     });
 
     const existingCategory = existingResult.data.categories?.find(
-      (cat: any) => cat.name.toLowerCase() === request.name.toLowerCase()
+      (cat: any) => cat.name.toLowerCase() === request.name.toLowerCase() && cat.isActive
     );
 
     if (existingCategory) {
       return {
         success: false,
-        error: 'This category already exists',
+        error: 'You already have a category with this name',
       };
     }
 
