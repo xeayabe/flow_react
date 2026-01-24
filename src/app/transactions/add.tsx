@@ -116,21 +116,21 @@ export default function AddTransactionScreen() {
 
   // Get categories
   const categoriesQuery = useQuery({
-    queryKey: ['categories', householdQuery.data?.household?.id],
+    queryKey: ['categories', householdQuery.data?.household?.id, householdQuery.data?.userRecord?.id],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id) {
-        console.warn('Household ID not available for categories query');
+      if (!householdQuery.data?.household?.id || !householdQuery.data?.userRecord?.id) {
+        console.warn('Household ID or User ID not available for categories query');
         return [];
       }
 
       // Run migration first to fix any categories with old hardcoded group values
       await migrateCategoryGroups(householdQuery.data.household.id);
 
-      const cats = await getCategories(householdQuery.data.household.id);
+      const cats = await getCategories(householdQuery.data.household.id, householdQuery.data.userRecord.id);
       console.log('Categories loaded:', { count: cats.length, categories: cats.map(c => ({ id: c.id, name: c.name, type: c.type, group: c.categoryGroup })) });
       return cats;
     },
-    enabled: !!householdQuery.data?.household?.id,
+    enabled: !!householdQuery.data?.household?.id && !!householdQuery.data?.userRecord?.id,
   });
 
   // Get category groups

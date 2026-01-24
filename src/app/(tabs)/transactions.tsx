@@ -158,12 +158,12 @@ export default function TransactionsTabScreen() {
 
   // Get categories
   const categoriesQuery = useQuery({
-    queryKey: ['categories', householdQuery.data?.household?.id],
+    queryKey: ['categories', householdQuery.data?.household?.id, householdQuery.data?.userRecord?.id],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id) return [];
-      return getCategories(householdQuery.data.household.id);
+      if (!householdQuery.data?.household?.id || !householdQuery.data?.userRecord?.id) return [];
+      return getCategories(householdQuery.data.household.id, householdQuery.data.userRecord.id);
     },
-    enabled: !!householdQuery.data?.household?.id,
+    enabled: !!householdQuery.data?.household?.id && !!householdQuery.data?.userRecord?.id,
   });
 
   // Get accounts

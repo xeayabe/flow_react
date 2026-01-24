@@ -959,4 +959,18 @@ bun start
     - `src/app/settings/export.tsx` - CSV export
     - `src/app/budget/category-group-allocation.tsx` - Budget allocation
 - **Result**: Both admins and members can now create and manage household data
-- **Verified**: Alexander (admin) and Cecilia (member) can both create categories, category groups, and budgets
+
+### ARCHITECTURE CHANGE: Personal Categories with Optional Sharing (2026-01-24)
+- **Changed**: Categories are now personal by default, with optional sharing
+- **Implementation**:
+  - `getCategories(householdId, userId)` now filters to show:
+    - Categories created by the user (`createdByUserId = userId`)
+    - Categories shared by others (`isShareable = true`)
+  - Added `toggleCategorySharing()` function to allow owners to share categories
+  - Updated all callers of `getCategories()` to pass both `householdId` and `userId`
+  - Added `isShareable` parameter to `updateCategory()` function
+- **User Experience**:
+  - Each user sees only their own categories by default
+  - Users can mark categories as "shareable" to make them visible to other household members
+  - Default categories created on signup are personal to that user
+- **Future Enhancement Needed**: UI to toggle sharing in category management screen

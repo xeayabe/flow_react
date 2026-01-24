@@ -260,9 +260,10 @@ export async function createCategory(request: CreateCategoryRequest): Promise<Ca
 }
 
 /**
- * Get all categories for a household
+ * Get categories for a user in their household
+ * Returns: user's own categories + categories shared by others
  */
-export async function getCategories(householdId: string): Promise<Category[]> {
+export async function getCategories(householdId: string, userId: string): Promise<Category[]> {
   try {
     const result = await db.queryOnce({
       categories: {
@@ -274,11 +275,17 @@ export async function getCategories(householdId: string): Promise<Category[]> {
       },
     });
 
-    console.log('getCategories query result:', { householdId, rawCategories: result.data.categories });
+    console.log('getCategories query result:', { householdId, userId, rawCategories: result.data.categories });
 
-    const categories = (result.data.categories ?? []).filter((cat: any) => cat.isActive) as Category[];
+    // Filter: show only user's own categories OR shared categories
+    const categories = (result.data.categories ?? [])
+      .filter((cat: any) => cat.isActive)
+      .filter((cat: any) => {
+        // Show if: created by this user OR is shareable
+        return cat.createdByUserId === userId || cat.isShareable === true;
+      }) as Category[];
 
-    console.log('getCategories filtered:', { householdId, count: categories.length, categories: categories.map(c => ({ id: c.id, name: c.name, type: c.type, group: c.categoryGroup })) });
+    console.log('Filtered categories:', { count: categories.length });
 
     // Sort: default categories first, then custom, then alphabetical
     categories.sort((a: Category, b: Category) => {
@@ -306,6 +313,7 @@ export async function updateCategory(
     categoryGroup?: string;
     icon?: string;
     color?: string;
+    isShareable?: boolean;
   }
 ): Promise<CategoryResponse> {
   try {
@@ -333,6 +341,7 @@ export async function updateCategory(
     if (updates.categoryGroup !== undefined) updateData.categoryGroup = updates.categoryGroup;
     if (updates.icon !== undefined) updateData.icon = updates.icon;
     if (updates.color !== undefined) updateData.color = updates.color;
+    if (updates.isShareable !== undefined) updateData.isShareable = updates.isShareable;
 
     await db.transact([
       db.tx.categories[categoryId].update(updateData),
@@ -344,6 +353,58 @@ export async function updateCategory(
     return {
       success: false,
       error: 'Failed to update category',
+    };
+  }
+}
+
+/**
+ * Toggle category sharing (for category owner only)
+ */
+export async function toggleCategorySharing(
+  categoryId: string,
+  userId: string,
+  isShareable: boolean
+): Promise<CategoryResponse> {
+  try {
+    // First verify the user owns this category
+    const categoryResult = await db.queryOnce({
+      categories: {
+        $: {
+          where: {
+            id: categoryId,
+          },
+        },
+      },
+    });
+
+    const category = categoryResult.data.categories?.[0];
+    if (!category) {
+      return {
+        success: false,
+        error: 'Category not found',
+      };
+    }
+
+    if (category.createdByUserId !== userId) {
+      return {
+        success: false,
+        error: 'Only the category owner can change sharing',
+      };
+    }
+
+    await db.transact([
+      db.tx.categories[categoryId].update({
+        isShareable,
+        updatedAt: Date.now(),
+      }),
+    ]);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Toggle category sharing error:', error);
+    return {
+      success: false,
+      error: 'Failed to update category sharing',
     };
   }
 }

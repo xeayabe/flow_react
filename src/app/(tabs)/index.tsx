@@ -128,12 +128,12 @@ export default function DashboardScreen() {
 
   // Get categories
   const categoriesQuery = useQuery({
-    queryKey: ['categories', householdId],
+    queryKey: ['categories', householdId, userId],
     queryFn: async () => {
-      if (!householdId) return [];
-      return getCategories(householdId);
+      if (!householdId || !userId) return [];
+      return getCategories(householdId, userId);
     },
-    enabled: !!householdId,
+    enabled: !!householdId && !!userId,
   });
 
   // Get category groups

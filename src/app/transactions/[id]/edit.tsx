@@ -120,9 +120,12 @@ export default function EditTransactionScreen() {
 
   // Get categories
   const categoriesQuery = useQuery({
-    queryKey: ['categories', householdQuery.data?.household?.id],
-    queryFn: () => getCategories(householdQuery.data!.household.id),
-    enabled: !!householdQuery.data?.household?.id,
+    queryKey: ['categories', householdQuery.data?.household?.id, householdQuery.data?.userRecord?.id],
+    queryFn: () => {
+      if (!householdQuery.data?.household?.id || !householdQuery.data?.userRecord?.id) return [];
+      return getCategories(householdQuery.data.household.id, householdQuery.data.userRecord.id);
+    },
+    enabled: !!householdQuery.data?.household?.id && !!householdQuery.data?.userRecord?.id,
   });
 
   // Get category groups
