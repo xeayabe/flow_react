@@ -896,6 +896,24 @@ bun start
   - "Invite Code (tap to copy)" label provides clear affordance
   - Confirmation alert shows code was copied successfully
   - Uses expo-clipboard for cross-platform compatibility
+
+### CRITICAL BUG FIX: Invite Role Assignment (2026-01-24)
+- **Root Cause**: `createUserProfile` function was automatically creating a household and assigning admin role to ALL new users, even when they had an invite code
+- **Result**: Invited users (like Cecilia) were getting their own household with admin role instead of joining the inviter's household as members
+- **The Fix**:
+  1. Split `createUserProfile` into two functions:
+     - `createUserProfile`: Only creates user profile (no household)
+     - `createDefaultHousehold`: Creates household and assigns admin role
+  2. Updated signup flow to be conditional:
+     - **With invite code**: User profile created → Accept invite (join as MEMBER)
+     - **Without invite code**: User profile created → Create household (join as ADMIN)
+  3. Added comprehensive logging to track role assignment
+- **Verification**:
+  - Signup WITHOUT invite: Creates 1 household, user is admin ✓
+  - Signup WITH invite: Creates 0 households, user joins existing as member ✓
+- **Database Cleanup Needed**: Remove duplicate households and incorrect member records from testing
+
+### Floating Action Button - Enhanced Wallet Creation (2026-01-24)
 - Link appears below the Account selector for easy wallet creation
 - Allows users to quickly add a wallet without closing the transaction form
 - FAB maintains menu with both "Add Transaction" and "Add Account" options

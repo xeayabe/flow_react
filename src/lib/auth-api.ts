@@ -195,12 +195,15 @@ export async function verifyMagicCode(email: string, code: string): Promise<Auth
 }
 
 /**
- * Create user profile and default household after authentication
+ * Create user profile ONLY (no household)
+ * Household creation should be handled conditionally in signup flow
  */
 export async function createUserProfile(email: string, name: string): Promise<AuthResponse> {
   try {
     const userId = uuidv4();
     const now = Date.now();
+
+    console.log('⚠️ createUserProfile - Creating user ONLY, NO household');
 
     // Create user profile
     await db.transact([
@@ -213,12 +216,33 @@ export async function createUserProfile(email: string, name: string): Promise<Au
       }),
     ]);
 
-    // Create default household
+    console.log('✅ User profile created:', { userId, email, name });
+    console.log('⚠️ NO household created - must be created separately');
+
+    return { success: true };
+  } catch (error) {
+    console.error('Create profile error:', error);
+    return {
+      success: false,
+      error: 'Failed to create user profile',
+    };
+  }
+}
+
+/**
+ * Create default household for a new user (admin role)
+ */
+export async function createDefaultHousehold(userId: string, name: string): Promise<{ success: boolean; householdId?: string; error?: string }> {
+  try {
+    console.log('Creating default household for user:', userId);
+
     const householdId = uuidv4();
     const householdName = `${name}'s Household`;
     const defaultPaydayDay = 25; // Swiss standard
     const budgetPeriod = calculateBudgetPeriod(defaultPaydayDay);
+    const now = Date.now();
 
+    // Create household
     await db.transact([
       db.tx.households[householdId].update({
         name: householdName,
@@ -233,7 +257,7 @@ export async function createUserProfile(email: string, name: string): Promise<Au
       }),
     ]);
 
-    // Create household member record
+    // Create household member record with ADMIN role
     const memberId = uuidv4();
     await db.transact([
       db.tx.householdMembers[memberId].update({
@@ -245,22 +269,22 @@ export async function createUserProfile(email: string, name: string): Promise<Au
       }),
     ]);
 
+    console.log('✅ Household member created with role: admin');
+
     // Create default categories for household
     await createDefaultCategories(householdId);
 
     // Create default category groups for household
     await createDefaultCategoryGroups(householdId, userId);
 
-    // Log for debugging (will show in expo.log)
-    console.log('User profile created:', { userId, email, name });
-    console.log('Default household created:', { householdId, householdName });
+    console.log('✅ Default household created:', { householdId, householdName });
 
-    return { success: true };
+    return { success: true, householdId };
   } catch (error) {
-    console.error('Create profile error:', error);
+    console.error('Create default household error:', error);
     return {
       success: false,
-      error: 'Failed to create user profile',
+      error: 'Failed to create default household',
     };
   }
 }

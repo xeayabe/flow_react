@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import { CheckCircle2, ArrowLeft, Info } from 'lucide-react-native';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { sendMagicCode, verifyMagicCode, createUserProfile, checkUserProfile } from '@/lib/auth-api';
+import { sendMagicCode, verifyMagicCode, createUserProfile, checkUserProfile, createDefaultHousehold } from '@/lib/auth-api';
 import { getInviteCodePreview, acceptInviteCode } from '@/lib/invites-api';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import SuccessModal from '@/components/SuccessModal';
@@ -90,36 +90,64 @@ export default function SignupScreen() {
 
         let userId: string;
         if (!profileCheck.exists) {
-          // Create profile with user-provided name
-          console.log('Step 1: Creating user profile...');
+          // Step 1: Create user profile ONLY (no household yet)
+          console.log('Step 1: Creating user profile (NO HOUSEHOLD)...');
           await createUserProfile(formData.email, formData.name);
           const updatedCheck = await checkUserProfile(formData.email);
           userId = updatedCheck.profile!.id;
-          console.log('User profile created with ID:', userId);
+          console.log('✅ User profile created with ID:', userId);
         } else {
           userId = profileCheck.profile!.id;
           console.log('User profile already exists with ID:', userId);
         }
 
-        // Accept invite if token exists
+        // Step 2: Conditional household logic
         if (inviteToken && inviteToken.trim() !== '') {
+          // Step 2a: User has invite code - Accept invite (join as MEMBER)
           try {
+            console.log('');
+            console.log('=== PATH: ACCEPTING INVITE ===');
             console.log('Step 2a: User has invite code, accepting invite...');
             console.log('Calling acceptInviteCode with code:', inviteToken, 'userId:', userId);
 
             await acceptInviteCode(inviteToken, userId);
 
-            console.log('Invite accepted successfully!');
-            console.log('User should have role: member');
+            console.log('✅ Invite accepted successfully!');
+            console.log('✅ User joined household as MEMBER');
+            console.log('=== EXPECTED RESULT: User should be MEMBER in existing household ===');
+            console.log('');
 
             Alert.alert('Success!', "You've joined the household!");
           } catch (error) {
-            console.error('Failed to accept invite:', error);
-            // Don't block signup if invite fails
+            console.error('❌ Failed to accept invite:', error);
+            Alert.alert('Error', 'Failed to join household. Please contact support.');
+            return;
           }
         } else {
-          console.log('Step 2b: No invite code, household already created during signup');
-          console.log('User should have role: admin (created by createUserProfile)');
+          // Step 2b: No invite code - Create new household (user is ADMIN)
+          try {
+            console.log('');
+            console.log('=== PATH: CREATING NEW HOUSEHOLD ===');
+            console.log('Step 2b: No invite code, creating new household...');
+            console.log('User will be ADMIN of their own household');
+
+            const householdResult = await createDefaultHousehold(userId, formData.name);
+
+            if (!householdResult.success) {
+              console.error('❌ Failed to create household:', householdResult.error);
+              Alert.alert('Error', 'Failed to create household. Please contact support.');
+              return;
+            }
+
+            console.log('✅ New household created:', householdResult.householdId);
+            console.log('✅ User is ADMIN of new household');
+            console.log('=== EXPECTED RESULT: User should be ADMIN in new household ===');
+            console.log('');
+          } catch (error) {
+            console.error('❌ Failed to create household:', error);
+            Alert.alert('Error', 'Failed to create household. Please contact support.');
+            return;
+          }
         }
 
         console.log('=== SIGNUP FLOW COMPLETE ===');
