@@ -18,9 +18,10 @@ export interface CategoryGroup {
 }
 
 /**
- * Get all category groups for a household
+ * Get category groups for a user in their household
+ * Returns only groups created by this user (personal)
  */
-export async function getCategoryGroups(householdId: string): Promise<CategoryGroup[]> {
+export async function getCategoryGroups(householdId: string, userId: string): Promise<CategoryGroup[]> {
   try {
     const result = await db.queryOnce({
       categoryGroups: {
@@ -33,7 +34,10 @@ export async function getCategoryGroups(householdId: string): Promise<CategoryGr
       },
     });
 
-    const groups = (result.data.categoryGroups || []) as CategoryGroup[];
+    // Filter: show only user's own category groups
+    const groups = (result.data.categoryGroups || [])
+      .filter((g: any) => g.createdByUserId === userId) as CategoryGroup[];
+
     // Sort by displayOrder first, then by name
     return groups.sort((a, b) => {
       if (a.displayOrder !== undefined && b.displayOrder !== undefined) {

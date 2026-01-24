@@ -135,14 +135,14 @@ export default function AddTransactionScreen() {
 
   // Get category groups
   const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdQuery.data?.household?.id],
+    queryKey: ['categoryGroups', householdQuery.data?.household?.id, householdQuery.data?.userRecord?.id],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id) {
+      if (!householdQuery.data?.household?.id || !householdQuery.data?.userRecord?.id) {
         return [];
       }
-      return getCategoryGroups(householdQuery.data.household.id);
+      return getCategoryGroups(householdQuery.data.household.id, householdQuery.data.userRecord.id);
     },
-    enabled: !!householdQuery.data?.household?.id,
+    enabled: !!householdQuery.data?.household?.id && !!householdQuery.data?.userRecord?.id,
   });
 
   // Set default account on first load

@@ -130,12 +130,12 @@ export default function BudgetSetupScreen() {
   });
 
   const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdId],
+    queryKey: ['categoryGroups', householdId, userId],
     queryFn: async () => {
-      if (!householdId) return [];
-      return getCategoryGroups(householdId);
+      if (!householdId || !userId) return [];
+      return getCategoryGroups(householdId, userId);
     },
-    enabled: !!householdId,
+    enabled: !!householdId && !!userId,
   });
 
   const existingBudgetQuery = useQuery({

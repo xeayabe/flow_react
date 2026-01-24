@@ -103,12 +103,12 @@ export default function BudgetOverviewScreen() {
   });
 
   const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdId],
+    queryKey: ['categoryGroups', householdId, userId],
     queryFn: async () => {
-      if (!householdId) return [];
-      return getCategoryGroups(householdId);
+      if (!householdId || !userId) return [];
+      return getCategoryGroups(householdId, userId);
     },
-    enabled: !!householdId,
+    enabled: !!householdId && !!userId,
   });
 
   useFocusEffect(

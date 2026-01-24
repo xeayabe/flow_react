@@ -43,15 +43,16 @@ export default function CategoryGroupAllocationScreen() {
   });
 
   const householdId = householdQuery.data?.householdId;
+  const userId = householdQuery.data?.userRecord?.id;
 
   // Get category groups from DB
   const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdId],
+    queryKey: ['categoryGroups', householdId, userId],
     queryFn: async () => {
-      if (!householdId) return [];
-      return getCategoryGroups(householdId);
+      if (!householdId || !userId) return [];
+      return getCategoryGroups(householdId, userId);
     },
-    enabled: !!householdId,
+    enabled: !!householdId && !!userId,
   });
 
   // Get expense groups only, sorted by displayOrder

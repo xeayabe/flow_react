@@ -67,12 +67,12 @@ export default function CategoriesScreen() {
 
   // Get category groups
   const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdId],
+    queryKey: ['categoryGroups', householdId, userId],
     queryFn: async () => {
-      if (!householdId) return [];
-      return getCategoryGroups(householdId);
+      if (!householdId || !userId) return [];
+      return getCategoryGroups(householdId, userId);
     },
-    enabled: !!householdId,
+    enabled: !!householdId && !!userId,
   });
 
   const createMutation = useMutation({

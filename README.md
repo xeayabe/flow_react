@@ -960,17 +960,25 @@ bun start
     - `src/app/budget/category-group-allocation.tsx` - Budget allocation
 - **Result**: Both admins and members can now create and manage household data
 
-### ARCHITECTURE CHANGE: Personal Categories with Optional Sharing (2026-01-24)
-- **Changed**: Categories are now personal by default, with optional sharing
+### ARCHITECTURE CHANGE: Personal Categories and Category Groups (2026-01-24)
+- **Changed**: Categories and category groups are now personal to each user (not shared household-wide)
 - **Implementation**:
-  - `getCategories(householdId, userId)` now filters to show:
+  - `getCategories(householdId, userId)` filters to show only:
     - Categories created by the user (`createdByUserId = userId`)
     - Categories shared by others (`isShareable = true`)
-  - Added `toggleCategorySharing()` function to allow owners to share categories
-  - Updated all callers of `getCategories()` to pass both `householdId` and `userId`
+  - `getCategoryGroups(householdId, userId)` filters to show only:
+    - Category groups created by the user (`createdByUserId = userId`)
+  - Added `toggleCategorySharing()` function to allow owners to share categories with household
+  - Updated all callers of `getCategories()` and `getCategoryGroups()` to pass both `householdId` and `userId`
   - Added `isShareable` parameter to `updateCategory()` function
 - **User Experience**:
-  - Each user sees only their own categories by default
-  - Users can mark categories as "shareable" to make them visible to other household members
-  - Default categories created on signup are personal to that user
-- **Future Enhancement Needed**: UI to toggle sharing in category management screen
+  - Each user has their own personal categories and category groups
+  - Default categories/groups created on signup are personal to that user
+  - Users can optionally mark categories as "shareable" to make them visible to other household members
+  - Category groups remain personal (cannot be shared)
+- **Result**:
+  - Alexander's categories → Only Alexander sees them
+  - Cecilia's categories → Only Cecilia sees them
+  - If Alexander marks a category as "shareable" → Cecilia can see and use it
+  - Each user manages their own budget category groups independently
+- **Future Enhancement**: UI to toggle sharing in category management screen
