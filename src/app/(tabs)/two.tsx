@@ -59,12 +59,6 @@ export default function TabTwoScreen() {
       onPress: () => router.push('/accounts'),
     },
     {
-      icon: <PieChart size={24} color="#006A6A" />,
-      label: 'Budget Settings',
-      description: 'Set up and manage your budget allocation',
-      onPress: () => router.push('/budget/setup'),
-    },
-    {
       icon: <Calendar size={24} color="#006A6A" />,
       label: 'Payday & Budget Period',
       description: 'Set when you get paid each month',
