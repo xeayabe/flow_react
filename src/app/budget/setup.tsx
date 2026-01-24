@@ -445,6 +445,8 @@ export default function BudgetSetupScreen() {
 
       setSuccessMessage('✓ Budget saved!');
       setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['budget-summary-income'] });
+        queryClient.invalidateQueries({ queryKey: ['budget-edit-details'] });
         queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
         queryClient.invalidateQueries({ queryKey: ['budget-details'] });
         router.push('/(tabs)/budget');
