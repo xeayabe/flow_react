@@ -973,15 +973,21 @@ bun start
   - Added `isShareable` parameter to `updateCategory()` function
   - Fixed duplicate check to only check within user's own categories (not household-wide)
   - Added proper error handling in category creation UI
+  - **Fixed (2026-01-24)**: Added helpful UI when member tries to add category but has no category groups
+    - Shows warning: "You need to create a category group first before adding categories"
+    - Provides button to navigate to category groups creation screen
+    - Updated validation to provide clearer error message when no groups exist
 - **User Experience**:
   - Each user has their own personal categories and category groups
   - Default categories/groups created on signup are personal to that user
   - Users can optionally mark categories as "shareable" to make them visible to other household members
   - Category groups remain personal (cannot be shared)
+  - **Important**: Users must create category groups before creating categories
 - **Result**:
   - Alexander's categories → Only Alexander sees them
   - Cecilia's categories → Only Cecilia sees them
   - Alexander can create "Groceries" and Cecilia can also create "Groceries" (no conflict)
   - If Alexander marks a category as "shareable" → Cecilia can see and use it
   - Each user manages their own budget category groups independently
+  - Members are guided to create category groups first if they try to create categories without groups
 - **Future Enhancement**: UI to toggle sharing in category management screen

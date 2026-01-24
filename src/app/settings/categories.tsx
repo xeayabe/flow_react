@@ -154,7 +154,15 @@ export default function CategoriesScreen() {
     }
 
     if (!formData.groupKey) {
-      newErrors.groupKey = 'Please select a group';
+      // Check if there are any groups available for the selected type
+      const availableGroups = (categoryGroupsQuery.data || []).filter(
+        (group) => group.type === formData.type
+      );
+      if (availableGroups.length === 0) {
+        newErrors.groupKey = 'You need to create a category group first';
+      } else {
+        newErrors.groupKey = 'Please select a group';
+      }
     }
 
     setErrors(newErrors);
@@ -422,36 +430,55 @@ export default function CategoriesScreen() {
                 {formData.type && (
                   <View className="mb-6">
                     <Text className="text-sm font-medium text-gray-700 mb-2">Category Group</Text>
-                    <View className="gap-2">
-                      {(categoryGroupsQuery.data || [])
-                        .filter((group) => group.type === formData.type)
-                        .map((group) => (
-                          <Pressable
-                            key={group.id}
-                            onPress={() => {
-                              setFormData({ ...formData, groupKey: group.key as any });
-                              if (errors.groupKey) setErrors({ ...errors, groupKey: '' });
-                            }}
-                            className={cn(
-                              'py-3 px-4 rounded-lg border-2',
-                              formData.groupKey === group.key
-                                ? 'bg-teal-50 border-teal-600'
-                                : 'border-gray-200'
-                            )}
-                          >
-                            <Text
+                    {(categoryGroupsQuery.data || []).filter((group) => group.type === formData.type).length === 0 ? (
+                      <View className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+                        <Text className="text-sm text-amber-800 mb-3">
+                          You need to create a category group first before adding categories.
+                        </Text>
+                        <Pressable
+                          onPress={() => {
+                            setShowModal(false);
+                            router.push('/settings/category-groups');
+                          }}
+                          className="py-2 px-4 rounded-lg bg-amber-600 items-center"
+                        >
+                          <Text className="text-sm font-semibold text-white">
+                            Create Category Group
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <View className="gap-2">
+                        {(categoryGroupsQuery.data || [])
+                          .filter((group) => group.type === formData.type)
+                          .map((group) => (
+                            <Pressable
+                              key={group.id}
+                              onPress={() => {
+                                setFormData({ ...formData, groupKey: group.key as any });
+                                if (errors.groupKey) setErrors({ ...errors, groupKey: '' });
+                              }}
                               className={cn(
-                                'font-medium',
-                                formData.groupKey === group.key ? 'text-teal-600' : 'text-gray-700'
+                                'py-3 px-4 rounded-lg border-2',
+                                formData.groupKey === group.key
+                                  ? 'bg-teal-50 border-teal-600'
+                                  : 'border-gray-200'
                               )}
                             >
-                              {group.icon && `${group.icon} `}
-                              {group.name}
-                            </Text>
-                          </Pressable>
-                        ))}
-                    </View>
-                    {errors.group && <Text className="text-xs text-red-500 mt-1">{errors.group}</Text>}
+                              <Text
+                                className={cn(
+                                  'font-medium',
+                                  formData.groupKey === group.key ? 'text-teal-600' : 'text-gray-700'
+                                )}
+                              >
+                                {group.icon && `${group.icon} `}
+                                {group.name}
+                              </Text>
+                            </Pressable>
+                          ))}
+                      </View>
+                    )}
+                    {errors.groupKey && <Text className="text-xs text-red-500 mt-1">{errors.groupKey}</Text>}
                   </View>
                 )}
 
