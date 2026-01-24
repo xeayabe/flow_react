@@ -291,7 +291,7 @@ export default function TrendsScreen() {
                         key={period.periodStart}
                         onPress={() => {
                           // Navigate to transactions with month filter
-                          router.push(`/transactions?month=${monthYear}`);
+                          router.push(`/(tabs)/transactions?month=${monthYear}`);
                         }}
                         className="flex-row border-b border-gray-100 px-3 py-2 last:border-b-0 active:bg-teal-50"
                       >

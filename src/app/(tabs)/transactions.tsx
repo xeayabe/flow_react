@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, SectionList, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 import { Trash2, ArrowDownLeft, ArrowUpRight, AlertCircle, Plus, X, TrendingUp, TrendingDown } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { db } from '@/lib/db';
 import { getUserTransactions, deleteTransaction, formatCurrency, formatDateSwiss, Transaction } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
@@ -27,6 +27,7 @@ type TransactionType = 'all' | 'income' | 'expense';
 export default function TransactionsTabScreen() {
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
+  const { category: categoryParam, month: monthParam } = useLocalSearchParams<{ category?: string; month?: string }>();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Filter states
@@ -34,10 +35,52 @@ export default function TransactionsTabScreen() {
   const [transactionType, setTransactionType] = useState<TransactionType>('all');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [customDateStart, setCustomDateStart] = useState<string | null>(null);
+  const [customDateEnd, setCustomDateEnd] = useState<string | null>(null);
+  const [monthFilterLabel, setMonthFilterLabel] = useState<string | null>(null);
   const [showDateRangeModal, setShowDateRangeModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
+
+  // Apply category filter from URL parameter
+  useEffect(() => {
+    if (categoryParam) {
+      setSelectedCategories([categoryParam]);
+    }
+  }, [categoryParam]);
+
+  // Apply month filter from URL parameter
+  useEffect(() => {
+    if (monthParam) {
+      const [year, month] = monthParam.split('-');
+      const monthNumber = parseInt(month);
+
+      // Calculate first and last day of month
+      const firstDay = new Date(parseInt(year), monthNumber - 1, 1);
+      const lastDay = new Date(parseInt(year), monthNumber, 0);
+
+      const y1 = firstDay.getFullYear();
+      const m1 = String(firstDay.getMonth() + 1).padStart(2, '0');
+      const d1 = String(firstDay.getDate()).padStart(2, '0');
+      const startStr = `${y1}-${m1}-${d1}`;
+
+      const y2 = lastDay.getFullYear();
+      const m2 = String(lastDay.getMonth() + 1).padStart(2, '0');
+      const d2 = String(lastDay.getDate()).padStart(2, '0');
+      const endStr = `${y2}-${m2}-${d2}`;
+
+      setCustomDateStart(startStr);
+      setCustomDateEnd(endStr);
+
+      // Format month label (e.g., "January 2025")
+      const monthName = firstDay.toLocaleString('en-US', { month: 'long' });
+      setMonthFilterLabel(`${monthName} ${year}`);
+
+      // Set date range to custom
+      setDateRange('all_time');
+    }
+  }, [monthParam]);
 
   // Get user and household info
   const householdQuery = useQuery({
@@ -169,7 +212,16 @@ export default function TransactionsTabScreen() {
   const filteredTransactions = useMemo(() => {
     if (!transactionsQuery.data) return [];
 
-    const [startDate, endDate] = getDateRangeFilter(dateRange);
+    let startDate: string;
+    let endDate: string;
+
+    // Use custom date range if month filter is applied
+    if (customDateStart && customDateEnd) {
+      startDate = customDateStart;
+      endDate = customDateEnd;
+    } else {
+      [startDate, endDate] = getDateRangeFilter(dateRange);
+    }
 
     return (transactionsQuery.data ?? [])
       .filter((tx) => {
@@ -187,7 +239,7 @@ export default function TransactionsTabScreen() {
 
         return true;
       });
-  }, [transactionsQuery.data, dateRange, transactionType, selectedCategories, selectedAccounts]);
+  }, [transactionsQuery.data, dateRange, transactionType, selectedCategories, selectedAccounts, customDateStart, customDateEnd]);
 
   // Enrich transactions with category and account names
   const enrichedTransactions: TransactionWithDetails[] = filteredTransactions.map((tx) => {
@@ -243,7 +295,17 @@ export default function TransactionsTabScreen() {
   const isLoading =
     householdQuery.isLoading || transactionsQuery.isLoading || categoriesQuery.isLoading || accountsQuery.isLoading;
 
-  const hasActiveFilters = dateRange !== 'this_month' || transactionType !== 'all' || selectedCategories.length > 0 || selectedAccounts.length > 0;
+  const hasActiveFilters = monthFilterLabel !== null || dateRange !== 'all_time' || transactionType !== 'all' || selectedCategories.length > 0 || selectedAccounts.length > 0;
+
+  const clearAllFilters = () => {
+    setDateRange('all_time');
+    setTransactionType('all');
+    setSelectedCategories([]);
+    setSelectedAccounts([]);
+    setCustomDateStart(null);
+    setCustomDateEnd(null);
+    setMonthFilterLabel(null);
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
@@ -285,14 +347,40 @@ export default function TransactionsTabScreen() {
               >
                 <Text className="text-xs font-medium text-gray-700">💰 {transactionType === 'all' ? 'All Types' : transactionType}</Text>
               </Pressable>
+              <Pressable
+                onPress={() => setShowCategoryModal(true)}
+                className={cn('px-3 py-2 rounded-full flex-row items-center gap-1',
+                  selectedCategories.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
+                )}
+              >
+                <Text className={cn('text-xs font-medium',
+                  selectedCategories.length === 0 ? 'text-gray-700' : 'text-teal-700'
+                )}>
+                  🏷️ {selectedCategories.length === 0
+                    ? 'All Categories'
+                    : selectedCategories.length === 1
+                      ? (() => {
+                          const cat = categoriesQuery.data?.find((c: any) => c.id === selectedCategories[0]);
+                          return cat ? cat.name : '1 selected';
+                        })()
+                      : `${selectedCategories.length} selected`}
+                </Text>
+                {selectedCategories.length > 0 && (
+                  <Text className="text-xs font-medium text-teal-700">×</Text>
+                )}
+              </Pressable>
+              {monthFilterLabel && (
+                <Pressable
+                  onPress={clearAllFilters}
+                  className="px-3 py-2 rounded-full bg-teal-100 flex-row items-center gap-1"
+                >
+                  <Text className="text-xs font-medium text-teal-700">{monthFilterLabel}</Text>
+                  <Text className="text-xs font-medium text-teal-700">×</Text>
+                </Pressable>
+              )}
               {hasActiveFilters && (
                 <Pressable
-                  onPress={() => {
-                    setDateRange('this_month');
-                    setTransactionType('all');
-                    setSelectedCategories([]);
-                    setSelectedAccounts([]);
-                  }}
+                  onPress={clearAllFilters}
                   className="px-3 py-2 rounded-full bg-gray-100"
                 >
                   <Text className="text-xs font-medium text-gray-700">Clear</Text>
@@ -317,12 +405,7 @@ export default function TransactionsTabScreen() {
             </Text>
             {hasActiveFilters ? (
               <Pressable
-                onPress={() => {
-                  setDateRange('this_month');
-                  setTransactionType('all');
-                  setSelectedCategories([]);
-                  setSelectedAccounts([]);
-                }}
+                onPress={clearAllFilters}
                 className="rounded-full px-6 py-3"
                 style={{ backgroundColor: '#006A6A' }}
               >
@@ -364,32 +447,58 @@ export default function TransactionsTabScreen() {
 
               <Pressable
                 onPress={() => setShowCategoryModal(true)}
-                className="px-3 py-2 rounded-full border border-gray-300 flex-row items-center gap-1"
+                className={cn('px-3 py-2 rounded-full flex-row items-center gap-1',
+                  selectedCategories.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
+                )}
               >
                 <Text className="text-xs font-medium text-gray-700">🏷️</Text>
-                <Text className="text-xs font-medium text-gray-700">
-                  {selectedCategories.length === 0 ? 'All Categories' : `${selectedCategories.length} selected`}
+                <Text className={cn('text-xs font-medium',
+                  selectedCategories.length === 0 ? 'text-gray-700' : 'text-teal-700'
+                )}>
+                  {selectedCategories.length === 0
+                    ? 'All Categories'
+                    : selectedCategories.length === 1
+                      ? (() => {
+                          const cat = categoriesQuery.data?.find((c: any) => c.id === selectedCategories[0]);
+                          return cat ? cat.name : '1 selected';
+                        })()
+                      : `${selectedCategories.length} selected`}
                 </Text>
+                {selectedCategories.length > 0 && (
+                  <Text className="text-xs font-medium text-teal-700">×</Text>
+                )}
               </Pressable>
 
               <Pressable
                 onPress={() => setShowAccountModal(true)}
-                className="px-3 py-2 rounded-full border border-gray-300 flex-row items-center gap-1"
+                className={cn('px-3 py-2 rounded-full flex-row items-center gap-1',
+                  selectedAccounts.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
+                )}
               >
                 <Text className="text-xs font-medium text-gray-700">💳</Text>
-                <Text className="text-xs font-medium text-gray-700">
+                <Text className={cn('text-xs font-medium',
+                  selectedAccounts.length === 0 ? 'text-gray-700' : 'text-teal-700'
+                )}>
                   {selectedAccounts.length === 0 ? 'All Accounts' : `${selectedAccounts.length} selected`}
                 </Text>
+                {selectedAccounts.length > 0 && (
+                  <Text className="text-xs font-medium text-teal-700">×</Text>
+                )}
               </Pressable>
 
-              {hasActiveFilters && (
+              {monthFilterLabel && (
                 <Pressable
-                  onPress={() => {
-                    setDateRange('this_month');
-                    setTransactionType('all');
-                    setSelectedCategories([]);
-                    setSelectedAccounts([]);
-                  }}
+                  onPress={clearAllFilters}
+                  className="px-3 py-2 rounded-full bg-teal-100 flex-row items-center gap-1"
+                >
+                  <Text className="text-xs font-medium text-teal-700">{monthFilterLabel}</Text>
+                  <Text className="text-xs font-medium text-teal-700">×</Text>
+                </Pressable>
+              )}
+
+              {hasActiveFilters && !monthFilterLabel && (
+                <Pressable
+                  onPress={clearAllFilters}
                   className="px-3 py-2 rounded-full bg-red-100"
                 >
                   <Text className="text-xs font-medium text-red-700">✕ Clear</Text>
