@@ -96,8 +96,15 @@ export default function InviteScreen() {
         message: `Join my household on Flow! ${generatedLink}`,
         title: 'Invite to Flow'
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Share error:', error);
+      // If share fails (e.g., on web or permission denied), copy to clipboard instead
+      if (error?.message?.includes('Permission denied') || error?.message?.includes('NotAllowedError')) {
+        await Clipboard.setStringAsync(generatedLink);
+        Alert.alert('Link Copied', 'Share is not available on this platform, but the link has been copied to your clipboard!');
+      } else {
+        Alert.alert('Share Failed', 'Could not share the link. Please try copying it instead.');
+      }
     }
   };
 
