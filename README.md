@@ -415,9 +415,11 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - No transactions → Prompt to add first transaction
 - ✅ **Real-Time Data Refresh** - Auto-refetch on tab focus
 - ✅ **Data Aggregation** - Efficient parallel queries with React Query caching
-- ✅ **Floating Action Button** - Plus sign in bottom right with menu for:
-  - Add Transaction
-  - Add Account
+- ✅ **Floating Action Button** - Smart context-aware FAB with automatic behavior:
+  - **0 Wallets**: Opens Add Wallet screen directly (guides new users)
+  - **Has Wallets**: Opens Add Transaction screen directly (most common action - 1 tap!)
+  - **Long Press**: Shows menu with both Add Transaction and Add Wallet options
+  - **Icon Menu**: Compact icon-only menu (💳 for transactions, 👛 for wallets)
 - ✅ **Budget Reset Notification** - Celebratory banner when budget period resets
 
 ### Budget Reset on Payday (US-025)

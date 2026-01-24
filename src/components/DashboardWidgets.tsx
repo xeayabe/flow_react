@@ -1,6 +1,8 @@
 import React from 'react';
 import { Text, View, ScrollView, Pressable, FlatList } from 'react-native';
 import { router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { db } from '@/lib/db';
 import {
   ChevronRight,
   Wallet,
@@ -10,7 +12,7 @@ import {
   Eye,
   CreditCard,
 } from 'lucide-react-native';
-import { Account } from '@/lib/accounts-api';
+import { Account, getUserAccounts } from '@/lib/accounts-api';
 import { Transaction } from '@/lib/transactions-api';
 import { Category } from '@/lib/categories-api';
 import {
@@ -393,10 +395,34 @@ export const Budget50_30_20Widget: React.FC<{
  */
 /**
  * Floating Action Button Component
- * Opens menu with Add Transaction and Add Account options
+ * Smart context-aware: Opens Add Wallet for new users, Add Transaction for existing users
+ * Long-press to access menu with both options
  */
 export const FloatingActionButton: React.FC = () => {
+  const { user } = db.useAuth();
   const [isOpen, setIsOpen] = React.useState(false);
+
+  // Get user's accounts to determine behavior
+  const accountsQuery = useQuery({
+    queryKey: ['user-accounts', user?.email],
+    queryFn: async () => {
+      if (!user?.email) return [];
+      return getUserAccounts(user.email);
+    },
+    enabled: !!user?.email,
+  });
+
+  const accounts = accountsQuery.data ?? [];
+
+  const handleFABPress = React.useCallback(() => {
+    if (accounts.length === 0) {
+      // No wallets - user needs to add one first
+      router.push('/accounts/add');
+    } else {
+      // Has wallets - most common action is add transaction
+      router.push('/transactions/add');
+    }
+  }, [accounts.length]);
 
   const handleAddTransaction = React.useCallback(() => {
     setIsOpen(false);
@@ -410,7 +436,7 @@ export const FloatingActionButton: React.FC = () => {
 
   return (
     <View className="absolute bottom-6 right-6">
-      {/* Menu Items */}
+      {/* Menu Items - Long press fallback */}
       {isOpen && (
         <View className="absolute bottom-20 right-0 bg-white rounded-2xl shadow-lg p-3 gap-3 mb-2">
           {/* Add Transaction Option */}
@@ -431,9 +457,11 @@ export const FloatingActionButton: React.FC = () => {
         </View>
       )}
 
-      {/* FAB Button */}
+      {/* FAB Button - Smart behavior on press, menu on long-press */}
       <Pressable
-        onPress={() => setIsOpen(!isOpen)}
+        onPress={handleFABPress}
+        onLongPress={() => setIsOpen(!isOpen)}
+        delayLongPress={500}
         className="w-14 h-14 rounded-full bg-teal-600 active:bg-teal-700 items-center justify-center shadow-lg"
         style={{
           shadowColor: '#000',

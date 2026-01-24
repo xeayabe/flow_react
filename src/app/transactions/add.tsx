@@ -560,9 +560,26 @@ export default function AddTransactionScreen() {
 
               {/* Submit Button */}
               <View className="gap-3">
+                {/* Helper message if no accounts */}
+                {accountsQuery.data?.length === 0 && (
+                  <View className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                    <Text className="text-amber-900 text-center font-semibold mb-2">
+                      You need a wallet first
+                    </Text>
+                    <Pressable
+                      onPress={() => router.push('/accounts/add')}
+                      className="bg-teal-600 py-2 px-4 rounded-lg"
+                    >
+                      <Text className="text-white text-center font-semibold text-sm">
+                        Add Your First Wallet
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+
                 <Pressable
                   onPress={handleSubmit}
-                  disabled={createMutation.isPending}
+                  disabled={createMutation.isPending || accountsQuery.data?.length === 0}
                   className="py-4 rounded-lg bg-teal-600 items-center justify-center"
                 >
                   {createMutation.isPending ? (
@@ -579,6 +596,15 @@ export default function AddTransactionScreen() {
                 >
                   <Text className="text-base font-semibold text-gray-700">Cancel</Text>
                 </Pressable>
+
+                {/* Link to add another wallet if accounts exist */}
+                {accountsQuery.data && accountsQuery.data.length > 0 && (
+                  <Pressable onPress={() => router.push('/accounts/add')} className="py-2">
+                    <Text className="text-teal-600 text-sm text-center font-medium">
+                      Need to add another wallet?
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             </View>
           </ScrollView>
