@@ -8,6 +8,7 @@ import {
   PiggyBank,
   Plus,
   Eye,
+  CreditCard,
 } from 'lucide-react-native';
 import { Account } from '@/lib/accounts-api';
 import { Transaction } from '@/lib/transactions-api';
@@ -411,23 +412,23 @@ export const FloatingActionButton: React.FC = () => {
     <View className="absolute bottom-6 right-6">
       {/* Menu Items */}
       {isOpen && (
-        <View className="absolute bottom-20 right-0 gap-3 mb-2">
+        <View className="absolute bottom-20 right-0 bg-white rounded-2xl shadow-lg p-3 gap-3 mb-2">
           {/* Add Transaction Option */}
           <Pressable
             onPress={handleAddTransaction}
-            className="flex-row items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-200 active:bg-gray-50"
+            className="flex-row items-center gap-3 px-4 py-3 rounded-xl active:bg-gray-50"
           >
-            <Plus size={18} color="#006A6A" />
-            <Text numberOfLines={1} className="text-sm font-semibold text-gray-900">Add Transaction</Text>
+            <CreditCard size={24} color="#006A6A" />
+            <Text className="text-base font-medium text-gray-900">Transaction</Text>
           </Pressable>
 
           {/* Add Account Option */}
           <Pressable
             onPress={handleAddAccount}
-            className="flex-row items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-200 active:bg-gray-50"
+            className="flex-row items-center gap-3 px-4 py-3 rounded-xl active:bg-gray-50"
           >
-            <Plus size={18} color="#006A6A" />
-            <Text numberOfLines={1} className="text-sm font-semibold text-gray-900">Add Account</Text>
+            <Wallet size={24} color="#006A6A" />
+            <Text className="text-base font-medium text-gray-900">Wallet</Text>
           </Pressable>
         </View>
       )}
