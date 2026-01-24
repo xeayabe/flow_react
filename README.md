@@ -805,6 +805,13 @@ bun start
 
 ## Recent Updates
 
+### Language Fix - All English (2026-01-24)
+- Changed all date/month/day formatting from German (de-CH) to English (en-US)
+- Affected areas: Trends page, Analytics, Transactions, Add/Edit screens
+- Date format remains DD.MM.YYYY for consistency with Swiss format
+- Month and day names now display in English (e.g., "January" instead of "Januar")
+- Currency formatting (CHF) still uses Swiss locale for proper formatting
+
 ### Trends Monthly Breakdown - Clickable Rows (2026-01-24)
 - Made monthly breakdown table rows clickable for easy transaction drill-down
 - Click any month row to view transactions for that month

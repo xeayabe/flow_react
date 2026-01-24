@@ -115,7 +115,7 @@ function formatDateISO(date: Date): string {
  */
 export function formatDateSwiss(dateString: string): string {
   const date = new Date(dateString + 'T00:00:00');
-  return date.toLocaleDateString('de-CH', {
+  return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

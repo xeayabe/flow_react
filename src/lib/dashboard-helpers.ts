@@ -121,7 +121,7 @@ export function formatRelativeDate(dateString: string): string {
   }
 
   // Fall back to Swiss date format
-  return dateOnlyTarget.toLocaleDateString('de-CH');
+  return dateOnlyTarget.toLocaleDateString('en-US');
 }
 
 /**
