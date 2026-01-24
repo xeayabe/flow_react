@@ -410,7 +410,7 @@ export default function AnalyticsScreen() {
   const analytics = analyticsQuery.data;
 
   const handleCategoryPress = (categoryId: string) => {
-    router.push(`/transactions?category=${categoryId}`);
+    router.push(`/(tabs)/transactions?category=${categoryId}`);
   };
 
   return (
