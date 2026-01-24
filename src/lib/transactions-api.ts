@@ -678,11 +678,11 @@ export function formatCurrency(amount: number, currency: string = 'CHF'): string
 }
 
 /**
- * Format date as Swiss format DD.MM.YYYY
+ * Format date as European format DD/MM/YYYY
  */
 export function formatDateSwiss(dateString: string): string {
   const date = new Date(dateString + 'T00:00:00');
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString('it-IT', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

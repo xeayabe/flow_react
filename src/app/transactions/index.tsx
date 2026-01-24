@@ -66,7 +66,7 @@ export default function TransactionsListScreen() {
       setCustomDateEnd(endStr);
 
       // Format month label (e.g., "January 2025")
-      const monthName = firstDay.toLocaleString('en-US', { month: 'long' });
+      const monthName = firstDay.toLocaleString('it-IT', { month: 'long' });
       setMonthFilterLabel(`${monthName} ${year}`);
 
       // Set date range to custom

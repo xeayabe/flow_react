@@ -120,8 +120,8 @@ export function formatRelativeDate(dateString: string): string {
     return `${diffDays} days ago`;
   }
 
-  // Fall back to Swiss date format
-  return dateOnlyTarget.toLocaleDateString('en-US');
+  // Fall back to European date format
+  return dateOnlyTarget.toLocaleDateString('it-IT');
 }
 
 /**

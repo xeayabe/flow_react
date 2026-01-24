@@ -805,12 +805,13 @@ bun start
 
 ## Recent Updates
 
-### Language Fix - All English (2026-01-24)
-- Changed all date/month/day formatting from German (de-CH) to English (en-US)
-- Affected areas: Trends page, Analytics, Transactions, Add/Edit screens
-- Date format remains DD.MM.YYYY for consistency with Swiss format
-- Month and day names now display in English (e.g., "January" instead of "Januar")
-- Currency formatting (CHF) still uses Swiss locale for proper formatting
+### Language & Date Format Fix (2026-01-24)
+- Changed all date formatting from US format (MM/DD/YYYY) to European/Italian format (DD/MM/YYYY)
+- Locale changed from en-US to it-IT for all date/month formatting
+- Affected areas: Trends page, Analytics, Transactions, Add/Edit screens, Calendar headers
+- Month names display in English (January, February, etc.)
+- Date format: DD/MM/YYYY with separator "/" (e.g., 24/01/2026)
+- Currency formatting (CHF) still uses Swiss locale (de-CH) for proper number formatting
 
 ### Trends Monthly Breakdown - Clickable Rows (2026-01-24)
 - Made monthly breakdown table rows clickable for easy transaction drill-down

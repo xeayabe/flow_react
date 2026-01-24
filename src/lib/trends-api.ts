@@ -121,11 +121,11 @@ export async function getTrendData(
       // Format period label
       const startDate = new Date(period.start);
       const endDate = new Date(period.end);
-      const periodLabel = `${startDate.toLocaleDateString('en-US', {
+      const periodLabel = `${startDate.toLocaleDateString('it-IT', {
         day: '2-digit',
         month: 'short',
         year: '2-digit',
-      })} - ${endDate.toLocaleDateString('en-US', {
+      })} - ${endDate.toLocaleDateString('it-IT', {
         day: '2-digit',
         month: 'short',
         year: '2-digit',

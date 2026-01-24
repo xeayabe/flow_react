@@ -548,7 +548,7 @@ export default function EditTransactionScreen() {
                 <ChevronLeft size={24} color="#006A6A" />
               </Pressable>
               <Text className="text-lg font-semibold text-gray-900">
-                {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                {calendarMonth.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}
               </Text>
               <Pressable
                 onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
