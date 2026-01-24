@@ -577,7 +577,7 @@ export default function AnalyticsTabScreen() {
                       size={CHART_SIZE}
                       onSegmentPress={(categoryId) => {
                         console.log('🎯 Analytics: Pie segment clicked, categoryId:', categoryId);
-                        router.push(`/(tabs)/transactions?category=${categoryId}`);
+                        router.push(`/transactions?category=${categoryId}`);
                       }}
                     />
                     {/* Legend */}
@@ -602,7 +602,7 @@ export default function AnalyticsTabScreen() {
                       maxWidth={SCREEN_WIDTH - 80}
                       onBarPress={(categoryId) => {
                         console.log('📊 Analytics: Bar segment clicked, categoryId:', categoryId);
-                        router.push(`/(tabs)/transactions?category=${categoryId}`);
+                        router.push(`/transactions?category=${categoryId}`);
                       }}
                     />
                   </View>
@@ -619,7 +619,7 @@ export default function AnalyticsTabScreen() {
                       item={item}
                       onPress={() => {
                         console.log('🔗 Analytics: Category row clicked, categoryId:', item.categoryId);
-                        router.push(`/(tabs)/transactions?category=${item.categoryId}`);
+                        router.push(`/transactions?category=${item.categoryId}`);
                       }}
                     />
                   ))}
