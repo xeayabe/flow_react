@@ -813,10 +813,13 @@ bun start
 - Users can now click the pencil icon on Budget tab to edit their budget allocation
 
 ### Analytics - Pie Chart Fixed (2026-01-24)
-- Fixed pie chart interaction issue - chart now responds to clicks/touches properly
-- Separated rendering layer (visible chart) from interaction layer (invisible overlays)
-- Clicking any pie segment now navigates to filtered transactions for that category
-- Improved click detection using transparent overlay segments
+- Fixed pie chart segment click detection using angle-based geometry approach
+- **Problem**: Previously stacked multiple Pressable components (each covering full chart), so only topmost received clicks
+- **Solution**: Single Pressable wrapper with touch location → angle calculation to detect which segment was tapped
+- Calculate angle from chart center to touch point using Math.atan2()
+- Find which segment's angle range contains the calculated angle
+- Clicking any pie segment correctly navigates to filtered transactions for that category
+- Works reliably across all segments (Groceries, Entertainment, Snacks, etc.)
 
 ### Language & Date Format Fix (2026-01-24)
 - Changed all date formatting to European format (DD/MM/YYYY)

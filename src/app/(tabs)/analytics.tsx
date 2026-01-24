@@ -5,6 +5,7 @@ import {
   ScrollView,
   Pressable,
   Dimensions,
+  GestureResponderEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -45,6 +46,8 @@ const DATE_RANGE_OPTIONS: { value: DateRangeOption; label: string }[] = [
 
 // Pie chart component using SVG
 function PieChartComponent({ data, size, onSegmentPress }: { data: CategorySpending[]; size: number; onSegmentPress: (categoryId: string) => void }) {
+  const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
+
   if (data.length === 0) {
     return (
       <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
@@ -95,62 +98,93 @@ function PieChartComponent({ data, size, onSegmentPress }: { data: CategorySpend
 
     return {
       categoryId: item.categoryId,
+      categoryName: item.categoryName,
       path,
       color: item.color,
+      startAngleDeg: startAngle - angle,
+      endAngleDeg: startAngle,
     };
   });
 
+  // Detect which segment was clicked based on angle
+  const handleChartPress = (event: GestureResponderEvent) => {
+    const { locationX, locationY } = event.nativeEvent;
+
+    // Calculate angle from center
+    const dx = locationX - center;
+    const dy = locationY - center;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Check if touch is within the pie ring (between inner and outer radius)
+    if (distance >= innerRadius && distance <= radius) {
+      let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      // Normalize to 0-360 range
+      if (angle < 0) angle += 360;
+
+      // Find which segment this angle belongs to
+      for (const segment of segments) {
+        const start = segment.startAngleDeg;
+        const end = segment.endAngleDeg;
+
+        // Handle wrap-around at 360/0
+        let angleInRange = false;
+        if (start < end) {
+          angleInRange = angle >= start && angle < end;
+        } else {
+          angleInRange = angle >= start || angle < end;
+        }
+
+        if (angleInRange) {
+          console.log('🎯 Pie segment clicked:', segment.categoryName, 'ID:', segment.categoryId, 'Angle:', angle);
+          setSelectedSegment(segment.categoryId);
+          onSegmentPress(segment.categoryId);
+          return;
+        }
+      }
+    }
+  };
+
   return (
-    <View style={{ width: size, height: size, position: 'relative' }}>
-      <Svg width={size} height={size}>
-        <G>
-          {segments.map((segment) => (
-            <Path
-              key={segment.categoryId}
-              d={segment.path}
-              fill={segment.color}
-              stroke="#FFFFFF"
-              strokeWidth={2}
-            />
-          ))}
-        </G>
-      </Svg>
-      {/* Clickable overlay segments */}
-      <View style={{ position: 'absolute', width: size, height: size }}>
-        {segments.map((segment) => (
-          <Pressable
-            key={`pressable-${segment.categoryId}`}
-            onPress={() => onSegmentPress(segment.categoryId)}
-            style={{ position: 'absolute', width: size, height: size }}
-          >
-            {/* Transparent overlay */}
-            <Svg width={size} height={size} style={{ position: 'absolute' }}>
+    <Pressable
+      onPress={handleChartPress}
+      style={{ width: size, height: size, position: 'relative' }}
+    >
+      <View style={{ width: size, height: size, position: 'relative' }}>
+        {/* Visual pie chart */}
+        <Svg width={size} height={size}>
+          <G>
+            {segments.map((segment) => (
               <Path
+                key={segment.categoryId}
                 d={segment.path}
-                fill="transparent"
-                strokeWidth={0}
+                fill={segment.color}
+                stroke="#FFFFFF"
+                strokeWidth={2}
               />
-            </Svg>
-          </Pressable>
-        ))}
+            ))}
+          </G>
+        </Svg>
+
+        {/* Center text */}
+        <View
+          style={{
+            position: 'absolute',
+            alignItems: 'center',
+            justifyContent: 'center',
+            top: center - innerRadius * 0.6,
+            left: center - innerRadius * 0.8,
+            width: innerRadius * 1.6,
+            height: innerRadius * 1.2,
+            pointerEvents: 'none',
+          }}
+        >
+          <Text style={{ fontSize: 12, color: '#6B7280' }}>Total</Text>
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }} numberOfLines={1} adjustsFontSizeToFit>
+            {formatCurrency(total)}
+          </Text>
+        </View>
       </View>
-      <View
-        style={{
-          position: 'absolute',
-          alignItems: 'center',
-          justifyContent: 'center',
-          top: center - innerRadius * 0.6,
-          left: center - innerRadius * 0.8,
-          width: innerRadius * 1.6,
-          height: innerRadius * 1.2,
-        }}
-      >
-        <Text style={{ fontSize: 12, color: '#6B7280' }}>Total</Text>
-        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }} numberOfLines={1} adjustsFontSizeToFit>
-          {formatCurrency(total)}
-        </Text>
-      </View>
-    </View>
+    </Pressable>
   );
 }
 
