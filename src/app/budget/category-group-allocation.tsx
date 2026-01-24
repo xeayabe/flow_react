@@ -37,12 +37,13 @@ export default function CategoryGroupAllocationScreen() {
       if (!user?.email) throw new Error('No user email');
       const result = await getUserProfileAndHousehold(user.email);
       if (!result) throw new Error('No household found');
-      return { userRecord: result.userRecord, household: { id: result.householdId } };
+      console.log('[Budget Setup] User household loaded:', { email: user.email, householdId: result.householdId, userId: result.userRecord?.id });
+      return result;
     },
     enabled: !!user?.email,
   });
 
-  const householdId = householdQuery.data?.household?.id;
+  const householdId = householdQuery.data?.householdId;
   const userId = householdQuery.data?.userRecord?.id;
 
   // Get category groups from DB
@@ -51,7 +52,7 @@ export default function CategoryGroupAllocationScreen() {
     queryFn: async () => {
       if (!householdId || !userId) return [];
       const groups = await getCategoryGroups(householdId, userId);
-      console.log('Budget Setup - category groups loaded:', { householdId, userId, groupCount: groups.length, groups: groups.map(g => ({ key: g.key, name: g.name, type: g.type })) });
+      console.log('[Budget Setup] category groups loaded:', { householdId, userId, groupCount: groups.length, groups: groups.map(g => ({ key: g.key, name: g.name, type: g.type })) });
       return groups;
     },
     enabled: !!householdId && !!userId,
@@ -267,8 +268,20 @@ export default function CategoryGroupAllocationScreen() {
               <Text className="text-sm font-semibold text-gray-700 mb-4 uppercase">Budget Categories</Text>
 
               {expenseGroups.length === 0 ? (
-                <View className="p-4 bg-gray-50 rounded-lg">
-                  <Text className="text-sm text-gray-500 text-center">No expense category groups found</Text>
+                <View className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                  <Text className="text-sm text-amber-800 text-center mb-3">
+                    You need to create expense category groups first.
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      router.push('/settings/category-groups');
+                    }}
+                    className="py-2 px-4 rounded-lg bg-amber-600 items-center"
+                  >
+                    <Text className="text-sm font-semibold text-white">
+                      Create Category Groups
+                    </Text>
+                  </Pressable>
                 </View>
               ) : (
                 expenseGroups.map((group) => {

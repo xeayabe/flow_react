@@ -1009,3 +1009,16 @@ bun start
   - Categories load correctly in transaction forms for members
   - Trends and analytics screens work for members
   - Budget allocation shows member's personal category groups
+
+### BUG FIX: Budget Setup Redirect Issue (2026-01-24)
+- **Problem**: Member clicks "Create My First Budget" and gets redirected to dashboard
+- **Root Cause**: Budget allocation screen had inconsistent data structure - it was wrapping `householdId` in `household.id` instead of returning it directly
+- **The Fix**:
+  - Fixed `src/app/budget/category-group-allocation.tsx` to return `{ userRecord, householdId }` directly from helper
+  - Changed data access from `householdQuery.data?.household?.id` to `householdQuery.data?.householdId`
+  - Added helpful UI that guides members to create category groups if they try to set up budget without them
+  - Added console logging for debugging future issues
+- **Result**:
+  - Members can now access budget allocation screen successfully
+  - Budget setup displays correctly with proper category group loading
+  - If member has no expense category groups, clear message explains what to do with a button to create them
