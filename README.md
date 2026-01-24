@@ -994,16 +994,18 @@ bun start
 
 ### BUG FIX: Members Can Now Use Transactions and Budget Setup (2026-01-24)
 - **Problem**: Members couldn't access transactions or budget setup screens - they would get errors or be redirected
-- **Root Cause**: 4 additional screens were still using the old `households WHERE createdByUserId = userId` pattern which only works for admins
+- **Root Cause**: 7 additional screens were still using the old `households WHERE createdByUserId = userId` pattern which only works for admins
 - **The Fix**:
-  - Updated all transaction-related screens to use `getUserProfileAndHousehold()` helper from `household-utils.ts`:
-    - `src/app/transactions/add.tsx` - Add transaction screen
-    - `src/app/transactions/[id]/edit.tsx` - Edit transaction screen
-    - `src/app/(tabs)/transactions.tsx` - Transactions list screen
-    - `src/app/transactions/trends.tsx` - Trends/analytics screen
-  - These screens now look up household via `householdMembers` table instead of `households.createdByUserId`
+  - Standardized all screens to use `getUserProfileAndHousehold()` helper from `household-utils.ts`:
+    - Transaction screens: `src/app/transactions/add.tsx`, `src/app/transactions/[id]/edit.tsx`, `src/app/(tabs)/transactions.tsx`, `src/app/transactions/trends.tsx`
+    - Budget screens: `src/app/budget/category-group-allocation.tsx`
+    - Settings screens: Already using the helper correctly
+  - All screens now look up household via `householdMembers` table instead of `households.createdByUserId`
+  - Standardized return structure: `{ userRecord, householdId }` across all screens
+  - Added comprehensive logging to category group allocation for debugging member issues
 - **Result**:
-  - Members can now add, edit, and view transactions
-  - Members can access budget setup and allocation screens
+  - Members can now add and edit transactions
+  - Members can access and use budget setup and allocation screens
   - Categories load correctly in transaction forms for members
-  - Trends and analytics work for members
+  - Trends and analytics screens work for members
+  - Budget allocation shows member's personal category groups

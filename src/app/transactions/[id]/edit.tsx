@@ -69,7 +69,7 @@ export default function EditTransactionScreen() {
       if (!user?.email) throw new Error('No user email');
       const result = await getUserProfileAndHousehold(user.email);
       if (!result) throw new Error('No household found');
-      return { userRecord: result.userRecord, household: { id: result.householdId } };
+      return result;
     },
     enabled: !!user?.email,
   });
@@ -96,24 +96,24 @@ export default function EditTransactionScreen() {
 
   // Get categories
   const categoriesQuery = useQuery({
-    queryKey: ['categories', householdQuery.data?.household?.id, householdQuery.data?.userRecord?.id],
+    queryKey: ['categories', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id],
     queryFn: () => {
-      if (!householdQuery.data?.household?.id || !householdQuery.data?.userRecord?.id) return [];
-      return getCategories(householdQuery.data.household.id, householdQuery.data.userRecord.id);
+      if (!householdQuery.data?.householdId || !householdQuery.data?.userRecord?.id) return [];
+      return getCategories(householdQuery.data.householdId, householdQuery.data.userRecord.id);
     },
-    enabled: !!householdQuery.data?.household?.id && !!householdQuery.data?.userRecord?.id,
+    enabled: !!householdQuery.data?.householdId && !!householdQuery.data?.userRecord?.id,
   });
 
   // Get category groups
   const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdQuery.data?.household?.id, householdQuery.data?.userRecord?.id],
+    queryKey: ['categoryGroups', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id || !householdQuery.data?.userRecord?.id) {
+      if (!householdQuery.data?.householdId || !householdQuery.data?.userRecord?.id) {
         return [];
       }
-      return getCategoryGroups(householdQuery.data.household.id, householdQuery.data.userRecord.id);
+      return getCategoryGroups(householdQuery.data.householdId, householdQuery.data.userRecord.id);
     },
-    enabled: !!householdQuery.data?.household?.id && !!householdQuery.data?.userRecord?.id,
+    enabled: !!householdQuery.data?.householdId && !!householdQuery.data?.userRecord?.id,
   });
 
   // Pre-fill form when transaction loads
@@ -142,7 +142,7 @@ export default function EditTransactionScreen() {
       updateTransaction({
         id: id!,
         userId: householdQuery.data!.userRecord.id,
-        householdId: householdQuery.data!.household.id,
+        householdId: householdQuery.data!.householdId,
         accountId: formData.accountId,
         categoryId: formData.categoryId,
         type: formData.type,

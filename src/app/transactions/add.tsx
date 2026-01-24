@@ -75,7 +75,7 @@ export default function AddTransactionScreen() {
       if (!user?.email) throw new Error('No user email');
       const result = await getUserProfileAndHousehold(user.email);
       if (!result) throw new Error('No household found');
-      return { userRecord: result.userRecord, household: { id: result.householdId } };
+      return result;
     },
     enabled: !!user?.email,
   });
@@ -92,33 +92,33 @@ export default function AddTransactionScreen() {
 
   // Get categories
   const categoriesQuery = useQuery({
-    queryKey: ['categories', householdQuery.data?.household?.id, householdQuery.data?.userRecord?.id],
+    queryKey: ['categories', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id || !householdQuery.data?.userRecord?.id) {
+      if (!householdQuery.data?.householdId || !householdQuery.data?.userRecord?.id) {
         console.warn('Household ID or User ID not available for categories query');
         return [];
       }
 
       // Run migration first to fix any categories with old hardcoded group values
-      await migrateCategoryGroups(householdQuery.data.household.id);
+      await migrateCategoryGroups(householdQuery.data.householdId);
 
-      const cats = await getCategories(householdQuery.data.household.id, householdQuery.data.userRecord.id);
+      const cats = await getCategories(householdQuery.data.householdId, householdQuery.data.userRecord.id);
       console.log('Categories loaded:', { count: cats.length, categories: cats.map(c => ({ id: c.id, name: c.name, type: c.type, group: c.categoryGroup })) });
       return cats;
     },
-    enabled: !!householdQuery.data?.household?.id && !!householdQuery.data?.userRecord?.id,
+    enabled: !!householdQuery.data?.householdId && !!householdQuery.data?.userRecord?.id,
   });
 
   // Get category groups
   const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdQuery.data?.household?.id, householdQuery.data?.userRecord?.id],
+    queryKey: ['categoryGroups', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id || !householdQuery.data?.userRecord?.id) {
+      if (!householdQuery.data?.householdId || !householdQuery.data?.userRecord?.id) {
         return [];
       }
-      return getCategoryGroups(householdQuery.data.household.id, householdQuery.data.userRecord.id);
+      return getCategoryGroups(householdQuery.data.householdId, householdQuery.data.userRecord.id);
     },
-    enabled: !!householdQuery.data?.household?.id && !!householdQuery.data?.userRecord?.id,
+    enabled: !!householdQuery.data?.householdId && !!householdQuery.data?.userRecord?.id,
   });
 
   // Set default account on first load
@@ -134,7 +134,7 @@ export default function AddTransactionScreen() {
     mutationFn: async () => {
       const result = await createTransaction({
         userId: householdQuery.data!.userRecord.id,
-        householdId: householdQuery.data!.household.id,
+        householdId: householdQuery.data!.householdId,
         accountId: formData.accountId,
         categoryId: formData.categoryId,
         type: formData.type,

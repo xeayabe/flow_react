@@ -117,7 +117,7 @@ export default function TransactionsTabScreen() {
       if (!user?.email) throw new Error('No user email');
       const result = await getUserProfileAndHousehold(user.email);
       if (!result) throw new Error('No household found');
-      return { userRecord: result.userRecord, household: { id: result.householdId } };
+      return result;
     },
     enabled: !!user?.email,
   });
@@ -134,12 +134,12 @@ export default function TransactionsTabScreen() {
 
   // Get categories
   const categoriesQuery = useQuery({
-    queryKey: ['categories', householdQuery.data?.household?.id, householdQuery.data?.userRecord?.id],
+    queryKey: ['categories', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id || !householdQuery.data?.userRecord?.id) return [];
-      return getCategories(householdQuery.data.household.id, householdQuery.data.userRecord.id);
+      if (!householdQuery.data?.householdId || !householdQuery.data?.userRecord?.id) return [];
+      return getCategories(householdQuery.data.householdId, householdQuery.data.userRecord.id);
     },
-    enabled: !!householdQuery.data?.household?.id && !!householdQuery.data?.userRecord?.id,
+    enabled: !!householdQuery.data?.householdId && !!householdQuery.data?.userRecord?.id,
   });
 
   // Get accounts

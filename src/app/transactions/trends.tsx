@@ -22,7 +22,7 @@ export default function TrendsScreen() {
       if (!user?.email) throw new Error('No user email');
       const result = await getUserProfileAndHousehold(user.email);
       if (!result) throw new Error('No household found');
-      return { userRecord: result.userRecord, household: { id: result.householdId } };
+      return result;
     },
     enabled: !!user?.email,
   });
@@ -42,22 +42,22 @@ export default function TrendsScreen() {
     queryKey: [
       'trends',
       householdQuery.data?.userRecord?.id,
-      householdQuery.data?.household?.id,
+      householdQuery.data?.householdId,
       timeRange,
       periodsMap[timeRange],
     ],
     queryFn: async () => {
-      if (!householdQuery.data?.userRecord?.id || !householdQuery.data?.household?.id) {
+      if (!householdQuery.data?.userRecord?.id || !householdQuery.data?.householdId) {
         return null;
       }
 
       return getTrendData(
         householdQuery.data.userRecord.id,
-        householdQuery.data.household.id,
+        householdQuery.data.householdId,
         periodsMap[timeRange]
       );
     },
-    enabled: !!householdQuery.data?.userRecord?.id && !!householdQuery.data?.household?.id,
+    enabled: !!householdQuery.data?.userRecord?.id && !!householdQuery.data?.householdId,
   });
 
   const timeRangeLabels: Record<TimeRange, string> = {

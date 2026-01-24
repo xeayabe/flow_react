@@ -37,12 +37,12 @@ export default function CategoryGroupAllocationScreen() {
       if (!user?.email) throw new Error('No user email');
       const result = await getUserProfileAndHousehold(user.email);
       if (!result) throw new Error('No household found');
-      return result;
+      return { userRecord: result.userRecord, household: { id: result.householdId } };
     },
     enabled: !!user?.email,
   });
 
-  const householdId = householdQuery.data?.householdId;
+  const householdId = householdQuery.data?.household?.id;
   const userId = householdQuery.data?.userRecord?.id;
 
   // Get category groups from DB
@@ -50,7 +50,9 @@ export default function CategoryGroupAllocationScreen() {
     queryKey: ['categoryGroups', householdId, userId],
     queryFn: async () => {
       if (!householdId || !userId) return [];
-      return getCategoryGroups(householdId, userId);
+      const groups = await getCategoryGroups(householdId, userId);
+      console.log('Budget Setup - category groups loaded:', { householdId, userId, groupCount: groups.length, groups: groups.map(g => ({ key: g.key, name: g.name, type: g.type })) });
+      return groups;
     },
     enabled: !!householdId && !!userId,
   });
