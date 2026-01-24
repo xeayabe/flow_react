@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, Dimensions } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Calendar } from 'lucide-react-native';
+import { TrendingUp, Calendar, ChevronRight } from 'lucide-react-native';
+import { router } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { db } from '@/lib/db';
 import { getTrendData, formatCurrency, formatPercentage, BudgetPeriodSummary } from '@/lib/trends-api';
@@ -278,20 +279,40 @@ export default function TrendsScreen() {
                   </View>
 
                   {/* Rows - reversed to show newest first */}
-                  {[...data.data].reverse().map((period) => (
-                    <View key={period.periodStart} className="flex-row border-b border-gray-100 px-3 py-2 last:border-b-0">
-                      <Text className="flex-1 text-xs text-gray-900 font-medium">{period.periodLabel}</Text>
-                      <Text className="flex-1 text-right text-xs text-green-700 font-medium">
-                        {formatCurrency(period.income)}
-                      </Text>
-                      <Text className="flex-1 text-right text-xs text-red-700 font-medium">
-                        {formatCurrency(period.expenses)}
-                      </Text>
-                      <Text className={cn('flex-1 text-right text-xs font-semibold', period.net >= 0 ? 'text-teal-700' : 'text-red-700')}>
-                        {(period.net >= 0 ? '+' : '') + formatCurrency(period.net)}
-                      </Text>
-                    </View>
-                  ))}
+                  {[...data.data].reverse().map((period) => {
+                    // Parse period dates to extract year/month for filter URL
+                    const startDate = new Date(period.periodStart);
+                    const year = startDate.getFullYear();
+                    const month = String(startDate.getMonth() + 1).padStart(2, '0');
+                    const monthYear = `${year}-${month}`;
+
+                    return (
+                      <Pressable
+                        key={period.periodStart}
+                        onPress={() => {
+                          // Navigate to transactions with month filter
+                          router.push(`/(tabs)/transactions?month=${monthYear}`);
+                        }}
+                        className="flex-row border-b border-gray-100 px-3 py-2 last:border-b-0 active:bg-teal-50"
+                      >
+                        <View className="flex-1 flex-row items-center justify-between">
+                          <Text className="text-xs text-gray-900 font-medium">{period.periodLabel}</Text>
+                        </View>
+                        <Text className="flex-1 text-right text-xs text-green-700 font-medium">
+                          {formatCurrency(period.income)}
+                        </Text>
+                        <Text className="flex-1 text-right text-xs text-red-700 font-medium">
+                          {formatCurrency(period.expenses)}
+                        </Text>
+                        <View className="flex-1 flex-row items-center justify-end gap-2">
+                          <Text className={cn('text-xs font-semibold', period.net >= 0 ? 'text-teal-700' : 'text-red-700')}>
+                            {(period.net >= 0 ? '+' : '') + formatCurrency(period.net)}
+                          </Text>
+                          <ChevronRight size={14} color="#9CA3AF" />
+                        </View>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               </View>
             </>

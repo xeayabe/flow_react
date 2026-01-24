@@ -805,6 +805,15 @@ bun start
 
 ## Recent Updates
 
+### Trends Monthly Breakdown - Clickable Rows (2026-01-24)
+- Made monthly breakdown table rows clickable for easy transaction drill-down
+- Click any month row to view transactions for that month
+- Visual feedback: row highlights on hover with → arrow icon
+- Automatically applies month date filter to transactions page
+- Filter chip displays month/year with × to clear
+- Enables investigating spending patterns by month
+- **Example**: Click "January 2025" row → View all Jan 2025 transactions with month filter applied
+
 ### Analytics Period Fix (2026-01-24)
 - Fixed analytics date range calculation for "This Period" when viewing before payday
 - Now correctly shows period from last payday until today (not paydayDay - 1)

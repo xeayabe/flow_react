@@ -26,7 +26,7 @@ type TransactionType = 'all' | 'income' | 'expense';
 export default function TransactionsListScreen() {
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
-  const { category: categoryParam } = useLocalSearchParams<{ category?: string }>();
+  const { category: categoryParam, month: monthParam } = useLocalSearchParams<{ category?: string; month?: string }>();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Filter states
@@ -34,6 +34,9 @@ export default function TransactionsListScreen() {
   const [transactionType, setTransactionType] = useState<TransactionType>('all');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [customDateStart, setCustomDateStart] = useState<string | null>(null);
+  const [customDateEnd, setCustomDateEnd] = useState<string | null>(null);
+  const [monthFilterLabel, setMonthFilterLabel] = useState<string | null>(null);
   const [showDateRangeModal, setShowDateRangeModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -45,6 +48,31 @@ export default function TransactionsListScreen() {
       setSelectedCategories([categoryParam]);
     }
   }, [categoryParam]);
+
+  // Apply month filter from URL parameter
+  useEffect(() => {
+    if (monthParam) {
+      const [year, month] = monthParam.split('-');
+      const monthNumber = parseInt(month);
+
+      // Calculate first and last day of month
+      const firstDay = new Date(parseInt(year), monthNumber - 1, 1);
+      const lastDay = new Date(parseInt(year), monthNumber, 0);
+
+      const startStr = firstDay.toISOString().split('T')[0];
+      const endStr = lastDay.toISOString().split('T')[0];
+
+      setCustomDateStart(startStr);
+      setCustomDateEnd(endStr);
+
+      // Format month label (e.g., "January 2025")
+      const monthName = firstDay.toLocaleString('en-US', { month: 'long' });
+      setMonthFilterLabel(`${monthName} ${year}`);
+
+      // Set date range to custom
+      setDateRange('all_time');
+    }
+  }, [monthParam]);
 
   // Get user and household info
   const householdQuery = useQuery({
@@ -167,7 +195,16 @@ export default function TransactionsListScreen() {
   const filteredTransactions = useMemo(() => {
     if (!transactionsQuery.data) return [];
 
-    const [startDate, endDate] = getDateRangeFilter(dateRange);
+    let startDate: string;
+    let endDate: string;
+
+    // Use custom date range if month filter is applied
+    if (customDateStart && customDateEnd) {
+      startDate = customDateStart;
+      endDate = customDateEnd;
+    } else {
+      [startDate, endDate] = getDateRangeFilter(dateRange);
+    }
 
     return (transactionsQuery.data ?? [])
       .filter((tx) => {
@@ -185,7 +222,7 @@ export default function TransactionsListScreen() {
 
         return true;
       });
-  }, [transactionsQuery.data, dateRange, transactionType, selectedCategories, selectedAccounts]);
+  }, [transactionsQuery.data, dateRange, transactionType, selectedCategories, selectedAccounts, customDateStart, customDateEnd]);
 
   // Enrich transactions with category and account names
   const enrichedTransactions: TransactionWithDetails[] = filteredTransactions.map((tx) => {
@@ -241,7 +278,17 @@ export default function TransactionsListScreen() {
   const isLoading =
     householdQuery.isLoading || transactionsQuery.isLoading || categoriesQuery.isLoading || accountsQuery.isLoading;
 
-  const hasActiveFilters = dateRange !== 'this_month' || transactionType !== 'all' || selectedCategories.length > 0 || selectedAccounts.length > 0;
+  const hasActiveFilters = monthFilterLabel !== null || dateRange !== 'this_month' || transactionType !== 'all' || selectedCategories.length > 0 || selectedAccounts.length > 0;
+
+  const clearAllFilters = () => {
+    setDateRange('this_month');
+    setTransactionType('all');
+    setSelectedCategories([]);
+    setSelectedAccounts([]);
+    setCustomDateStart(null);
+    setCustomDateEnd(null);
+    setMonthFilterLabel(null);
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
@@ -276,12 +323,7 @@ export default function TransactionsListScreen() {
               </Pressable>
               {hasActiveFilters && (
                 <Pressable
-                  onPress={() => {
-                    setDateRange('this_month');
-                    setTransactionType('all');
-                    setSelectedCategories([]);
-                    setSelectedAccounts([]);
-                  }}
+                  onPress={clearAllFilters}
                   className="px-3 py-2 rounded-full bg-gray-100"
                 >
                   <Text className="text-xs font-medium text-gray-700">Clear</Text>
@@ -310,12 +352,7 @@ export default function TransactionsListScreen() {
             </Text>
             {hasActiveFilters ? (
               <Pressable
-                onPress={() => {
-                  setDateRange('this_month');
-                  setTransactionType('all');
-                  setSelectedCategories([]);
-                  setSelectedAccounts([]);
-                }}
+                onPress={clearAllFilters}
                 className="rounded-full px-6 py-3"
                 style={{ backgroundColor: '#006A6A' }}
               >
@@ -383,14 +420,19 @@ export default function TransactionsListScreen() {
                 </Text>
               </Pressable>
 
-              {hasActiveFilters && (
+              {monthFilterLabel && (
                 <Pressable
-                  onPress={() => {
-                    setDateRange('this_month');
-                    setTransactionType('all');
-                    setSelectedCategories([]);
-                    setSelectedAccounts([]);
-                  }}
+                  onPress={clearAllFilters}
+                  className="px-3 py-2 rounded-full bg-teal-100 flex-row items-center gap-1"
+                >
+                  <Text className="text-xs font-medium text-teal-700">{monthFilterLabel}</Text>
+                  <Text className="text-xs font-medium text-teal-700">×</Text>
+                </Pressable>
+              )}
+
+              {hasActiveFilters && !monthFilterLabel && (
+                <Pressable
+                  onPress={clearAllFilters}
                   className="px-3 py-2 rounded-full bg-red-100"
                 >
                   <Text className="text-xs font-medium text-red-700">✕ Clear</Text>
