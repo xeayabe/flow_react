@@ -27,6 +27,7 @@ export default function TransactionsListScreen() {
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
   const { category: categoryParam, month: monthParam } = useLocalSearchParams<{ category?: string; month?: string }>();
+  console.log('📱 Transactions: useLocalSearchParams received categoryParam:', categoryParam, 'monthParam:', monthParam);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Filter states
@@ -44,7 +45,9 @@ export default function TransactionsListScreen() {
 
   // Apply category filter from URL parameter
   useEffect(() => {
+    console.log('⚙️ Transactions useEffect: categoryParam changed to:', categoryParam);
     if (categoryParam) {
+      console.log('✅ Setting selectedCategories to:', [categoryParam]);
       setSelectedCategories([categoryParam]);
     }
   }, [categoryParam]);
@@ -193,6 +196,7 @@ export default function TransactionsListScreen() {
 
   // Filter transactions
   const filteredTransactions = useMemo(() => {
+    console.log('🔍 Filtering transactions. selectedCategories:', selectedCategories, 'selectedAccounts:', selectedAccounts, 'dateRange:', dateRange, 'totalTransactions:', transactionsQuery.data?.length);
     if (!transactionsQuery.data) return [];
 
     let startDate: string;
@@ -206,7 +210,7 @@ export default function TransactionsListScreen() {
       [startDate, endDate] = getDateRangeFilter(dateRange);
     }
 
-    return (transactionsQuery.data ?? [])
+    const filtered = (transactionsQuery.data ?? [])
       .filter((tx) => {
         // Date range filter
         if (tx.date < startDate || tx.date > endDate) return false;
@@ -222,6 +226,9 @@ export default function TransactionsListScreen() {
 
         return true;
       });
+
+    console.log('📊 Filtered result count:', filtered.length);
+    return filtered;
   }, [transactionsQuery.data, dateRange, transactionType, selectedCategories, selectedAccounts, customDateStart, customDateEnd]);
 
   // Enrich transactions with category and account names
