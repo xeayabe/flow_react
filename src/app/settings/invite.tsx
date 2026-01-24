@@ -15,24 +15,56 @@ export default function InviteScreen() {
 
   const createInviteMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.id) throw new Error('User not authenticated');
+      console.log('=== DEBUG: Starting invite creation ===');
+      console.log('Current user:', user);
+      console.log('User ID:', user?.id);
+      console.log('User email:', user?.email);
 
-      // Get user's household
+      if (!user?.id) {
+        console.error('User not authenticated!');
+        throw new Error('User not authenticated');
+      }
+
+      // First, query ALL householdMembers to see what's in the table
+      console.log('Querying ALL household members...');
+      const { data: allMembers } = await db.queryOnce({
+        householdMembers: {}
+      });
+      console.log('ALL household members:', allMembers.householdMembers);
+      console.log('Total members in database:', allMembers.householdMembers?.length || 0);
+
+      // Now query for this specific user's household
+      console.log('Querying for user household with userId:', user.id);
       const { data: memberData } = await db.queryOnce({
         householdMembers: {
           $: { where: { userId: user.id, status: 'active' } }
         }
       });
 
-      const householdId = memberData.householdMembers[0]?.householdId;
-      if (!householdId) throw new Error('No household found');
+      console.log('Query result:', memberData);
+      console.log('HouseholdMembers found:', memberData.householdMembers);
+      console.log('Number of members:', memberData.householdMembers?.length || 0);
 
-      return createInvite(user.id, householdId);
+      const member = memberData.householdMembers[0];
+
+      console.log('First member:', member);
+      console.log('Household ID:', member?.householdId);
+
+      if (!member) {
+        console.error('No member found!');
+        console.error('User may not have a household record. Check if householdMembers was created during signup.');
+        throw new Error('No household found');
+      }
+
+      console.log('Creating invite for household:', member.householdId);
+      return createInvite(user.id, member.householdId);
     },
     onSuccess: ({ inviteLink }) => {
+      console.log('Invite created successfully:', inviteLink);
       setGeneratedLink(inviteLink);
     },
     onError: (error: Error) => {
+      console.error('Error creating invite:', error);
       Alert.alert('Error', error.message || 'Could not generate invite link');
     }
   });
