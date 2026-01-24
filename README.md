@@ -943,3 +943,20 @@ bun start
 - **Transactions**: Budget spent amounts tracked against personal budget period
 - **Analytics**: Uses personal payday for date range calculations
 - **Invited Members**: Join with budget fields null - must set their own payday in settings
+
+### BUG FIX: Members Can Now Create Categories, Budgets, and Category Groups (2026-01-24)
+- **Problem**: Invited members (like Cecilia) couldn't create categories, category groups, or budgets
+- **Root Cause**: All creation APIs looked up household using `WHERE createdByUserId = userId`, which only works for admins who created the household
+- **The Fix**:
+  - Created `household-utils.ts` with helper functions:
+    - `getUserHouseholdId(userId)` - Get household via `householdMembers` table
+    - `getUserHouseholdIdByEmail(email)` - Get household by email
+    - `getUserProfileAndHousehold(email)` - Get both user profile and household ID
+  - Updated all screens to use `householdMembers` lookup instead of `households.createdByUserId`:
+    - `src/app/settings/category-groups.tsx` - Category group management
+    - `src/app/settings/categories.tsx` - Category management
+    - `src/app/settings/import.tsx` - CSV import
+    - `src/app/settings/export.tsx` - CSV export
+    - `src/app/budget/category-group-allocation.tsx` - Budget allocation
+- **Result**: Both admins and members can now create and manage household data
+- **Verified**: Alexander (admin) and Cecilia (member) can both create categories, category groups, and budgets

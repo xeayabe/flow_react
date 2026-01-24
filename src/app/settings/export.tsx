@@ -19,6 +19,7 @@ import {
   ChevronDown,
 } from 'lucide-react-native';
 import { db } from '@/lib/db';
+import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import {
   exportToCSV,
   exportToExcel,
@@ -97,23 +98,16 @@ export default function ExportScreen() {
   const [showDateOptions, setShowDateOptions] = useState(false);
   const [showTypeOptions, setShowTypeOptions] = useState(false);
 
-  // Fetch user data
+  // Fetch user data (works for both admin and members)
   const userDataQuery = useQuery({
     queryKey: ['userData', user?.email],
     queryFn: async () => {
       if (!user?.email) throw new Error('No user');
 
-      const userResult = await db.queryOnce({
-        users: { $: { where: { email: user.email } } },
-      });
-      const userRecord = userResult.data.users?.[0];
-      if (!userRecord) throw new Error('User not found');
+      const profileData = await getUserProfileAndHousehold(user.email);
+      if (!profileData) throw new Error('User or household not found');
 
-      const householdResult = await db.queryOnce({
-        households: { $: { where: { createdByUserId: userRecord.id } } },
-      });
-      const household = householdResult.data.households?.[0];
-      if (!household) throw new Error('Household not found');
+      const { userRecord, householdId } = profileData;
 
       const accountsResult = await db.queryOnce({
         accounts: { $: { where: { userId: userRecord.id, isActive: true } } },
@@ -124,20 +118,20 @@ export default function ExportScreen() {
       }));
 
       const categoriesResult = await db.queryOnce({
-        categories: { $: { where: { householdId: household.id, isActive: true } } },
+        categories: { $: { where: { householdId, isActive: true } } },
       });
       const categories = (categoriesResult.data.categories || []).map((c: { id: string; name: string }) => ({
         id: c.id,
         name: c.name,
       }));
 
-      return { userRecord, household, accounts, categories };
+      return { userRecord, householdId, accounts, categories };
     },
     enabled: !!user?.email,
   });
 
   const userId = userDataQuery.data?.userRecord?.id;
-  const householdId = userDataQuery.data?.household?.id;
+  const householdId = userDataQuery.data?.householdId;
   const accounts = userDataQuery.data?.accounts || [];
   const categories = userDataQuery.data?.categories || [];
 

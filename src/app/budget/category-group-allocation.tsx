@@ -13,6 +13,7 @@ import { Stack, router } from 'expo-router';
 import { ChevronLeft, AlertCircle } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/lib/db';
+import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { calculatePercentage, calculateAmountFromPercentage } from '@/lib/budget-utils';
 import { cn } from '@/lib/cn';
@@ -29,39 +30,28 @@ export default function CategoryGroupAllocationScreen() {
   const [editingValue, setEditingValue] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Get household data
+  // Get user profile and household (works for both admin and members)
   const householdQuery = useQuery({
-    queryKey: ['household', user?.email],
+    queryKey: ['user-household', user?.email],
     queryFn: async () => {
       if (!user?.email) throw new Error('No user email');
-
-      const userResult = await db.queryOnce({
-        users: { $: { where: { email: user.email } } },
-      });
-
-      const userRecord = userResult.data.users?.[0];
-      if (!userRecord) throw new Error('User not found');
-
-      const householdsResult = await db.queryOnce({
-        households: { $: { where: { createdByUserId: userRecord.id } } },
-      });
-
-      const household = householdsResult.data.households?.[0];
-      if (!household) throw new Error('No household found');
-
-      return { userRecord, household };
+      const result = await getUserProfileAndHousehold(user.email);
+      if (!result) throw new Error('No household found');
+      return result;
     },
     enabled: !!user?.email,
   });
 
+  const householdId = householdQuery.data?.householdId;
+
   // Get category groups from DB
   const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdQuery.data?.household?.id],
+    queryKey: ['categoryGroups', householdId],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id) return [];
-      return getCategoryGroups(householdQuery.data.household.id);
+      if (!householdId) return [];
+      return getCategoryGroups(householdId);
     },
-    enabled: !!householdQuery.data?.household?.id,
+    enabled: !!householdId,
   });
 
   // Get expense groups only, sorted by displayOrder

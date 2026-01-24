@@ -23,6 +23,7 @@ import {
   deleteCategoryGroup,
   type CategoryGroup,
 } from '@/lib/category-groups-api';
+import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { cn } from '@/lib/cn';
 
 export default function CategoryGroupsManagementScreen() {
@@ -35,39 +36,29 @@ export default function CategoryGroupsManagementScreen() {
   const [selectedType, setSelectedType] = useState<'expense' | 'income'>('expense');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Get household data
+  // Get user profile and household (works for both admin and members)
   const householdQuery = useQuery({
-    queryKey: ['household', user?.email],
+    queryKey: ['user-household', user?.email],
     queryFn: async () => {
       if (!user?.email) throw new Error('No user email');
-
-      const userResult = await db.queryOnce({
-        users: { $: { where: { email: user.email } } },
-      });
-
-      const userRecord = userResult.data.users?.[0];
-      if (!userRecord) throw new Error('User not found');
-
-      const householdsResult = await db.queryOnce({
-        households: { $: { where: { createdByUserId: userRecord.id } } },
-      });
-
-      const household = householdsResult.data.households?.[0];
-      if (!household) throw new Error('No household found');
-
-      return { userRecord, household };
+      const result = await getUserProfileAndHousehold(user.email);
+      if (!result) throw new Error('No household found');
+      return result;
     },
     enabled: !!user?.email,
   });
 
+  const householdId = householdQuery.data?.householdId;
+  const userId = householdQuery.data?.userRecord?.id;
+
   // Get category groups
   const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdQuery.data?.household?.id],
+    queryKey: ['categoryGroups', householdId],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id) return [];
-      return getCategoryGroups(householdQuery.data.household.id);
+      if (!householdId) return [];
+      return getCategoryGroups(householdId);
     },
-    enabled: !!householdQuery.data?.household?.id,
+    enabled: !!householdId,
   });
 
   // Update group name mutation
@@ -92,10 +83,10 @@ export default function CategoryGroupsManagementScreen() {
   // Create group mutation
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!householdQuery.data?.userRecord?.id) throw new Error('No user');
+      if (!userId || !householdId) throw new Error('No user or household');
       return createCustomCategoryGroup(
-        householdQuery.data.household.id,
-        householdQuery.data.userRecord.id,
+        householdId,
+        userId,
         newGroupName,
         selectedType
       );

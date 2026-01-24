@@ -5,6 +5,7 @@ import { Stack, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Plus, Edit2, Trash2, X } from 'lucide-react-native';
 import { db } from '@/lib/db';
+import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '@/lib/categories-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { cn } from '@/lib/cn';
@@ -39,76 +40,54 @@ export default function CategoriesScreen() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Get household info
+  // Get user profile and household (works for both admin and members)
   const householdQuery = useQuery({
-    queryKey: ['household', user?.email],
+    queryKey: ['user-household', user?.email],
     queryFn: async () => {
       if (!user?.email) throw new Error('No user email');
-
-      // Get user by email
-      const userResult = await db.queryOnce({
-        users: {
-          $: {
-            where: {
-              email: user.email,
-            },
-          },
-        },
-      });
-
-      const userRecord = userResult.data.users?.[0];
-      if (!userRecord) throw new Error('User not found');
-
-      // Get household created by this user
-      const householdsResult = await db.queryOnce({
-        households: {
-          $: {
-            where: {
-              createdByUserId: userRecord.id,
-            },
-          },
-        },
-      });
-
-      const household = householdsResult.data.households?.[0];
-      if (!household) throw new Error('No household found');
-
-      return { userRecord, household };
+      const result = await getUserProfileAndHousehold(user.email);
+      if (!result) throw new Error('No household found');
+      return result;
     },
     enabled: !!user?.email,
   });
 
+  const householdId = householdQuery.data?.householdId;
+  const userId = householdQuery.data?.userRecord?.id;
+
   // Get categories - fetch directly from DB without auto-creating
   const categoriesQuery = useQuery({
-    queryKey: ['categories', householdQuery.data?.household?.id],
+    queryKey: ['categories', householdId],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id) return [];
-      return getCategories(householdQuery.data.household.id);
+      if (!householdId) return [];
+      return getCategories(householdId);
     },
-    enabled: !!householdQuery.data?.household?.id,
+    enabled: !!householdId,
   });
 
   // Get category groups
   const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdQuery.data?.household?.id],
+    queryKey: ['categoryGroups', householdId],
     queryFn: async () => {
-      if (!householdQuery.data?.household?.id) return [];
-      return getCategoryGroups(householdQuery.data.household.id);
+      if (!householdId) return [];
+      return getCategoryGroups(householdId);
     },
-    enabled: !!householdQuery.data?.household?.id,
+    enabled: !!householdId,
   });
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      createCategory({
-        householdId: householdQuery.data!.household.id,
+    mutationFn: () => {
+      if (!householdId || !userId) throw new Error('No household or user');
+      return createCategory({
+        householdId,
         name: formData.name,
         type: formData.type as CategoryType,
         categoryGroup: formData.groupKey,
-        createdByUserId: householdQuery.data!.userRecord.id,
+        createdByUserId: userId,
         icon: formData.icon || undefined,
         color: formData.color || undefined,
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       resetForm();
