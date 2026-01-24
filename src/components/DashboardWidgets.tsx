@@ -418,7 +418,7 @@ export const FloatingActionButton: React.FC = () => {
             className="flex-row items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-200 active:bg-gray-50"
           >
             <Plus size={18} color="#006A6A" />
-            <Text className="text-sm font-semibold text-gray-900">Add Transaction</Text>
+            <Text numberOfLines={1} className="text-sm font-semibold text-gray-900">Add Transaction</Text>
           </Pressable>
 
           {/* Add Account Option */}
@@ -427,7 +427,7 @@ export const FloatingActionButton: React.FC = () => {
             className="flex-row items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-200 active:bg-gray-50"
           >
             <Plus size={18} color="#006A6A" />
-            <Text className="text-sm font-semibold text-gray-900">Add Account</Text>
+            <Text numberOfLines={1} className="text-sm font-semibold text-gray-900">Add Account</Text>
           </Pressable>
         </View>
       )}
