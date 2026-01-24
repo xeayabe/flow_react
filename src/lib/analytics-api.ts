@@ -232,11 +232,11 @@ export function getDateRange(option: DateRangeOption, paydayDay: number = 25): {
         const nextYear = month === 11 ? year + 1 : year;
         periodEnd = new Date(nextYear, nextMonth, paydayDay - 1);
       } else {
-        // Previous period: payday last month to payday this month - 1
+        // Previous period: payday last month to today (still in current period until payday)
         const lastMonth = month === 0 ? 11 : month - 1;
         const lastYear = month === 0 ? year - 1 : year;
         periodStart = new Date(lastYear, lastMonth, paydayDay);
-        periodEnd = new Date(year, month, paydayDay - 1);
+        periodEnd = today; // Use today's date, not paydayDay - 1
       }
 
       return {
