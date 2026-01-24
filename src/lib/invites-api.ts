@@ -21,12 +21,9 @@ export async function createInvite(userId: string, householdId: string) {
     db.tx.household_invites[invite.id].update(invite)
   ]);
 
-  // Generate invite link
-  const devUrl = Constants.expoConfig?.hostUri
-    ? `exp://${Constants.expoConfig.hostUri}`
-    : 'exp://192.168.1.1:8081';
-
-  const inviteLink = `${devUrl}/--/signup?invite=${inviteToken}`;
+  // Generate invite link using Vibecode preview URL
+  const baseUrl = process.env.EXPO_PUBLIC_APP_URL || 'https://www.vibecodeapp.com/s/cmk38a5o4006l07hq23ky1svy';
+  const inviteLink = `${baseUrl}/signup?invite=${inviteToken}`;
 
   return { invite, inviteLink };
 }
