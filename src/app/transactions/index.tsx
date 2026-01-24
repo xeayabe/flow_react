@@ -196,13 +196,12 @@ export default function TransactionsListScreen() {
 
   // Filter transactions
   const filteredTransactions = useMemo(() => {
-    console.log('🔍 Filtering transactions. selectedCategories:', selectedCategories, 'selectedAccounts:', selectedAccounts, 'dateRange:', dateRange, 'totalTransactions:', transactionsQuery.data?.length);
     if (!transactionsQuery.data) {
-      console.log('⚠️ No transactions data yet');
+      console.log('⚠️ No transactions data');
       return [];
     }
 
-    console.log('📋 All transactions:', transactionsQuery.data.map((tx) => ({ id: tx.id, categoryId: tx.categoryId, date: tx.date, type: tx.type })));
+    console.log(`📋 Total transactions: ${transactionsQuery.data.length}, selectedCategories: ${JSON.stringify(selectedCategories)}, dateRange: ${dateRange}`);
 
     let startDate: string;
     let endDate: string;
@@ -215,39 +214,24 @@ export default function TransactionsListScreen() {
       [startDate, endDate] = getDateRangeFilter(dateRange);
     }
 
-    console.log('📅 Date range:', startDate, 'to', endDate);
-
     const filtered = (transactionsQuery.data ?? [])
       .filter((tx) => {
         // Date range filter
-        if (tx.date < startDate || tx.date > endDate) {
-          console.log(`❌ tx ${tx.id} filtered by date: ${tx.date} not in ${startDate}-${endDate}`);
-          return false;
-        }
+        if (tx.date < startDate || tx.date > endDate) return false;
 
         // Type filter
-        if (transactionType !== 'all' && tx.type !== transactionType) {
-          console.log(`❌ tx ${tx.id} filtered by type: ${tx.type} !== ${transactionType}`);
-          return false;
-        }
+        if (transactionType !== 'all' && tx.type !== transactionType) return false;
 
         // Category filter
-        if (selectedCategories.length > 0 && !selectedCategories.includes(tx.categoryId)) {
-          console.log(`❌ tx ${tx.id} filtered by category: ${tx.categoryId} not in ${selectedCategories}`);
-          return false;
-        }
+        if (selectedCategories.length > 0 && !selectedCategories.includes(tx.categoryId)) return false;
 
         // Account filter
-        if (selectedAccounts.length > 0 && !selectedAccounts.includes(tx.accountId)) {
-          console.log(`❌ tx ${tx.id} filtered by account: ${tx.accountId} not in ${selectedAccounts}`);
-          return false;
-        }
+        if (selectedAccounts.length > 0 && !selectedAccounts.includes(tx.accountId)) return false;
 
-        console.log(`✅ tx ${tx.id} passed all filters`);
         return true;
       });
 
-    console.log('📊 Filtered result count:', filtered.length);
+    console.log(`✅ Filtered result: ${filtered.length} transactions match the filters`);
     return filtered;
   }, [transactionsQuery.data, dateRange, transactionType, selectedCategories, selectedAccounts, customDateStart, customDateEnd]);
 

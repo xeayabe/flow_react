@@ -217,7 +217,10 @@ export function getDateRange(option: DateRangeOption, paydayDay: number = 25): {
   console.log(`📅 getDateRange called: today=${day}/${month + 1}/${year}, paydayDay=${paydayDay}, option=${option}`);
 
   const formatDate = (d: Date): string => {
-    return d.toISOString().split('T')[0];
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${da}`;
   };
 
   switch (option) {
