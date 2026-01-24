@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, SectionList, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -43,44 +43,50 @@ export default function TransactionsTabScreen() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
 
-  // Apply category filter from URL parameter
-  useEffect(() => {
-    if (categoryParam) {
-      setSelectedCategories([categoryParam]);
-    }
-  }, [categoryParam]);
+  // Apply filters from URL parameters when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      // Apply category filter
+      if (categoryParam) {
+        setSelectedCategories([categoryParam]);
+        // Clear month filter when category is set
+        setCustomDateStart(null);
+        setCustomDateEnd(null);
+        setMonthFilterLabel(null);
+      }
 
-  // Apply month filter from URL parameter
-  useEffect(() => {
-    if (monthParam) {
-      const [year, month] = monthParam.split('-');
-      const monthNumber = parseInt(month);
+      // Apply month filter
+      if (monthParam) {
+        const [year, month] = monthParam.split('-');
+        const monthNumber = parseInt(month);
 
-      // Calculate first and last day of month
-      const firstDay = new Date(parseInt(year), monthNumber - 1, 1);
-      const lastDay = new Date(parseInt(year), monthNumber, 0);
+        // Calculate first and last day of month
+        const firstDay = new Date(parseInt(year), monthNumber - 1, 1);
+        const lastDay = new Date(parseInt(year), monthNumber, 0);
 
-      const y1 = firstDay.getFullYear();
-      const m1 = String(firstDay.getMonth() + 1).padStart(2, '0');
-      const d1 = String(firstDay.getDate()).padStart(2, '0');
-      const startStr = `${y1}-${m1}-${d1}`;
+        const y1 = firstDay.getFullYear();
+        const m1 = String(firstDay.getMonth() + 1).padStart(2, '0');
+        const d1 = String(firstDay.getDate()).padStart(2, '0');
+        const startStr = `${y1}-${m1}-${d1}`;
 
-      const y2 = lastDay.getFullYear();
-      const m2 = String(lastDay.getMonth() + 1).padStart(2, '0');
-      const d2 = String(lastDay.getDate()).padStart(2, '0');
-      const endStr = `${y2}-${m2}-${d2}`;
+        const y2 = lastDay.getFullYear();
+        const m2 = String(lastDay.getMonth() + 1).padStart(2, '0');
+        const d2 = String(lastDay.getDate()).padStart(2, '0');
+        const endStr = `${y2}-${m2}-${d2}`;
 
-      setCustomDateStart(startStr);
-      setCustomDateEnd(endStr);
+        setCustomDateStart(startStr);
+        setCustomDateEnd(endStr);
 
-      // Format month label (e.g., "January 2025")
-      const monthName = firstDay.toLocaleString('en-US', { month: 'long' });
-      setMonthFilterLabel(`${monthName} ${year}`);
+        // Format month label (e.g., "January 2025")
+        const monthName = firstDay.toLocaleString('en-US', { month: 'long' });
+        setMonthFilterLabel(`${monthName} ${year}`);
 
-      // Set date range to custom
-      setDateRange('all_time');
-    }
-  }, [monthParam]);
+        // Clear category filter when month is set
+        setSelectedCategories([]);
+        setDateRange('all_time');
+      }
+    }, [categoryParam, monthParam])
+  );
 
   // Get user and household info
   const householdQuery = useQuery({
