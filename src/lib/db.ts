@@ -119,6 +119,17 @@ const schema = i.schema({
       createdAt: i.number(),
       updatedAt: i.number(),
     }),
+    household_invites: i.entity({
+      householdId: i.string(),
+      invitedByUserId: i.string(),
+      inviteToken: i.string(),
+      status: i.string(), // 'pending' | 'accepted' | 'expired'
+      expiresAt: i.number(),
+      acceptedByUserId: i.string().optional(),
+      acceptedAt: i.number().optional(),
+      createdAt: i.number(),
+      updatedAt: i.number(),
+    }),
   },
   links: {
     householdsByCreator: {
@@ -263,6 +274,30 @@ const schema = i.schema({
         on: 'households',
         has: 'many',
         label: 'categoryGroups',
+      },
+    },
+    householdInvitesByHousehold: {
+      forward: {
+        on: 'household_invites',
+        has: 'one',
+        label: 'household',
+      },
+      reverse: {
+        on: 'households',
+        has: 'many',
+        label: 'invites',
+      },
+    },
+    householdInvitesByInviter: {
+      forward: {
+        on: 'household_invites',
+        has: 'one',
+        label: 'invitedBy',
+      },
+      reverse: {
+        on: 'users',
+        has: 'many',
+        label: 'sentInvites',
       },
     },
   },

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronRight, Tag, LogOut, Wallet, User, Calendar, PieChart, Upload, Download, Layers } from 'lucide-react-native';
+import { ChevronRight, Tag, LogOut, Wallet, User, Calendar, PieChart, Upload, Download, Layers, UserPlus } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { signOut } from '@/lib/auth-api';
 
@@ -57,6 +57,12 @@ export default function TabTwoScreen() {
       label: 'Wallets',
       description: 'Manage your accounts and wallets',
       onPress: () => router.push('/accounts'),
+    },
+    {
+      icon: <UserPlus size={24} color="#006A6A" />,
+      label: 'Invite Partner',
+      description: 'Share a link to invite your partner',
+      onPress: () => router.push('/settings/invite'),
     },
     {
       icon: <Calendar size={24} color="#006A6A" />,

@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { CheckCircle2, ArrowLeft, Info } from 'lucide-react-native';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { sendMagicCode, verifyMagicCode, createUserProfile, checkUserProfile } from '@/lib/auth-api';
+import { getInvitePreview, acceptInvite } from '@/lib/invites-api';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import SuccessModal from '@/components/SuccessModal';
 
@@ -24,6 +25,8 @@ interface ValidationErrors {
 }
 
 export default function SignupScreen() {
+  const { invite: inviteToken } = useLocalSearchParams<{ invite?: string }>();
+
   const [step, setStep] = useState<Step>('details');
   const [formData, setFormData] = useState<FormData>({
     email: '',
@@ -36,6 +39,13 @@ export default function SignupScreen() {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
+
+  // Fetch invite preview if token exists
+  const { data: invitePreview } = useQuery({
+    queryKey: ['invite-preview', inviteToken],
+    queryFn: () => getInvitePreview(inviteToken!),
+    enabled: !!inviteToken,
+  });
 
   // Cooldown timer for resend
   React.useEffect(() => {
@@ -72,6 +82,19 @@ export default function SignupScreen() {
           // Create profile with user-provided name
           await createUserProfile(formData.email, formData.name);
         }
+
+        // Accept invite if token exists
+        if (inviteToken) {
+          try {
+            const userId = profileCheck.exists ? profileCheck.profile!.id : (await checkUserProfile(formData.email)).profile!.id;
+            await acceptInvite(inviteToken, userId);
+            console.log('Successfully joined household via invite');
+          } catch (error) {
+            console.error('Failed to accept invite:', error);
+            // Don't block signup if invite fails
+          }
+        }
+
         // Show success modal instead of navigating immediately
         setShowSuccessModal(true);
       } else {
@@ -312,6 +335,20 @@ export default function SignupScreen() {
                 Start your journey to financial calm
               </Text>
             </Animated.View>
+
+            {/* Invite Banner */}
+            {invitePreview && (
+              <Animated.View entering={FadeInDown.delay(50).duration(600)} className="mb-6">
+                <View className="bg-teal-50 p-4 rounded-2xl border-2 border-teal-100">
+                  <Text className="text-teal-900 font-semibold mb-1">
+                    You're invited! 🎉
+                  </Text>
+                  <Text className="text-teal-700 text-sm">
+                    {invitePreview.inviterName} invited you to join "{invitePreview.householdName}"
+                  </Text>
+                </View>
+              </Animated.View>
+            )}
 
             {/* Name Field */}
             <Animated.View entering={FadeInDown.delay(100).duration(600)} className="mb-4">
