@@ -9,6 +9,7 @@ import { getTransaction, updateTransaction, deleteTransaction, formatCurrency, f
 import { getCategories } from '@/lib/categories-api';
 import { getUserAccounts, formatBalance } from '@/lib/accounts-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
+import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -61,39 +62,14 @@ export default function EditTransactionScreen() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Get user and household info
+  // Get user and household info (works for both admin and members)
   const householdQuery = useQuery({
-    queryKey: ['household', user?.email],
+    queryKey: ['user-household', user?.email],
     queryFn: async () => {
       if (!user?.email) throw new Error('No user email');
-
-      const userResult = await db.queryOnce({
-        users: {
-          $: {
-            where: {
-              email: user.email,
-            },
-          },
-        },
-      });
-
-      const userRecord = userResult.data.users?.[0];
-      if (!userRecord) throw new Error('User not found');
-
-      const householdsResult = await db.queryOnce({
-        households: {
-          $: {
-            where: {
-              createdByUserId: userRecord.id,
-            },
-          },
-        },
-      });
-
-      const household = householdsResult.data.households?.[0];
-      if (!household) throw new Error('No household found');
-
-      return { userRecord, household };
+      const result = await getUserProfileAndHousehold(user.email);
+      if (!result) throw new Error('No household found');
+      return { userRecord: result.userRecord, household: { id: result.householdId } };
     },
     enabled: !!user?.email,
   });

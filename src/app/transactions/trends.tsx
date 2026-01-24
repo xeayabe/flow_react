@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { db } from '@/lib/db';
 import { getTrendData, formatCurrency, formatPercentage, BudgetPeriodSummary } from '@/lib/trends-api';
+import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { cn } from '@/lib/cn';
 
 type TimeRange = 'current' | 'last' | '3months' | '6months' | '12months' | 'all';
@@ -14,39 +15,14 @@ export default function TrendsScreen() {
   const { user } = db.useAuth();
   const [timeRange, setTimeRange] = useState<TimeRange>('current');
 
-  // Get user and household info
+  // Get user and household info (works for both admin and members)
   const householdQuery = useQuery({
-    queryKey: ['household', user?.email],
+    queryKey: ['user-household', user?.email],
     queryFn: async () => {
       if (!user?.email) throw new Error('No user email');
-
-      const userResult = await db.queryOnce({
-        users: {
-          $: {
-            where: {
-              email: user.email,
-            },
-          },
-        },
-      });
-
-      const userRecord = userResult.data.users?.[0];
-      if (!userRecord) throw new Error('User not found');
-
-      const householdsResult = await db.queryOnce({
-        households: {
-          $: {
-            where: {
-              createdByUserId: userRecord.id,
-            },
-          },
-        },
-      });
-
-      const household = householdsResult.data.households?.[0];
-      if (!household) throw new Error('No household found');
-
-      return { userRecord, household };
+      const result = await getUserProfileAndHousehold(user.email);
+      if (!result) throw new Error('No household found');
+      return { userRecord: result.userRecord, household: { id: result.householdId } };
     },
     enabled: !!user?.email,
   });

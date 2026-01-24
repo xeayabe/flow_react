@@ -991,3 +991,19 @@ bun start
   - Each user manages their own budget category groups independently
   - Members are guided to create category groups first if they try to create categories without groups
 - **Future Enhancement**: UI to toggle sharing in category management screen
+
+### BUG FIX: Members Can Now Use Transactions and Budget Setup (2026-01-24)
+- **Problem**: Members couldn't access transactions or budget setup screens - they would get errors or be redirected
+- **Root Cause**: 4 additional screens were still using the old `households WHERE createdByUserId = userId` pattern which only works for admins
+- **The Fix**:
+  - Updated all transaction-related screens to use `getUserProfileAndHousehold()` helper from `household-utils.ts`:
+    - `src/app/transactions/add.tsx` - Add transaction screen
+    - `src/app/transactions/[id]/edit.tsx` - Edit transaction screen
+    - `src/app/(tabs)/transactions.tsx` - Transactions list screen
+    - `src/app/transactions/trends.tsx` - Trends/analytics screen
+  - These screens now look up household via `householdMembers` table instead of `households.createdByUserId`
+- **Result**:
+  - Members can now add, edit, and view transactions
+  - Members can access budget setup and allocation screens
+  - Categories load correctly in transaction forms for members
+  - Trends and analytics work for members
