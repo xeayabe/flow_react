@@ -191,8 +191,8 @@ export default function DashboardScreen() {
 
   // Check if budget reset is needed on component mount
   React.useEffect(() => {
-    if (householdId) {
-      checkAndResetBudgetIfNeeded(householdId).then((resetHappened) => {
+    if (householdId && userId) {
+      checkAndResetBudgetIfNeeded(householdId, userId).then((resetHappened) => {
         if (resetHappened) {
           setShowResetNotification(true);
           // Refetch data after reset
@@ -206,7 +206,7 @@ export default function DashboardScreen() {
         console.error('Error checking budget reset:', error);
       });
     }
-  }, [householdId]);
+  }, [householdId, userId]);
 
   const isLoading =
     userProfileQuery.isLoading ||

@@ -944,6 +944,16 @@ bun start
 - **Analytics**: Uses personal payday for date range calculations
 - **Invited Members**: Join with budget fields null - must set their own payday in settings
 
+### BUG FIX: Budget Period Reset Not Working Properly (2026-01-25)
+- **Problem**: Budget period dates updated on payday but budget amounts (totalSpent) did not reset to 0
+- **Root Cause**: Two issues found:
+  1. `checkAndResetBudgetIfNeeded()` was called without `userId` parameter, so it fell back to household-level check instead of member's personal period
+  2. `resetMemberBudgetPeriod()` function reset individual budget `spentAmount` but didn't reset the `budgetSummary.totalSpent`
+- **The Fix**:
+  - Updated dashboard (`src/app/(tabs)/index.tsx`) to pass `userId` to `checkAndResetBudgetIfNeeded(householdId, userId)`
+  - Updated `resetMemberBudgetPeriod()` in `src/lib/budget-api.ts` to also reset budget summary with `totalSpent: 0`
+- **Impact**: On payday, both individual category budgets AND the overall budget summary now correctly reset to 0
+
 ### BUG FIX: Members Can Now Create Categories, Budgets, and Category Groups (2026-01-24)
 - **Problem**: Invited members (like Cecilia) couldn't create categories, category groups, or budgets
 - **Root Cause**: All creation APIs looked up household using `WHERE createdByUserId = userId`, which only works for admins who created the household

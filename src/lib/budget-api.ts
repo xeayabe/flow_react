@@ -803,8 +803,37 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
       })
     );
 
-    if (archiveOps.length > 0 || newBudgetOps.length > 0) {
-      await db.transact([...archiveOps, ...newBudgetOps]);
+    // Reset budget summary for the member
+    const summaryResult = await db.queryOnce({
+      budgetSummary: {
+        $: {
+          where: {
+            householdId,
+            periodEnd: member.budgetPeriodEnd,
+          },
+        },
+      },
+    });
+
+    const oldSummary = summaryResult.data.budgetSummary?.[0];
+    const summaryId = oldSummary?.id || generateId();
+
+    const summaryTransaction = db.tx.budgetSummary[summaryId].update({
+      householdId,
+      periodStart: newPeriod.start,
+      periodEnd: newPeriod.end,
+      totalIncome: oldSummary?.totalIncome || 0,
+      totalAllocated: oldSummary?.totalAllocated || 0,
+      totalSpent: 0, // Reset spent to 0!
+      needsAllocated: oldSummary?.needsAllocated || 0,
+      wantsAllocated: oldSummary?.wantsAllocated || 0,
+      savingsAllocated: oldSummary?.savingsAllocated || 0,
+      updatedAt: Date.now(),
+    });
+
+    const allTransactions = [...archiveOps, ...newBudgetOps, summaryTransaction];
+    if (allTransactions.length > 0) {
+      await db.transact(allTransactions);
     }
 
     console.log('Member budget reset successful for user:', userId);
