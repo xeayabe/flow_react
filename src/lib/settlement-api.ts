@@ -209,20 +209,20 @@ export async function createSettlement(
   // Step 5: Mark splits as paid AND reduce original transaction amounts
   if (splitsToSettle.length > 0) {
     // Group splits by transaction to reduce each transaction amount
-    const transactionUpdates: { [txId: string]: number } = {};
+    const transactionReductions: { [txId: string]: number } = {};
 
     for (const split of splitsToSettle) {
       const txId = split.transactionId;
-      if (!transactionUpdates[txId]) {
-        transactionUpdates[txId] = 0;
+      if (!transactionReductions[txId]) {
+        transactionReductions[txId] = 0;
       }
-      transactionUpdates[txId] += split.splitAmount;
+      transactionReductions[txId] += split.splitAmount;
     }
 
-    console.log('📝 Transaction amounts to reduce:', JSON.stringify(transactionUpdates));
+    console.log('📝 Transaction amounts to reduce:', JSON.stringify(transactionReductions));
 
     // Get fresh transaction data from database (not from potentially stale map)
-    const transactionIds = Object.keys(transactionUpdates);
+    const transactionIds = Object.keys(transactionReductions);
     console.log('📝 Transaction IDs to update:', transactionIds);
 
     const { data: freshTxData } = await db.queryOnce({
@@ -240,17 +240,18 @@ export async function createSettlement(
 
     console.log(`📝 Found ${transactionsToUpdate.length} transactions to update out of ${allTransactions.length} total`);
     transactionsToUpdate.forEach((t: any) => {
-      const reduction = transactionUpdates[t.id];
+      const reduction = transactionReductions[t.id];
       console.log(`  - Transaction ${t.id.substring(0, 8)}: userId=${t.userId?.substring(0, 8)}, paidBy=${t.paidByUserId?.substring(0, 8)}, current=${t.amount}, reduction=${reduction}, new=${t.amount - reduction}`);
     });
 
     // Build all updates: mark splits as paid + reduce transaction amounts
-    const allUpdates: any[] = [];
+    const splitUpdates: any[] = [];
+    const txUpdates: any[] = [];
 
     // Mark splits as paid
     for (const split of splitsToSettle) {
       console.log(`  📌 Marking split ${split.id} as paid`);
-      allUpdates.push(
+      splitUpdates.push(
         db.tx.shared_expense_splits[split.id].update({
           isPaid: true,
           updatedAt: now,
@@ -260,11 +261,11 @@ export async function createSettlement(
 
     // Reduce transaction amounts (original expense - settled amount = payer's portion only)
     for (const tx of transactionsToUpdate) {
-      const reductionAmount = transactionUpdates[tx.id];
+      const reductionAmount = transactionReductions[tx.id];
       const newAmount = Math.max(0, tx.amount - reductionAmount); // Ensure non-negative
       console.log(`  📌 Reducing transaction ${tx.id.substring(0, 8)}: ${tx.amount} - ${reductionAmount} = ${newAmount}`);
       console.log(`  📌 Transaction belongs to userId: ${tx.userId?.substring(0, 8)}, paidBy: ${tx.paidByUserId?.substring(0, 8)}`);
-      allUpdates.push(
+      txUpdates.push(
         db.tx.transactions[tx.id].update({
           amount: newAmount,
           updatedAt: now,
@@ -272,16 +273,37 @@ export async function createSettlement(
       );
     }
 
-    console.log(`📝 Executing ${allUpdates.length} updates (${splitsToSettle.length} splits + ${transactionsToUpdate.length} transactions)...`);
+    console.log(`📝 Executing ${splitUpdates.length} split updates and ${txUpdates.length} transaction updates...`);
 
-    if (allUpdates.length > 0) {
-      await db.transact(allUpdates);
-      console.log('✅ All splits marked as paid and transaction amounts reduced');
+    if (splitUpdates.length > 0 || txUpdates.length > 0) {
+      // Execute split updates first
+      if (splitUpdates.length > 0) {
+        console.log('🔄 Step 1: Updating splits...');
+        try {
+          await db.transact(splitUpdates);
+          console.log('✅ Splits updated successfully');
+        } catch (error) {
+          console.error('❌ Split updates failed:', error);
+          throw error;
+        }
+      }
+
+      // Then execute transaction updates separately
+      if (txUpdates.length > 0) {
+        console.log('🔄 Step 2: Updating transactions...');
+        try {
+          await db.transact(txUpdates);
+          console.log('✅ Transaction amounts updated successfully');
+        } catch (error) {
+          console.error('❌ Transaction updates failed:', error);
+          throw error;
+        }
+      }
 
       // Update budget spent amounts for the affected transactions
       console.log('💰 Updating budget spent amounts...');
       for (const tx of transactionsToUpdate) {
-        const reductionAmount = transactionUpdates[tx.id];
+        const reductionAmount = transactionReductions[tx.id];
         if (tx.type === 'expense' && reductionAmount > 0) {
           try {
             // Import budget functions
