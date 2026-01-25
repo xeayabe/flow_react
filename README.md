@@ -1797,38 +1797,44 @@ bun start
   ```
 
 - **Test Scenario**:
-  1. Alexander pays 100 CHF groceries (shared)
-     - Alexander's budget: 100 CHF expense ✓
+  1. Alexander pays 100 CHF groceries (shared, 61.4%/38.6% split)
+     - Transaction shows: 100 CHF
      - Debt: Cecilia owes 38.6 CHF
   2. Cecilia settles 38.6 CHF
      - Settlement created in settlements table
      - Cecilia's account: -38.6 CHF
      - Alexander's account: +38.6 CHF
      - Splits marked as paid
+     - **Transaction amount reduced: 100 → 61.4 CHF** (Alexander's portion only)
   3. After settlement:
-     - Alexander's budget: Still 100 CHF (NOT affected!) ✓
-     - NO settlement transaction in transaction list ✓
-     - Settlement visible in settlement history only ✓
+     - Transaction now shows: 61.4 CHF (only Alexander's portion!) ✓
+     - Alexander's budget: 61.4 CHF (his actual expense) ✓
      - Debt widget disappears ✓
+
+- **Key Feature: Transaction Amount Reduction**:
+  - When a split is settled, the original transaction amount is REDUCED
+  - Formula: `newAmount = originalAmount - settledSplitAmount`
+  - Example: 100 CHF shared expense → Cecilia settles 38.6 CHF → Transaction becomes 61.4 CHF
+  - This ensures the transaction only shows the payer's actual portion after settlement
 
 - **Comparison**:
   ```
   OLD APPROACH (BROKEN):
   - Creates settlement transaction
   - Shows in transaction list
-  - Affects budgets (incorrectly)
-  - Confuses analytics
+  - Original transaction stays at 100 CHF
+  - Budget shows 100 CHF (wrong!)
 
   NEW APPROACH (CORRECT):
   - Internal account transfer
   - Hidden from transaction list
-  - Budgets only show real expenses ✓
-  - Settlement history separate
+  - Original transaction reduced to 61.4 CHF
+  - Budget shows 61.4 CHF (correct!) ✓
   ```
 
 - **Files Modified**:
   - `src/lib/db.ts` - Added settlements table
-  - `src/lib/settlement-api.ts` - Revised to use account transfer approach
+  - `src/lib/settlement-api.ts` - Revised to use account transfer approach + reduce transaction amounts
   - `src/lib/transactions-api.ts` - Removed 'settlement' from Transaction type
   - `src/app/(tabs)/transactions.tsx` - Removed settlement transaction filtering and display
   - `src/components/DashboardWidgets.tsx` - Removed settlement badges and color handling

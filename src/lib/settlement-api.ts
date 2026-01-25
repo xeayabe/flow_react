@@ -111,17 +111,54 @@ export async function createSettlement(
 
   console.log('📊 Splits to mark as paid:', splitsToSettle.length);
 
+  // Step 5: Mark splits as paid AND reduce original transaction amounts
   if (splitsToSettle.length > 0) {
-    await db.transact(
-      splitsToSettle.map((split: any) => {
-        console.log(`  Marking split ${split.id} as paid`);
-        return db.tx.shared_expense_splits[split.id].update({
+    // Group splits by transaction to reduce each transaction amount
+    const transactionUpdates: { [txId: string]: number } = {};
+
+    for (const split of splitsToSettle) {
+      const txId = split.transactionId;
+      if (!transactionUpdates[txId]) {
+        transactionUpdates[txId] = 0;
+      }
+      transactionUpdates[txId] += split.splitAmount;
+    }
+
+    console.log('📝 Transaction amounts to reduce:', transactionUpdates);
+
+    // Get current transaction amounts
+    const transactionIds = Object.keys(transactionUpdates);
+    const transactionsToUpdate = (splitData.transactions || []).filter((t: any) => transactionIds.includes(t.id));
+
+    // Build all updates: mark splits as paid + reduce transaction amounts
+    const allUpdates: any[] = [];
+
+    // Mark splits as paid
+    for (const split of splitsToSettle) {
+      console.log(`  Marking split ${split.id} as paid (amount: ${split.splitAmount})`);
+      allUpdates.push(
+        db.tx.shared_expense_splits[split.id].update({
           isPaid: true,
           updatedAt: now,
-        });
-      })
-    );
-    console.log('✅ All splits marked as paid');
+        })
+      );
+    }
+
+    // Reduce transaction amounts (original expense - settled amount = payer's portion only)
+    for (const tx of transactionsToUpdate) {
+      const reductionAmount = transactionUpdates[tx.id];
+      const newAmount = tx.amount - reductionAmount;
+      console.log(`  Reducing transaction ${tx.id}: ${tx.amount} - ${reductionAmount} = ${newAmount}`);
+      allUpdates.push(
+        db.tx.transactions[tx.id].update({
+          amount: newAmount,
+          updatedAt: now,
+        })
+      );
+    }
+
+    await db.transact(allUpdates);
+    console.log('✅ All splits marked as paid and transaction amounts reduced');
   } else {
     console.log('⚠️ No splits found to settle');
   }
