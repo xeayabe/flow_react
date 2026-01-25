@@ -2349,6 +2349,13 @@ bun start
 - **Transparency**: Both members see and agree on split settings
 - **Stability**: Existing debt unchanged, no retroactive recalculations
 - **Smart defaults**: Automatic mode uses income ratios for fair splitting
+- **Real-time updates**: Split percentages automatically update when budget income changes
+
+**Implementation Notes:**
+- Automatic mode reads from `budgetSummary.totalIncome` (most recent for each user)
+- This ensures split percentages always reflect current budget settings
+- When users update their monthly income in budget setup, split percentages update automatically
+- User names are fetched from `users` table for proper display
 
 **Files Created:**
 - `src/lib/split-settings-api.ts` - Split settings management API

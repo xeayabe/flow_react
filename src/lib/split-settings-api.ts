@@ -8,11 +8,15 @@ export async function getSplitSettings(householdId: string) {
     households: { $: { where: { id: householdId } } },
     householdMembers: {
       $: { where: { householdId, status: 'active' } }
-    }
+    },
+    users: {}, // Need to fetch users to get names
+    budgetSummary: {} // Need to get income from budget summaries
   });
 
   const household = householdData.households?.[0];
   const members = householdData.householdMembers || [];
+  const users = householdData.users || [];
+  const budgetSummaries = householdData.budgetSummary || [];
 
   if (!household || members.length < 2) {
     return null;
@@ -23,8 +27,20 @@ export async function getSplitSettings(householdId: string) {
   let splitRatios: Record<string, number> = {};
 
   if (splitMethod === 'automatic') {
-    // Calculate from incomes
-    const totalIncome = members.reduce((sum: number, m: any) => sum + (m.monthlyIncome || 0), 0);
+    // Calculate from incomes from budget summaries (most recent for each user)
+    const memberIncomes: Record<string, number> = {};
+
+    members.forEach((m: any) => {
+      // Get the most recent budget summary for this user
+      const userSummaries = budgetSummaries
+        .filter((s: any) => s.userId === m.userId)
+        .sort((a: any, b: any) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime());
+
+      const latestSummary = userSummaries[0];
+      memberIncomes[m.userId] = latestSummary?.totalIncome || 0;
+    });
+
+    const totalIncome = Object.values(memberIncomes).reduce((sum: number, income: number) => sum + income, 0);
 
     if (totalIncome === 0) {
       // No incomes set - split evenly
@@ -34,7 +50,7 @@ export async function getSplitSettings(householdId: string) {
     } else {
       // Proportional based on income
       members.forEach((m: any) => {
-        splitRatios[m.userId] = ((m.monthlyIncome || 0) / totalIncome) * 100;
+        splitRatios[m.userId] = ((memberIncomes[m.userId] || 0) / totalIncome) * 100;
       });
     }
   } else {
@@ -45,11 +61,15 @@ export async function getSplitSettings(householdId: string) {
   return {
     splitMethod,
     splitRatios,
-    members: members.map((m: any) => ({
-      userId: m.userId,
-      name: m.userName || 'Unknown',
-      percentage: splitRatios[m.userId] || 0
-    }))
+    members: members.map((m: any) => {
+      // Find the user record to get the name
+      const user = users.find((u: any) => u.id === m.userId);
+      return {
+        userId: m.userId,
+        name: user?.name || 'Unknown',
+        percentage: splitRatios[m.userId] || 0
+      };
+    })
   };
 }
 
