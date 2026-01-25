@@ -142,11 +142,14 @@ export default function SettlementModal({
       queryClient.invalidateQueries({ queryKey: ['receiver-accounts'] });
       queryClient.invalidateQueries({ queryKey: ['recent-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
 
-      // Force refetch all transaction queries to ensure UI updates
-      queryClient.refetchQueries({ queryKey: ['transactions-household'], type: 'active' });
-      queryClient.refetchQueries({ queryKey: ['transactions'], type: 'active' });
+      // Force refetch transaction queries with exact household ID to ensure UI updates
+      if (householdId) {
+        queryClient.refetchQueries({ queryKey: ['transactions-household', householdId], type: 'active' });
+      }
       queryClient.refetchQueries({ queryKey: ['recent-transactions'], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['budget-summary'], type: 'active' });
 
       // Show detailed result
       const message = result?.splitsSettled
