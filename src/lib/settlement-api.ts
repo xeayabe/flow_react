@@ -3,6 +3,54 @@ import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
+ * Debug function to check splits and transactions state
+ */
+export async function debugSettlementData(householdId: string, payerUserId: string, receiverUserId: string) {
+  console.log('🔍 === DEBUG SETTLEMENT DATA ===');
+
+  // Get all transactions
+  const { data: txData } = await db.queryOnce({
+    transactions: {
+      $: { where: { householdId, isShared: true } }
+    }
+  });
+
+  const transactions = txData.transactions || [];
+  console.log('Shared transactions:', transactions.length);
+  transactions.forEach((t: any) => {
+    console.log(`  TX ${t.id}: amount=${t.amount}, paidBy=${t.paidByUserId}, category=${t.categoryId}`);
+  });
+
+  // Get all splits
+  const { data: splitData } = await db.queryOnce({
+    shared_expense_splits: {}
+  });
+
+  const allSplits = splitData.shared_expense_splits || [];
+  console.log('All splits:', allSplits.length);
+  allSplits.forEach((s: any) => {
+    console.log(`  Split ${s.id}: ower=${s.owerUserId}, owedTo=${s.owedToUserId}, amount=${s.splitAmount}, isPaid=${s.isPaid}, txId=${s.transactionId}`);
+  });
+
+  // Filter relevant splits
+  const txIds = transactions.map((t: any) => t.id);
+  const householdSplits = allSplits.filter((s: any) => txIds.includes(s.transactionId));
+  console.log('Household splits:', householdSplits.length);
+
+  const payerSplits = householdSplits.filter((s: any) => s.owerUserId === payerUserId && !s.isPaid);
+  console.log('Payer unpaid splits:', payerSplits.length);
+
+  return {
+    transactions,
+    allSplits,
+    householdSplits,
+    payerSplits,
+    payerUserId,
+    receiverUserId
+  };
+}
+
+/**
  * Settle debt via internal account transfer
  * Does NOT create a transaction (to avoid affecting budgets)
  * Only transfers money between accounts and marks splits as paid
@@ -16,11 +64,12 @@ export async function createSettlement(
   householdId: string
 ) {
   console.log('💳 === SETTLEMENT START (INTERNAL TRANSFER) ===');
-  console.log('- Payer:', payerUserId);
-  console.log('- Receiver:', receiverUserId);
+  console.log('- Payer (member who owes):', payerUserId);
+  console.log('- Receiver (admin who paid):', receiverUserId);
   console.log('- Amount:', amount);
   console.log('- Payer Account:', payerAccountId);
   console.log('- Receiver Account:', receiverAccountId);
+  console.log('- Household:', householdId);
 
   const settlementId = uuidv4();
   const now = Date.now();

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, Alert } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { calculateDebtBalance, DebtBalance, calculateSplitRatio } from '@/lib/shared-expenses-api';
 import { db } from '@/lib/db';
 import SettlementModal from './SettlementModal';
+import { debugSettlementData } from '@/lib/settlement-api';
 
 interface DebtInfo extends DebtBalance {
   otherUserName: string;
@@ -15,6 +16,78 @@ interface DebtInfo extends DebtBalance {
 export default function DebtBalanceWidget() {
   const { user } = db.useAuth();
   const [showSettlement, setShowSettlement] = useState(false);
+
+  // Get household info for debug
+  const { data: householdInfo } = useQuery({
+    queryKey: ['household-info-debug', user?.email],
+    queryFn: async () => {
+      if (!user?.email) return null;
+      const { data: userData } = await db.queryOnce({
+        users: { $: { where: { email: user.email } } },
+      });
+      if (!userData?.users?.[0]) return null;
+      const userProfile = userData.users[0];
+
+      const { data: memberData } = await db.queryOnce({
+        householdMembers: { $: { where: { userId: userProfile.id, status: 'active' } } },
+      });
+      if (!memberData?.householdMembers?.[0]) return null;
+
+      return {
+        householdId: memberData.householdMembers[0].householdId,
+        userId: userProfile.id,
+      };
+    },
+    enabled: !!user?.email,
+  });
+
+  const handleDebug = async () => {
+    if (!householdInfo) {
+      Alert.alert('Error', 'No household info');
+      return;
+    }
+
+    try {
+      // Get the other member
+      const { data: allMembersData } = await db.queryOnce({
+        householdMembers: {
+          $: { where: { householdId: householdInfo.householdId, status: 'active' } },
+        },
+      });
+      const otherMember = (allMembersData.householdMembers || []).find(
+        (m: any) => m.userId !== householdInfo.userId
+      );
+
+      if (!otherMember) {
+        Alert.alert('Error', 'No other member found');
+        return;
+      }
+
+      const data = await debugSettlementData(
+        householdInfo.householdId,
+        householdInfo.userId,
+        otherMember.userId
+      );
+
+      const txInfo = data.transactions.map((t: any) =>
+        `TX: amt=${t.amount}, paidBy=${t.paidByUserId?.slice(-6) || 'none'}`
+      ).join('\n');
+
+      const splitInfo = data.householdSplits.map((s: any) =>
+        `Split: ower=${s.owerUserId?.slice(-6)}, owedTo=${s.owedToUserId?.slice(-6)}, amt=${s.splitAmount}, paid=${s.isPaid}`
+      ).join('\n');
+
+      Alert.alert(
+        'Debug Data',
+        `Transactions (${data.transactions.length}):\n${txInfo || 'None'}\n\n` +
+        `Household Splits (${data.householdSplits.length}):\n${splitInfo || 'None'}\n\n` +
+        `Payer Unpaid (${data.payerSplits.length})\n\n` +
+        `Current User: ${data.payerUserId?.slice(-6)}\nOther User: ${data.receiverUserId?.slice(-6)}`
+      );
+    } catch (error) {
+      Alert.alert('Error', String(error));
+    }
+  };
 
   const { data: debtInfo } = useQuery({
     queryKey: ['debt-balance', user?.email],
@@ -173,6 +246,11 @@ export default function DebtBalanceWidget() {
         )}
 
         <Text className="text-xs text-gray-500 mt-2">Shared expenses split based on income ratio</Text>
+
+        {/* Debug button - tap to see data */}
+        <Pressable onPress={handleDebug} className="mt-2 py-1">
+          <Text className="text-xs text-blue-500 text-center">Tap here to debug</Text>
+        </Pressable>
       </View>
 
       {youOwe && (
