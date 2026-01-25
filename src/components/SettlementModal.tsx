@@ -112,6 +112,7 @@ export default function SettlementModal({
     if (payerAccounts?.accounts && payerAccounts.accounts.length > 0 && !selectedAccount) {
       setSelectedAccount(payerAccounts.accounts[0].id);
     }
+    // Auto-select receiver's first account (no UI for user to change)
     if (receiverAccounts && receiverAccounts.length > 0 && !receiverAccount) {
       setReceiverAccount(receiverAccounts[0].id);
     }
@@ -201,8 +202,13 @@ export default function SettlementModal({
   });
 
   const handleSettle = () => {
-    if (!selectedAccount || !receiverAccount) {
-      Alert.alert('Required', 'Please select accounts');
+    if (!selectedAccount) {
+      Alert.alert('Required', 'Please select a payer account');
+      return;
+    }
+
+    if (!receiverAccount) {
+      Alert.alert('Error', 'Receiver account not available');
       return;
     }
 
@@ -290,7 +296,7 @@ export default function SettlementModal({
               </View>
             )}
 
-            {/* Receiver's account */}
+            {/* Receiver's account - Read-only display */}
             {receiverLoading ? (
               <View className="py-8 items-center">
                 <ActivityIndicator size="large" color="#006A6A" />
@@ -298,33 +304,22 @@ export default function SettlementModal({
             ) : (
               <View className="mb-6">
                 <Text className="text-sm font-semibold text-gray-700 mb-3">
-                  To {receiverName}'s account:
+                  Settle to {receiverName}'s account:
                 </Text>
-                {receiverAccounts?.map((account: any) => (
-                  <Pressable
-                    key={account.id}
-                    onPress={() => setReceiverAccount(account.id)}
-                    disabled={settleMutation.isPending}
-                    className={cn(
-                      'p-4 rounded-xl mb-2 border-2',
-                      receiverAccount === account.id
-                        ? 'bg-teal-50 border-teal-600'
-                        : 'bg-gray-50 border-gray-200'
-                    )}
-                  >
-                    <Text
-                      className={cn(
-                        'font-semibold mb-1',
-                        receiverAccount === account.id ? 'text-teal-900' : 'text-gray-900'
-                      )}
-                    >
-                      {account.name}
+                {receiverAccounts && receiverAccounts.length > 0 ? (
+                  <View className="p-4 rounded-xl bg-green-50 border-2 border-green-600">
+                    <Text className="font-semibold text-gray-900 mb-1">
+                      {receiverAccounts[0]?.name || 'Default Account'}
                     </Text>
                     <Text className="text-sm text-gray-600">
-                      Balance: {account.balance.toFixed(2)} CHF
+                      Current balance: {receiverAccounts[0]?.balance.toFixed(2) || '0.00'} CHF
                     </Text>
-                  </Pressable>
-                ))}
+                  </View>
+                ) : (
+                  <View className="p-4 rounded-xl bg-gray-50 border-2 border-gray-200">
+                    <Text className="text-sm text-gray-600">No account available</Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -389,9 +384,15 @@ export default function SettlementModal({
                 <Text className="text-sm font-semibold text-gray-900">{amount.toFixed(2)} CHF</Text>
               </View>
               <View className="flex-row justify-between mb-2">
-                <Text className="text-sm text-gray-700">From:</Text>
+                <Text className="text-sm text-gray-700">From account:</Text>
                 <Text className="text-sm font-semibold text-gray-900">
                   {selectedPayerAcct?.name || 'Select account'}
+                </Text>
+              </View>
+              <View className="flex-row justify-between mb-2">
+                <Text className="text-sm text-gray-700">To:</Text>
+                <Text className="text-sm font-semibold text-gray-900">
+                  {receiverName}'s {receiverAccounts?.[0]?.name || 'account'}
                 </Text>
               </View>
               <View className="flex-row justify-between">
@@ -408,7 +409,7 @@ export default function SettlementModal({
             <Pressable
               onPress={handleSettle}
               disabled={
-                settleMutation.isPending || !selectedAccount || !receiverAccount || payerLoading || receiverLoading
+                settleMutation.isPending || !selectedAccount || payerLoading || receiverLoading
               }
               className={cn(
                 'py-4 rounded-xl active:opacity-80',
