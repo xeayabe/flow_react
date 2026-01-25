@@ -57,7 +57,7 @@ export default function PayeePickerModal({
       mappingData.payee_category_mappings?.forEach(mapping => {
         const normalized = mapping.payee.trim().toLowerCase();
         mappedPayees.set(normalized, {
-          payee: mapping.payee,
+          payee: mapping.displayName || mapping.payee, // Use displayName if available
           usageCount: mapping.usageCount || 1,
           lastUsedAt: mapping.lastUsedAt
         });

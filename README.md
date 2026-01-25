@@ -1925,8 +1925,9 @@ bun start
 
 - **Database**:
   - Added `payee_category_mappings` table
-  - Fields: userId (personal to user), payee (normalized lowercase), categoryId, lastUsedAt, usageCount, timestamps
+  - Fields: userId (personal to user), payee (normalized lowercase for matching), displayName (original capitalization), categoryId, lastUsedAt, usageCount, timestamps
   - One mapping per payee per user (unique constraint)
+  - displayName preserves user's original capitalization
 
 - **Implementation**:
   - Created `src/lib/payee-mappings-api.ts` with learning logic:
@@ -1942,9 +1943,19 @@ bun start
 - **UI/UX Features**:
   - **Smart Auto-Fill**: Category fills automatically when payee entered
   - **Personal Payees**: Each user sees only their own payees (like categories)
-  - **Case Insensitive**: "Migros" = "migros" = "MIGROS"
+  - **Preserves Capitalization**: Shows payees exactly as you created them (e.g., "MIGROS" if created as "MIGROS")
+  - **Case Insensitive Matching**: "Migros" = "migros" = "MIGROS" for lookups, but displays as originally created
   - **Whitespace Handling**: "Migros " = "Migros"
   - **Non-Invasive**: Can override auto-filled category anytime
+
+- **Capitalization Examples**:
+  ```
+  Create "STARBUCKS" → Shows "STARBUCKS" in picker
+  Create "netflix" → Shows "netflix" in picker
+  Create "Amazon Prime" → Shows "Amazon Prime" in picker
+  Entry "starbucks" matches and displays as "STARBUCKS"
+  Entry "NETFLIX" matches and displays as "netflix"
+  ```
 
 - **Example Flows**:
   ```

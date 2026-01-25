@@ -158,7 +158,8 @@ const schema = i.schema({
     }),
     payee_category_mappings: i.entity({
       userId: i.string(), // Personal to each user (like categories)
-      payee: i.string(), // Normalized payee name (lowercase trimmed)
+      payee: i.string(), // Normalized payee name (lowercase trimmed) - for lookups
+      displayName: i.string(), // Original display name with user's capitalization
       categoryId: i.string(), // Last selected category
       lastUsedAt: i.number(), // Timestamp of last use
       usageCount: i.number(), // How many times used (for analytics)

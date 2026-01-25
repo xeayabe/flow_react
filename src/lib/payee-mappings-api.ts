@@ -77,6 +77,7 @@ export async function savePayeeMapping(
     console.log('📝 Updating existing mapping');
     await db.transact([
       db.tx.payee_category_mappings[existingMapping.id].update({
+        displayName: payee.trim(), // Update display name to latest capitalization
         categoryId,
         lastUsedAt: Date.now(),
         usageCount: (existingMapping.usageCount || 0) + 1,
@@ -91,6 +92,7 @@ export async function savePayeeMapping(
       db.tx.payee_category_mappings[mappingId].update({
         userId,
         payee: normalizedPayee,
+        displayName: payee.trim(), // Store original capitalization
         categoryId,
         lastUsedAt: Date.now(),
         usageCount: 1,
