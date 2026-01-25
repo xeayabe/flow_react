@@ -156,6 +156,15 @@ const schema = i.schema({
       settledAt: i.number(), // Timestamp when settled
       createdAt: i.number(),
     }),
+    payee_category_mappings: i.entity({
+      householdId: i.string(), // Mappings shared across household
+      payee: i.string(), // Normalized payee name (lowercase trimmed)
+      categoryId: i.string(), // Last selected category
+      lastUsedAt: i.number(), // Timestamp of last use
+      usageCount: i.number(), // How many times used (for analytics)
+      createdAt: i.number(),
+      updatedAt: i.number(),
+    }),
   },
   links: {
     householdsByCreator: {

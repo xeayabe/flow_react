@@ -1910,6 +1910,84 @@ bun start
   - `src/lib/dashboard-helpers.ts` - Removed settlement color handling
   - `src/app/transactions/[id]/edit.tsx` - Removed settlement edit prevention
 
+### FEATURE: Payee/Merchant Field with Smart Category Learning (2026-01-25)
+- **Feature**: Added smart payee-category learning system that auto-fills categories based on previous usage
+- **How It Works**:
+  1. **First Use**: User enters "Migros" → Manually selects "Groceries" → Mapping saved
+  2. **Second Use**: User enters "Migros" → "Groceries" auto-fills ✨
+  3. **Learning**: If user changes category, mapping updates for next time
+  4. **Shared**: Mappings work across all household members
+
+- **Database**:
+  - Added `payee_category_mappings` table
+  - Fields: householdId, payee (normalized lowercase), categoryId, lastUsedAt, usageCount, timestamps
+  - One mapping per payee per household (unique constraint)
+
+- **Implementation**:
+  - Created `src/lib/payee-mappings-api.ts` with learning logic:
+    - `getCategorySuggestion()`: Looks up category for a payee
+    - `savePayeeMapping()`: Saves or updates payee-category association
+    - `getRecentPayees()`: Returns unique payees for autocomplete
+  - Updated Add Transaction form with smart auto-fill:
+    - Payee input triggers category suggestion
+    - Visual indicator (sparkles icon) when category auto-filled
+    - Autocomplete dropdown showing recent payees
+    - Tapping suggestion fills payee and auto-fills category
+  - Updated Edit Transaction form:
+    - Saves updated mapping when category changes
+    - Allows learning from edited transactions
+
+- **UI/UX Features**:
+  - **Smart Auto-Fill**: Category fills automatically when payee entered
+  - **Visual Feedback**: Blue sparkle hint shows "Category auto-filled based on previous usage"
+  - **Autocomplete**: Dropdown shows recent payees as you type
+  - **Case Insensitive**: "Migros" = "migros" = "MIGROS"
+  - **Whitespace Handling**: "Migros " = "Migros"
+  - **Non-Invasive**: Can override auto-filled category anytime
+  - **Household-Wide**: Alexander's mapping helps Cecilia and vice versa
+
+- **Example Flows**:
+  ```
+  Test 1 - First Time:
+  1. Enter "Migros"
+  2. No auto-fill (first time)
+  3. Select "Groceries"
+  4. Save → Mapping created: "migros" → Groceries
+
+  Test 2 - Second Time:
+  1. Enter "Migros"
+  2. Category auto-fills to "Groceries" ✨
+  3. See sparkle hint
+  4. Save → Usage count increments
+
+  Test 3 - Changing Category:
+  1. Enter "Migros"
+  2. Category auto-fills to "Groceries"
+  3. User changes to "Gifts" (buying flowers)
+  4. Save → Mapping updated: "migros" → Gifts
+  5. Next time: auto-fills "Gifts" ✨
+
+  Test 4 - Autocomplete:
+  1. Type "Mi"
+  2. See: "Migros", "Migrolino"
+  3. Tap "Migros"
+  4. Payee filled + category auto-fills ✨
+  ```
+
+- **Edge Cases Handled**:
+  - Empty payee: No mapping created
+  - No category selected: No mapping saved
+  - Transaction without payee: Works normally
+  - First time payee: No auto-fill (learns on save)
+
+- **Files Created**:
+  - `src/lib/payee-mappings-api.ts` - Smart learning logic
+
+- **Files Modified**:
+  - `src/lib/db.ts` - Added payee_category_mappings table
+  - `src/app/transactions/add.tsx` - Smart auto-fill + autocomplete
+  - `src/app/transactions/[id]/edit.tsx` - Learning from edits
+
 ### FEATURE: Payee/Merchant Field for Transactions (2026-01-25)
 - **Feature**: Added optional payee/merchant field to track where money was spent
 - **Use Cases**: Track specific vendors like "Migros", "Coop", "Netflix", "Restaurant La Piazza", etc.

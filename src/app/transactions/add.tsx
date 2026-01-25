@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, TextInput, Modal, ActivityIndicator,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Plus, X, Check, Calendar, ChevronRight, Check as CheckIcon } from 'lucide-react-native';
+import { ChevronLeft, Plus, X, Check, Calendar, ChevronRight, Check as CheckIcon, Sparkles } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { createTransaction, formatCurrency, formatDateSwiss, parseSwissDate } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
@@ -12,6 +12,7 @@ import { getCategoryGroups } from '@/lib/category-groups-api';
 import { migrateCategoryGroups } from '@/lib/migrate-categories';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { createExpenseSplits, calculateSplitRatio } from '@/lib/shared-expenses-api';
+import { getCategorySuggestion, savePayeeMapping, getRecentPayees } from '@/lib/payee-mappings-api';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -67,6 +68,10 @@ export default function AddTransactionScreen() {
   // Shared expense state
   const [isShared, setIsShared] = useState(false);
   const [paidByUserId, setPaidByUserId] = useState<string>('');
+
+  // Smart payee-category learning state
+  const [suggestedCategoryId, setSuggestedCategoryId] = useState<string | null>(null);
+  const [showPayeeAutocomplete, setShowPayeeAutocomplete] = useState(false);
 
   // Auto-scroll to date picker when it opens
   useEffect(() => {
@@ -182,9 +187,20 @@ export default function AddTransactionScreen() {
       if (!householdQuery.data?.householdId || !householdQuery.data?.userRecord?.id) {
         return [];
       }
+
       return getCategoryGroups(householdQuery.data.householdId, householdQuery.data.userRecord.id);
     },
     enabled: !!householdQuery.data?.householdId && !!householdQuery.data?.userRecord?.id,
+  });
+
+  // Get recent payees for autocomplete
+  const recentPayeesQuery = useQuery({
+    queryKey: ['recent-payees', householdQuery.data?.householdId],
+    queryFn: async () => {
+      if (!householdQuery.data?.householdId) return [];
+      return getRecentPayees(householdQuery.data.householdId);
+    },
+    enabled: !!householdQuery.data?.householdId,
   });
 
   // Set default account on first load
@@ -194,6 +210,35 @@ export default function AddTransactionScreen() {
       setFormData((prev) => ({ ...prev, accountId: defaultAccount.id }));
     }
   }, [accountsQuery.data]);
+
+  // Handle payee change with smart category suggestion
+  const handlePayeeChange = async (newPayee: string) => {
+    setFormData((prev) => ({ ...prev, payee: newPayee }));
+    setShowPayeeAutocomplete(newPayee.trim().length > 0);
+
+    if (newPayee.trim() && householdQuery.data?.householdId) {
+      const suggested = await getCategorySuggestion(householdQuery.data.householdId, newPayee);
+
+      if (suggested) {
+        console.log('💡 Auto-filling category:', suggested);
+        setFormData((prev) => ({ ...prev, categoryId: suggested }));
+        setSuggestedCategoryId(suggested);
+      }
+    }
+  };
+
+  // Handle payee blur - check for suggestion if category not selected
+  const handlePayeeBlur = async () => {
+    setShowPayeeAutocomplete(false);
+
+    if (formData.payee.trim() && householdQuery.data?.householdId && !formData.categoryId) {
+      const suggested = await getCategorySuggestion(householdQuery.data.householdId, formData.payee);
+      if (suggested) {
+        setFormData((prev) => ({ ...prev, categoryId: suggested }));
+        setSuggestedCategoryId(suggested);
+      }
+    }
+  };
 
   // Create transaction mutation
   const createMutation = useMutation({
@@ -233,11 +278,21 @@ export default function AddTransactionScreen() {
 
       return result;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Save payee-category mapping for smart learning
+      if (formData.payee.trim() && formData.categoryId && householdQuery.data?.householdId) {
+        await savePayeeMapping(
+          householdQuery.data.householdId,
+          formData.payee.trim(),
+          formData.categoryId
+        );
+      }
+
       queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-payees', householdQuery.data?.householdId] });
 
       // Show the "add another" modal immediately
       setShowAddAnotherModal(true);
@@ -389,8 +444,43 @@ export default function AddTransactionScreen() {
                   placeholderTextColor="#9CA3AF"
                   autoCapitalize="words"
                   value={formData.payee}
-                  onChangeText={(text) => setFormData({ ...formData, payee: text })}
+                  onChangeText={handlePayeeChange}
+                  onBlur={handlePayeeBlur}
+                  onFocus={() => setShowPayeeAutocomplete(formData.payee.trim().length > 0)}
                 />
+
+                {/* Show hint if category was auto-filled */}
+                {suggestedCategoryId === formData.categoryId && formData.categoryId && formData.payee.trim() && (
+                  <View className="flex-row items-center mt-2 bg-blue-50 p-2 rounded-lg">
+                    <Sparkles size={14} color="#3B82F6" style={{ marginRight: 6 }} />
+                    <Text className="text-xs text-blue-700 flex-1">
+                      Category auto-filled based on previous usage
+                    </Text>
+                  </View>
+                )}
+
+                {/* Autocomplete suggestions */}
+                {showPayeeAutocomplete && recentPayeesQuery.data && recentPayeesQuery.data.length > 0 && (
+                  <View className="border border-gray-200 rounded-lg mt-2 bg-white">
+                    {recentPayeesQuery.data
+                      .filter(p => p.toLowerCase().includes(formData.payee.toLowerCase()))
+                      .slice(0, 5)
+                      .map((suggestion, idx) => (
+                        <Pressable
+                          key={idx}
+                          onPress={() => {
+                            handlePayeeChange(suggestion);
+                            setShowPayeeAutocomplete(false);
+                          }}
+                          className="p-3 border-b border-gray-100 active:bg-gray-50"
+                        >
+                          <Text className="text-gray-700">{suggestion}</Text>
+                        </Pressable>
+                      ))
+                    }
+                  </View>
+                )}
+
                 <Text className="text-xs text-gray-500 mt-2">
                   Where did you spend this money?
                 </Text>
@@ -901,6 +991,8 @@ export default function AddTransactionScreen() {
                     isRecurring: false,
                     recurringDay: 1,
                   });
+                  setSuggestedCategoryId(null);
+                  setShowPayeeAutocomplete(false);
                   amountInputRef.current?.focus();
                 }}
                 className="py-3 rounded-lg bg-teal-600 items-center justify-center"

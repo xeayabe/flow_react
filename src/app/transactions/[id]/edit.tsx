@@ -10,6 +10,7 @@ import { getCategories } from '@/lib/categories-api';
 import { getUserAccounts, formatBalance } from '@/lib/accounts-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
+import { savePayeeMapping } from '@/lib/payee-mappings-api';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -160,12 +161,22 @@ export default function EditTransactionScreen() {
         recurringDay: formData.isRecurring ? formData.recurringDay : undefined,
         isExcludedFromBudget: formData.isExcludedFromBudget,
       }),
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Save payee-category mapping for smart learning (if category changed)
+      if (formData.payee.trim() && formData.categoryId && householdQuery.data?.householdId) {
+        await savePayeeMapping(
+          householdQuery.data.householdId,
+          formData.payee.trim(),
+          formData.categoryId
+        );
+      }
+
       queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['transaction', id] });
+      queryClient.invalidateQueries({ queryKey: ['recent-payees', householdQuery.data?.householdId] });
 
       setSuccessMessage('✓ Transaction updated!');
       setShowSuccess(true);
