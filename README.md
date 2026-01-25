@@ -228,6 +228,22 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Automatic period calculation on payday change
   - Stored in households table
 
+### Monthly Income Setting (US-025)
+- ✅ **Set Monthly Income** - Each household member can set their monthly income
+  - Route: `/settings/income` from Profile tab menu
+  - Used for calculating fair expense splits between household members
+- ✅ **Features**:
+  - Income input with CHF currency display
+  - Shows current income if already set
+  - Saves to `householdMembers.monthlyIncome`
+  - Success feedback with auto-navigation back
+  - Info card explaining fair splitting concept
+  - Privacy note about income visibility
+- ✅ **Fair Splitting Logic**:
+  - Shared expenses split proportionally based on income
+  - Example: If Alexander earns 60% of household income, he pays 60% of shared expenses
+  - Both household members can set their own income independently
+
 ### Zero-Based Budget Allocation (US-034)
 - ✅ **Category Group Allocation** (New) - Customize budget percentage distribution
   - Route: `/budget/category-group-allocation` - Primary budget setup screen
