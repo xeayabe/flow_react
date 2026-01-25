@@ -151,10 +151,16 @@ export const RecentTransactionsWidget: React.FC<{
               </View>
               <View className="flex-row items-center gap-2">
                 <Text className="text-sm font-bold" style={{ color: textColor }}>
-                  {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                  {tx.type === 'income' ? '+' : tx.type === 'settlement' ? '' : '-'}{formatCurrency(tx.amount)}
                 </Text>
-                {/* Add shared badge */}
-                {tx.isShared && (
+                {/* Settlement badge */}
+                {tx.type === 'settlement' && (
+                  <View className="bg-purple-100 px-2 py-1 rounded-full">
+                    <Text className="text-xs text-purple-700 font-semibold">Settlement</Text>
+                  </View>
+                )}
+                {/* Shared badge */}
+                {tx.isShared && tx.type !== 'settlement' && (
                   <View className="bg-purple-100 px-2 py-1 rounded-full">
                     <Text className="text-xs text-purple-700 font-semibold">Shared</Text>
                   </View>

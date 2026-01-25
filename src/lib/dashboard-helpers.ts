@@ -84,8 +84,10 @@ export function formatTransactionAmount(amount: number, type: 'income' | 'expens
 /**
  * Get color for transaction type
  */
-export function getTransactionTypeColor(type: 'income' | 'expense'): string {
-  return type === 'income' ? '#10B981' : '#EF4444';
+export function getTransactionTypeColor(type: 'income' | 'expense' | 'settlement'): string {
+  if (type === 'income') return '#10B981';
+  if (type === 'settlement') return '#8B5CF6'; // Purple for settlements
+  return '#EF4444'; // Red for expenses
 }
 
 /**

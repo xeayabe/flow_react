@@ -1538,3 +1538,95 @@ bun start
   3. Alexander deletes the transaction
   4. Debt widget updates: Widget disappears (balance = 0)
   5. Verify database: No splits exist for deleted transaction
+
+### DEBUG: Settlement Visibility and Split Updates (2026-01-25)
+- **Purpose**: Add comprehensive logging to verify settlement transactions are created correctly and splits are marked as paid
+- **Implementation**: Enhanced `createSettlement()` with detailed logging at each step
+
+- **Logging Added**:
+  - Settlement creation start: Logs payer, receiver, amount, account IDs
+  - Transaction creation: Confirms settlement transaction created with correct ID
+  - Transaction verification: Verifies transaction exists in database with correct type and amount
+  - Account updates: Shows balances before and after settlement
+  - Split filtering: Logs detailed info for each split (IDs, user IDs, isPaid status)
+  - Split updates: Confirms each split marked as paid
+  - Completion: Settlement complete summary
+
+- **Transaction Type Support**:
+  - Updated `Transaction` interface to include `type: 'income' | 'expense' | 'settlement'`
+  - Transaction list filter now includes settlement transactions in all views
+  - Settlement transactions display with purple color (#8B5CF6)
+  - Settlement transactions show "Settlement" badge in transaction list and dashboard
+
+- **UI Improvements**:
+  - Dashboard widget shows purple "Settlement" badge for settlement transactions
+  - Transaction list shows "Settlement" badge with purple styling
+  - Settlement transactions use purple icon and color (#8B5CF6)
+  - Amount display for settlements shows no prefix (no +/- sign)
+  - Category name shows "Settlement" if not set
+
+- **Edit Prevention**:
+  - Settlement transactions cannot be edited through the edit screen
+  - Attempting to edit settlement shows alert: "Settlement transactions cannot be edited"
+  - User can delete settlement and create new one if needed
+
+- **Type Safety**:
+  - `getTransactionTypeColor()` now accepts 'settlement' type
+  - Returns purple color for settlement transactions
+  - Handles all three transaction types consistently
+
+- **Console Log Format**:
+  ```
+  💳 === SETTLEMENT START ===
+  - Payer: [userId]
+  - Receiver: [userId]
+  - Amount: [amount]
+  - Payer Account: [accountId]
+  - Receiver Account: [accountId]
+  - Household: [householdId]
+
+  📝 Creating settlement transaction...
+  ✅ Settlement transaction created: [settlementId]
+
+  🔍 Transaction verified: { id: ..., type: settlement, amount: ..., userId: ... }
+
+  💰 Updating account balances...
+  💰 Before balance update:
+    Payer balance: [amount]
+    Receiver balance: [amount]
+  💰 After balance update:
+    Payer new balance: [amount]
+    Receiver new balance: [amount]
+
+  📊 Marking splits as paid...
+  📊 Total splits in household: [count]
+  📊 Total shared transactions: [count]
+  📊 Splits to settle: [count]
+    - Split [id]: owerUserId=[id], owedToUserId=[id], isPaid=false, matches=true
+  ✅ All splits marked as paid
+
+  💳 === SETTLEMENT COMPLETE ===
+  ```
+
+- **Test Steps**:
+  1. Create shared expense: 100 CHF, Alexander pays
+  2. Check console: Settlement logs appear in LOGS tab
+  3. Check debt widget: Shows owed amount
+  4. User clicks "Settle Debt"
+  5. Check console logs for:
+     - "Settlement transaction created"
+     - "Transaction verified" with correct type
+     - Account balances before/after
+     - "Splits to settle: 1"
+     - "All splits marked as paid"
+  6. Check Alexander's transaction list: Shows original expense + settlement
+  7. Check Cecilia's transaction list: Shows settlement received
+  8. Check debt widget: Disappears (balance = 0)
+
+- **Files Modified**:
+  - `src/lib/settlement-api.ts` - Enhanced logging with transaction verification
+  - `src/lib/transactions-api.ts` - Added 'settlement' to Transaction type
+  - `src/lib/dashboard-helpers.ts` - Updated getTransactionTypeColor to handle settlement
+  - `src/app/(tabs)/transactions.tsx` - Settlement badge and type filtering
+  - `src/components/DashboardWidgets.tsx` - Settlement badge display
+  - `src/app/transactions/[id]/edit.tsx` - Prevent settlement editing

@@ -13,10 +13,12 @@ export async function createSettlement(
   receiverAccountId: string, // Account to credit
   householdId: string
 ) {
-  console.log('💳 Creating settlement:');
+  console.log('💳 === SETTLEMENT START ===');
   console.log('- Payer:', payerUserId);
   console.log('- Receiver:', receiverUserId);
   console.log('- Amount:', amount);
+  console.log('- Payer Account:', payerAccountId);
+  console.log('- Receiver Account:', receiverAccountId);
   console.log('- Household:', householdId);
 
   const settlementId = uuidv4();
@@ -33,7 +35,7 @@ export async function createSettlement(
       type: 'settlement', // Special type
       amount: amount,
       date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
-      note: `Debt settlement: ${amount.toFixed(2)} CHF to ${receiverUserId}`,
+      note: `Settlement to receiver`,
       isShared: false, // Settlement is not a shared expense
       paidByUserId: payerUserId,
       isRecurring: false,
@@ -42,7 +44,26 @@ export async function createSettlement(
     }),
   ]);
 
-  console.log('💳 Settlement transaction created:', settlementId);
+  console.log('✅ Settlement transaction created:', settlementId);
+
+  // Verify transaction was created
+  const { data: verifyTxData } = await db.queryOnce({
+    transactions: {
+      $: {
+        where: {
+          id: settlementId,
+        },
+      },
+    },
+  });
+
+  const verifyTx = verifyTxData.transactions?.[0];
+  console.log('🔍 Transaction verified:', {
+    id: verifyTx?.id,
+    type: verifyTx?.type,
+    amount: verifyTx?.amount,
+    userId: verifyTx?.userId,
+  });
 
   // Step 2: Get account data and update balances
   console.log('💰 Updating account balances...');
@@ -57,6 +78,10 @@ export async function createSettlement(
     throw new Error('Account not found');
   }
 
+  console.log('💰 Before balance update:');
+  console.log('  Payer balance:', payerAccount.balance);
+  console.log('  Receiver balance:', receiverAccount.balance);
+
   await db.transact([
     // Debit payer's account
     db.tx.accounts[payerAccountId].update({
@@ -70,7 +95,7 @@ export async function createSettlement(
     }),
   ]);
 
-  console.log('💰 Account balances updated');
+  console.log('💰 After balance update:');
   console.log('  Payer new balance:', (payerAccount.balance || 0) - amount);
   console.log('  Receiver new balance:', (receiverAccount.balance || 0) + amount);
 
@@ -88,31 +113,45 @@ export async function createSettlement(
     },
   });
 
+  console.log('📊 Total splits in household:', splitData.shared_expense_splits?.length || 0);
+  console.log('📊 Total shared transactions:', splitData.transactions?.length || 0);
+
   // Filter splits where:
   // - Payer owes money (owerUserId === payerUserId)
   // - Receiver was paid (owedToUserId === receiverUserId)
   // - Not yet paid (isPaid === false)
   const splitsToSettle = (splitData.shared_expense_splits || []).filter((split: any) => {
-    return split.owerUserId === payerUserId && split.owedToUserId === receiverUserId && !split.isPaid;
+    const matches = split.owerUserId === payerUserId && split.owedToUserId === receiverUserId && !split.isPaid;
+    console.log(`  Split ${split.id}:`, {
+      owerUserId: split.owerUserId,
+      owedToUserId: split.owedToUserId,
+      isPaid: split.isPaid,
+      matches: matches,
+    });
+    return matches;
   });
 
-  console.log('📊 Splits to settle:', splitsToSettle.length);
+  console.log('✅ Splits to settle:', splitsToSettle.length);
   splitsToSettle.forEach((split: any) => {
-    console.log('  - Split:', split.id, 'Amount:', split.splitAmount);
+    console.log('  - Split:', split.id, 'Amount:', split.splitAmount, 'isPaid:', split.isPaid);
   });
 
   if (splitsToSettle.length > 0) {
     await db.transact(
-      splitsToSettle.map((split: any) =>
-        db.tx.shared_expense_splits[split.id].update({
+      splitsToSettle.map((split: any) => {
+        console.log(`  Marking split ${split.id} as paid`);
+        return db.tx.shared_expense_splits[split.id].update({
           isPaid: true,
           updatedAt: now,
-        })
-      )
+        });
+      })
     );
+    console.log('✅ All splits marked as paid');
+  } else {
+    console.log('⚠️ No splits found to settle');
   }
 
-  console.log('✅ Settlement complete');
+  console.log('💳 === SETTLEMENT COMPLETE ===');
 
   return {
     settlementId,

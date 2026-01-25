@@ -231,8 +231,8 @@ export default function TransactionsTabScreen() {
         // Date range filter
         if (tx.date < startDate || tx.date > endDate) return false;
 
-        // Type filter
-        if (transactionType !== 'all' && tx.type !== transactionType) return false;
+        // Type filter (include settlement transactions always)
+        if (transactionType !== 'all' && tx.type !== 'settlement' && tx.type !== transactionType) return false;
 
         // Category filter
         if (selectedCategories.length > 0 && !selectedCategories.includes(tx.categoryId)) return false;
@@ -541,6 +541,7 @@ export default function TransactionsTabScreen() {
             keyExtractor={(item) => item.id || ''}
             renderItem={({ item: tx }) => {
               const isIncome = tx.type === 'income';
+              const isSettlement = tx.type === 'settlement';
               const isDeleting = deleteMutation.isPending && deleteConfirmId === tx.id;
 
               return (
@@ -585,18 +586,20 @@ export default function TransactionsTabScreen() {
                         <View
                           className="w-12 h-12 rounded-full items-center justify-center mr-3"
                           style={{
-                            backgroundColor: isIncome ? 'rgba(139, 157, 139, 0.15)' : 'rgba(220, 38, 38, 0.15)',
+                            backgroundColor: isIncome ? 'rgba(139, 157, 139, 0.15)' : isSettlement ? 'rgba(139, 92, 246, 0.15)' : 'rgba(220, 38, 38, 0.15)',
                           }}
                         >
                           {isIncome ? (
                             <ArrowUpRight size={20} color="#8B9D8B" />
+                          ) : isSettlement ? (
+                            <ArrowUpRight size={20} color="#8B5CF6" />
                           ) : (
                             <ArrowDownLeft size={20} color="#DC2626" />
                           )}
                         </View>
                         <View className="flex-1">
                           <Text className="font-semibold text-sm" style={{ color: '#1F2937' }}>
-                            {tx.categoryName || 'Unknown'}
+                            {tx.categoryName || (isSettlement ? 'Settlement' : 'Unknown')}
                           </Text>
                           <Text className="text-xs" style={{ color: '#9CA3AF' }}>
                             {tx.accountName || 'Unknown Account'}
@@ -609,15 +612,21 @@ export default function TransactionsTabScreen() {
                           <Text
                             className="font-bold text-sm"
                             style={{
-                              color: isIncome ? '#8B9D8B' : '#DC2626',
+                              color: isIncome ? '#8B9D8B' : isSettlement ? '#8B5CF6' : '#DC2626',
                             }}
                           >
-                            {isIncome ? '+' : '-'}
+                            {isIncome ? '+' : isSettlement ? '' : '-'}
                             {formatCurrency(tx.amount)}
                           </Text>
                         </View>
-                        {/* Add shared badge */}
-                        {tx.isShared && (
+                        {/* Settlement badge */}
+                        {isSettlement && (
+                          <View className="bg-purple-100 px-2 py-1 rounded-full">
+                            <Text className="text-xs text-purple-700 font-semibold">Settlement</Text>
+                          </View>
+                        )}
+                        {/* Shared badge */}
+                        {tx.isShared && !isSettlement && (
                           <View className="bg-purple-100 px-2 py-1 rounded-full">
                             <Text className="text-xs text-purple-700 font-semibold">Shared</Text>
                           </View>

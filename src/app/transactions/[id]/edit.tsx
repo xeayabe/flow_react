@@ -120,9 +120,17 @@ export default function EditTransactionScreen() {
   useEffect(() => {
     if (transactionQuery.data) {
       const tx = transactionQuery.data;
+
+      // Don't allow editing settlement transactions
+      if (tx.type === 'settlement') {
+        Alert.alert('Cannot Edit', 'Settlement transactions cannot be edited. Please delete and create a new one if needed.');
+        router.back();
+        return;
+      }
+
       setOriginalTransaction(tx);
       setFormData({
-        type: tx.type,
+        type: tx.type as TransactionType,
         amount: tx.amount.toString(),
         categoryId: tx.categoryId,
         accountId: tx.accountId,
