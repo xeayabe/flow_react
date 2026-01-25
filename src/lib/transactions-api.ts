@@ -301,8 +301,8 @@ export async function getHouseholdTransactionsWithCreators(householdId: string, 
     const users = result.data.users ?? [];
 
     // Filter transactions:
-    // 1. User's own transactions (userId matches currentUserId)
-    // 2. Shared transactions (isShared: true)
+    // Members should ONLY see their own transactions (both personal and shared)
+    // They should NOT see other members' transactions, even if shared
     // Filter out old settlement transactions (type === 'settlement')
     const filteredTransactions = transactions.filter((tx: any) => {
       // Always exclude old settlement transactions
@@ -311,13 +311,11 @@ export async function getHouseholdTransactionsWithCreators(householdId: string, 
       // If no currentUserId provided, show all (backwards compatibility)
       if (!currentUserId) return true;
 
-      // Show user's own transactions
+      // Only show user's own transactions
+      // This means members only see what THEY created
       if (tx.userId === currentUserId) return true;
 
-      // Show shared transactions from other users
-      if (tx.isShared === true) return true;
-
-      // Hide other users' personal transactions
+      // Hide all other users' transactions (including shared ones)
       return false;
     });
 

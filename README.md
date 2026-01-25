@@ -2383,3 +2383,15 @@ bun start
   - `src/app/(tabs)/index.tsx` - Added DebtBalanceWidget component above TrueBalanceWidget
   - `src/components/DebtBalanceWidget.tsx` - Always show widget for 2+ member households, display "settled" state when balance is 0
 
+### FIX: Members Now Only See Their Own Transactions (2026-01-25)
+- **Issue**: Members were seeing transactions from other household members (including admin), even when those transactions were personal
+- **Expected Behavior**: Members should only see their own transactions in the Transactions tab
+- **Fix**: Updated transaction filtering logic to only show transactions created by the current user
+- **Impact**:
+  - Members now see ONLY their own transactions (both personal and shared)
+  - Members do NOT see other members' transactions, even if marked as shared
+  - Each member has a private view of their own spending
+  - Shared expenses are still tracked in the debt settlement system
+- **Files Modified**:
+  - `src/lib/transactions-api.ts` - Updated `getHouseholdTransactionsWithCreators` filter to show only user's own transactions
+
