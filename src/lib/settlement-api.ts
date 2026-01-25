@@ -245,56 +245,21 @@ export async function createSettlement(
     });
 
     // Build all updates: mark splits as paid + reduce transaction amounts
-    const splitUpdates: any[] = [];
-    const txUpdates: any[] = [];
+    console.log(`📝 Executing ${splitsToSettle.length} split updates and ${transactionsToUpdate.length} transaction updates...`);
 
-    // Mark splits as paid
-    for (const split of splitsToSettle) {
-      console.log(`  📌 Marking split ${split.id} as paid`);
-      splitUpdates.push(
-        db.tx.shared_expense_splits[split.id].update({
-          isPaid: true,
-          updatedAt: now,
-        })
-      );
-    }
-
-    // Reduce transaction amounts (original expense - settled amount = payer's portion only)
-    for (const tx of transactionsToUpdate) {
-      const reductionAmount = transactionReductions[tx.id];
-      const newAmount = Math.max(0, tx.amount - reductionAmount); // Ensure non-negative
-      console.log(`  📌 Reducing transaction ${tx.id.substring(0, 8)}: ${tx.amount} - ${reductionAmount} = ${newAmount}`);
-      console.log(`  📌 Transaction belongs to userId: ${tx.userId?.substring(0, 8)}, paidBy: ${tx.paidByUserId?.substring(0, 8)}`);
-
-      // IMPORTANT: Provide ALL transaction fields for the update, not just amount and updatedAt
-      txUpdates.push(
-        db.tx.transactions[tx.id].update({
-          userId: tx.userId,
-          householdId: tx.householdId,
-          accountId: tx.accountId,
-          categoryId: tx.categoryId,
-          type: tx.type,
-          amount: newAmount, // This is the only field we're changing
-          date: tx.date,
-          note: tx.note,
-          isShared: tx.isShared,
-          paidByUserId: tx.paidByUserId,
-          isRecurring: tx.isRecurring,
-          recurringDay: tx.recurringDay,
-          createdAt: tx.createdAt,
-          updatedAt: now,
-        })
-      );
-    }
-
-    console.log(`📝 Executing ${splitUpdates.length} split updates and ${txUpdates.length} transaction updates...`);
-
-    if (splitUpdates.length > 0 || txUpdates.length > 0) {
+    if (splitsToSettle.length > 0 || transactionsToUpdate.length > 0) {
       // Execute split updates first
-      if (splitUpdates.length > 0) {
+      if (splitsToSettle.length > 0) {
         console.log('🔄 Step 1: Updating splits...');
         try {
-          await db.transact(splitUpdates);
+          await db.transact(
+            splitsToSettle.map(split =>
+              db.tx.shared_expense_splits[split.id].update({
+                isPaid: true,
+                updatedAt: now,
+              })
+            )
+          );
           console.log('✅ Splits updated successfully');
         } catch (error) {
           console.error('❌ Split updates failed:', error);
@@ -303,10 +268,20 @@ export async function createSettlement(
       }
 
       // Then execute transaction updates separately
-      if (txUpdates.length > 0) {
+      if (transactionsToUpdate.length > 0) {
         console.log('🔄 Step 2: Updating transactions...');
         try {
-          await db.transact(txUpdates);
+          await db.transact(
+            transactionsToUpdate.map(tx => {
+              const reductionAmount = transactionReductions[tx.id];
+              const newAmount = Math.max(0, tx.amount - reductionAmount);
+              console.log(`  📌 Updating ${tx.id.substring(0, 8)}: ${tx.amount} -> ${newAmount}`);
+              return db.tx.transactions[tx.id].update({
+                amount: newAmount,
+                updatedAt: now,
+              });
+            })
+          );
           console.log('✅ Transaction amounts updated successfully');
         } catch (error) {
           console.error('❌ Transaction updates failed:', error);
