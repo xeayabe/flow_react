@@ -2166,9 +2166,9 @@ bun start
 - **UI/UX Improvements**:
   - **Full-Screen Modal**: Dedicated search and selection interface
   - **Search Bar**: Search categories in real-time with instant filtering
-  - **Usage Statistics**: Shows count of how many times each category has been used (e.g., "12 uses")
-  - **Sorted by Usage**: Most frequently used categories appear first, easy access to common choices
-  - **Category Groups**: Displays category group subtitle (Needs/Wants/Savings) for context
+  - **Budget Remaining Display**: Shows remaining budget for each category (e.g., "CHF 45.50")
+  - **Sorted by Budget**: Categories with most remaining budget appear first
+  - **Friendly Group Names**: Category group labels show friendly names (Needs/Wants/Savings) instead of system IDs (custom_...)
   - **Icons**: Shows category icons for visual scanning
   - **Large Touch Targets**: 56px height buttons for mobile-friendly interaction
   - **Current Selection Highlighted**: Selected category shows in teal with border
@@ -2179,9 +2179,11 @@ bun start
     - Full-screen modal with slide animation
     - Search functionality with real-time filtering
     - Loads user's personal categories (not household-wide)
-    - Counts usage from user's own transactions
-    - Sorts by usage count descending, then alphabetically
-    - Shows category groups as subtitles
+    - Fetches current budget period and budget details for each category
+    - Calculates budget remaining (allocatedAmount - spentAmount)
+    - Maps category group IDs to friendly names (Needs, Wants, Savings) via getCategoryGroups API
+    - Sorts by budget remaining descending (most budget first), then alphabetically
+    - Shows friendly category group names as subtitles
     - Filters categories by transaction type (income vs expense)
   - Updated Add Transaction form:
     - Replaced inline category dropdown with modal button
@@ -2198,27 +2200,29 @@ bun start
   1. Open Add Transaction form
   2. Tap "Select category" button (in Category field)
   3. Full-screen modal opens with search bar
-  4. See all categories sorted by usage:
-     - "Groceries (12 uses)" [Needs]
-     - "Shopping (8 uses)" [Wants]
-     - "Amazon Prime (5 uses)" [Wants]
-     - "Utilities (3 uses)" [Needs]
+  4. See all categories sorted by budget remaining:
+     - "Groceries (CHF 245.50)" [Needs] ← most budget left
+     - "Shopping (CHF 150.75)" [Wants]
+     - "Entertainment (CHF 89.25)" [Wants]
+     - "Utilities (CHF 45.00)" [Needs]
   5. Search: Type "groc" → filters to show only "Groceries"
   6. Tap "Groceries" → Modal closes, category selected
   7. Form shows "Groceries" in category field
   ```
 
 - **Benefits**:
-  - **Faster Selection**: Most-used categories appear first (efficient for frequent transactions)
+  - **Smart Prioritization**: Categories with more remaining budget appear first (helps allocate spending)
+  - **Budget Awareness**: See exactly how much budget is left per category
+  - **Clean UI**: Friendly category group names (Needs/Wants/Savings) instead of system IDs
   - **Easy Discovery**: Search filters long category lists instantly
   - **Visual Context**: Icons and category groups help identification
   - **Mobile-Optimized**: Full-screen modal with large touch targets
-  - **Usage Insights**: See which categories you use most
   - **Type Safety**: Only shows relevant categories for income/expense
 
 - **Files Created**:
-  - `src/components/CategoryPickerModal.tsx` - Full-screen modal with search and usage stats
+  - `src/components/CategoryPickerModal.tsx` - Full-screen modal with search and budget remaining display
 
 - **Files Modified**:
   - `src/app/transactions/add.tsx` - Replaced inline dropdown with modal picker
   - `src/app/transactions/[id]/edit.tsx` - Same modal picker pattern
+

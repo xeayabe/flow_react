@@ -3,6 +3,8 @@ import { View, Text, Pressable, Modal, TextInput, ScrollView } from 'react-nativ
 import { X, Search } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/lib/db';
+import { getMemberBudgetPeriod, getBudgetDetails } from '@/lib/budget-api';
+import { getCategoryGroups } from '@/lib/category-groups-api';
 
 interface CategoryPickerModalProps {
   visible: boolean;
@@ -18,7 +20,8 @@ interface CategoryWithStats {
   id: string;
   name: string;
   categoryGroup: string;
-  usageCount: number;
+  categoryGroupName: string;
+  budgetRemaining: number;
   icon?: string;
 }
 
@@ -33,9 +36,18 @@ export default function CategoryPickerModal({
 }: CategoryPickerModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Load categories with usage stats
+  // Load category groups first to map group IDs to friendly names
+  const { data: categoryGroups } = useQuery({
+    queryKey: ['categoryGroups', householdId, userId],
+    queryFn: async () => {
+      return getCategoryGroups(householdId, userId);
+    },
+    enabled: visible && !!householdId && !!userId
+  });
+
+  // Load categories with budget remaining
   const { data: categories } = useQuery({
-    queryKey: ['categories-with-usage', householdId, userId, transactionType],
+    queryKey: ['categories-with-budget', householdId, userId, transactionType, categoryGroups],
     queryFn: async () => {
       // Get all categories for user and household
       const { data: categoryData } = await db.queryOnce({
@@ -73,42 +85,50 @@ export default function CategoryPickerModal({
         }
       });
 
-      // Get all transactions to count usage per category
-      const { data: txData } = await db.queryOnce({
-        transactions: {
-          $: {
-            where: { userId },
-            limit: 500
-          }
-        }
+      // Get current budget period and budget details
+      const budgetPeriod = await getMemberBudgetPeriod(userId, householdId);
+      const budgetDetails = await getBudgetDetails(userId, budgetPeriod.start);
+
+      // Create a map of categoryId -> budgetRemaining
+      const budgetMap = new Map<string, number>();
+      budgetDetails.forEach(budget => {
+        const remaining = budget.allocatedAmount - budget.spentAmount;
+        budgetMap.set(budget.categoryId, remaining);
       });
 
-      // Count usage per category
-      const usageMap = new Map<string, number>();
-      txData.transactions.forEach(tx => {
-        if (tx.categoryId) {
-          usageMap.set(tx.categoryId, (usageMap.get(tx.categoryId) || 0) + 1);
-        }
+      // Create a map of group key -> group name
+      const groupKeyToName: Record<string, string> = {};
+      if (categoryGroups) {
+        categoryGroups.forEach(group => {
+          groupKeyToName[group.key] = group.name;
+        });
+      }
+
+      // Combine categories with budget remaining
+      const categoriesWithStats: CategoryWithStats[] = Array.from(allCategoriesMap.values()).map(cat => {
+        const groupKey = cat.categoryGroup || 'other';
+        const groupName = groupKeyToName[groupKey] || groupKey; // Use friendly name if available
+        const budgetRemaining = budgetMap.get(cat.id) ?? 0;
+
+        return {
+          id: cat.id,
+          name: cat.name,
+          categoryGroup: cat.categoryGroup || 'other',
+          categoryGroupName: groupName,
+          budgetRemaining,
+          icon: cat.icon
+        };
       });
 
-      // Combine categories with usage counts
-      const categoriesWithStats: CategoryWithStats[] = Array.from(allCategoriesMap.values()).map(cat => ({
-        id: cat.id,
-        name: cat.name,
-        categoryGroup: cat.categoryGroup || 'other',
-        usageCount: usageMap.get(cat.id) || 0,
-        icon: cat.icon
-      }));
-
-      // Sort by usage count (most used first), then alphabetically
+      // Sort by budget remaining (most remaining first), then alphabetically
       return categoriesWithStats.sort((a, b) => {
-        if (b.usageCount !== a.usageCount) {
-          return b.usageCount - a.usageCount;
+        if (b.budgetRemaining !== a.budgetRemaining) {
+          return b.budgetRemaining - a.budgetRemaining;
         }
         return a.name.localeCompare(b.name);
       });
     },
-    enabled: visible && !!householdId && !!userId
+    enabled: visible && !!householdId && !!userId && !!categoryGroups
   });
 
   // Filter categories based on search
@@ -163,7 +183,7 @@ export default function CategoryPickerModal({
           {filteredCategories.length > 0 ? (
             <View className="p-4">
               <Text className="text-xs text-gray-500 font-semibold mb-2 uppercase">
-                {searchQuery ? 'Matches' : 'Most Used'}
+                {searchQuery ? 'Matches' : 'Most Budget Remaining'}
               </Text>
 
               {filteredCategories.map((category) => (
@@ -182,16 +202,16 @@ export default function CategoryPickerModal({
                       <Text className="text-base font-medium text-gray-900">
                         {category.name}
                       </Text>
-                      {category.categoryGroup && (
+                      {category.categoryGroupName && (
                         <Text className="text-xs text-gray-500 capitalize">
-                          {category.categoryGroup}
+                          {category.categoryGroupName}
                         </Text>
                       )}
                     </View>
                   </View>
-                  {category.usageCount > 0 && (
+                  {category.budgetRemaining !== undefined && (
                     <Text className="text-xs text-gray-500 ml-2">
-                      {category.usageCount} {category.usageCount === 1 ? 'use' : 'uses'}
+                      CHF {category.budgetRemaining.toFixed(2)}
                     </Text>
                   )}
                 </Pressable>
