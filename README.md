@@ -1630,3 +1630,93 @@ bun start
   - `src/app/(tabs)/transactions.tsx` - Settlement badge and type filtering
   - `src/components/DashboardWidgets.tsx` - Settlement badge display
   - `src/app/transactions/[id]/edit.tsx` - Prevent settlement editing
+
+### BUG FIX: Show ALL Household Transactions, Not Just User's Own (2026-01-25)
+- **Problem**: Settlement transactions only visible to payer, not receiver
+  - Alexander settles debt, settlement only appears in his transaction list
+  - Cecilia doesn't see Alexander's settlement in her transaction list
+  - Caused confusion about whether settlement was processed
+  - Both users couldn't see complete household transaction history
+
+- **Root Cause**: Transaction list query filtered by `userId`, showing only current user's transactions
+  - `WHERE userId = currentUserId` excluded partner's transactions entirely
+  - Settlement transactions had payer's userId, so receiver never saw them
+
+- **The Fix**:
+  - Changed transaction list query from user-specific to household-wide
+  - Created new API function: `getHouseholdTransactionsWithCreators(householdId)`
+  - Function returns all transactions for the household with creator names enriched
+  - Updated transaction list interface to include `creatorName` field
+  - Display logic shows creator name only for transactions created by other user
+  - Updated all query keys and invalidations to use household ID instead of user ID
+
+- **Code Changes**:
+  ```typescript
+  // OLD (user-specific):
+  const transactionsQuery = useQuery({
+    queryKey: ['transactions', householdQuery.data?.userRecord?.id],
+    queryFn: async () => {
+      return getUserTransactions(householdQuery.data.userRecord.id);
+    },
+    enabled: !!householdQuery.data?.userRecord?.id,
+  });
+
+  // NEW (household-wide):
+  const transactionsQuery = useQuery({
+    queryKey: ['transactions-household', householdQuery.data?.householdId],
+    queryFn: async () => {
+      return getHouseholdTransactionsWithCreators(householdQuery.data.householdId);
+    },
+    enabled: !!householdQuery.data?.householdId,
+  });
+  ```
+
+- **New API Function**:
+  ```typescript
+  export async function getHouseholdTransactionsWithCreators(
+    householdId: string
+  ): Promise<TransactionWithCreator[]> {
+    // Queries all transactions in household
+    // Joins with users table to get creator names
+    // Returns enriched transactions with creatorName field
+  }
+  ```
+
+- **Creator Name Display**:
+  - Shows creator name next to category only for other user's transactions
+  - Format: "Category Name (Alexander)" for transactions created by Alexander
+  - Own transactions show no creator name (cleaner, less clutter)
+  - Helps identify who created shared expenses and settlements
+
+- **Visual Example**:
+  ```
+  Alexander's View:
+  - 100 CHF Groceries (Shared) ← His own expense
+  - 38.6 CHF Settlement (Cecilia) ← Cecilia settled to him
+
+  Cecilia's View:
+  - 100 CHF Groceries (Shared) (Alexander) ← Alexander paid
+  - 38.6 CHF Settlement ← Her own settlement
+  ```
+
+- **Impact**:
+  - Both users see complete household transaction history
+  - Settlement transactions visible to both payer and receiver
+  - Shared expenses visible to both participants
+  - Better transparency and reconciliation
+  - Can verify settlements were processed
+  - Can see who created each transaction
+
+- **Test Scenario**:
+  1. Alexander creates 100 CHF shared expense
+  2. Alexander's list: "100 CHF Groceries (Shared)"
+  3. Cecilia's list: "100 CHF Groceries (Shared) (Alexander)"
+  4. Cecilia settles 38.6 CHF via modal
+  5. Alexander's list: "100 CHF Groceries (Shared)" + "38.6 CHF Settlement (Cecilia)"
+  6. Cecilia's list: "100 CHF Groceries (Shared) (Alexander)" + "38.6 CHF Settlement"
+  7. Both users see complete transaction history
+  8. Debt widget disappears for both (balance = 0)
+
+- **Files Modified**:
+  - `src/lib/transactions-api.ts` - Added getHouseholdTransactionsWithCreators function
+  - `src/app/(tabs)/transactions.tsx` - Updated to use household query with creator names, show creator names for other users' transactions

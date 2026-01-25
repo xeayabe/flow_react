@@ -265,6 +265,52 @@ export async function getHouseholdTransactions(householdId: string): Promise<Tra
 }
 
 /**
+ * Get household transactions with creator user names
+ */
+export interface TransactionWithCreator extends Transaction {
+  creatorName?: string;
+}
+
+export async function getHouseholdTransactionsWithCreators(householdId: string): Promise<TransactionWithCreator[]> {
+  try {
+    const result = await db.queryOnce({
+      transactions: {
+        $: {
+          where: {
+            householdId,
+          },
+        },
+      },
+      users: {},
+    });
+
+    const transactions = (result.data.transactions ?? []) as Transaction[];
+    const users = result.data.users ?? [];
+
+    // Enrich transactions with creator names
+    const enrichedTransactions = transactions.map((tx) => {
+      const creator = users.find((u: any) => u.id === tx.userId);
+      return {
+        ...tx,
+        creatorName: creator?.name || 'Unknown',
+      } as TransactionWithCreator;
+    });
+
+    // Sort by date descending (newest first)
+    enrichedTransactions.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateB - dateA;
+    });
+
+    return enrichedTransactions;
+  } catch (error) {
+    console.error('Get household transactions with creators error:', error);
+    return [];
+  }
+}
+
+/**
  * Delete a transaction and restore account balance
  */
 export async function deleteTransaction(transactionId: string): Promise<TransactionResponse> {

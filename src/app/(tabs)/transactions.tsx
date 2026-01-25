@@ -6,13 +6,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Trash2, ArrowDownLeft, ArrowUpRight, AlertCircle, Plus, X, TrendingUp, TrendingDown } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { db } from '@/lib/db';
-import { getUserTransactions, deleteTransaction, formatCurrency, formatDateSwiss, Transaction } from '@/lib/transactions-api';
+import { getUserTransactions, deleteTransaction, formatCurrency, formatDateSwiss, Transaction, getHouseholdTransactionsWithCreators, TransactionWithCreator } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
 import { getUserAccounts } from '@/lib/accounts-api';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { cn } from '@/lib/cn';
 
-interface TransactionWithDetails extends Transaction {
+interface TransactionWithDetails extends TransactionWithCreator {
   categoryName?: string;
   accountName?: string;
 }
@@ -122,14 +122,14 @@ export default function TransactionsTabScreen() {
     enabled: !!user?.email,
   });
 
-  // Get transactions using the actual userId from householdQuery
+  // Get transactions using the household ID from householdQuery
   const transactionsQuery = useQuery({
-    queryKey: ['transactions', householdQuery.data?.userRecord?.id],
+    queryKey: ['transactions-household', householdQuery.data?.householdId],
     queryFn: async () => {
-      if (!householdQuery.data?.userRecord?.id) return [];
-      return getUserTransactions(householdQuery.data.userRecord.id);
+      if (!householdQuery.data?.householdId) return [];
+      return getHouseholdTransactionsWithCreators(householdQuery.data.householdId);
     },
-    enabled: !!householdQuery.data?.userRecord?.id,
+    enabled: !!householdQuery.data?.householdId,
   });
 
   // Get categories
@@ -155,17 +155,17 @@ export default function TransactionsTabScreen() {
   // Refetch transactions when tab comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
+      queryClient.invalidateQueries({ queryKey: ['transactions-household', householdQuery.data?.householdId] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
-    }, [householdQuery.data?.userRecord?.id, user?.email, queryClient])
+    }, [householdQuery.data?.householdId, user?.email, queryClient])
   );
 
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: deleteTransaction,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
+      queryClient.invalidateQueries({ queryKey: ['transactions-household', householdQuery.data?.householdId] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
       setDeleteConfirmId(null);
@@ -543,6 +543,7 @@ export default function TransactionsTabScreen() {
               const isIncome = tx.type === 'income';
               const isSettlement = tx.type === 'settlement';
               const isDeleting = deleteMutation.isPending && deleteConfirmId === tx.id;
+              const isOtherUser = tx.userId !== householdQuery.data?.userRecord?.id;
 
               return (
                 <View>
@@ -598,9 +599,16 @@ export default function TransactionsTabScreen() {
                           )}
                         </View>
                         <View className="flex-1">
-                          <Text className="font-semibold text-sm" style={{ color: '#1F2937' }}>
-                            {tx.categoryName || (isSettlement ? 'Settlement' : 'Unknown')}
-                          </Text>
+                          <View className="flex-row items-center gap-2">
+                            <Text className="font-semibold text-sm" style={{ color: '#1F2937' }}>
+                              {tx.categoryName || (isSettlement ? 'Settlement' : 'Unknown')}
+                            </Text>
+                            {isOtherUser && (
+                              <Text className="text-xs" style={{ color: '#9CA3AF' }}>
+                                ({tx.creatorName})
+                              </Text>
+                            )}
+                          </View>
                           <Text className="text-xs" style={{ color: '#9CA3AF' }}>
                             {tx.accountName || 'Unknown Account'}
                           </Text>
