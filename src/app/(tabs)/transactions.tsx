@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, ActivityIndicator, SectionList, Moda
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
-import { Trash2, ArrowDownLeft, ArrowUpRight, AlertCircle, Plus, X, TrendingUp, TrendingDown } from 'lucide-react-native';
+import { Trash2, ArrowDownLeft, ArrowUpRight, AlertCircle, Plus, X } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { db } from '@/lib/db';
 import { getUserTransactions, deleteTransaction, formatCurrency, formatDateSwiss, Transaction, getHouseholdTransactionsWithCreators, TransactionWithCreator } from '@/lib/transactions-api';
@@ -509,31 +509,6 @@ export default function TransactionsTabScreen() {
                 </Pressable>
               )}
             </ScrollView>
-          </View>
-
-          {/* Summary Cards */}
-          <View className="px-6 py-4 gap-3">
-            {/* Income Card */}
-            <View className="p-4 rounded-2xl" style={{ backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#86EFAC' }}>
-              <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-xs font-semibold text-green-700">INCOME</Text>
-                <View className="w-8 h-8 rounded-full bg-green-100 items-center justify-center">
-                  <TrendingUp size={16} color="#16A34A" />
-                </View>
-              </View>
-              <Text className="text-2xl font-bold text-green-700">+{formatCurrency(stats.income)}</Text>
-            </View>
-
-            {/* Expenses Card */}
-            <View className="p-4 rounded-2xl" style={{ backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' }}>
-              <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-xs font-semibold text-red-700">EXPENSES</Text>
-                <View className="w-8 h-8 rounded-full bg-red-100 items-center justify-center">
-                  <TrendingDown size={16} color="#DC2626" />
-                </View>
-              </View>
-              <Text className="text-2xl font-bold text-red-700">-{formatCurrency(stats.expense)}</Text>
-            </View>
           </View>
 
           {/* Transaction List */}

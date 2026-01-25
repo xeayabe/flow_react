@@ -2226,3 +2226,9 @@ bun start
   - `src/app/transactions/add.tsx` - Replaced inline dropdown with modal picker
   - `src/app/transactions/[id]/edit.tsx` - Same modal picker pattern
 
+### FEATURE: Removed Income/Expenses Summary Cards (2026-01-25)
+- **Feature**: Removed the two summary cards (Income and Expenses) from the top of the Transactions tab
+- **Reason**: Streamlined the UI for a cleaner, simpler transactions list view
+- **Files Modified**:
+  - `src/app/(tabs)/transactions.tsx` - Removed the summary cards section
+
