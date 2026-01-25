@@ -1176,3 +1176,93 @@ bun start
   - Settle splits UI to mark expenses as paid
   - Settlement logic to transfer money between accounts
   - Debt visualization showing who owes whom
+
+### FEATURE: Debt Balance Widget on Dashboard (PART 4 OF 4) (2026-01-25)
+- **Feature**: Real-time debt balance display on dashboard showing inter-household debt
+- **Implementation**:
+  - New component: `src/components/DebtBalanceWidget.tsx`
+  - Displays who owes whom with color-coded amounts (red for owing, green for owed)
+  - Auto-refreshes every 5 seconds to stay up-to-date with shared expenses
+  - Automatically hidden when:
+    - No partner in household (solo user)
+    - No shared expenses exist (balance = 0)
+    - Data is loading
+
+- **Widget Behavior**:
+  - Shows from each user's perspective:
+    - Alexander's perspective: "Cecilia owes you 40 CHF" (green) OR "You owe Cecilia 75 CHF" (red)
+    - Cecilia's perspective: "You owe Alexander 40 CHF" (red) OR "Alexander owes you 75 CHF" (green)
+  - Displays absolute balance (amount that changed hands, not net)
+  - Amount shown with 2 decimal places (e.g., 150.00 CHF)
+
+- **Data Flow**:
+  1. Query current user profile from users table
+  2. Find current user's household via householdMembers
+  3. Load all active household members
+  4. Find the other household member (partner)
+  5. Call `calculateDebtBalance(currentUserId, partnerId)`
+  6. Display based on `whoOwesUserId` field:
+     - If `whoOwesUserId === currentUserId`: Show "You owe [Partner]" in red
+     - Otherwise: Show "[Partner] owes you" in green
+
+- **Files Created/Modified**:
+  - `src/components/DebtBalanceWidget.tsx` (NEW):
+    - React component using React Query for data fetching
+    - Imports `DebtBalance` interface from shared-expenses-api
+    - Handles solo user detection (no partner = don't show widget)
+    - Handles zero balance (no shared expenses = don't show widget)
+    - Auto-refetch every 5 seconds for real-time updates
+
+  - `src/app/(tabs)/index.tsx` (MODIFIED):
+    - Added import for DebtBalanceWidget
+    - Inserted widget after TotalBalanceCard and ThisMonthSpendingCard
+    - Widget renders conditionally (hidden when balance = 0)
+
+- **Visual Design**:
+  - Clean card layout matching dashboard aesthetic
+  - "Household Balance" header with subtle gray text
+  - Large bold amount (3xl font size)
+  - Color-coded:
+    - Green (#10B981 family) for "money owed to you"
+    - Red (#DC2626 family) for "money you owe"
+  - Partner's name highlighted in bold
+  - Margin: 4 sides (mx-4 mb-4) for consistent spacing
+
+- **Test Scenarios**:
+  - **Scenario 1: No Shared Expenses**
+    - Widget hidden (balance = 0)
+
+  - **Scenario 2: Alexander Pays 100 CHF Shared Expense**
+    - Alexander's dashboard: "Cecilia owes you 40.00 CHF" (green)
+    - Cecilia's dashboard: "You owe Alexander 40.00 CHF" (red)
+
+  - **Scenario 3: Multiple Shared Expenses**
+    - Alexander paid 100 CHF → Cecilia owes 40 CHF
+    - Cecilia paid 50 CHF → Alexander owes 30 CHF
+    - Net: Cecilia owes 10 CHF
+    - Alexander's dashboard: "Cecilia owes you 10.00 CHF" (green)
+    - Cecilia's dashboard: "You owe Alexander 10.00 CHF" (red)
+
+  - **Scenario 4: Split Evenly (Balance Cancels)**
+    - Alexander paid 100 CHF → Cecilia owes 40 CHF
+    - Cecilia paid 100 CHF → Alexander owes 40 CHF
+    - Net: 0 CHF
+    - Widget hidden for both users
+
+  - **Scenario 5: Solo User**
+    - Only Alexander, no Cecilia
+    - Widget doesn't appear (no partner found)
+
+- **Edge Cases Handled**:
+  - ✓ Partner not found in household: Widget hidden
+  - ✓ Balance exactly 0: Widget hidden
+  - ✓ No shared_expense_splits table data: Widget hidden
+  - ✓ Unpaid splits only: Only counts unsettled debts (isPaid = false)
+  - ✓ Correct perspective for each user: Each sees their own view
+  - ✓ Real-time updates: Refetches every 5 seconds
+
+- **Next Steps**:
+  - Settlement UI to allow users to mark debts as paid
+  - Move money between accounts when settling debt
+  - Settlement history/ledger
+  - Multiple members (extend beyond 2-person households)

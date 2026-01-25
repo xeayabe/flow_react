@@ -30,6 +30,7 @@ import {
   BudgetGroupData,
   FloatingActionButton,
 } from '@/components/DashboardWidgets';
+import DebtBalanceWidget from '@/components/DebtBalanceWidget';
 
 interface BudgetSummaryData {
   totalIncome: number;
@@ -305,6 +306,9 @@ export default function DashboardScreen() {
               />
             )}
           </View>
+
+          {/* Debt Balance Widget */}
+          <DebtBalanceWidget />
 
           {/* Budget Status Widget */}
           {summary ? (
