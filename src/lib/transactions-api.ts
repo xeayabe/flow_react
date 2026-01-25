@@ -64,7 +64,7 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
 
     // Allow any valid date (past, present, or future)
     // This allows users to plan ahead for expenses like rent
-    const transactionDate = new Date(request.date);
+    const transactionDate = new Date(request.date + 'T00:00:00');
     if (isNaN(transactionDate.getTime())) {
       return { success: false, error: 'Invalid date format' };
     }
@@ -389,7 +389,7 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
     }
 
     // Check date is not in future
-    const transactionDate = new Date(request.date);
+    const transactionDate = new Date(request.date + 'T00:00:00');
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 

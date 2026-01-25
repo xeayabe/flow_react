@@ -566,6 +566,7 @@ export default function EditTransactionScreen() {
                 // Days of month
                 for (let day = 1; day <= daysInMonth; day++) {
                   const currentDate = new Date(year, month, day);
+                  currentDate.setHours(0, 0, 0, 0); // Set to midnight UTC
                   const dateStr = currentDate.toISOString().split('T')[0];
                   const isSelected = dateStr === formData.date;
                   const isToday = currentDate.getTime() === today.getTime();
