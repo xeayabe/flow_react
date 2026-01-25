@@ -47,6 +47,7 @@ const schema = i.schema({
       last4Digits: i.string().optional(),
       isDefault: i.boolean(),
       isActive: i.boolean(),
+      isExcludedFromBudget: i.boolean().optional(), // Exclude wallet from budget calculations
       createdAt: i.number(),
       updatedAt: i.number(),
     }),

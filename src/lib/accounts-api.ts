@@ -45,6 +45,7 @@ export interface Account {
   last4Digits?: string;
   isDefault: boolean;
   isActive: boolean;
+  isExcludedFromBudget?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -363,6 +364,7 @@ export interface UpdateAccountData {
   balance?: number;
   last4Digits?: string;
   isDefault?: boolean;
+  isExcludedFromBudget?: boolean;
 }
 
 /**
@@ -417,6 +419,7 @@ export async function updateAccount(
     if (updateData.balance !== undefined) updates.balance = updateData.balance;
     if (updateData.last4Digits !== undefined) updates.last4Digits = updateData.last4Digits;
     if (updateData.isDefault !== undefined) updates.isDefault = updateData.isDefault;
+    if (updateData.isExcludedFromBudget !== undefined) updates.isExcludedFromBudget = updateData.isExcludedFromBudget;
 
     await db.transact([
       db.tx.accounts[accountId].update(updates),

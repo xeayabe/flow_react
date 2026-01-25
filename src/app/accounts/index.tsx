@@ -3,7 +3,7 @@ import { View, Text, Pressable, ScrollView, ActivityIndicator } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { Plus, Star, Building2, CreditCard, Wallet, TrendingUp, Banknote, ChevronLeft } from 'lucide-react-native';
+import { Plus, Star, Building2, CreditCard, Wallet, TrendingUp, Banknote, ChevronLeft, EyeOff } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { getUserAccounts, formatBalance, type Account } from '@/lib/accounts-api';
 import { db } from '@/lib/db';
@@ -50,13 +50,18 @@ function AccountCard({ account, index }: { account: Account; index: number }) {
         {/* Header Row */}
         <View className="flex-row items-start justify-between mb-3">
           <View className="flex-1">
-            <View className="flex-row items-center">
+            <View className="flex-row items-center gap-2">
               <Text className="text-lg font-semibold" style={{ color: '#1F2937' }}>
                 {account.name}
               </Text>
               {account.isDefault && (
-                <View className="ml-2 px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(0, 106, 106, 0.1)' }}>
+                <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(0, 106, 106, 0.1)' }}>
                   <Star size={12} color="#006A6A" fill="#006A6A" />
+                </View>
+              )}
+              {account.isExcludedFromBudget && (
+                <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
+                  <EyeOff size={12} color="#DC2626" />
                 </View>
               )}
             </View>

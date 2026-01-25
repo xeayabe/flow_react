@@ -86,6 +86,11 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - First wallet automatically set as default (disabled checkbox)
   - Only one default wallet allowed per user
   - Auto-unset previous default when changing
+- ✅ **Exclude from Budget** - Toggle to exclude wallet from budget calculations
+  - Allows you to exclude savings/investment accounts or other wallets from affecting budget spending
+  - Transactions from excluded wallets don't count toward budget categories
+  - Visual indicator (eye slash icon) on wallet cards shows excluded status
+  - Toggle in edit wallet screen to manage exclusion
 - ✅ **Real-time Validation** - Input validation with empathetic error messages
 - ✅ **Wallet Cards** - Beautiful cards showing institution, type, and balance
 - ✅ **Default Badge** - "Default" badge with soft lavender background

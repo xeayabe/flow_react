@@ -320,7 +320,7 @@ async function updateBudgetSpentAmountAsync(
   spentAmount: number
 ): Promise<void> {
   try {
-    // Single query to get budget, summary, and all budgets for recalculation
+    // Single query to get budget, summary, all budgets, and accounts for exclusion check
     const result = await db.queryOnce({
       budgets: {
         $: {
@@ -338,11 +338,24 @@ async function updateBudgetSpentAmountAsync(
           },
         },
       },
+      accounts: {
+        $: {
+          where: {
+            userId,
+          },
+        },
+      },
     });
 
     const budgets = result.data.budgets || [];
     const budget = budgets.find((b: any) => b.categoryId === categoryId);
     const summary = result.data.budgetSummary?.[0];
+    const accounts = result.data.accounts || [];
+
+    // Create a set of excluded account IDs for quick lookup
+    const excludedAccountIds = new Set(
+      accounts.filter((acc: any) => acc.isExcludedFromBudget === true).map((acc: any) => acc.id)
+    );
 
     if (!budget) {
       console.warn(`Budget not found for user ${userId}, category ${categoryId}, period ${periodStart}`);
@@ -393,6 +406,7 @@ async function updateBudgetSpentAmountAsync(
 /**
  * Recalculate budget spent amounts from actual transactions
  * Useful for backfilling spent amounts if they weren't properly tracked
+ * Excludes transactions from wallets marked as excluded from budget
  */
 export async function recalculateBudgetSpentAmounts(
   userId: string,
@@ -400,6 +414,22 @@ export async function recalculateBudgetSpentAmounts(
   periodEnd: string
 ): Promise<void> {
   try {
+    // Get all accounts to check which ones are excluded from budget
+    const accountsResult = await db.queryOnce({
+      accounts: {
+        $: {
+          where: {
+            userId,
+          },
+        },
+      },
+    });
+
+    const accounts = accountsResult.data.accounts || [];
+    const excludedAccountIds = new Set(
+      accounts.filter((acc: any) => acc.isExcludedFromBudget === true).map((acc: any) => acc.id)
+    );
+
     // Get all expense transactions for this user in this period
     const transactionsResult = await db.queryOnce({
       transactions: {
@@ -412,8 +442,10 @@ export async function recalculateBudgetSpentAmounts(
       },
     });
 
-    const transactions = (transactionsResult.data.transactions ?? []).filter(
-      (tx: any) => tx.date >= periodStart && tx.date <= periodEnd
+    const allTransactions = transactionsResult.data.transactions ?? [];
+    // Filter by date AND exclude transactions from excluded accounts
+    const transactions = allTransactions.filter(
+      (tx: any) => tx.date >= periodStart && tx.date <= periodEnd && !excludedAccountIds.has(tx.accountId)
     );
 
     // Group transactions by category

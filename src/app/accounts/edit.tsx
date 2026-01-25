@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Info, ChevronDown, Trash2 } from 'lucide-react-native';
+import { Info, ChevronDown, Trash2, Eye, EyeOff } from 'lucide-react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getAccountById,
@@ -39,6 +39,7 @@ interface FormData {
   balance: string;
   last4Digits: string;
   isDefault: boolean;
+  isExcludedFromBudget: boolean;
 }
 
 interface ValidationErrors {
@@ -60,6 +61,7 @@ export default function EditWalletScreen() {
     balance: '',
     last4Digits: '',
     isDefault: false,
+    isExcludedFromBudget: false,
   });
 
   const [errors, setErrors] = useState<ValidationErrors>({});
@@ -89,6 +91,7 @@ export default function EditWalletScreen() {
         balance: account.balance.toString(),
         last4Digits: account.last4Digits || '',
         isDefault: account.isDefault,
+        isExcludedFromBudget: account.isExcludedFromBudget || false,
       });
     }
   }, [account]);
@@ -209,6 +212,7 @@ export default function EditWalletScreen() {
       balance: parsedBalance,
       last4Digits: formData.last4Digits || undefined,
       isDefault: formData.isDefault,
+      isExcludedFromBudget: formData.isExcludedFromBudget,
     };
 
     updateAccountMutation.mutate(updateData);
@@ -526,6 +530,44 @@ export default function EditWalletScreen() {
                 </View>
               </Animated.View>
             )}
+
+            {/* Exclude from Budget Toggle */}
+            <Animated.View entering={FadeInDown.delay(650).duration(600)} className="mb-8">
+              <Pressable
+                onPress={() => setFormData({ ...formData, isExcludedFromBudget: !formData.isExcludedFromBudget })}
+                className="flex-row items-center justify-between py-3 px-4 rounded-2xl"
+                style={{ backgroundColor: formData.isExcludedFromBudget ? 'rgba(239, 68, 68, 0.05)' : 'rgba(0, 106, 106, 0.05)' }}
+              >
+                <View className="flex-row items-center flex-1">
+                  {formData.isExcludedFromBudget ? (
+                    <EyeOff size={20} color="#DC2626" style={{ marginRight: 12 }} />
+                  ) : (
+                    <Eye size={20} color="#006A6A" style={{ marginRight: 12 }} />
+                  )}
+                  <View className="flex-1">
+                    <Text className="text-sm font-medium" style={{ color: formData.isExcludedFromBudget ? '#DC2626' : '#006A6A' }}>
+                      Exclude from Budget
+                    </Text>
+                    <Text className="text-xs mt-1" style={{ color: formData.isExcludedFromBudget ? '#DC2626' : '#6B7280' }}>
+                      {formData.isExcludedFromBudget
+                        ? 'This wallet will not affect your budget'
+                        : 'Include this wallet in budget tracking'}
+                    </Text>
+                  </View>
+                </View>
+                <View
+                  className="w-6 h-6 rounded-md border-2 items-center justify-center"
+                  style={{
+                    borderColor: formData.isExcludedFromBudget ? '#DC2626' : '#006A6A',
+                    backgroundColor: formData.isExcludedFromBudget ? '#DC2626' : 'transparent',
+                  }}
+                >
+                  {formData.isExcludedFromBudget && (
+                    <View className="w-3 h-3 bg-white rounded-sm" />
+                  )}
+                </View>
+              </Pressable>
+            </Animated.View>
           </ScrollView>
 
           {/* Bottom Submit Button */}
