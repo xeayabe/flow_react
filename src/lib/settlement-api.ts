@@ -64,12 +64,12 @@ export async function createSettlement(
   householdId: string
 ) {
   console.log('💳 === SETTLEMENT START (INTERNAL TRANSFER) ===');
-  console.log('- Payer (member who owes):', payerUserId);
-  console.log('- Receiver (admin who paid):', receiverUserId);
+  console.log('- Payer (member who owes):', payerUserId?.substring(0, 8));
+  console.log('- Receiver (admin who paid):', receiverUserId?.substring(0, 8));
   console.log('- Amount:', amount);
-  console.log('- Payer Account:', payerAccountId);
-  console.log('- Receiver Account:', receiverAccountId);
-  console.log('- Household:', householdId);
+  console.log('- Payer Account:', payerAccountId?.substring(0, 8));
+  console.log('- Receiver Account:', receiverAccountId?.substring(0, 8));
+  console.log('- Household:', householdId?.substring(0, 8));
 
   const settlementId = uuidv4();
   const now = Date.now();
