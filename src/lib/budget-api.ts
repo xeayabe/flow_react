@@ -761,6 +761,10 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
       currentBudgetPeriodEnd: member.budgetPeriodEnd,
     });
 
+    // IMPORTANT: Save the OLD period end before we update the member record
+    const oldPeriodEnd = member.budgetPeriodEnd;
+    console.log('Saved old period end:', oldPeriodEnd);
+
     // Calculate new period based on member's payday
     const newPeriod = calculateBudgetPeriod(member.paydayDay);
     console.log('New period calculated:', newPeriod);
@@ -782,7 +786,7 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
         $: {
           where: {
             userId,
-            periodEnd: member.budgetPeriodEnd,
+            periodEnd: oldPeriodEnd,
             isActive: true,
           },
         },
@@ -827,7 +831,7 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
         $: {
           where: {
             userId,
-            periodEnd: member.budgetPeriodEnd, // Use OLD period end to find current summary
+            periodEnd: oldPeriodEnd,
           },
         },
       },
