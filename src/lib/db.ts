@@ -18,6 +18,8 @@ const schema = i.schema({
       payFrequency: i.string().optional(), // 'monthly'
       budgetPeriodStart: i.string().optional(), // ISO format YYYY-MM-DD
       budgetPeriodEnd: i.string().optional(), // ISO format YYYY-MM-DD
+      splitMethod: i.string().optional(), // 'automatic' or 'manual'
+      manualSplitRatios: i.json().optional(), // JSON: { userId1: 60, userId2: 40 }
       createdAt: i.number(),
       updatedAt: i.number().optional(),
     }),

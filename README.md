@@ -2232,3 +2232,130 @@ bun start
 - **Files Modified**:
   - `src/app/(tabs)/transactions.tsx` - Removed the summary cards section
 
+### FEATURE: Expense Splitting Settings - Global Split Ratio Management (2026-01-25)
+- **Feature**: Create settings screen where users can manage how shared expenses are split between household members
+- **Goal**: Allow users to configure split ratios (automatic income-based or manual custom percentages) that apply to all future shared expenses
+
+**Behavior:**
+- **Automatic mode**: Calculate split from monthly incomes (e.g., 60/40 based on 5200/3500 CHF incomes)
+- **Manual mode**: User sets custom percentages (e.g., 50/50, 70/30)
+- **Future-only changes**: Changing split affects ONLY new transactions, existing debt/splits remain unchanged (Option B)
+- **Visibility**: Only visible when household has 2+ active members
+- **Shared settings**: Both household members see and can edit the same settings
+
+**Database Schema Changes:**
+- Added to `households` table:
+  - `splitMethod`: `string` (optional) - "automatic" or "manual"
+  - `manualSplitRatios`: `json` (optional) - JSON object mapping userId to percentage (e.g., `{ userId1: 60, userId2: 40 }`)
+
+**Implementation:**
+
+1. **Split Settings API** (`src/lib/split-settings-api.ts`):
+   - `getSplitSettings(householdId)`: Get current split settings for household
+     - Returns `null` if household has < 2 members
+     - Returns split method and calculated/manual percentages for each member
+   - `updateSplitSettings(householdId, splitMethod, manualRatios?)`: Update split settings
+     - Validates manual ratios total 100%
+     - Saves to households table
+   - `getCurrentSplitRatio(householdId)`: Get split ratio for creating new shared expenses
+     - Used by `createExpenseSplits` to apply correct percentages
+
+2. **Shared Expenses API Update** (`src/lib/shared-expenses-api.ts`):
+   - Modified `calculateSplitRatio()` to use split settings instead of always calculating from income
+   - Now uses `getCurrentSplitRatio()` from split-settings-api
+   - Maintains backward compatibility with income field for existing code
+
+3. **Split Settings Screen** (`src/app/settings/split-settings.tsx`):
+   - Full-screen settings interface with automatic/manual mode toggle
+   - **Current Split Display**: Shows current percentages for each member
+   - **Automatic Mode**: Shows income-based split with "Calculated from monthly income ratio" label
+   - **Manual Mode Editor**:
+     - First person's percentage is editable
+     - Second person's percentage auto-calculates (100 - first)
+     - Validation: Total must equal 100%
+     - Cannot save if validation fails
+   - **Toggle Button**: Switch between Automatic and Manual modes
+   - **Save Button**: Applies settings to future shared expenses
+   - **Info Section**: Explains how automatic/manual modes work
+
+4. **Profile Tab Menu Item** (`src/app/(tabs)/two.tsx`):
+   - Added "Expense Splitting" menu item (Users icon)
+   - Only visible when household has 2+ active members
+   - Positioned after "Payday & Budget Period"
+   - Shows description: "Manage how shared expenses are divided"
+
+**User Flows:**
+
+**Test 1 - View Current Split (Automatic):**
+1. Alexander opens Profile → Expense Splitting
+2. Sees: Alexander 60%, Cecilia 40%
+3. Shows "Automatic" mode label
+4. Shows "Calculated from monthly income ratio"
+
+**Test 2 - Switch to Manual 50/50:**
+1. Tap "Switch to Manual"
+2. Mode changes to "Manual"
+3. See inputs: Alexander 60%, Cecilia 40%
+4. Change Alexander to: 50%
+5. Cecilia auto-updates to: 50%
+6. Total shows: 100% ✓
+7. Tap "Save"
+8. Success message shown
+9. Future shared expenses use 50/50
+
+**Test 3 - Manual Custom Split:**
+1. In manual mode
+2. Set Alexander: 70%
+3. Cecilia auto-calculates: 30%
+4. Save
+5. New shared expenses use 70/30
+
+**Test 4 - Back to Automatic:**
+1. In manual mode (50/50 set)
+2. Tap "Switch to Automatic"
+3. Shows income-based: 60/40
+4. Save
+5. Future expenses use 60/40 (income-based)
+
+**Test 5 - Existing Debt Unchanged:**
+1. Current debt: 150 CHF (from old 60/40 splits)
+2. Change split to 50/50
+3. Debt still shows: 150 CHF ✓
+4. Add new 100 CHF shared expense
+5. New expense uses 50/50 split
+6. Debt increases by 50 CHF (not 40 CHF)
+
+**Test 6 - Solo User:**
+1. User with no household members
+2. Profile menu does NOT show "Expense Splitting" ✓
+
+**Test 7 - Member Can See/Edit:**
+1. Cecilia opens Expense Splitting
+2. Can see current split
+3. Can change to manual
+4. Can save changes
+5. Both users see updated split
+
+**Edge Cases Handled:**
+- No incomes set (automatic): Defaults to 50/50 even split
+- Invalid manual percentages: Cannot save, shows error
+- Switching modes doesn't lose data: Settings preserved
+- Settings shared across household: Both members see same values
+- Only affects future transactions: Existing debt unchanged
+
+**Benefits:**
+- **Flexibility**: Choose automatic (fair based on income) or manual (custom arrangement)
+- **Simplicity**: Easy percentage editor with auto-calculation
+- **Transparency**: Both members see and agree on split settings
+- **Stability**: Existing debt unchanged, no retroactive recalculations
+- **Smart defaults**: Automatic mode uses income ratios for fair splitting
+
+**Files Created:**
+- `src/lib/split-settings-api.ts` - Split settings management API
+- `src/app/settings/split-settings.tsx` - Split settings screen
+
+**Files Modified:**
+- `src/lib/db.ts` - Added splitMethod and manualSplitRatios to households schema
+- `src/lib/shared-expenses-api.ts` - Updated calculateSplitRatio to use split settings
+- `src/app/(tabs)/two.tsx` - Added Expense Splitting menu item (conditional on 2+ members)
+

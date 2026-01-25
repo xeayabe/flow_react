@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronRight, Tag, LogOut, Wallet, User, Calendar, PieChart, Upload, Download, Layers, UserPlus } from 'lucide-react-native';
+import { ChevronRight, Tag, LogOut, Wallet, User, Calendar, PieChart, Upload, Download, Layers, UserPlus, Users } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 import { signOut } from '@/lib/auth-api';
@@ -53,6 +53,32 @@ export default function TabTwoScreen() {
     enabled: !!userProfile?.id
   });
 
+  // Check if household has 2+ members (for split settings visibility)
+  const { data: showSplitSettings } = useQuery({
+    queryKey: ['show-split-settings', userProfile?.id],
+    queryFn: async () => {
+      if (!userProfile?.id) return false;
+
+      const { data: memberData } = await db.queryOnce({
+        householdMembers: {
+          $: { where: { userId: userProfile.id, status: 'active' } }
+        }
+      });
+
+      const member = memberData.householdMembers?.[0];
+      if (!member) return false;
+
+      const { data: allMembers } = await db.queryOnce({
+        householdMembers: {
+          $: { where: { householdId: member.householdId, status: 'active' } }
+        }
+      });
+
+      return (allMembers.householdMembers?.length || 0) >= 2;
+    },
+    enabled: !!userProfile?.id
+  });
+
   const handleSignOut = async () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', onPress: () => {}, style: 'cancel' },
@@ -97,6 +123,17 @@ export default function TabTwoScreen() {
       description: 'Set when you get paid each month',
       onPress: () => router.push('/settings/payday'),
     },
+    // Only show split settings if household has 2+ members
+    ...(showSplitSettings
+      ? [
+          {
+            icon: <Users size={24} color="#006A6A" />,
+            label: 'Expense Splitting',
+            description: 'Manage how shared expenses are divided',
+            onPress: () => router.push('/settings/split-settings'),
+          },
+        ]
+      : []),
     {
       icon: <Tag size={24} color="#006A6A" />,
       label: 'Categories',

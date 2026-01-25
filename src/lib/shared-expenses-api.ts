@@ -1,5 +1,6 @@
 import { db } from './db';
 import { v4 as uuidv4 } from 'uuid';
+import { getCurrentSplitRatio } from './split-settings-api';
 
 /**
  * Split ratio for a household member
@@ -35,14 +36,19 @@ export interface DebtBalance {
 }
 
 /**
- * Calculate split ratio based on incomes from budgetSummary
+ * Calculate split ratio based on split settings (automatic or manual)
  * Returns array of {userId, percentage, income} for each household member
  */
 export async function calculateSplitRatio(householdId: string): Promise<SplitRatio[]> {
   console.log('=== calculateSplitRatio START ===');
   console.log('Household ID:', householdId);
 
-  // Get all active household members
+  // Use split settings instead of always calculating from income
+  const splitRatio = await getCurrentSplitRatio(householdId);
+
+  console.log('Split ratio from settings:', splitRatio);
+
+  // Get member incomes for backward compatibility (still need income field in result)
   const { data: memberData } = await db.queryOnce({
     householdMembers: {
       $: {
@@ -55,60 +61,31 @@ export async function calculateSplitRatio(householdId: string): Promise<SplitRat
   });
 
   const members = memberData.householdMembers || [];
-  console.log('Found members:', members.length);
 
-  if (members.length === 0) {
-    console.log('No members found, returning empty array');
-    return [];
-  }
-
-  // Get income from budgetSummary for each member
-  const memberIncomes: SplitRatio[] = await Promise.all(
-    members.map(async (member: any) => {
+  // Combine split percentages with member income data
+  const result: SplitRatio[] = await Promise.all(
+    splitRatio.map(async (split) => {
+      const member = members.find((m: any) => m.userId === split.userId);
       const { data: budgetData } = await db.queryOnce({
         budgetSummary: {
-          $: { where: { userId: member.userId } }
+          $: { where: { userId: split.userId } }
         }
       });
 
-      // Get the most recent budget summary for this user
       const summaries = budgetData.budgetSummary || [];
       const latestSummary = summaries.sort((a: any, b: any) =>
         new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime()
       )[0];
 
       const income = latestSummary?.totalIncome || 0;
-      console.log(`Member ${member.userId}: income = ${income}`);
 
       return {
-        userId: member.userId,
-        income,
-        percentage: 0 // Will be calculated below
+        userId: split.userId,
+        percentage: split.percentage,
+        income
       };
     })
   );
-
-  // Calculate total household income
-  const totalIncome = memberIncomes.reduce((sum, m) => sum + m.income, 0);
-  console.log('Total household income:', totalIncome);
-
-  // If no incomes set, split evenly
-  if (totalIncome === 0) {
-    const evenSplit = 100 / members.length;
-    console.log('No incomes set, splitting evenly:', evenSplit, '%');
-    const result = memberIncomes.map(m => ({
-      ...m,
-      percentage: Math.round(evenSplit * 100) / 100 // Round to 2 decimal places
-    }));
-    console.log('=== calculateSplitRatio END (even split) ===');
-    return result;
-  }
-
-  // Calculate proportional splits
-  const result = memberIncomes.map(m => ({
-    ...m,
-    percentage: Math.round((m.income / totalIncome) * 10000) / 100 // Round to 2 decimal places
-  }));
 
   console.log('Calculated splits:', result);
   console.log('=== calculateSplitRatio END ===');
