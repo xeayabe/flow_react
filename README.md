@@ -991,6 +991,21 @@ bun start
   - Dashboard widget now shows the 5 most recent transactions regardless of budget period
   - Budget period calculations remain accurate using the budget summary data
 
+### BUG FIX: Member Budget Summary Not Resetting (2026-01-25)
+- **Problem**: When a member's budget period resets on payday, the budget summary doesn't update properly
+- **Root Causes**:
+  1. `resetMemberBudgetPeriod()` was querying budgetSummary by `householdId` and `periodEnd` instead of by `userId`
+  2. This could cause the wrong user's budget summary to be updated (or the admin's instead of the member's)
+  3. The spent amount fields (`needsSpent`, `wantsSpent`, `savingsSpent`) were being preserved instead of reset to 0
+- **The Fix**:
+  - Updated `resetMemberBudgetPeriod()` in `src/lib/budget-api.ts`:
+    - Now queries budgetSummary by `userId` AND `householdId` (ensures correct member's summary)
+    - Adds `userId` to the update transaction
+    - Resets all spent fields: `totalSpent: 0`, `needsSpent: 0`, `wantsSpent: 0`, `savingsSpent: 0`
+- **Important Note**: Each household member must have set up their own budget via the Budget → Setup page for them to have a budgetSummary. If a member hasn't set up their budget yet, they won't see it reset on payday. They should go to Budget → Setup and enter their income and allocations.
+- **Impact**: Budget period resets now work correctly for both admin and member users
+  - Budget period calculations remain accurate using the budget summary data
+
 ### BUG FIX: Budget Period Reset Not Working Properly (2026-01-25)
 - **Problem**: Budget period dates updated on payday but budget amounts (totalSpent) did not reset to 0
 - **Root Cause**: Two issues found:
