@@ -804,18 +804,22 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
     );
 
     // Reset budget summary for the member
+    // Query using the OLD period end to find the current summary that needs resetting
     const summaryResult = await db.queryOnce({
       budgetSummary: {
         $: {
           where: {
             userId,
-            householdId,
+            periodEnd: member.budgetPeriodEnd, // Use OLD period end to find current summary
           },
         },
       },
     });
 
     const oldSummary = summaryResult.data.budgetSummary?.[0];
+    if (!oldSummary) {
+      console.log('No budget summary found for member, creating new one');
+    }
     const summaryId = oldSummary?.id || generateId();
 
     const summaryTransaction = db.tx.budgetSummary[summaryId].update({
@@ -832,6 +836,7 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
       needsSpent: 0, // Reset!
       wantsSpent: 0, // Reset!
       savingsSpent: 0, // Reset!
+      createdAt: oldSummary?.createdAt || Date.now(),
       updatedAt: Date.now(),
     });
 
