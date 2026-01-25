@@ -167,16 +167,27 @@ export async function createSettlement(
   const payerUnpaidSplits = householdSplits.filter((s: any) => s.owerUserId === payerUserId && !s.isPaid);
   console.log('📊 Unpaid splits for payer', payerUserId, ':', payerUnpaidSplits.length);
 
+  // Log all splits for debugging
+  console.log('📊 All household splits (for debugging):');
+  householdSplits.forEach((s: any) => {
+    const tx = transactionMap.get(s.transactionId);
+    console.log(`  - Split ${s.id}: ower=${s.owerUserId}, owedTo=${s.owedToUserId}, amount=${s.splitAmount}, isPaid=${s.isPaid}, tx.paidBy=${tx?.paidByUserId}`);
+  });
+
   payerUnpaidSplits.forEach((s: any) => {
     const tx = transactionMap.get(s.transactionId);
-    console.log(`  - Split ${s.id}: owes ${s.splitAmount} CHF, tx: ${s.transactionId}, paidBy: ${tx?.paidByUserId}`);
+    console.log(`  - Payer's split ${s.id}: owes ${s.splitAmount} CHF, tx: ${s.transactionId}, paidBy: ${tx?.paidByUserId}, owedTo: ${s.owedToUserId}`);
   });
 
   // Only settle splits where receiver paid the original expense
+  // The split.owedToUserId should match receiverUserId (the admin who paid)
   const splitsToSettle = payerUnpaidSplits.filter((split: any) => {
     const transaction = transactionMap.get(split.transactionId);
-    const shouldSettle = transaction?.paidByUserId === receiverUserId;
-    console.log(`  Checking split ${split.id}: paidBy=${transaction?.paidByUserId}, receiver=${receiverUserId}, matches=${shouldSettle}`);
+    // Use both checks: owedToUserId should match receiver, and transaction.paidByUserId should too
+    const owedToMatches = split.owedToUserId === receiverUserId;
+    const paidByMatches = transaction?.paidByUserId === receiverUserId;
+    const shouldSettle = owedToMatches; // Primary check is owedToUserId
+    console.log(`  Checking split ${split.id}: owedTo=${split.owedToUserId}, receiver=${receiverUserId}, owedToMatches=${owedToMatches}, paidBy=${transaction?.paidByUserId}, paidByMatches=${paidByMatches}, settling=${shouldSettle}`);
     return shouldSettle;
   });
 
@@ -200,11 +211,24 @@ export async function createSettlement(
 
     console.log('📝 Transaction amounts to reduce:', JSON.stringify(transactionUpdates));
 
-    // Get current transaction amounts from our map
+    // Get fresh transaction data from database (not from potentially stale map)
     const transactionIds = Object.keys(transactionUpdates);
-    const transactionsToUpdate = transactionIds.map(id => transactionMap.get(id)).filter(Boolean);
+    console.log('📝 Transaction IDs to update:', transactionIds);
 
-    console.log(`📝 Found ${transactionsToUpdate.length} transactions to update`);
+    const { data: freshTxData } = await db.queryOnce({
+      transactions: {
+        $: {
+          where: {
+            householdId,
+          },
+        },
+      },
+    });
+
+    const allTransactions = freshTxData.transactions || [];
+    const transactionsToUpdate = allTransactions.filter((t: any) => transactionIds.includes(t.id));
+
+    console.log(`📝 Found ${transactionsToUpdate.length} transactions to update out of ${allTransactions.length} total`);
     transactionsToUpdate.forEach((t: any) => {
       const reduction = transactionUpdates[t.id];
       console.log(`  - Transaction ${t.id}: current=${t.amount}, reduction=${reduction}, new=${t.amount - reduction}`);
@@ -227,7 +251,7 @@ export async function createSettlement(
     // Reduce transaction amounts (original expense - settled amount = payer's portion only)
     for (const tx of transactionsToUpdate) {
       const reductionAmount = transactionUpdates[tx.id];
-      const newAmount = tx.amount - reductionAmount;
+      const newAmount = Math.max(0, tx.amount - reductionAmount); // Ensure non-negative
       console.log(`  📌 Reducing transaction ${tx.id}: ${tx.amount} - ${reductionAmount} = ${newAmount}`);
       allUpdates.push(
         db.tx.transactions[tx.id].update({
@@ -237,9 +261,14 @@ export async function createSettlement(
       );
     }
 
-    console.log(`📝 Executing ${allUpdates.length} updates...`);
-    await db.transact(allUpdates);
-    console.log('✅ All splits marked as paid and transaction amounts reduced');
+    console.log(`📝 Executing ${allUpdates.length} updates (${splitsToSettle.length} splits + ${transactionsToUpdate.length} transactions)...`);
+
+    if (allUpdates.length > 0) {
+      await db.transact(allUpdates);
+      console.log('✅ All splits marked as paid and transaction amounts reduced');
+    } else {
+      console.log('⚠️ No updates to execute');
+    }
   } else {
     console.log('⚠️ No splits found to settle - check if splits exist and are unpaid');
   }

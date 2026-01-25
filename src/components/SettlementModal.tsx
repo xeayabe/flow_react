@@ -122,12 +122,19 @@ export default function SettlementModal({
     },
     onSuccess: (result) => {
       console.log('✅ Settlement mutation success:', result);
+      // Invalidate all relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['debt-balance'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['transactions-household'] });
       queryClient.invalidateQueries({ queryKey: ['payer-accounts'] });
       queryClient.invalidateQueries({ queryKey: ['receiver-accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['household-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['shared-expenses'] });
+      // Force refetch all queries to ensure UI updates
+      queryClient.refetchQueries({ queryKey: ['transactions'], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['household-transactions'], type: 'active' });
 
       // Show detailed result
       const message = result?.splitsSettled
