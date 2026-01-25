@@ -1983,10 +1983,67 @@ bun start
 - **Files Created**:
   - `src/lib/payee-mappings-api.ts` - Smart learning logic
 
+- **Files Created**:
+  - `src/components/PayeePickerModal.tsx` - Full-screen modal picker
+
 - **Files Modified**:
   - `src/lib/db.ts` - Added payee_category_mappings table
-  - `src/app/transactions/add.tsx` - Smart auto-fill + autocomplete
-  - `src/app/transactions/[id]/edit.tsx` - Learning from edits
+  - `src/app/transactions/add.tsx` - Modal picker with smart auto-fill
+  - `src/app/transactions/[id]/edit.tsx` - Modal picker with learning from edits
+
+### FEATURE: Payee Picker Modal with Search and Create (2026-01-25)
+- **Feature**: Enhanced payee selection with full-screen modal picker for better mobile UX
+- **UI/UX Improvements**:
+  - **Full-Screen Modal**: Dedicated search and selection interface
+  - **Pressable Button**: Tap "Choose payee..." to open picker (replaces inline input)
+  - **Search Bar**: Search existing payees with real-time filtering
+  - **Usage Statistics**: Each payee shows usage count (e.g., "5 uses")
+  - **Sorted List**: Payees sorted by usage count (most frequent first)
+  - **Create New**: Type to create new payee on the spot with "Create 'X'" button
+  - **Clear Button**: Easy clear button when payee selected
+  - **Large Touch Targets**: 56px height buttons for mobile-friendly interaction
+  - **Auto-Fill Integration**: Category still auto-fills when payee selected
+
+- **Implementation**:
+  - Created `PayeePickerModal.tsx` component:
+    - Full-screen modal with slide animation
+    - Search functionality with autocomplete
+    - Loads payees from both mappings and transactions
+    - Displays usage count for each payee
+    - Creates new payees inline
+    - Empty state for first-time users
+  - Updated Add Transaction form:
+    - Replaced inline TextInput with Pressable button
+    - Opens modal on tap
+    - Shows selected payee or "Choose payee..."
+    - Clear button when payee selected
+    - Category auto-fills on selection
+  - Updated Edit Transaction form:
+    - Same modal picker pattern
+    - Pre-selects current payee
+    - Maintains auto-fill functionality
+
+- **Example Flow**:
+  ```
+  1. Tap "Choose payee..." button
+  2. Modal opens with search bar
+  3. See list of existing payees sorted by usage:
+     - "Migros" (12 uses)
+     - "Coop" (8 uses)
+     - "Netflix" (3 uses)
+  4. Type "Star" in search
+  5. No matches found
+  6. Tap "Create 'Starbucks'" button
+  7. Payee filled, modal closes
+  8. Category auto-fills if mapping exists ✨
+  ```
+
+- **Benefits**:
+  - **Faster Entry**: Quick access to frequent payees
+  - **Consistent Naming**: See existing payees to avoid duplicates (no "Migros" vs "MIGROS")
+  - **Mobile-Optimized**: Large touch targets, full-screen focus
+  - **Usage Insights**: See which payees you use most
+  - **No Keyboard Overlap**: Dedicated modal prevents UI issues
 
 ### FEATURE: Payee/Merchant Field for Transactions (2026-01-25)
 - **Feature**: Added optional payee/merchant field to track where money was spent

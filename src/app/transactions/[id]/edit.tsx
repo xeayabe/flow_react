@@ -10,8 +10,9 @@ import { getCategories } from '@/lib/categories-api';
 import { getUserAccounts, formatBalance } from '@/lib/accounts-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
-import { savePayeeMapping } from '@/lib/payee-mappings-api';
+import { savePayeeMapping, getCategorySuggestion } from '@/lib/payee-mappings-api';
 import { cn } from '@/lib/cn';
+import PayeePickerModal from '@/components/PayeePickerModal';
 
 type TransactionType = 'income' | 'expense';
 
@@ -48,6 +49,7 @@ export default function EditTransactionScreen() {
   const [tempDate, setTempDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPayeePicker, setShowPayeePicker] = useState(false);
   const [originalTransaction, setOriginalTransaction] = useState<Transaction | null>(null);
 
   // Form state
@@ -236,6 +238,26 @@ export default function EditTransactionScreen() {
     setIsSubmitting(false);
   };
 
+  // Handle payee selection from modal
+  const handleSelectPayee = async (selectedPayee: string) => {
+    setFormData((prev) => ({ ...prev, payee: selectedPayee }));
+
+    // Auto-fill category if mapping exists
+    if (householdQuery.data?.householdId) {
+      const suggested = await getCategorySuggestion(
+        householdQuery.data.householdId,
+        selectedPayee
+      );
+      if (suggested) {
+        setFormData((prev) => ({ ...prev, categoryId: suggested }));
+      }
+    }
+  };
+
+  const handleClearPayee = () => {
+    setFormData((prev) => ({ ...prev, payee: '' }));
+  };
+
   // Filter categories by type
   const categories = (categoriesQuery.data as any[]) || [];
   const filteredCategories = categories.filter((cat) => cat.type === formData.type);
@@ -380,17 +402,20 @@ export default function EditTransactionScreen() {
               {/* Payee / Merchant Input (Optional) */}
               <View className="mb-8">
                 <Text className="text-sm font-semibold text-gray-700 mb-3">Payee / Merchant (Optional)</Text>
-                <TextInput
-                  className="px-4 py-3 rounded-lg border-2 border-gray-200 text-base"
-                  placeholder="e.g., Migros, Coop, Netflix..."
-                  placeholderTextColor="#9CA3AF"
-                  autoCapitalize="words"
-                  value={formData.payee}
-                  onChangeText={(text) => setFormData({ ...formData, payee: text })}
-                />
-                <Text className="text-xs text-gray-500 mt-2">
-                  Where did you spend this money?
-                </Text>
+                <Pressable
+                  onPress={() => setShowPayeePicker(true)}
+                  className="p-3 rounded-lg border-2 flex-row items-center justify-between border-gray-200"
+                >
+                  <Text className={cn('font-medium', formData.payee ? 'text-gray-900' : 'text-gray-500')}>
+                    {formData.payee || 'Choose payee...'}
+                  </Text>
+                  <Text className="text-gray-400">›</Text>
+                </Pressable>
+                {formData.payee && (
+                  <Pressable onPress={handleClearPayee} className="mt-2">
+                    <Text className="text-sm text-red-600">Clear payee</Text>
+                  </Pressable>
+                )}
               </View>
 
               {/* Category Dropdown */}
@@ -819,6 +844,17 @@ export default function EditTransactionScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Payee Picker Modal */}
+      {householdQuery.data?.householdId && (
+        <PayeePickerModal
+          visible={showPayeePicker}
+          onClose={() => setShowPayeePicker(false)}
+          onSelectPayee={handleSelectPayee}
+          householdId={householdQuery.data.householdId}
+          currentPayee={formData.payee}
+        />
+      )}
     </View>
   );
 }
