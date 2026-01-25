@@ -301,6 +301,21 @@ export async function deleteTransaction(transactionId: string): Promise<Transact
       return { success: false, error: 'Account not found' };
     }
 
+    // Check for associated shared expense splits
+    console.log('🔍 Checking for shared expense splits for transaction:', transactionId);
+    const splitsResult = await db.queryOnce({
+      shared_expense_splits: {
+        $: {
+          where: {
+            transactionId: transactionId,
+          },
+        },
+      },
+    });
+
+    const splits = splitsResult.data?.shared_expense_splits || [];
+    console.log(`Found ${splits.length} splits to delete`);
+
     // Restore balance (opposite of what was added/subtracted)
     let restoredBalance = account.balance;
     if (transaction.type === 'income') {
@@ -309,16 +324,23 @@ export async function deleteTransaction(transactionId: string): Promise<Transact
       restoredBalance += transaction.amount;
     }
 
-    // Delete transaction and restore balance
-    await db.transact([
+    // Build delete operations: splits first, then transaction and balance update
+    const deleteOperations = [
+      // Delete all associated splits
+      ...splits.map((split: any) => db.tx.shared_expense_splits[split.id].delete()),
+      // Delete transaction
       db.tx.transactions[transactionId].delete(),
+      // Update account balance
       db.tx.accounts[transaction.accountId].update({
         balance: restoredBalance,
         updatedAt: Date.now(),
       }),
-    ]);
+    ];
 
-    console.log('Transaction deleted:', transactionId);
+    // Delete transaction, splits, and restore balance
+    await db.transact(deleteOperations);
+
+    console.log(`✅ Transaction deleted: ${transactionId} (${splits.length} splits also deleted)`);
 
     // Update budget spent amount if this was an expense transaction
     if (transaction.type === 'expense') {

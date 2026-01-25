@@ -1490,3 +1490,51 @@ bun start
   - Settlement history/ledger showing all past settlements
   - Batch settlements for multiple household members
   - Settlement notifications/confirmations
+
+### BUG FIX: Cascade Delete Shared Expense Splits (2026-01-25)
+- **Problem**: When deleting a shared transaction, the associated expense splits remained in the database orphaned
+  - This caused the debt widget to show incorrect balances
+  - Deleting transactions that created debt would not properly settle the debt
+  - Orphaned splits would be recalculated, showing phantom debts
+
+- **Root Cause**: `deleteTransaction()` only deleted the transaction record, not the related splits in `shared_expense_splits` table
+
+- **The Fix**:
+  - Updated `deleteTransaction()` in `src/lib/transactions-api.ts` to:
+    1. Query for all shared expense splits associated with the transaction
+    2. Include split deletion operations in the atomic database transaction
+    3. Delete splits before deleting the transaction (proper cascade order)
+    4. Log the number of splits deleted for debugging
+  - Code change:
+    ```typescript
+    // Check for associated shared expense splits
+    const splitsResult = await db.queryOnce({
+      shared_expense_splits: {
+        $: { where: { transactionId: transactionId } }
+      }
+    });
+
+    const splits = splitsResult.data?.shared_expense_splits || [];
+
+    // Build delete operations: splits first, then transaction
+    const deleteOperations = [
+      ...splits.map(split => db.tx.shared_expense_splits[split.id].delete()),
+      db.tx.transactions[transactionId].delete(),
+      db.tx.accounts[transaction.accountId].update({ ... })
+    ];
+
+    await db.transact(deleteOperations);
+    ```
+
+- **Impact**:
+  - Deleting shared transactions now removes associated debt splits
+  - Debt widget correctly updates after transaction deletion (balance recalculates)
+  - No orphaned splits left in database
+  - Debt calculations remain accurate across all users
+
+- **Test Scenario**:
+  1. Alexander creates shared transaction: 100 CHF (Alexander pays)
+  2. Debt widget shows: "Cecilia owes you 40 CHF"
+  3. Alexander deletes the transaction
+  4. Debt widget updates: Widget disappears (balance = 0)
+  5. Verify database: No splits exist for deleted transaction
