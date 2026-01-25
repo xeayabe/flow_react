@@ -71,30 +71,66 @@ export default function SettlementModal({
     enabled: !!user?.email && visible,
   });
 
-  // Load receiver's accounts
+  // Load receiver's account based on the transactions being settled
   const { data: receiverAccounts, isLoading: receiverLoading } = useQuery({
-    queryKey: ['receiver-accounts', receiverUserId],
+    queryKey: ['receiver-accounts', receiverUserId, payerAccounts?.member?.householdId],
     queryFn: async () => {
-      if (!receiverUserId) throw new Error('No receiver ID');
+      if (!receiverUserId || !payerAccounts?.member?.householdId) throw new Error('Missing required data');
 
-      const { data: memberData } = await db.queryOnce({
-        householdMembers: {
-          $: { where: { userId: receiverUserId, status: 'active' } },
+      // Get all unpaid splits where payer owes receiver
+      const { data: splitData } = await db.queryOnce({
+        shared_expense_splits: {},
+      });
+
+      const allSplits = splitData.shared_expense_splits || [];
+      const relevantSplits = allSplits.filter((s: any) =>
+        s.owerUserId === payerAccounts.userProfile.id &&
+        s.owedToUserId === receiverUserId &&
+        !s.isPaid
+      );
+
+      if (relevantSplits.length === 0) {
+        throw new Error('No unpaid splits found');
+      }
+
+      // Get the transaction IDs from splits
+      const transactionIds = [...new Set(relevantSplits.map((s: any) => s.transactionId))];
+
+      // Get the transactions to find which accounts were used
+      const { data: txData } = await db.queryOnce({
+        transactions: {
+          $: {
+            where: {
+              householdId: payerAccounts.member.householdId,
+            },
+          },
         },
       });
 
-      if (!memberData?.householdMembers?.[0]) throw new Error('Receiver not found');
-      const member = memberData.householdMembers[0];
+      const transactions = txData.transactions || [];
+      const relevantTxs = transactions.filter((t: any) => transactionIds.includes(t.id));
 
+      if (relevantTxs.length === 0) {
+        throw new Error('No transactions found');
+      }
+
+      // Get the account ID from the first transaction (receiver's account for settlement)
+      const receiverAccountId = relevantTxs[0]?.accountId;
+
+      if (!receiverAccountId) {
+        throw new Error('No account found in transaction');
+      }
+
+      // Get the receiver's account details
       const { data: accountData } = await db.queryOnce({
         accounts: {
-          $: { where: { householdId: member.householdId, userId: receiverUserId } },
+          $: { where: { id: receiverAccountId } },
         },
       });
 
       return accountData.accounts || [];
     },
-    enabled: !!receiverUserId && visible,
+    enabled: !!receiverUserId && !!payerAccounts?.member?.householdId && visible,
   });
 
   // Load categories for the payer
