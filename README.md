@@ -2369,8 +2369,17 @@ bun start
 ### FIX: Restored Debt Balance Widget to Dashboard (2026-01-25)
 - **Issue**: Debt settlement widget disappeared from dashboard for all members
 - **Fix**: Added `<DebtBalanceWidget />` back to the dashboard, positioned above True Balance Widget
+- **Improvement**: Widget now always shows for 2+ member households, even when balance is 0
 - **Location**: Dashboard (Home tab) - appears between Welcome Header and True Balance (Assets) section
-- **Visibility**: Shows for all household members who have shared expense debts
+- **Visibility**:
+  - Shows for all households with 2+ members
+  - Displays "All settled up!" when balance is 0.00 CHF
+  - Shows debt amount and settlement button when balance > 0
+- **States**:
+  - **Settled (0 CHF)**: Green card showing "All settled up! ✓" with 0.00 CHF balance
+  - **Debt exists**: White card showing amount owed with "Settle Debt" button for the payer
+  - **Owed to you**: White card showing amount owed to you (no button)
 - **Files Modified**:
   - `src/app/(tabs)/index.tsx` - Added DebtBalanceWidget component above TrueBalanceWidget
+  - `src/components/DebtBalanceWidget.tsx` - Always show widget for 2+ member households, display "settled" state when balance is 0
 

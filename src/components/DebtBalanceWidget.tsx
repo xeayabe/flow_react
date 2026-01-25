@@ -194,17 +194,11 @@ export default function DebtBalanceWidget() {
   console.log('🎨 Rendering DebtBalanceWidget:', {
     hasData: !!debtInfo,
     amount: debtInfo?.amount,
-    showWidget: debtInfo && debtInfo.amount > 0,
   });
 
-  // Don't show widget if no debt or no data
+  // Don't show widget if no data (single-member household)
   if (!debtInfo) {
-    console.log('⚠️ Widget hidden: No debt info');
-    return null;
-  }
-
-  if (debtInfo.amount === 0) {
-    console.log('⚠️ Widget hidden: Balance is 0');
+    console.log('⚠️ Widget hidden: No debt info (likely single-member household)');
     return null;
   }
 
@@ -213,9 +207,34 @@ export default function DebtBalanceWidget() {
   // Determine who receives the payment
   const receiverUserId = youOwe ? debtInfo.whoIsOwedUserId : debtInfo.whoOwesUserId;
 
+  // Show different UI based on balance state
+  if (debtInfo.amount === 0) {
+    // All settled up - show positive message
+    return (
+      <View className="bg-green-50 rounded-2xl p-4 border border-green-200">
+        <View className="flex-row items-center justify-between mb-2">
+          <Text className="text-sm text-green-700 font-semibold">Household Balance</Text>
+          <Text className="text-xs text-green-600">
+            {debtInfo.currentUserPercentage.toFixed(0)}% / {debtInfo.otherUserPercentage.toFixed(0)}%
+          </Text>
+        </View>
+
+        <View>
+          <Text className="text-base text-green-800 mb-1">
+            All settled up! ✓
+          </Text>
+          <Text className="text-3xl font-bold text-green-700 mb-2">0.00 CHF</Text>
+          <Text className="text-xs text-green-600">No outstanding balances</Text>
+        </View>
+
+        <Text className="text-xs text-green-600 mt-2">Shared expenses split based on income ratio</Text>
+      </View>
+    );
+  }
+
   return (
     <>
-      <View className="bg-white rounded-2xl p-4 border border-gray-200 mx-4 mb-4">
+      <View className="bg-white rounded-2xl p-4 border border-gray-200">{/* Removed mx-4 mb-4 */}
         <View className="flex-row items-center justify-between mb-2">
           <Text className="text-sm text-gray-600">Household Balance</Text>
           <Text className="text-xs text-gray-500">
