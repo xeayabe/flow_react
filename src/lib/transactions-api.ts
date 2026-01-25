@@ -266,12 +266,13 @@ export async function getHouseholdTransactions(householdId: string): Promise<Tra
 
 /**
  * Get household transactions with creator user names
+ * Only returns: user's own transactions + shared transactions from the household
  */
 export interface TransactionWithCreator extends Transaction {
   creatorName?: string;
 }
 
-export async function getHouseholdTransactionsWithCreators(householdId: string): Promise<TransactionWithCreator[]> {
+export async function getHouseholdTransactionsWithCreators(householdId: string, currentUserId?: string): Promise<TransactionWithCreator[]> {
   try {
     const result = await db.queryOnce({
       transactions: {
@@ -287,9 +288,26 @@ export async function getHouseholdTransactionsWithCreators(householdId: string):
     const transactions = (result.data.transactions ?? []) as Transaction[];
     const users = result.data.users ?? [];
 
-    // Filter out old settlement transactions (from previous approach)
-    // Settlement transactions should NOT appear in transaction list
-    const filteredTransactions = transactions.filter((tx: any) => tx.type !== 'settlement');
+    // Filter transactions:
+    // 1. User's own transactions (userId matches currentUserId)
+    // 2. Shared transactions (isShared: true)
+    // Filter out old settlement transactions (type === 'settlement')
+    const filteredTransactions = transactions.filter((tx: any) => {
+      // Always exclude old settlement transactions
+      if (tx.type === 'settlement') return false;
+
+      // If no currentUserId provided, show all (backwards compatibility)
+      if (!currentUserId) return true;
+
+      // Show user's own transactions
+      if (tx.userId === currentUserId) return true;
+
+      // Show shared transactions from other users
+      if (tx.isShared === true) return true;
+
+      // Hide other users' personal transactions
+      return false;
+    });
 
     // Enrich transactions with creator names
     const enrichedTransactions = filteredTransactions.map((tx) => {

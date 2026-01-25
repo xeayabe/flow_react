@@ -124,10 +124,11 @@ export default function TransactionsTabScreen() {
 
   // Get transactions using the household ID from householdQuery
   const transactionsQuery = useQuery({
-    queryKey: ['transactions-household', householdQuery.data?.householdId],
+    queryKey: ['transactions-household', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id],
     queryFn: async () => {
       if (!householdQuery.data?.householdId) return [];
-      return getHouseholdTransactionsWithCreators(householdQuery.data.householdId);
+      // Pass current user ID to filter: own transactions + shared transactions
+      return getHouseholdTransactionsWithCreators(householdQuery.data.householdId, householdQuery.data.userRecord?.id);
     },
     enabled: !!householdQuery.data?.householdId,
   });
@@ -155,17 +156,17 @@ export default function TransactionsTabScreen() {
   // Refetch transactions when tab comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      queryClient.invalidateQueries({ queryKey: ['transactions-household', householdQuery.data?.householdId] });
+      queryClient.invalidateQueries({ queryKey: ['transactions-household', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
-    }, [householdQuery.data?.householdId, user?.email, queryClient])
+    }, [householdQuery.data?.householdId, householdQuery.data?.userRecord?.id, user?.email, queryClient])
   );
 
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: deleteTransaction,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions-household', householdQuery.data?.householdId] });
+      queryClient.invalidateQueries({ queryKey: ['transactions-household', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
       setDeleteConfirmId(null);

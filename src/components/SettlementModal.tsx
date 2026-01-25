@@ -161,14 +161,15 @@ export default function SettlementModal({
     onSuccess: (result) => {
       console.log('✅ Settlement mutation success:', result);
 
-      // Get the householdId for proper query invalidation
+      // Get IDs for proper query invalidation
       const householdId = payerAccounts?.member.householdId;
+      const userId = payerAccounts?.userProfile?.id;
 
       // Invalidate all relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['debt-balance'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['transactions-household', householdId] });
+      queryClient.invalidateQueries({ queryKey: ['transactions-household', householdId, userId] });
       queryClient.invalidateQueries({ queryKey: ['payer-accounts'] });
       queryClient.invalidateQueries({ queryKey: ['receiver-accounts'] });
       queryClient.invalidateQueries({ queryKey: ['recent-transactions'] });
@@ -176,8 +177,8 @@ export default function SettlementModal({
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
 
       // Force refetch transaction queries with exact household ID to ensure UI updates
-      if (householdId) {
-        queryClient.refetchQueries({ queryKey: ['transactions-household', householdId], type: 'active' });
+      if (householdId && userId) {
+        queryClient.refetchQueries({ queryKey: ['transactions-household', householdId, userId], type: 'active' });
       }
       queryClient.refetchQueries({ queryKey: ['recent-transactions'], type: 'active' });
       queryClient.refetchQueries({ queryKey: ['budget-summary'], type: 'active' });
