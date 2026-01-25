@@ -11,7 +11,7 @@ export interface Transaction {
   householdId: string;
   accountId: string;
   categoryId: string;
-  type: 'income' | 'expense' | 'settlement';
+  type: 'income' | 'expense';
   amount: number;
   date: string; // ISO format YYYY-MM-DD
   note?: string;

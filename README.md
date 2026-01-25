@@ -1720,3 +1720,117 @@ bun start
 - **Files Modified**:
   - `src/lib/transactions-api.ts` - Added getHouseholdTransactionsWithCreators function
   - `src/app/(tabs)/transactions.tsx` - Updated to use household query with creator names, show creator names for other users' transactions
+
+### REVISED FEATURE: Settlement as Internal Account Transfer (2026-01-25)
+- **Architecture Change**: Settlement is now an internal account transfer, NOT a transaction
+  - Previous approach: Created settlement transaction (incorrectly affected budgets)
+  - New approach: Transfer money between accounts + log settlement history + mark splits paid
+  - Reason: Settlement is reconciliation, not a new economic event
+
+- **What Settlement Does**:
+  1. Transfers money from payer account to receiver account
+  2. Logs transfer in settlements table for history
+  3. Marks shared expense splits as paid
+  4. Does NOT create a transaction (budgets unaffected!)
+
+- **Database Schema Changes**:
+  - Added new `settlements` table in `src/lib/db.ts`:
+    ```typescript
+    settlements: {
+      id: string,
+      householdId: string,
+      payerUserId: string,      // Who paid
+      receiverUserId: string,   // Who received
+      amount: number,           // Amount in CHF
+      payerAccountId: string,   // Account debited
+      receiverAccountId: string,// Account credited
+      note: string,             // Optional note
+      settledAt: number,        // Timestamp
+      createdAt: number
+    }
+    ```
+
+- **Updated Settlement API** (`src/lib/settlement-api.ts`):
+  - `createSettlement()` now:
+    - Step 1: Fetches current account balances
+    - Step 2: Updates both accounts (debit payer, credit receiver)
+    - Step 3: Logs settlement in settlements table
+    - Step 4: Marks unpaid splits as paid
+    - Returns: settlementId, amount, new balances, splits settled count
+  - Added `getSettlementHistory()` function to retrieve settlement records with user names
+
+- **Key Difference from Previous**:
+  - ❌ NO transaction created (no type='settlement')
+  - ❌ NOT visible in transaction list
+  - ❌ Does NOT affect budget spent amounts
+  - ✅ Accounts updated correctly
+  - ✅ Settlement logged in settlements table
+  - ✅ Splits marked as paid
+
+- **Console Logging**:
+  ```
+  💳 === SETTLEMENT START (INTERNAL TRANSFER) ===
+  - Payer: [userId]
+  - Receiver: [userId]
+  - Amount: [amount]
+  - Payer Account: [accountId]
+  - Receiver Account: [accountId]
+
+  💰 Fetching account balances...
+  💰 Current balances:
+    Payer: [balance]
+    Receiver: [balance]
+
+  💰 Updating account balances (internal transfer)...
+  💰 New balances:
+    Payer: [newBalance]
+    Receiver: [newBalance]
+
+  📝 Logging settlement in settlements table...
+  📝 Settlement logged: [settlementId]
+
+  📊 Marking splits as paid...
+  📊 Splits to mark as paid: [count]
+  ✅ All splits marked as paid
+
+  💳 === SETTLEMENT COMPLETE ===
+  ```
+
+- **Test Scenario**:
+  1. Alexander pays 100 CHF groceries (shared)
+     - Alexander's budget: 100 CHF expense ✓
+     - Debt: Cecilia owes 38.6 CHF
+  2. Cecilia settles 38.6 CHF
+     - Settlement created in settlements table
+     - Cecilia's account: -38.6 CHF
+     - Alexander's account: +38.6 CHF
+     - Splits marked as paid
+  3. After settlement:
+     - Alexander's budget: Still 100 CHF (NOT affected!) ✓
+     - NO settlement transaction in transaction list ✓
+     - Settlement visible in settlement history only ✓
+     - Debt widget disappears ✓
+
+- **Comparison**:
+  ```
+  OLD APPROACH (BROKEN):
+  - Creates settlement transaction
+  - Shows in transaction list
+  - Affects budgets (incorrectly)
+  - Confuses analytics
+
+  NEW APPROACH (CORRECT):
+  - Internal account transfer
+  - Hidden from transaction list
+  - Budgets only show real expenses ✓
+  - Settlement history separate
+  ```
+
+- **Files Modified**:
+  - `src/lib/db.ts` - Added settlements table
+  - `src/lib/settlement-api.ts` - Revised to use account transfer approach
+  - `src/lib/transactions-api.ts` - Removed 'settlement' from Transaction type
+  - `src/app/(tabs)/transactions.tsx` - Removed settlement transaction filtering and display
+  - `src/components/DashboardWidgets.tsx` - Removed settlement badges and color handling
+  - `src/lib/dashboard-helpers.ts` - Removed settlement color handling
+  - `src/app/transactions/[id]/edit.tsx` - Removed settlement edit prevention

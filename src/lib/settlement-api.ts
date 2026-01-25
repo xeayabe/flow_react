@@ -3,70 +3,30 @@ import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Create settlement transaction and mark splits as paid
+ * Settle debt via internal account transfer
+ * Does NOT create a transaction (to avoid affecting budgets)
+ * Only transfers money between accounts and marks splits as paid
  */
 export async function createSettlement(
-  payerUserId: string, // Who is paying (e.g., Cecilia)
-  receiverUserId: string, // Who receives (e.g., Alexander)
+  payerUserId: string,
+  receiverUserId: string,
   amount: number,
-  payerAccountId: string, // Account to debit
-  receiverAccountId: string, // Account to credit
+  payerAccountId: string,
+  receiverAccountId: string,
   householdId: string
 ) {
-  console.log('💳 === SETTLEMENT START ===');
+  console.log('💳 === SETTLEMENT START (INTERNAL TRANSFER) ===');
   console.log('- Payer:', payerUserId);
   console.log('- Receiver:', receiverUserId);
   console.log('- Amount:', amount);
   console.log('- Payer Account:', payerAccountId);
   console.log('- Receiver Account:', receiverAccountId);
-  console.log('- Household:', householdId);
 
   const settlementId = uuidv4();
   const now = Date.now();
 
-  // Step 1: Create settlement transaction
-  console.log('📝 Creating settlement transaction...');
-  await db.transact([
-    db.tx.transactions[settlementId].update({
-      userId: payerUserId,
-      householdId: householdId,
-      accountId: payerAccountId,
-      categoryId: '', // No category for settlements
-      type: 'settlement', // Special type
-      amount: amount,
-      date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
-      note: `Settlement to receiver`,
-      isShared: false, // Settlement is not a shared expense
-      paidByUserId: payerUserId,
-      isRecurring: false,
-      createdAt: now,
-      updatedAt: now,
-    }),
-  ]);
-
-  console.log('✅ Settlement transaction created:', settlementId);
-
-  // Verify transaction was created
-  const { data: verifyTxData } = await db.queryOnce({
-    transactions: {
-      $: {
-        where: {
-          id: settlementId,
-        },
-      },
-    },
-  });
-
-  const verifyTx = verifyTxData.transactions?.[0];
-  console.log('🔍 Transaction verified:', {
-    id: verifyTx?.id,
-    type: verifyTx?.type,
-    amount: verifyTx?.amount,
-    userId: verifyTx?.userId,
-  });
-
-  // Step 2: Get account data and update balances
-  console.log('💰 Updating account balances...');
+  // Step 1: Get current account balances
+  console.log('💰 Fetching account balances...');
   const { data: accountData } = await db.queryOnce({
     accounts: {},
   });
@@ -78,28 +38,49 @@ export async function createSettlement(
     throw new Error('Account not found');
   }
 
-  console.log('💰 Before balance update:');
-  console.log('  Payer balance:', payerAccount.balance);
-  console.log('  Receiver balance:', receiverAccount.balance);
+  console.log('💰 Current balances:');
+  console.log('  Payer:', payerAccount.balance);
+  console.log('  Receiver:', receiverAccount.balance);
 
+  // Step 2: Update account balances (internal transfer)
+  const newPayerBalance = (payerAccount.balance || 0) - amount;
+  const newReceiverBalance = (receiverAccount.balance || 0) + amount;
+
+  console.log('💰 Updating account balances (internal transfer)...');
   await db.transact([
-    // Debit payer's account
     db.tx.accounts[payerAccountId].update({
-      balance: (payerAccount.balance || 0) - amount,
+      balance: newPayerBalance,
       updatedAt: now,
     }),
-    // Credit receiver's account
     db.tx.accounts[receiverAccountId].update({
-      balance: (receiverAccount.balance || 0) + amount,
+      balance: newReceiverBalance,
       updatedAt: now,
     }),
   ]);
 
-  console.log('💰 After balance update:');
-  console.log('  Payer new balance:', (payerAccount.balance || 0) - amount);
-  console.log('  Receiver new balance:', (receiverAccount.balance || 0) + amount);
+  console.log('💰 New balances:');
+  console.log('  Payer:', newPayerBalance);
+  console.log('  Receiver:', newReceiverBalance);
 
-  // Step 3: Mark unpaid splits as paid
+  // Step 3: Log settlement in settlements table (for history only)
+  console.log('📝 Logging settlement in settlements table...');
+  await db.transact([
+    db.tx.settlements[settlementId].update({
+      householdId,
+      payerUserId,
+      receiverUserId,
+      amount,
+      payerAccountId,
+      receiverAccountId,
+      note: `Debt settlement: ${amount.toFixed(2)} CHF`,
+      settledAt: now,
+      createdAt: now,
+    }),
+  ]);
+
+  console.log('📝 Settlement logged:', settlementId);
+
+  // Step 4: Mark unpaid splits as paid
   console.log('📊 Marking splits as paid...');
   const { data: splitData } = await db.queryOnce({
     shared_expense_splits: {},
@@ -114,27 +95,21 @@ export async function createSettlement(
   });
 
   console.log('📊 Total splits in household:', splitData.shared_expense_splits?.length || 0);
-  console.log('📊 Total shared transactions:', splitData.transactions?.length || 0);
 
-  // Filter splits where:
-  // - Payer owes money (owerUserId === payerUserId)
-  // - Receiver was paid (owedToUserId === receiverUserId)
-  // - Not yet paid (isPaid === false)
-  const splitsToSettle = (splitData.shared_expense_splits || []).filter((split: any) => {
-    const matches = split.owerUserId === payerUserId && split.owedToUserId === receiverUserId && !split.isPaid;
-    console.log(`  Split ${split.id}:`, {
-      owerUserId: split.owerUserId,
-      owedToUserId: split.owedToUserId,
-      isPaid: split.isPaid,
-      matches: matches,
-    });
-    return matches;
+  // Find unpaid splits where payer owes money
+  const payerUnpaidSplits = (splitData.shared_expense_splits || []).filter((s: any) => s.owerUserId === payerUserId && !s.isPaid);
+
+  console.log('📊 Unpaid splits for payer:', payerUnpaidSplits.length);
+
+  // Only settle splits where receiver paid the original expense
+  const splitsToSettle = payerUnpaidSplits.filter((split: any) => {
+    const transaction = (splitData.transactions || []).find((t: any) => t.id === split.transactionId);
+    const shouldSettle = transaction?.paidByUserId === receiverUserId;
+    console.log(`  Split ${split.id}: receiver paid=${shouldSettle}, amount=${split.splitAmount}`);
+    return shouldSettle;
   });
 
-  console.log('✅ Splits to settle:', splitsToSettle.length);
-  splitsToSettle.forEach((split: any) => {
-    console.log('  - Split:', split.id, 'Amount:', split.splitAmount, 'isPaid:', split.isPaid);
-  });
+  console.log('📊 Splits to mark as paid:', splitsToSettle.length);
 
   if (splitsToSettle.length > 0) {
     await db.transact(
@@ -155,8 +130,41 @@ export async function createSettlement(
 
   return {
     settlementId,
-    transactionId: settlementId,
     amount,
+    newPayerBalance,
+    newReceiverBalance,
     splitsSettled: splitsToSettle.length,
   };
+}
+
+/**
+ * Get settlement history for household
+ */
+export async function getSettlementHistory(householdId: string) {
+  try {
+    const { data } = await db.queryOnce({
+      settlements: {
+        $: {
+          where: { householdId },
+        },
+      },
+      users: {},
+    });
+
+    const settlements = data.settlements || [];
+    const users = data.users || [];
+
+    return settlements.map((settlement: any) => {
+      const payer = users.find((u: any) => u.id === settlement.payerUserId);
+      const receiver = users.find((u: any) => u.id === settlement.receiverUserId);
+      return {
+        ...settlement,
+        payerName: payer?.name || 'Unknown',
+        receiverName: receiver?.name || 'Unknown',
+      };
+    });
+  } catch (error) {
+    console.error('Get settlement history error:', error);
+    return [];
+  }
 }

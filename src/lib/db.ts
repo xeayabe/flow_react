@@ -147,6 +147,17 @@ const schema = i.schema({
       createdAt: i.number(),
       updatedAt: i.number().optional(),
     }),
+    settlements: i.entity({
+      householdId: i.string(),
+      payerUserId: i.string(), // Who paid (e.g., Cecilia)
+      receiverUserId: i.string(), // Who received (e.g., Alexander)
+      amount: i.number(), // Settlement amount in CHF
+      payerAccountId: i.string(), // Account debited
+      receiverAccountId: i.string(), // Account credited
+      note: i.string().optional(), // Optional note
+      settledAt: i.number(), // Timestamp when settled
+      createdAt: i.number(),
+    }),
   },
   links: {
     householdsByCreator: {

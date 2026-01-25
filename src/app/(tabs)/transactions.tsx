@@ -231,8 +231,8 @@ export default function TransactionsTabScreen() {
         // Date range filter
         if (tx.date < startDate || tx.date > endDate) return false;
 
-        // Type filter (include settlement transactions always)
-        if (transactionType !== 'all' && tx.type !== 'settlement' && tx.type !== transactionType) return false;
+        // Type filter
+        if (transactionType !== 'all' && tx.type !== transactionType) return false;
 
         // Category filter
         if (selectedCategories.length > 0 && !selectedCategories.includes(tx.categoryId)) return false;
@@ -541,7 +541,6 @@ export default function TransactionsTabScreen() {
             keyExtractor={(item) => item.id || ''}
             renderItem={({ item: tx }) => {
               const isIncome = tx.type === 'income';
-              const isSettlement = tx.type === 'settlement';
               const isDeleting = deleteMutation.isPending && deleteConfirmId === tx.id;
               const isOtherUser = tx.userId !== householdQuery.data?.userRecord?.id;
 
@@ -587,13 +586,11 @@ export default function TransactionsTabScreen() {
                         <View
                           className="w-12 h-12 rounded-full items-center justify-center mr-3"
                           style={{
-                            backgroundColor: isIncome ? 'rgba(139, 157, 139, 0.15)' : isSettlement ? 'rgba(139, 92, 246, 0.15)' : 'rgba(220, 38, 38, 0.15)',
+                            backgroundColor: isIncome ? 'rgba(139, 157, 139, 0.15)' : 'rgba(220, 38, 38, 0.15)',
                           }}
                         >
                           {isIncome ? (
                             <ArrowUpRight size={20} color="#8B9D8B" />
-                          ) : isSettlement ? (
-                            <ArrowUpRight size={20} color="#8B5CF6" />
                           ) : (
                             <ArrowDownLeft size={20} color="#DC2626" />
                           )}
@@ -601,7 +598,7 @@ export default function TransactionsTabScreen() {
                         <View className="flex-1">
                           <View className="flex-row items-center gap-2">
                             <Text className="font-semibold text-sm" style={{ color: '#1F2937' }}>
-                              {tx.categoryName || (isSettlement ? 'Settlement' : 'Unknown')}
+                              {tx.categoryName || 'Unknown'}
                             </Text>
                             {isOtherUser && (
                               <Text className="text-xs" style={{ color: '#9CA3AF' }}>
@@ -620,21 +617,15 @@ export default function TransactionsTabScreen() {
                           <Text
                             className="font-bold text-sm"
                             style={{
-                              color: isIncome ? '#8B9D8B' : isSettlement ? '#8B5CF6' : '#DC2626',
+                              color: isIncome ? '#8B9D8B' : '#DC2626',
                             }}
                           >
-                            {isIncome ? '+' : isSettlement ? '' : '-'}
+                            {isIncome ? '+' : '-'}
                             {formatCurrency(tx.amount)}
                           </Text>
                         </View>
-                        {/* Settlement badge */}
-                        {isSettlement && (
-                          <View className="bg-purple-100 px-2 py-1 rounded-full">
-                            <Text className="text-xs text-purple-700 font-semibold">Settlement</Text>
-                          </View>
-                        )}
                         {/* Shared badge */}
-                        {tx.isShared && !isSettlement && (
+                        {tx.isShared && (
                           <View className="bg-purple-100 px-2 py-1 rounded-full">
                             <Text className="text-xs text-purple-700 font-semibold">Shared</Text>
                           </View>
