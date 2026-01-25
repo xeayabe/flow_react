@@ -624,6 +624,17 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - `createdAt`: Timestamp
 - `updatedAt`: Timestamp
 
+#### SharedExpenseSplits
+- `id`: UUID (primary key)
+- `transactionId`: UUID (foreign key to Transactions)
+- `owerUserId`: UUID (who owes this portion)
+- `owedToUserId`: UUID (who is owed - the person who paid)
+- `splitAmount`: Number (how much they owe, e.g., 40.00 CHF)
+- `splitPercentage`: Number (their percentage, e.g., 40.0)
+- `isPaid`: Boolean (true if settled, false if still owed)
+- `createdAt`: Timestamp
+- `updatedAt`: Timestamp (optional)
+
 ## Tech Stack
 
 - **Frontend**: Expo SDK 53, React Native 0.76.7
@@ -669,6 +680,7 @@ src/
 │   ├── budget-api.ts         # Budget management API (US-034)
 │   ├── budget-utils.ts           # Budget calculation utilities (US-034)
 │   ├── analytics-api.ts          # Category analytics & aggregation API (US-052)
+│   ├── shared-expenses-api.ts    # Shared expense split calculation API
 │   ├── dashboard-helpers.ts      # Dashboard data aggregation & formatting helpers
 │   ├── payday-utils.ts           # Payday calculation & budget period utilities
 │   ├── biometric-auth.ts         # Biometric authentication utilities

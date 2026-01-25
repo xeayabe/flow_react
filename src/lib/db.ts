@@ -137,6 +137,16 @@ const schema = i.schema({
       createdAt: i.number(),
       updatedAt: i.number(),
     }),
+    shared_expense_splits: i.entity({
+      transactionId: i.string(), // References transactions.id
+      owerUserId: i.string(), // Who owes this portion (userId)
+      owedToUserId: i.string(), // Who is owed (the person who paid)
+      splitAmount: i.number(), // How much they owe (e.g., 40.00 CHF)
+      splitPercentage: i.number(), // Their percentage (e.g., 40.0)
+      isPaid: i.boolean(), // true if settled, false if still owed
+      createdAt: i.number(),
+      updatedAt: i.number().optional(),
+    }),
   },
   links: {
     householdsByCreator: {
