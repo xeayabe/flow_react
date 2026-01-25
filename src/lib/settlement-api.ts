@@ -130,7 +130,8 @@ export async function createSettlement(
   console.log('📝 Settlement logged:', settlementId);
 
   // Step 4: Mark unpaid splits as paid AND reduce original transaction amounts
-  console.log('📊 Finding splits to settle...');
+  console.log('📊 === STEP 4: Finding splits to settle ===');
+  console.log('📊 Settlement params: payerUserId=', payerUserId, 'receiverUserId=', receiverUserId);
 
   // First, get all shared transactions for this household
   const { data: txData } = await db.queryOnce({
@@ -146,6 +147,9 @@ export async function createSettlement(
 
   const householdTransactions = txData.transactions || [];
   console.log('📊 Found', householdTransactions.length, 'shared transactions in household');
+  householdTransactions.forEach((t: any) => {
+    console.log(`  - TX ${t.id.substring(0, 8)}: amount=${t.amount}, paidBy=${t.paidByUserId?.substring(0, 8)}, userId=${t.userId?.substring(0, 8)}, date=${t.date}`);
+  });
 
   // Create a map of transaction IDs for quick lookup
   const householdTransactionIds = householdTransactions.map((t: any) => t.id);
@@ -158,6 +162,12 @@ export async function createSettlement(
 
   const allSplits = splitData.shared_expense_splits || [];
   console.log('📊 Total splits in database:', allSplits.length);
+  if (allSplits.length > 0) {
+    console.log('📊 First few splits (for debugging):');
+    allSplits.slice(0, 5).forEach((s: any) => {
+      console.log(`  - Split ${s.id.substring(0, 8)}: txId=${s.transactionId?.substring(0, 8)}, ower=${s.owerUserId?.substring(0, 8)}, owedTo=${s.owedToUserId?.substring(0, 8)}, amount=${s.splitAmount}, isPaid=${s.isPaid}`);
+    });
+  }
 
   // Filter to only splits that belong to this household's transactions
   const householdSplits = allSplits.filter((s: any) => householdTransactionIds.includes(s.transactionId));
