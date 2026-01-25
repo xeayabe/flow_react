@@ -197,6 +197,16 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
 
     console.log('Budget saved:', { userId, householdId, totalIncome, periodStart: budgetPeriod.start });
 
+    // Recalculate spent amounts from actual transactions in this period
+    // This ensures that when reallocating a budget, existing expenses are still counted
+    try {
+      await recalculateBudgetSpentAmounts(userId, budgetPeriod.start, budgetPeriod.end);
+      console.log('Budget spent amounts recalculated after save');
+    } catch (recalcError) {
+      console.error('Error recalculating spent amounts after save:', recalcError);
+      // Don't fail the whole save if recalculation fails
+    }
+
     return { success: true };
   } catch (error) {
     console.error('Save budget error:', error);
