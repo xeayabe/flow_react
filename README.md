@@ -1912,39 +1912,35 @@ bun start
 
 ### FEATURE: Payee/Merchant Field with Smart Category Learning (2026-01-25)
 - **Feature**: Added smart payee-category learning system that auto-fills categories based on previous usage
+- **Privacy**: Payees and mappings are **personal to each user** (like categories) - not shared across household
 - **How It Works**:
-  1. **First Use**: User enters "Migros" → Manually selects "Groceries" → Mapping saved
+  1. **First Use**: User enters "Migros" → Manually selects "Groceries" → Mapping saved to their account
   2. **Second Use**: User enters "Migros" → "Groceries" auto-fills ✨
   3. **Learning**: If user changes category, mapping updates for next time
-  4. **Shared**: Mappings work across all household members
+  4. **Personal**: Each user has their own payees and mappings
 
 - **Database**:
   - Added `payee_category_mappings` table
-  - Fields: householdId, payee (normalized lowercase), categoryId, lastUsedAt, usageCount, timestamps
-  - One mapping per payee per household (unique constraint)
+  - Fields: userId (personal to user), payee (normalized lowercase), categoryId, lastUsedAt, usageCount, timestamps
+  - One mapping per payee per user (unique constraint)
 
 - **Implementation**:
   - Created `src/lib/payee-mappings-api.ts` with learning logic:
-    - `getCategorySuggestion()`: Looks up category for a payee
-    - `savePayeeMapping()`: Saves or updates payee-category association
-    - `getRecentPayees()`: Returns unique payees for autocomplete
+    - `getCategorySuggestion(userId, payee)`: Looks up category for a payee
+    - `savePayeeMapping(userId, payee, categoryId)`: Saves or updates payee-category association
   - Updated Add Transaction form with smart auto-fill:
     - Payee input triggers category suggestion
-    - Visual indicator (sparkles icon) when category auto-filled
-    - Autocomplete dropdown showing recent payees
-    - Tapping suggestion fills payee and auto-fills category
+    - Modal picker shows only user's payees
   - Updated Edit Transaction form:
     - Saves updated mapping when category changes
     - Allows learning from edited transactions
 
 - **UI/UX Features**:
   - **Smart Auto-Fill**: Category fills automatically when payee entered
-  - **Visual Feedback**: Blue sparkle hint shows "Category auto-filled based on previous usage"
-  - **Autocomplete**: Dropdown shows recent payees as you type
+  - **Personal Payees**: Each user sees only their own payees (like categories)
   - **Case Insensitive**: "Migros" = "migros" = "MIGROS"
   - **Whitespace Handling**: "Migros " = "Migros"
   - **Non-Invasive**: Can override auto-filled category anytime
-  - **Household-Wide**: Alexander's mapping helps Cecilia and vice versa
 
 - **Example Flows**:
   ```
@@ -1952,26 +1948,17 @@ bun start
   1. Enter "Migros"
   2. No auto-fill (first time)
   3. Select "Groceries"
-  4. Save → Mapping created: "migros" → Groceries
+  4. Save → Mapping created: "migros" → Groceries (saved to your account)
 
   Test 2 - Second Time:
   1. Enter "Migros"
   2. Category auto-fills to "Groceries" ✨
-  3. See sparkle hint
-  4. Save → Usage count increments
+  3. Save → Usage count increments
 
-  Test 3 - Changing Category:
-  1. Enter "Migros"
-  2. Category auto-fills to "Groceries"
-  3. User changes to "Gifts" (buying flowers)
-  4. Save → Mapping updated: "migros" → Gifts
-  5. Next time: auto-fills "Gifts" ✨
-
-  Test 4 - Autocomplete:
-  1. Type "Mi"
-  2. See: "Migros", "Migrolino"
-  3. Tap "Migros"
-  4. Payee filled + category auto-fills ✨
+  Test 3 - Different Users:
+  1. Alexander adds "Migros" → "Groceries"
+  2. Cecilia adds "Migros" → "Shopping" (her preference)
+  3. Each user's payee list is independent
   ```
 
 - **Edge Cases Handled**:
@@ -1979,20 +1966,20 @@ bun start
   - No category selected: No mapping saved
   - Transaction without payee: Works normally
   - First time payee: No auto-fill (learns on save)
+  - Personal privacy: Each user's payees are private
 
 - **Files Created**:
   - `src/lib/payee-mappings-api.ts` - Smart learning logic
-
-- **Files Created**:
   - `src/components/PayeePickerModal.tsx` - Full-screen modal picker
 
 - **Files Modified**:
-  - `src/lib/db.ts` - Added payee_category_mappings table
-  - `src/app/transactions/add.tsx` - Modal picker with smart auto-fill
-  - `src/app/transactions/[id]/edit.tsx` - Modal picker with learning from edits
+  - `src/lib/db.ts` - Added payee_category_mappings table (userId field)
+  - `src/app/transactions/add.tsx` - Modal picker with smart auto-fill (userId-based)
+  - `src/app/transactions/[id]/edit.tsx` - Modal picker with learning from edits (userId-based)
 
 ### FEATURE: Payee Picker Modal with Search and Create (2026-01-25)
 - **Feature**: Enhanced payee selection with full-screen modal picker for better mobile UX
+- **Privacy**: Shows only user's personal payees (not household-wide)
 - **UI/UX Improvements**:
   - **Full-Screen Modal**: Dedicated search and selection interface
   - **Pressable Button**: Tap "Choose payee..." to open picker (replaces inline input)
@@ -2003,12 +1990,13 @@ bun start
   - **Clear Button**: Easy clear button when payee selected
   - **Large Touch Targets**: 56px height buttons for mobile-friendly interaction
   - **Auto-Fill Integration**: Category still auto-fills when payee selected
+  - **Personal Data**: Each user sees only their own payees
 
 - **Implementation**:
   - Created `PayeePickerModal.tsx` component:
     - Full-screen modal with slide animation
     - Search functionality with autocomplete
-    - Loads payees from both mappings and transactions
+    - Loads user's personal payees from both mappings and transactions
     - Displays usage count for each payee
     - Creates new payees inline
     - Empty state for first-time users
@@ -2027,7 +2015,7 @@ bun start
   ```
   1. Tap "Choose payee..." button
   2. Modal opens with search bar
-  3. See list of existing payees sorted by usage:
+  3. See list of YOUR payees sorted by usage:
      - "Migros" (12 uses)
      - "Coop" (8 uses)
      - "Netflix" (3 uses)
@@ -2039,11 +2027,12 @@ bun start
   ```
 
 - **Benefits**:
-  - **Faster Entry**: Quick access to frequent payees
+  - **Faster Entry**: Quick access to YOUR frequent payees
   - **Consistent Naming**: See existing payees to avoid duplicates (no "Migros" vs "MIGROS")
   - **Mobile-Optimized**: Large touch targets, full-screen focus
   - **Usage Insights**: See which payees you use most
   - **No Keyboard Overlap**: Dedicated modal prevents UI issues
+  - **Privacy**: Your payees are private to you
 
 ### FEATURE: Payee/Merchant Field for Transactions (2026-01-25)
 - **Feature**: Added optional payee/merchant field to track where money was spent

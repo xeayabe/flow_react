@@ -8,7 +8,7 @@ interface PayeePickerModalProps {
   visible: boolean;
   onClose: () => void;
   onSelectPayee: (payee: string) => void;
-  householdId: string;
+  userId: string;
   currentPayee?: string;
 }
 
@@ -22,29 +22,29 @@ export default function PayeePickerModal({
   visible,
   onClose,
   onSelectPayee,
-  householdId,
+  userId,
   currentPayee
 }: PayeePickerModalProps) {
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Load all payees with usage stats
   const { data: payees } = useQuery({
-    queryKey: ['all-payees', householdId],
+    queryKey: ['all-payees', userId],
     queryFn: async () => {
-      // Get all payee mappings (has usage stats)
+      // Get all payee mappings (has usage stats) - personal to user
       const { data: mappingData } = await db.queryOnce({
         payee_category_mappings: {
           $: {
-            where: { householdId }
+            where: { userId }
           }
         }
       });
 
-      // Also get payees from transactions not yet in mappings
+      // Also get payees from user's transactions not yet in mappings
       const { data: txData } = await db.queryOnce({
         transactions: {
           $: {
-            where: { householdId },
+            where: { userId },
             limit: 200
           }
         }
@@ -54,7 +54,7 @@ export default function PayeePickerModal({
       const mappedPayees = new Map<string, PayeeWithStats>();
 
       // Add from mappings (has accurate usage count)
-      mappingData.payee_category_mappings.forEach(mapping => {
+      mappingData.payee_category_mappings?.forEach(mapping => {
         mappedPayees.set(mapping.payee, {
           payee: mapping.payee,
           usageCount: mapping.usageCount || 1,
@@ -80,7 +80,7 @@ export default function PayeePickerModal({
       return Array.from(mappedPayees.values())
         .sort((a, b) => b.usageCount - a.usageCount);
     },
-    enabled: visible && !!householdId
+    enabled: visible && !!userId
   });
 
   // Filter payees based on search

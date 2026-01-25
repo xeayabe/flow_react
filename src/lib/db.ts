@@ -157,7 +157,7 @@ const schema = i.schema({
       createdAt: i.number(),
     }),
     payee_category_mappings: i.entity({
-      householdId: i.string(), // Mappings shared across household
+      userId: i.string(), // Personal to each user (like categories)
       payee: i.string(), // Normalized payee name (lowercase trimmed)
       categoryId: i.string(), // Last selected category
       lastUsedAt: i.number(), // Timestamp of last use

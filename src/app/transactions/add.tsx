@@ -208,8 +208,8 @@ export default function AddTransactionScreen() {
     setFormData((prev) => ({ ...prev, payee: selectedPayee }));
 
     // Auto-fill category if mapping exists
-    if (householdQuery.data?.householdId) {
-      const suggested = await getCategorySuggestion(householdQuery.data.householdId, selectedPayee);
+    if (householdQuery.data?.userRecord?.id) {
+      const suggested = await getCategorySuggestion(householdQuery.data.userRecord.id, selectedPayee);
 
       if (suggested) {
         console.log('💡 Auto-filling category:', suggested);
@@ -265,9 +265,9 @@ export default function AddTransactionScreen() {
     },
     onSuccess: async () => {
       // Save payee-category mapping for smart learning
-      if (formData.payee.trim() && formData.categoryId && householdQuery.data?.householdId) {
+      if (formData.payee.trim() && formData.categoryId && householdQuery.data?.userRecord?.id) {
         await savePayeeMapping(
-          householdQuery.data.householdId,
+          householdQuery.data.userRecord.id,
           formData.payee.trim(),
           formData.categoryId
         );
@@ -277,7 +277,7 @@ export default function AddTransactionScreen() {
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      queryClient.invalidateQueries({ queryKey: ['recent-payees', householdQuery.data?.householdId] });
+      queryClient.invalidateQueries({ queryKey: ['all-payees', householdQuery.data?.userRecord?.id] });
 
       // Show the "add another" modal immediately
       setShowAddAnotherModal(true);
@@ -985,12 +985,12 @@ export default function AddTransactionScreen() {
       </Modal>
 
       {/* Payee Picker Modal */}
-      {householdQuery.data?.householdId && (
+      {householdQuery.data?.userRecord?.id && (
         <PayeePickerModal
           visible={showPayeePicker}
           onClose={() => setShowPayeePicker(false)}
           onSelectPayee={handleSelectPayee}
-          householdId={householdQuery.data.householdId}
+          userId={householdQuery.data.userRecord.id}
           currentPayee={formData.payee}
         />
       )}

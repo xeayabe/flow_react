@@ -14,7 +14,7 @@ function normalizePayee(payee: string): string {
  * Returns categoryId if mapping exists, null otherwise
  */
 export async function getCategorySuggestion(
-  householdId: string,
+  userId: string,
   payee: string
 ): Promise<string | null> {
   if (!payee || !payee.trim()) return null;
@@ -26,14 +26,14 @@ export async function getCategorySuggestion(
     payee_category_mappings: {
       $: {
         where: {
-          householdId,
+          userId,
           payee: normalizedPayee
         }
       }
     }
   });
 
-  const mapping = data.payee_category_mappings[0];
+  const mapping = data.payee_category_mappings?.[0];
 
   if (mapping) {
     console.log('✅ Found mapping:', mapping.categoryId);
@@ -49,7 +49,7 @@ export async function getCategorySuggestion(
  * Called when transaction is created or edited
  */
 export async function savePayeeMapping(
-  householdId: string,
+  userId: string,
   payee: string,
   categoryId: string
 ): Promise<void> {
@@ -63,14 +63,14 @@ export async function savePayeeMapping(
     payee_category_mappings: {
       $: {
         where: {
-          householdId,
+          userId,
           payee: normalizedPayee
         }
       }
     }
   });
 
-  const existingMapping = data.payee_category_mappings[0];
+  const existingMapping = data.payee_category_mappings?.[0];
 
   if (existingMapping) {
     // Update existing mapping
@@ -89,7 +89,7 @@ export async function savePayeeMapping(
     const mappingId = uuidv4();
     await db.transact([
       db.tx.payee_category_mappings[mappingId].update({
-        householdId,
+        userId,
         payee: normalizedPayee,
         categoryId,
         lastUsedAt: Date.now(),

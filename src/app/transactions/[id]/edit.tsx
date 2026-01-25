@@ -165,9 +165,9 @@ export default function EditTransactionScreen() {
       }),
     onSuccess: async () => {
       // Save payee-category mapping for smart learning (if category changed)
-      if (formData.payee.trim() && formData.categoryId && householdQuery.data?.householdId) {
+      if (formData.payee.trim() && formData.categoryId && householdQuery.data?.userRecord?.id) {
         await savePayeeMapping(
-          householdQuery.data.householdId,
+          householdQuery.data.userRecord.id,
           formData.payee.trim(),
           formData.categoryId
         );
@@ -178,7 +178,7 @@ export default function EditTransactionScreen() {
       queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['transaction', id] });
-      queryClient.invalidateQueries({ queryKey: ['recent-payees', householdQuery.data?.householdId] });
+      queryClient.invalidateQueries({ queryKey: ['all-payees', householdQuery.data?.userRecord?.id] });
 
       setSuccessMessage('✓ Transaction updated!');
       setShowSuccess(true);
@@ -243,9 +243,9 @@ export default function EditTransactionScreen() {
     setFormData((prev) => ({ ...prev, payee: selectedPayee }));
 
     // Auto-fill category if mapping exists
-    if (householdQuery.data?.householdId) {
+    if (householdQuery.data?.userRecord?.id) {
       const suggested = await getCategorySuggestion(
-        householdQuery.data.householdId,
+        householdQuery.data.userRecord.id,
         selectedPayee
       );
       if (suggested) {
@@ -846,12 +846,12 @@ export default function EditTransactionScreen() {
       </Modal>
 
       {/* Payee Picker Modal */}
-      {householdQuery.data?.householdId && (
+      {householdQuery.data?.userRecord?.id && (
         <PayeePickerModal
           visible={showPayeePicker}
           onClose={() => setShowPayeePicker(false)}
           onSelectPayee={handleSelectPayee}
-          householdId={householdQuery.data.householdId}
+          userId={householdQuery.data.userRecord.id}
           currentPayee={formData.payee}
         />
       )}
