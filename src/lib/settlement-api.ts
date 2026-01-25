@@ -278,6 +278,48 @@ export async function createSettlement(
       await db.transact(allUpdates);
       console.log('✅ All splits marked as paid and transaction amounts reduced');
 
+      // Update budget spent amounts for the affected transactions
+      console.log('💰 Updating budget spent amounts...');
+      for (const tx of transactionsToUpdate) {
+        const reductionAmount = transactionUpdates[tx.id];
+        if (tx.type === 'expense' && reductionAmount > 0) {
+          try {
+            // Import budget functions
+            const { updateBudgetSpentAmount, getMemberBudgetPeriod } = await import('./budget-api');
+
+            // Get the transaction owner's budget period
+            const budgetPeriod = await getMemberBudgetPeriod(tx.userId, tx.householdId);
+
+            // Check if transaction date falls within this budget period
+            if (tx.date >= budgetPeriod.start && tx.date <= budgetPeriod.end) {
+              // Get current budget
+              const { data: budgetData } = await db.queryOnce({
+                budgets: {
+                  $: {
+                    where: {
+                      userId: tx.userId,
+                      categoryId: tx.categoryId,
+                      periodStart: budgetPeriod.start,
+                    },
+                  },
+                },
+              });
+
+              const budget = budgetData.budgets?.[0];
+              if (budget) {
+                // Reduce the spent amount
+                const newSpentAmount = Math.max(0, (budget.spentAmount || 0) - reductionAmount);
+                await updateBudgetSpentAmount(tx.userId, tx.categoryId, budgetPeriod.start, newSpentAmount);
+                console.log(`  ✓ Budget updated for user ${tx.userId.substring(0, 8)}, category ${tx.categoryId.substring(0, 8)}: ${budget.spentAmount} -> ${newSpentAmount}`);
+              }
+            }
+          } catch (error) {
+            console.warn('  ⚠️ Failed to update budget:', error);
+            // Don't fail the settlement if budget update fails
+          }
+        }
+      }
+
       // Verify the updates were persisted
       console.log('🔍 Verifying transaction updates...');
       const { data: verifyData } = await db.queryOnce({
@@ -294,7 +336,7 @@ export async function createSettlement(
       transactionIds.forEach((txId: string) => {
         const updatedTx = verifyTransactions.find((t: any) => t.id === txId);
         if (updatedTx) {
-          console.log(`  ✓ Transaction ${txId} now shows amount: ${updatedTx.amount} CHF`);
+          console.log(`  ✓ Transaction ${txId.substring(0, 8)} now shows amount: ${updatedTx.amount} CHF`);
         } else {
           console.log(`  ✗ Transaction ${txId} not found in verification query!`);
         }

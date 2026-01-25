@@ -122,19 +122,24 @@ export default function SettlementModal({
     },
     onSuccess: (result) => {
       console.log('✅ Settlement mutation success:', result);
+
+      // Get the householdId for proper query invalidation
+      const householdId = payerAccounts?.member.householdId;
+
       // Invalidate all relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['debt-balance'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['transactions-household'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions-household', householdId] });
       queryClient.invalidateQueries({ queryKey: ['payer-accounts'] });
       queryClient.invalidateQueries({ queryKey: ['receiver-accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['household-transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['shared-expenses'] });
-      // Force refetch all queries to ensure UI updates
+      queryClient.invalidateQueries({ queryKey: ['recent-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+
+      // Force refetch all transaction queries to ensure UI updates
+      queryClient.refetchQueries({ queryKey: ['transactions-household'], type: 'active' });
       queryClient.refetchQueries({ queryKey: ['transactions'], type: 'active' });
-      queryClient.refetchQueries({ queryKey: ['household-transactions'], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['recent-transactions'], type: 'active' });
 
       // Show detailed result
       const message = result?.splitsSettled
