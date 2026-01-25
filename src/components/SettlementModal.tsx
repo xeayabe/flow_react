@@ -120,14 +120,21 @@ export default function SettlementModal({
         payerAccounts.member.householdId
       );
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      console.log('✅ Settlement mutation success:', result);
       queryClient.invalidateQueries({ queryKey: ['debt-balance'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions-household'] });
       queryClient.invalidateQueries({ queryKey: ['payer-accounts'] });
       queryClient.invalidateQueries({ queryKey: ['receiver-accounts'] });
 
-      Alert.alert('Success!', `Payment of ${amount.toFixed(2)} CHF has been recorded`);
+      // Show detailed result
+      const message = result?.splitsSettled
+        ? `Payment of ${amount.toFixed(2)} CHF recorded.\n\n${result.splitsSettled} split(s) settled.\nOriginal transaction amounts have been reduced.`
+        : `Payment of ${amount.toFixed(2)} CHF recorded.\n\nNo matching splits found - transaction amounts unchanged.`;
+
+      Alert.alert('Settlement Complete', message);
       setSelectedAccount('');
       setReceiverAccount('');
       onClose();
