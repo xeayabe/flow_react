@@ -149,9 +149,17 @@ export const RecentTransactionsWidget: React.FC<{
                   </Text>
                 </View>
               </View>
-              <Text className="text-sm font-bold" style={{ color: textColor }}>
-                {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
-              </Text>
+              <View className="flex-row items-center gap-2">
+                <Text className="text-sm font-bold" style={{ color: textColor }}>
+                  {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                </Text>
+                {/* Add shared badge */}
+                {tx.isShared && (
+                  <View className="bg-purple-100 px-2 py-1 rounded-full">
+                    <Text className="text-xs text-purple-700 font-semibold">Shared</Text>
+                  </View>
+                )}
+              </View>
             </Pressable>
           );
         })}

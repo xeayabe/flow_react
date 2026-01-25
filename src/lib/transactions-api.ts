@@ -34,6 +34,8 @@ export interface CreateTransactionRequest {
   note?: string;
   isRecurring?: boolean;
   recurringDay?: number;
+  isShared?: boolean;
+  paidByUserId?: string;
 }
 
 export interface UpdateTransactionRequest extends CreateTransactionRequest {
@@ -43,6 +45,7 @@ export interface UpdateTransactionRequest extends CreateTransactionRequest {
 export interface TransactionResponse {
   success: boolean;
   data?: Transaction;
+  transactionId?: string;
   error?: string;
 }
 
@@ -113,8 +116,8 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
         amount: request.amount,
         date: request.date,
         note: request.note,
-        isShared: false, // Phase 1: all personal
-        paidByUserId: request.userId,
+        isShared: request.isShared || false,
+        paidByUserId: request.isShared ? request.paidByUserId : request.userId,
         isRecurring: request.isRecurring || false,
         recurringDay: request.recurringDay,
         createdAt: now,
@@ -126,7 +129,7 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
       }),
     ]);
 
-    console.log('Transaction created successfully:', { transactionId, type: request.type, newBalance });
+    console.log('Transaction created successfully:', { transactionId, type: request.type, newBalance, isShared: request.isShared });
 
     // Update budget spent amount if this is an expense transaction
     if (request.type === 'expense') {
@@ -165,7 +168,27 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
     }
 
     console.log('✅ Transaction fully completed and committed to database');
-    return { success: true, data: { id: transactionId, ...request, isShared: false, createdAt: now, updatedAt: now } as Transaction };
+    return {
+      success: true,
+      transactionId: transactionId,
+      data: {
+        id: transactionId,
+        userId: request.userId,
+        householdId: request.householdId,
+        accountId: request.accountId,
+        categoryId: request.categoryId,
+        type: request.type,
+        amount: request.amount,
+        date: request.date,
+        note: request.note,
+        isShared: request.isShared || false,
+        paidByUserId: request.isShared ? request.paidByUserId : request.userId,
+        isRecurring: request.isRecurring || false,
+        recurringDay: request.recurringDay,
+        createdAt: now,
+        updatedAt: now
+      } as Transaction
+    };
   } catch (error) {
     console.error('Create transaction error:', error);
     console.error('Error details:', {

@@ -604,16 +604,24 @@ export default function TransactionsTabScreen() {
                         </View>
                       </View>
 
-                      <View className="items-end">
-                        <Text
-                          className="font-bold text-sm"
-                          style={{
-                            color: isIncome ? '#8B9D8B' : '#DC2626',
-                          }}
-                        >
-                          {isIncome ? '+' : '-'}
-                          {formatCurrency(tx.amount)}
-                        </Text>
+                      <View className="flex-row items-center gap-2">
+                        <View className="items-end">
+                          <Text
+                            className="font-bold text-sm"
+                            style={{
+                              color: isIncome ? '#8B9D8B' : '#DC2626',
+                            }}
+                          >
+                            {isIncome ? '+' : '-'}
+                            {formatCurrency(tx.amount)}
+                          </Text>
+                        </View>
+                        {/* Add shared badge */}
+                        {tx.isShared && (
+                          <View className="bg-purple-100 px-2 py-1 rounded-full">
+                            <Text className="text-xs text-purple-700 font-semibold">Shared</Text>
+                          </View>
+                        )}
                       </View>
                     </Pressable>
                   )}

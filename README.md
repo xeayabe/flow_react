@@ -1120,3 +1120,59 @@ bun start
   - Spent amounts reset to 0 for new period
   - "Days remaining" calculation updates correctly
   - Dashboard shows data from new period instead of old
+
+### FEATURE: Shared Expense Splits (PART 3 OF 4) (2026-01-25)
+- **Feature**: Added shared expense controls to transaction form for multi-member households
+- **Implementation**:
+  - New state variables: `isShared` (boolean), `paidByUserId` (string)
+  - New query: Load all active household members for the "Who paid?" selector
+  - UI Controls:
+    - "Shared Expense" toggle switch (only shows if household has 2+ members)
+    - "Who paid?" multi-select buttons (only shows when toggle is ON)
+    - Current user is pre-selected as payer by default
+  - Updated `CreateTransactionRequest` interface to include:
+    - `isShared?: boolean` - Whether this is a shared expense
+    - `paidByUserId?: string` - Which household member paid
+  - Updated `TransactionResponse` to include `transactionId` for split creation
+  - When saving shared transaction:
+    - Sets `isShared = true` and `paidByUserId = selected user`
+    - Calls `createExpenseSplits()` automatically to create split records
+    - Expense splits are calculated based on income ratio from `budgetSummary.totalIncome`
+- **Files Modified**:
+  - `src/app/transactions/add.tsx`:
+    - Added `Switch` import for toggle
+    - Added household members query
+    - Added shared expense state and UI
+    - Updated transaction creation to handle shared expenses
+  - `src/lib/transactions-api.ts`:
+    - Updated `CreateTransactionRequest` interface
+    - Updated `TransactionResponse` interface with `transactionId`
+    - Updated `createTransaction()` to use request values for `isShared` and `paidByUserId`
+    - Updated return statement to include transactionId for split creation
+  - `src/components/DashboardWidgets.tsx`:
+    - Updated `RecentTransactionsWidget` to show purple "Shared" badge
+  - `src/app/(tabs)/transactions.tsx`:
+    - Updated transaction list item to show purple "Shared" badge next to amount
+- **Visual Feedback**:
+  - Shared transactions display purple "Shared" badge in both dashboard widget and transaction list
+  - Personal transactions don't show any badge
+  - Badge appears next to the transaction amount for easy identification
+- **Behavior**:
+  - Solo user households: Don't see "Shared Expense" controls (hidden)
+  - Multi-member households: See "Shared Expense" toggle
+  - Default: Toggle is OFF (personal expense)
+  - When toggled ON: "Who paid?" selector appears with all household members
+  - User's own name is pre-selected as default payer
+  - Can select any household member as the payer
+- **Testing**:
+  - Test with solo household: No shared controls visible
+  - Test with multi-member household:
+    - Add personal expense: No splits created, no badge shown
+    - Add shared expense as Alexander: Splits created with Alexander as payer, badge shows
+    - Add shared expense as Cecilia: Splits created with Cecilia as payer, badge shows
+  - Verify splits appear in `shared_expense_splits` table with correct `isPaid` flags
+  - Verify split percentages match income ratio
+- **Next Steps (PART 4)**:
+  - Settle splits UI to mark expenses as paid
+  - Settlement logic to transfer money between accounts
+  - Debt visualization showing who owes whom
