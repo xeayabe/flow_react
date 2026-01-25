@@ -11,7 +11,7 @@ import { getUserAccounts, formatBalance } from '@/lib/accounts-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { migrateCategoryGroups } from '@/lib/migrate-categories';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
-import { createExpenseSplits } from '@/lib/shared-expenses-api';
+import { createExpenseSplits, calculateSplitRatio } from '@/lib/shared-expenses-api';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -115,6 +115,21 @@ export default function AddTransactionScreen() {
       });
     },
     enabled: !!householdQuery.data?.householdId,
+  });
+
+  // Get split ratios for showing percentages
+  const splitRatiosQuery = useQuery({
+    queryKey: ['split-ratios', householdQuery.data?.householdId],
+    queryFn: async () => {
+      if (!householdQuery.data?.householdId) return [];
+      try {
+        return await calculateSplitRatio(householdQuery.data.householdId);
+      } catch (error) {
+        console.error('Error calculating split ratios:', error);
+        return [];
+      }
+    },
+    enabled: !!householdQuery.data?.householdId && isShared,
   });
 
   // Auto-select current user as payer when members load
@@ -617,6 +632,23 @@ export default function AddTransactionScreen() {
                   {/* Who paid selector - only show when shared */}
                   {isShared && (
                     <View className="px-0 pb-4 mb-4">
+                      {/* Split Preview */}
+                      {formData.amount && parseFloat(formData.amount) > 0 && (
+                        <View className="bg-blue-50 p-3 rounded-xl mb-4 border border-blue-200">
+                          <Text className="text-xs text-blue-900 font-semibold mb-2">Split Preview:</Text>
+                          {householdMembersQuery.data?.map((member: any) => {
+                            const ratio = splitRatiosQuery.data?.find((r: any) => r.userId === member.userId);
+                            const percentage = ratio?.percentage || 50;
+                            const splitAmount = (parseFloat(formData.amount) * percentage) / 100;
+                            return (
+                              <Text key={member.userId} className="text-xs text-blue-700 mb-1">
+                                {member.userName}: {splitAmount.toFixed(2)} CHF ({percentage.toFixed(0)}%)
+                              </Text>
+                            );
+                          })}
+                        </View>
+                      )}
+
                       <Text className="text-sm font-semibold text-gray-700 mb-3">Who paid?</Text>
                       {householdMembersQuery.data.map((member: any) => (
                         <Pressable

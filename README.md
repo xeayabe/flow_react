@@ -1266,3 +1266,97 @@ bun start
   - Move money between accounts when settling debt
   - Settlement history/ledger
   - Multiple members (extend beyond 2-person households)
+
+### DEBUG & ENHANCEMENT: Debt Widget Debugging + Split Percentage Display (2026-01-25)
+- **Issue 1**: Members not seeing debt widget (debugging needed)
+- **Issue 2**: Users want to see split percentages (e.g., "60/40 based on income")
+
+- **Debugging Implementation** (DebtBalanceWidget.tsx):
+  - Comprehensive console logging with emoji indicators:
+    - 🔍 Query start
+    - 👤 User profile found
+    - 🏠 Household membership found
+    - 👥 Partner found
+    - 📊 Split ratios calculated
+    - 💰 Debt balance calculated
+    - ✅ Query complete
+    - ⚠️ Widget hidden (no debt info, balance = 0)
+    - ❌ Error states (user not found, no household, no partner, etc.)
+  - Logs show:
+    - User profile ID and name
+    - Current member role
+    - Total household members and their IDs
+    - Partner name
+    - Split ratio percentages for each user
+    - Debt balance calculation result
+    - Final rendering decision
+
+- **Split Percentage Display**:
+  - Widget now shows income-based split percentages in header:
+    - "Household Balance" label with "60% / 40%" next to it
+    - Shows each user's share of expenses based on income ratio
+    - Updates based on `calculateSplitRatio()` result
+
+  - Transaction form shows split preview:
+    - Blue box with "Split Preview:" heading
+    - Lists each household member with:
+      - Their name
+      - Split amount in CHF (calculated from total amount × percentage)
+      - Percentage of the split
+    - Only shows when:
+      - Amount is entered and > 0
+      - "Shared Expense" toggle is ON
+    - Example: "Alexander: 60.00 CHF (60%)"
+
+- **Files Modified**:
+  - `src/components/DebtBalanceWidget.tsx`:
+    - Added `calculateSplitRatio` import
+    - Updated DebtInfo interface with percentage fields
+    - Added detailed console logging (28 log points)
+    - Queries split ratios from budgetSummary income data
+    - Displays percentages in widget header
+    - Added footer text: "Shared expenses split based on income ratio"
+
+  - `src/app/transactions/add.tsx`:
+    - Added `calculateSplitRatio` import
+    - New query: `splitRatiosQuery` to fetch split percentages
+    - Split preview UI in blue box before "Who paid?" selector
+    - Shows split amount and percentage for each member
+    - Dynamically updates as amount changes
+
+- **Console Log Reference** (for debugging member visibility):
+  ```
+  🔍 DebtBalanceWidget: Starting query for [email]
+  👤 User profile: [userId] [userName]
+  🏠 Current member: [memberId] Role: [role] Household: [householdId]
+  👥 Total household members: [count]
+     - [userId1] Role: [role]
+     - [userId2] Role: [role]
+  👥 Partner found: [partnerName]
+  📊 Calculating split ratios for household: [householdId]
+  📊 Split ratios returned: [array]
+  📊 Current user split: [percentage]%
+  📊 Other user split: [percentage]%
+  💰 Calculating debt balance between [userId1] and [userId2]
+  💰 Debt balance result: [balance]
+  ✅ DebtBalanceWidget query complete: [debtInfo]
+  🎨 Rendering DebtBalanceWidget: hasData=[bool], amount=[num], showWidget=[bool]
+  ⚠️ Widget hidden: No debt info
+  ⚠️ Widget hidden: Balance is 0
+  ```
+
+- **Testing Checklist**:
+  - ✓ Alexander opens dashboard → Widget shows with split percentages
+  - ✓ Cecilia opens dashboard → Check console logs for any "❌" errors
+  - ✓ Both see correct amounts from their perspective
+  - ✓ Split preview shows in transaction form when creating shared expense
+  - ✓ Split percentages update based on income ratio
+  - ✓ Console shows all debug logs without errors
+
+- **Known Issues & Solutions**:
+  - If widget doesn't show for Cecilia:
+    - Check console for "❌ No user profile found" → email lookup issue
+    - Check for "❌ No household membership found" → householdMembers query issue
+    - Check for "❌ No partner found in household" → only 1 member in household
+  - If split preview shows "50%" → income data not in budgetSummary (use default)
+  - If widget shows but amount is 0 → no shared_expense_splits yet (expected)
