@@ -241,7 +241,7 @@ export async function createSettlement(
     console.log(`📝 Found ${transactionsToUpdate.length} transactions to update out of ${allTransactions.length} total`);
     transactionsToUpdate.forEach((t: any) => {
       const reduction = transactionUpdates[t.id];
-      console.log(`  - Transaction ${t.id}: current=${t.amount}, reduction=${reduction}, new=${t.amount - reduction}`);
+      console.log(`  - Transaction ${t.id.substring(0, 8)}: userId=${t.userId?.substring(0, 8)}, paidBy=${t.paidByUserId?.substring(0, 8)}, current=${t.amount}, reduction=${reduction}, new=${t.amount - reduction}`);
     });
 
     // Build all updates: mark splits as paid + reduce transaction amounts
@@ -262,7 +262,8 @@ export async function createSettlement(
     for (const tx of transactionsToUpdate) {
       const reductionAmount = transactionUpdates[tx.id];
       const newAmount = Math.max(0, tx.amount - reductionAmount); // Ensure non-negative
-      console.log(`  📌 Reducing transaction ${tx.id}: ${tx.amount} - ${reductionAmount} = ${newAmount}`);
+      console.log(`  📌 Reducing transaction ${tx.id.substring(0, 8)}: ${tx.amount} - ${reductionAmount} = ${newAmount}`);
+      console.log(`  📌 Transaction belongs to userId: ${tx.userId?.substring(0, 8)}, paidBy: ${tx.paidByUserId?.substring(0, 8)}`);
       allUpdates.push(
         db.tx.transactions[tx.id].update({
           amount: newAmount,
