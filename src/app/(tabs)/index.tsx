@@ -291,6 +291,9 @@ export default function DashboardScreen() {
             budgetPeriodEnd={budgetPeriod.end}
           />
 
+          {/* Debt Balance Widget */}
+          <DebtBalanceWidget />
+
           {/* True Balance Widget */}
           <TrueBalanceWidget />
 

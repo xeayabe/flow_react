@@ -2366,3 +2366,11 @@ bun start
 - `src/lib/shared-expenses-api.ts` - Updated calculateSplitRatio to use split settings
 - `src/app/(tabs)/two.tsx` - Added Expense Splitting menu item (conditional on 2+ members)
 
+### FIX: Restored Debt Balance Widget to Dashboard (2026-01-25)
+- **Issue**: Debt settlement widget disappeared from dashboard for all members
+- **Fix**: Added `<DebtBalanceWidget />` back to the dashboard, positioned above True Balance Widget
+- **Location**: Dashboard (Home tab) - appears between Welcome Header and True Balance (Assets) section
+- **Visibility**: Shows for all household members who have shared expense debts
+- **Files Modified**:
+  - `src/app/(tabs)/index.tsx` - Added DebtBalanceWidget component above TrueBalanceWidget
+
