@@ -76,9 +76,9 @@ export default function PayeePickerModal({
         }
       });
 
-      // Convert to array and sort by usage
+      // Convert to array and sort alphabetically (A-Z)
       return Array.from(mappedPayees.values())
-        .sort((a, b) => b.usageCount - a.usageCount);
+        .sort((a, b) => a.payee.localeCompare(b.payee));
     },
     enabled: visible && !!userId
   });
@@ -148,7 +148,7 @@ export default function PayeePickerModal({
           {filteredPayees.length > 0 && (
             <View className="p-4">
               <Text className="text-xs text-gray-500 font-semibold mb-2 uppercase">
-                {searchQuery ? 'Matches' : 'Recent & Frequent'}
+                {searchQuery ? 'Matches' : 'All Payees (A-Z)'}
               </Text>
 
               {filteredPayees.map((payee) => (

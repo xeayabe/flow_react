@@ -1985,7 +1985,7 @@ bun start
   - **Pressable Button**: Tap "Choose payee..." to open picker (replaces inline input)
   - **Search Bar**: Search existing payees with real-time filtering
   - **Usage Statistics**: Each payee shows usage count (e.g., "5 uses")
-  - **Sorted List**: Payees sorted by usage count (most frequent first)
+  - **Alphabetical Sorting**: Payees sorted A-Z for easy browsing
   - **Create New**: Type to create new payee on the spot with "Create 'X'" button
   - **Clear Button**: Easy clear button when payee selected
   - **Large Touch Targets**: 56px height buttons for mobile-friendly interaction
@@ -1998,6 +1998,9 @@ bun start
     - Search functionality with autocomplete
     - Loads user's personal payees from both mappings and transactions
     - Displays usage count for each payee
+    - Sorts payees alphabetically (A-Z)
+    - Creates new payees inline
+    - Empty state for first-time users
     - Creates new payees inline
     - Empty state for first-time users
   - Updated Add Transaction form:
@@ -2015,9 +2018,9 @@ bun start
   ```
   1. Tap "Choose payee..." button
   2. Modal opens with search bar
-  3. See list of YOUR payees sorted by usage:
-     - "Migros" (12 uses)
+  3. See list of YOUR payees sorted alphabetically:
      - "Coop" (8 uses)
+     - "Migros" (12 uses)
      - "Netflix" (3 uses)
   4. Type "Star" in search
   5. No matches found
@@ -2027,10 +2030,11 @@ bun start
   ```
 
 - **Benefits**:
-  - **Faster Entry**: Quick access to YOUR frequent payees
+  - **Faster Entry**: Quick access to YOUR payees with alphabetical sorting
+  - **Easy to Find**: A-Z sorting makes it easy to locate specific payees
   - **Consistent Naming**: See existing payees to avoid duplicates (no "Migros" vs "MIGROS")
   - **Mobile-Optimized**: Large touch targets, full-screen focus
-  - **Usage Insights**: See which payees you use most
+  - **Usage Insights**: See how many times you've used each payee
   - **No Keyboard Overlap**: Dedicated modal prevents UI issues
   - **Privacy**: Your payees are private to you
 
