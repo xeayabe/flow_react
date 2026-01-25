@@ -19,16 +19,8 @@ export default function TrueBalanceWidget() {
 
       if (!userProfile) return null;
 
-      const { data: memberData } = await db.queryOnce({
-        householdMembers: {
-          $: { where: { userId: userProfile.id, status: 'active' } }
-        }
-      });
-      const member = memberData.householdMembers[0];
-
-      if (!member) return null;
-
-      return calculateTrueBalance(member.householdId);
+      // Calculate balance for THIS USER only (not entire household)
+      return calculateTrueBalance(userProfile.id);
     },
     enabled: !!user?.email,
     refetchInterval: 5000 // Refresh every 5 seconds

@@ -1909,3 +1909,67 @@ bun start
   - `src/components/DashboardWidgets.tsx` - Removed settlement badges and color handling
   - `src/lib/dashboard-helpers.ts` - Removed settlement color handling
   - `src/app/transactions/[id]/edit.tsx` - Removed settlement edit prevention
+
+### FEATURE: True Balance - Assets, Liabilities, and Net Worth Tracking (2026-01-25)
+- **Feature**: Displays accurate financial position by separating Assets, Liabilities, and Net Worth
+- **IMPORTANT**: Accounts/wallets are personal to each user (not household-wide)
+  - Each user sees only their own accounts in the True Balance widget
+  - Alexander's checking account ≠ Cecilia's checking account
+  - Net Worth is calculated per user, not per household
+- **Implementation**:
+  - Created `src/lib/balance-api.ts` with `calculateTrueBalance(userId)` function
+    - Queries user's personal accounts only (filtered by userId)
+    - Asset types: Checking, Savings, Cash, Investment (positive balances = good)
+    - Liability types: Credit Card (negative balances = debt)
+    - Calculates net worth: Assets - Liabilities
+  - Created `src/components/TrueBalanceWidget.tsx`
+    - Three-section display: Assets, Liabilities, Net Worth
+    - Shows individual accounts within each section with balances
+    - Asset accounts show with 💰 icon and balance in CHF
+    - Liability accounts show with 💳 icon and debt amount (as positive)
+    - Net Worth displayed prominently in teal with large text
+    - Auto-refreshes every 5 seconds
+    - Liabilities section only shows when debt exists
+  - Updated dashboard (`src/app/(tabs)/index.tsx`) to use TrueBalanceWidget
+    - Replaced old TotalBalanceCard and summary cards
+    - Widget positioned after welcome header
+
+- **How It Works**:
+  - Credit card expenses recorded immediately affect budget (correct behavior)
+  - Credit card debt reduces net worth (correct financial position)
+  - Credit card payments are transfers between accounts (don't affect budget)
+
+- **Display Format**:
+  - **Assets Section**: Lists all user's asset accounts with balances, shows total
+  - **Liabilities Section**: Lists all user's credit cards with debt amounts (shown as positive), shows total debt
+  - **Net Worth Section**: Large teal card showing user's true spendable amount (Assets - Liabilities)
+
+- **Example Flow** (for a single user):
+  1. Initial Setup:
+     - Checking: 1,000 CHF
+     - Credit Card: 0 CHF
+     - Net Worth: 1,000 CHF
+
+  2. Spend on Credit Card (100 CHF groceries):
+     - Credit card balance: 0 → -100 CHF
+     - Dashboard updates:
+       - Assets: 1,000 CHF
+       - Liabilities: 100 CHF
+       - Net Worth: 900 CHF ✓
+     - Budget: Groceries -100 CHF ✓
+
+  3. Pay Credit Card Bill (100 CHF transfer):
+     - Checking: 1,000 → 900 CHF
+     - Credit Card: -100 → 0 CHF
+     - Dashboard updates:
+       - Assets: 900 CHF
+       - Liabilities: 0 CHF (section hidden)
+       - Net Worth: 900 CHF ✓
+     - Budget: Unchanged (transfer doesn't affect budget) ✓
+
+- **Files Created**:
+  - `src/lib/balance-api.ts` - Balance calculation with asset/liability separation (per user)
+  - `src/components/TrueBalanceWidget.tsx` - Dashboard widget component
+
+- **Files Modified**:
+  - `src/app/(tabs)/index.tsx` - Integrated TrueBalanceWidget

@@ -15,16 +15,19 @@ export interface BalanceBreakdown {
 /**
  * Calculate true balance: Assets - Liabilities
  *
+ * IMPORTANT: This calculates balance for a SINGLE USER, not the entire household.
+ * Each user has their own personal accounts/wallets.
+ *
  * Asset types: Checking, Savings, Cash, Investment
  * Liability types: Credit Card
  */
-export async function calculateTrueBalance(householdId: string): Promise<BalanceBreakdown> {
-  console.log('💰 Calculating true balance for household:', householdId);
+export async function calculateTrueBalance(userId: string): Promise<BalanceBreakdown> {
+  console.log('💰 Calculating true balance for user:', userId);
 
-  // Get all household accounts
+  // Get user's personal accounts only (NOT all household accounts!)
   const { data } = await db.queryOnce({
     accounts: {
-      $: { where: { householdId, isActive: true } }
+      $: { where: { userId, isActive: true } }
     }
   });
 
