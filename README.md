@@ -1094,3 +1094,29 @@ bun start
   - Members can now access budget allocation screen successfully
   - Budget setup displays correctly with proper category group loading
   - If member has no expense category groups, clear message explains what to do with a button to create them
+
+### BUG FIX: Member Budget Period Reset Not Working (2026-01-25)
+- **Problem**: Members' budget period was not resetting on payday (25th), showing old period dates (25/12/25 to 24/01/26) instead of new period (25/01/26 to 24/02/26)
+- **Root Cause**: Multiple issues in `resetMemberBudgetPeriod()` and `checkAndResetBudgetIfNeeded()` functions:
+  1. `db.queryOnce()` result handling without null/undefined checks - crashes when result is invalid
+  2. Using updated member's `budgetPeriodEnd` to query for OLD records - queries fail because old records have OLD period end dates
+  3. No error handling for database query failures
+- **The Fixes Applied**:
+  1. **Saved OLD period end before update**: Store `oldPeriodEnd = member.budgetPeriodEnd` BEFORE updating member record
+  2. **Used OLD period end for queries**: Changed budget and budgetSummary queries to use `oldPeriodEnd` instead of `member.budgetPeriodEnd`
+  3. **Added null safety checks**: Wrapped all `db.queryOnce()` calls with validation and try-catch blocks to catch query failures
+  4. **Added detailed logging**: Each query now logs its result to help debug issues
+  5. **Fixed in both functions**:
+     - `resetMemberBudgetPeriod()`: Saves old period, archives old budgets, creates new ones with reset spent amounts
+     - `checkAndResetBudgetIfNeeded()`: Added null checks before accessing query results
+- **Key Changes**:
+  - `src/lib/budget-api.ts` line 765: Save `oldPeriodEnd` before update
+  - `src/lib/budget-api.ts` line 810: Use `oldPeriodEnd` in budget query
+  - `src/lib/budget-api.ts` line 847: Use `oldPeriodEnd` in summary query
+  - All `db.queryOnce()` calls now have try-catch and null checks
+- **Result**:
+  - Members' budgets now reset properly on payday
+  - `budgetSummary.periodStart` and `periodEnd` update to new period dates
+  - Spent amounts reset to 0 for new period
+  - "Days remaining" calculation updates correctly
+  - Dashboard shows data from new period instead of old

@@ -686,6 +686,11 @@ export async function checkAndResetBudgetIfNeeded(householdId: string, userId?: 
         },
       });
 
+      if (!memberResult || !memberResult.data) {
+        console.error('Query failed - memberResult is undefined in checkAndResetBudgetIfNeeded');
+        return false;
+      }
+
       const member = memberResult.data.householdMembers?.[0];
       if (member?.budgetPeriodEnd) {
         const today = new Date();
@@ -706,6 +711,11 @@ export async function checkAndResetBudgetIfNeeded(householdId: string, userId?: 
     const householdResult = await db.queryOnce({
       households: { $: { where: { id: householdId } } },
     });
+
+    if (!householdResult || !householdResult.data) {
+      console.error('Query failed - householdResult is undefined');
+      return false;
+    }
 
     const household = householdResult.data.households?.[0];
     if (!household) return false;
@@ -740,13 +750,25 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
     console.log('Household ID:', householdId);
 
     // Get member's payday
-    const memberResult = await db.queryOnce({
-      householdMembers: {
-        $: {
-          where: { userId, householdId, status: 'active' },
+    let memberResult;
+    try {
+      memberResult = await db.queryOnce({
+        householdMembers: {
+          $: {
+            where: { userId, householdId, status: 'active' },
+          },
         },
-      },
-    });
+      });
+      console.log('memberResult received:', memberResult);
+    } catch (queryError) {
+      console.error('Error in queryOnce for member:', queryError);
+      return false;
+    }
+
+    if (!memberResult || !memberResult.data) {
+      console.error('Query failed - memberResult is undefined or has no data:', memberResult);
+      return false;
+    }
 
     const member = memberResult.data.householdMembers?.[0];
     if (!member || !member.paydayDay) {
@@ -781,17 +803,28 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
     console.log('Member budget period updated to:', { start: newPeriod.start, end: newPeriod.end });
 
     // Get and reset member's budgets
-    const budgetsResult = await db.queryOnce({
-      budgets: {
-        $: {
-          where: {
-            userId,
-            periodEnd: oldPeriodEnd,
-            isActive: true,
+    let budgetsResult;
+    try {
+      budgetsResult = await db.queryOnce({
+        budgets: {
+          $: {
+            where: {
+              userId,
+              periodEnd: oldPeriodEnd,
+              isActive: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (queryError) {
+      console.error('Error in queryOnce for budgets:', queryError);
+      return false;
+    }
+
+    if (!budgetsResult || !budgetsResult.data) {
+      console.error('Query failed - budgetsResult is undefined');
+      return false;
+    }
 
     const oldBudgets = budgetsResult.data.budgets || [];
     console.log('Old budgets found:', oldBudgets.length);
@@ -826,16 +859,27 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
 
     // Reset budget summary for the member
     // Query using the OLD period end to find the current summary that needs resetting
-    const summaryResult = await db.queryOnce({
-      budgetSummary: {
-        $: {
-          where: {
-            userId,
-            periodEnd: oldPeriodEnd,
+    let summaryResult;
+    try {
+      summaryResult = await db.queryOnce({
+        budgetSummary: {
+          $: {
+            where: {
+              userId,
+              periodEnd: oldPeriodEnd,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (queryError) {
+      console.error('Error in queryOnce for summary:', queryError);
+      return false;
+    }
+
+    if (!summaryResult || !summaryResult.data) {
+      console.error('Query failed - summaryResult is undefined');
+      return false;
+    }
 
     const oldSummary = summaryResult.data.budgetSummary?.[0];
     if (!oldSummary) {
