@@ -553,8 +553,12 @@ export default function EditTransactionScreen() {
                 const month = calendarMonth.getMonth();
                 const firstDay = new Date(year, month, 1).getDay();
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
+
+                // Get today's date components in local time
+                const now = new Date();
+                const todayYear = now.getFullYear();
+                const todayMonth = now.getMonth();
+                const todayDay = now.getDate();
 
                 const days = [];
 
@@ -565,12 +569,14 @@ export default function EditTransactionScreen() {
 
                 // Days of month
                 for (let day = 1; day <= daysInMonth; day++) {
-                  const currentDate = new Date(year, month, day);
-                  currentDate.setHours(0, 0, 0, 0); // Set to midnight UTC
-                  const dateStr = currentDate.toISOString().split('T')[0];
+                  // Create date string in YYYY-MM-DD format directly (no timezone conversion)
+                  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                   const isSelected = dateStr === formData.date;
-                  const isToday = currentDate.getTime() === today.getTime();
-                  const isFuture = currentDate > today;
+                  const isToday = year === todayYear && month === todayMonth && day === todayDay;
+                  // Compare year/month/day directly to avoid timezone issues
+                  const isFuture = year > todayYear ||
+                    (year === todayYear && month > todayMonth) ||
+                    (year === todayYear && month === todayMonth && day > todayDay);
 
                   days.push(
                     <Pressable

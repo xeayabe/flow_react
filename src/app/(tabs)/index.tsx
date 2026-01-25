@@ -116,12 +116,13 @@ export default function DashboardScreen() {
     enabled: !!userId && !!householdId,
   });
 
-  // Get recent transactions
+  // Get recent transactions (without budget period filter - show all recent)
   const recentTransactionsQuery = useQuery({
-    queryKey: ['recent-transactions', userId, budgetPeriod.start, budgetPeriod.end],
+    queryKey: ['recent-transactions', userId],
     queryFn: async () => {
       if (!userId) return [];
-      return getRecentTransactions(userId, 5, budgetPeriod.start, budgetPeriod.end);
+      // Don't filter by budget period - show 5 most recent transactions overall
+      return getRecentTransactions(userId, 5);
     },
     enabled: !!userId,
   });
@@ -234,7 +235,8 @@ export default function DashboardScreen() {
   const categoryGroups = categoryGroupsQuery.data || [];
   const userName = userProfileQuery.data?.userRecord?.name || 'User';
   const totalBalance = calculateTotalBalance(accounts);
-  const monthSpending = calculatePeriodSpending(recentTransactions, budgetPeriod.start, budgetPeriod.end, 'expense');
+  // Use budget summary's totalSpent if available, otherwise calculate from transactions
+  const monthSpending = summary?.totalSpent ?? calculatePeriodSpending(recentTransactions, budgetPeriod.start, budgetPeriod.end, 'expense');
 
   // Enrich recent transactions with category info
   const enrichedTransactions = getRecentTransactionsWithCategories(recentTransactions, categories, 5);

@@ -944,22 +944,24 @@ bun start
 - **Analytics**: Uses personal payday for date range calculations
 - **Invited Members**: Join with budget fields initialized to household's payday (fixes transaction filtering issues)
 
-### BUG FIX: Date Picker and Transaction Validation (2026-01-25)
+### BUG FIX: Date Picker and Recent Transactions Widget (2026-01-25)
 - **Problem 1**: When editing a transaction, couldn't select today's date (date picker was disabled)
-- **Problem 2**: Transactions not appearing in dashboard widget
-- **Problem 3**: Invited members joined without budget period, causing transaction filtering to fail
+- **Problem 2**: Transactions not appearing in dashboard widget after budget period reset
 - **Root Causes**:
-  1. Date comparison in edit form used `new Date(year, month, day)` without explicitly setting hours to 0, causing timezone mismatches with today's check
-  2. API update function had inconsistent date parsing (`new Date(request.date)` vs `new Date(request.date + 'T00:00:00')`)
-  3. Invited members joined with `paydayDay: null` and `budgetPeriodStart/End: null`, breaking transaction period filtering
+  1. Date comparison in edit form used `toISOString()` which converts to UTC, causing timezone mismatches (e.g., local midnight becomes previous day in UTC)
+  2. Dashboard widget was filtering transactions by current budget period only, so after payday reset, no transactions appeared (since all previous transactions were from the old period)
+  3. API validation used Date object comparison instead of string comparison for YYYY-MM-DD dates
 - **The Fixes**:
-  - Fixed edit form date picker (`src/app/transactions/[id]/edit.tsx`): Added `currentDate.setHours(0, 0, 0, 0)` to properly set date to midnight UTC
-  - Fixed API date validation (`src/lib/transactions-api.ts`): Changed date parsing to `new Date(request.date + 'T00:00:00')` for consistency
-  - Fixed invited member initialization (`src/lib/invites-api.ts`): Invited members now join with household's payday and calculated budget period instead of nulls
+  - Fixed edit form date picker (`src/app/transactions/[id]/edit.tsx`):
+    - Now uses direct string formatting (`YYYY-MM-DD`) instead of `toISOString()`
+    - Compares year/month/day components directly instead of Date objects
+  - Fixed API date validation (`src/lib/transactions-api.ts`): Uses string comparison for YYYY-MM-DD dates to avoid timezone issues
+  - Fixed dashboard recent transactions (`src/app/(tabs)/index.tsx`): Removed budget period filter from recent transactions query - now shows 5 most recent transactions regardless of period
+  - Changed `monthSpending` calculation to use `summary.totalSpent` from budget summary instead of calculating from the limited recent transactions list
 - **Impact**:
-  - Can now select today's date when editing transactions
-  - Transactions now display correctly in dashboard widget
-  - Invited members can immediately see and create transactions without setting payday first
+  - Can now select today's date (and any past date) when editing transactions
+  - Dashboard widget now shows the 5 most recent transactions regardless of budget period
+  - Budget period calculations remain accurate using the budget summary data
 
 ### BUG FIX: Budget Period Reset Not Working Properly (2026-01-25)
 - **Problem**: Budget period dates updated on payday but budget amounts (totalSpent) did not reset to 0

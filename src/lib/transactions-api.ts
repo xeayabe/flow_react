@@ -388,12 +388,11 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
       return { success: false, error: 'Please select a date' };
     }
 
-    // Check date is not in future
-    const transactionDate = new Date(request.date + 'T00:00:00');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Check date is not in future using string comparison (YYYY-MM-DD format)
+    const currentDate = new Date();
+    const todayStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
 
-    if (transactionDate > today) {
+    if (request.date > todayStr) {
       return { success: false, error: 'Date cannot be in the future' };
     }
 
