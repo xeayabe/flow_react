@@ -266,6 +266,28 @@ export async function createSettlement(
     if (allUpdates.length > 0) {
       await db.transact(allUpdates);
       console.log('✅ All splits marked as paid and transaction amounts reduced');
+
+      // Verify the updates were persisted
+      console.log('🔍 Verifying transaction updates...');
+      const { data: verifyData } = await db.queryOnce({
+        transactions: {
+          $: {
+            where: {
+              householdId,
+            },
+          },
+        },
+      });
+
+      const verifyTransactions = verifyData.transactions || [];
+      transactionIds.forEach((txId: string) => {
+        const updatedTx = verifyTransactions.find((t: any) => t.id === txId);
+        if (updatedTx) {
+          console.log(`  ✓ Transaction ${txId} now shows amount: ${updatedTx.amount} CHF`);
+        } else {
+          console.log(`  ✗ Transaction ${txId} not found in verification query!`);
+        }
+      });
     } else {
       console.log('⚠️ No updates to execute');
     }
