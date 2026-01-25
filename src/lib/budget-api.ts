@@ -808,8 +808,8 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
       budgetSummary: {
         $: {
           where: {
+            userId,
             householdId,
-            periodEnd: member.budgetPeriodEnd,
           },
         },
       },
@@ -819,6 +819,7 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
     const summaryId = oldSummary?.id || generateId();
 
     const summaryTransaction = db.tx.budgetSummary[summaryId].update({
+      userId,
       householdId,
       periodStart: newPeriod.start,
       periodEnd: newPeriod.end,
@@ -828,6 +829,9 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
       needsAllocated: oldSummary?.needsAllocated || 0,
       wantsAllocated: oldSummary?.wantsAllocated || 0,
       savingsAllocated: oldSummary?.savingsAllocated || 0,
+      needsSpent: 0, // Reset!
+      wantsSpent: 0, // Reset!
+      savingsSpent: 0, // Reset!
       updatedAt: Date.now(),
     });
 
