@@ -132,25 +132,6 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
       }
     }
 
-    // Calculate group totals - round to avoid floating point errors
-    const needsAllocated = Math.round(
-      Object.entries(allocations).reduce((sum, [catId, amount]) => {
-        return categoryGroups[catId] === 'needs' ? sum + amount : sum;
-      }, 0) * 100
-    ) / 100;
-
-    const wantsAllocated = Math.round(
-      Object.entries(allocations).reduce((sum, [catId, amount]) => {
-        return categoryGroups[catId] === 'wants' ? sum + amount : sum;
-      }, 0) * 100
-    ) / 100;
-
-    const savingsAllocated = Math.round(
-      Object.entries(allocations).reduce((sum, [catId, amount]) => {
-        return categoryGroups[catId] === 'savings' ? sum + amount : sum;
-      }, 0) * 100
-    ) / 100;
-
     // Check if budget summary already exists for this period
     const existingSummary = await db.queryOnce({
       budgetSummary: {
@@ -181,12 +162,6 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
         totalIncome,
         totalAllocated: totalAllocated,
         totalSpent: existingSummaryRecord?.totalSpent ?? 0, // Preserve spent amount if updating
-        needsAllocated,
-        wantsAllocated,
-        savingsAllocated,
-        needsSpent: existingSummaryRecord?.needsSpent ?? 0, // Preserve spent amounts
-        wantsSpent: existingSummaryRecord?.wantsSpent ?? 0,
-        savingsSpent: existingSummaryRecord?.savingsSpent ?? 0,
         createdAt: now,
         updatedAt: now,
       }),
@@ -268,9 +243,6 @@ export async function getBudgetSummary(
     return {
       ...summary,
       totalAllocated,
-      needsAllocated: Math.round((summary.needsAllocated ?? 0) * 100) / 100,
-      wantsAllocated: Math.round((summary.wantsAllocated ?? 0) * 100) / 100,
-      savingsAllocated: Math.round((summary.savingsAllocated ?? 0) * 100) / 100,
     };
   } catch (error) {
     console.error('Get budget summary error:', error);
@@ -404,13 +376,9 @@ async function updateBudgetSpentAmountAsync(
     ];
 
     if (summary) {
-      // For backward compatibility, also include needs/wants/savings
       ops.push(
         db.tx.budgetSummary[summary.id].update({
           totalSpent,
-          needsSpent: spentByGroup['needs'] || 0,
-          wantsSpent: spentByGroup['wants'] || 0,
-          savingsSpent: spentByGroup['savings'] || 0,
           updatedAt: now,
         })
       );
@@ -512,11 +480,6 @@ export async function recalculateBudgetSpentAmounts(
       // Calculate total spent from actual transactions (will be 0 if no transactions)
       const totalSpent = Object.values(spentByCategory).reduce((sum: number, amount: number) => sum + amount, 0);
 
-      // For backward compatibility, also calculate needs/wants/savings if those groups exist
-      const needsSpent = spentByGroup['needs'] || 0;
-      const wantsSpent = spentByGroup['wants'] || 0;
-      const savingsSpent = spentByGroup['savings'] || 0;
-
       console.log('Recalculating budget summary:', {
         totalSpent,
         spentByGroup,
@@ -526,9 +489,6 @@ export async function recalculateBudgetSpentAmounts(
       await db.transact([
         db.tx.budgetSummary[summary.id].update({
           totalSpent,
-          needsSpent,
-          wantsSpent,
-          savingsSpent,
           updatedAt: now,
         }),
       ]);
@@ -643,9 +603,6 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
       totalIncome: oldSummary?.totalIncome || 0,
       totalAllocated: oldSummary?.totalAllocated || 0,
       totalSpent: 0, // Reset!
-      needsAllocated: oldSummary?.needsAllocated || 0,
-      wantsAllocated: oldSummary?.wantsAllocated || 0,
-      savingsAllocated: oldSummary?.savingsAllocated || 0,
       updatedAt: Date.now(),
     });
 
@@ -903,12 +860,6 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
       totalIncome: oldSummary?.totalIncome || 0,
       totalAllocated: oldSummary?.totalAllocated || 0,
       totalSpent: 0, // Reset spent to 0!
-      needsAllocated: oldSummary?.needsAllocated || 0,
-      wantsAllocated: oldSummary?.wantsAllocated || 0,
-      savingsAllocated: oldSummary?.savingsAllocated || 0,
-      needsSpent: 0, // Reset!
-      wantsSpent: 0, // Reset!
-      savingsSpent: 0, // Reset!
       createdAt: oldSummary?.createdAt || Date.now(),
       updatedAt: Date.now(),
     });

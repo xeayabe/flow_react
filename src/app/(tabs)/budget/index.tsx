@@ -14,9 +14,6 @@ interface BudgetSummaryData {
   totalIncome: number;
   totalAllocated: number;
   totalSpent: number;
-  needsAllocated: number;
-  wantsAllocated: number;
-  savingsAllocated: number;
 }
 
 function getStatusColor(status: string): string {

@@ -103,12 +103,6 @@ const schema = i.schema({
       totalIncome: i.number(), // Monthly income set by user
       totalAllocated: i.number(), // Sum of all category budgets
       totalSpent: i.number().optional(), // Sum of spent_amount, default 0
-      needsAllocated: i.number().optional(), // Sum of needs categories
-      wantsAllocated: i.number().optional(), // Sum of wants categories
-      savingsAllocated: i.number().optional(), // Sum of savings categories
-      needsSpent: i.number().optional(), // Sum of needs spent, default 0
-      wantsSpent: i.number().optional(), // Sum of wants spent, default 0
-      savingsSpent: i.number().optional(), // Sum of savings spent, default 0
       createdAt: i.number(),
       updatedAt: i.number(),
     }),

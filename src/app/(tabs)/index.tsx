@@ -36,12 +36,6 @@ interface BudgetSummaryData {
   totalIncome: number;
   totalAllocated: number;
   totalSpent: number;
-  needsAllocated: number;
-  wantsAllocated: number;
-  savingsAllocated: number;
-  needsSpent?: number;
-  wantsSpent?: number;
-  savingsSpent?: number;
 }
 
 export default function DashboardScreen() {
