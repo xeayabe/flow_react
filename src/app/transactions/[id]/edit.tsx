@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, TextInput, Modal, ActivityIndicator,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Plus, X, Check, Calendar, ChevronRight, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, Plus, X, Check, Calendar, ChevronRight, Trash2, Eye, EyeOff } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { getTransaction, updateTransaction, deleteTransaction, formatCurrency, formatDateSwiss, parseSwissDate, Transaction } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
@@ -23,6 +23,7 @@ interface FormData {
   note: string;
   isRecurring: boolean;
   recurringDay: number;
+  isExcludedFromBudget: boolean;
 }
 
 interface FormErrors {
@@ -57,6 +58,7 @@ export default function EditTransactionScreen() {
     note: '',
     isRecurring: false,
     recurringDay: 1,
+    isExcludedFromBudget: false,
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -130,6 +132,7 @@ export default function EditTransactionScreen() {
         note: tx.note || '',
         isRecurring: tx.isRecurring,
         recurringDay: tx.recurringDay || 1,
+        isExcludedFromBudget: tx.isExcludedFromBudget || false,
       });
       setTempDate(tx.date);
       setCalendarMonth(new Date(tx.date + 'T00:00:00'));
@@ -151,6 +154,7 @@ export default function EditTransactionScreen() {
         note: formData.note || undefined,
         isRecurring: formData.isRecurring,
         recurringDay: formData.isRecurring ? formData.recurringDay : undefined,
+        isExcludedFromBudget: formData.isExcludedFromBudget,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
@@ -467,6 +471,34 @@ export default function EditTransactionScreen() {
                     />
                     <Text className="font-medium text-gray-900">of each month</Text>
                   </View>
+                </View>
+              )}
+
+              {/* Exclude from Budget Toggle */}
+              {formData.type === 'expense' && (
+                <View className="mb-8 flex-row items-center justify-between p-4 rounded-lg border border-red-200 bg-red-50">
+                  <View className="flex-1 flex-row items-center gap-3">
+                    {formData.isExcludedFromBudget ? (
+                      <EyeOff size={20} color="#DC2626" />
+                    ) : (
+                      <Eye size={20} color="#006A6A" />
+                    )}
+                    <View className="flex-1">
+                      <Text className="font-medium text-gray-900">Exclude from Budget</Text>
+                      <Text className="text-xs text-gray-600 mt-1">
+                        {formData.isExcludedFromBudget ? 'This won\'t count toward budget' : 'Include in budget'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Pressable
+                    onPress={() => setFormData({ ...formData, isExcludedFromBudget: !formData.isExcludedFromBudget })}
+                    className={cn(
+                      'w-6 h-6 rounded border-2 items-center justify-center',
+                      formData.isExcludedFromBudget ? 'bg-red-600 border-red-600' : 'border-gray-300'
+                    )}
+                  >
+                    {formData.isExcludedFromBudget && <Check size={16} color="white" />}
+                  </Pressable>
                 </View>
               )}
 

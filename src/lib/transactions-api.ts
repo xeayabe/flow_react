@@ -19,6 +19,7 @@ export interface Transaction {
   paidByUserId?: string;
   isRecurring: boolean;
   recurringDay?: number;
+  isExcludedFromBudget?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -36,6 +37,7 @@ export interface CreateTransactionRequest {
   recurringDay?: number;
   isShared?: boolean;
   paidByUserId?: string;
+  isExcludedFromBudget?: boolean;
 }
 
 export interface UpdateTransactionRequest extends CreateTransactionRequest {
@@ -120,6 +122,7 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
         paidByUserId: request.isShared ? request.paidByUserId : request.userId,
         isRecurring: request.isRecurring || false,
         recurringDay: request.recurringDay,
+        isExcludedFromBudget: request.isExcludedFromBudget || false,
         createdAt: now,
         updatedAt: now,
       }),
@@ -136,9 +139,9 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
       try {
         console.log('Updating budget for expense transaction');
 
-        // Check if the account is excluded from budget
-        if (account.isExcludedFromBudget) {
-          console.log('Account is excluded from budget, skipping budget update');
+        // Check if the account is excluded from budget OR the transaction is excluded
+        if (account.isExcludedFromBudget || request.isExcludedFromBudget) {
+          console.log('Account or transaction is excluded from budget, skipping budget update');
         } else {
           // Get member's personal budget period (or fallback to household)
           const budgetPeriod = await getMemberBudgetPeriod(request.userId, request.householdId);
@@ -432,8 +435,8 @@ export async function deleteTransaction(transactionId: string): Promise<Transact
           });
 
           const account = accountResult.data.accounts?.[0];
-          if (account?.isExcludedFromBudget) {
-            console.log('Account is excluded from budget, skipping budget update on delete');
+          if (account?.isExcludedFromBudget || transaction.isExcludedFromBudget) {
+            console.log('Account or transaction is excluded from budget, skipping budget update on delete');
           } else {
             // Get member's personal budget period (or fallback to household)
             const budgetPeriod = await getMemberBudgetPeriod(transaction.userId, transaction.householdId);
@@ -643,6 +646,7 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
       note: request.note,
       isRecurring: request.isRecurring || false,
       recurringDay: request.recurringDay,
+      isExcludedFromBudget: request.isExcludedFromBudget || false,
       updatedAt: now,
     });
 
@@ -677,22 +681,25 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
     // Update budget spent amounts if category or amount changed
     if (request.type === 'expense' && originalTx.type === 'expense') {
       try {
-        // Check if either account is excluded from budget
+        // Check if either account or transaction is excluded from budget
         const isOriginalAccountExcluded = oldAccount.isExcludedFromBudget;
         const isNewAccountExcluded = needsSecondAccountUpdate ? newAccountData.isExcludedFromBudget : isOriginalAccountExcluded;
+        const isOriginalTxExcluded = originalTx.isExcludedFromBudget || false;
+        const isNewTxExcluded = request.isExcludedFromBudget || false;
 
         console.log('Budget update check:', {
           isOriginalAccountExcluded,
           isNewAccountExcluded,
+          isOriginalTxExcluded,
+          isNewTxExcluded,
           accountChanged: needsSecondAccountUpdate,
         });
 
-        // Only update budget if BOTH the original account and new account are NOT excluded
-        // If account changed from excluded to non-excluded (or vice versa), we need to adjust budgets
-        const shouldUpdateBudget = !isNewAccountExcluded;
+        // Only update budget if BOTH the account and transaction are NOT excluded
+        const shouldUpdateBudget = !isNewAccountExcluded && !isNewTxExcluded;
 
         if (!shouldUpdateBudget) {
-          console.log('Account(s) excluded from budget, skipping budget update');
+          console.log('Account or transaction excluded from budget, skipping budget update');
         } else {
           // Get member's personal budget period
           const budgetPeriod = await getMemberBudgetPeriod(request.userId, request.householdId);
@@ -701,8 +708,8 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
           if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
             // If category changed, update both old and new categories
             if (originalTx.categoryId !== request.categoryId) {
-              // Update old category - only if original account was not excluded
-              if (!isOriginalAccountExcluded) {
+              // Update old category - only if original account and transaction were not excluded
+              if (!isOriginalAccountExcluded && !isOriginalTxExcluded) {
                 const oldBudgetResult = await db.queryOnce({
                   budgets: {
                     $: {
@@ -722,8 +729,8 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
                 }
               }
 
-              // Update new category - only if new account is not excluded
-              if (!isNewAccountExcluded) {
+              // Update new category - only if new account and transaction are not excluded
+              if (!isNewAccountExcluded && !isNewTxExcluded) {
                 const newBudgetResult = await db.queryOnce({
                   budgets: {
                     $: {

@@ -161,6 +161,10 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Delete button available on edit page
   - Success message and automatic redirect after update
   - Improved calendar date picker with proper 7-column grid layout
+  - **Exclude from Budget**: Toggle to exclude individual transactions from budget calculations
+    * Useful for reimbursements, one-time expenses, or corrections
+    * Only shown for expense transactions
+    * Updates budget spent amounts when changed
 - ✅ **Transaction Validation**:
   - Amount: Required, must be > 0, max 2 decimals
   - Category: Required, filtered by transaction type

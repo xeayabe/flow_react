@@ -79,6 +79,7 @@ const schema = i.schema({
       paidByUserId: i.string().optional(),
       isRecurring: i.boolean(),
       recurringDay: i.number().optional(),
+      isExcludedFromBudget: i.boolean().optional(), // Exclude transaction from budget calculations
       createdAt: i.number(),
       updatedAt: i.number(),
     }),

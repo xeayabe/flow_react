@@ -443,9 +443,9 @@ export async function recalculateBudgetSpentAmounts(
     });
 
     const allTransactions = transactionsResult.data.transactions ?? [];
-    // Filter by date AND exclude transactions from excluded accounts
+    // Filter by date AND exclude transactions from excluded accounts AND exclude transactions marked as excluded
     const transactions = allTransactions.filter(
-      (tx: any) => tx.date >= periodStart && tx.date <= periodEnd && !excludedAccountIds.has(tx.accountId)
+      (tx: any) => tx.date >= periodStart && tx.date <= periodEnd && !excludedAccountIds.has(tx.accountId) && !tx.isExcludedFromBudget
     );
 
     // Group transactions by category
