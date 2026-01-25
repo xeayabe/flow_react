@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, Modal, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { X } from 'lucide-react-native';
+import { X, ChevronDown } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { createSettlement } from '@/lib/settlement-api';
+import { getCategories } from '@/lib/categories-api';
 import { cn } from '@/lib/cn';
 
 interface SettlementModalProps {
@@ -31,7 +32,8 @@ export default function SettlementModal({
   const queryClient = useQueryClient();
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [receiverAccount, setReceiverAccount] = useState<string>('');
-
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   // Load payer's accounts
   const { data: payerAccounts, isLoading: payerLoading } = useQuery({
     queryKey: ['payer-accounts', user?.email],
@@ -95,7 +97,17 @@ export default function SettlementModal({
     enabled: !!receiverUserId && visible,
   });
 
-  // Auto-select first accounts
+  // Load categories for the payer
+  const { data: categories, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['settlement-categories', payerAccounts?.member?.householdId, payerAccounts?.userProfile?.id],
+    queryFn: async () => {
+      if (!payerAccounts?.member?.householdId || !payerAccounts?.userProfile?.id) return [];
+      return getCategories(payerAccounts.member.householdId, payerAccounts.userProfile.id);
+    },
+    enabled: !!payerAccounts?.member?.householdId && !!payerAccounts?.userProfile?.id && visible,
+  });
+
+  // Auto-select first accounts and find a default category
   useEffect(() => {
     if (payerAccounts?.accounts && payerAccounts.accounts.length > 0 && !selectedAccount) {
       setSelectedAccount(payerAccounts.accounts[0].id);
@@ -103,7 +115,24 @@ export default function SettlementModal({
     if (receiverAccounts && receiverAccounts.length > 0 && !receiverAccount) {
       setReceiverAccount(receiverAccounts[0].id);
     }
-  }, [payerAccounts?.accounts, receiverAccounts, selectedAccount, receiverAccount]);
+    // Auto-select a "Transfer" or "Settlement" category if available, otherwise first expense category
+    if (categories && categories.length > 0 && !selectedCategory) {
+      const transferCategory = categories.find((c: any) =>
+        c.name.toLowerCase().includes('transfer') ||
+        c.name.toLowerCase().includes('settlement') ||
+        c.name.toLowerCase().includes('internal')
+      );
+      if (transferCategory?.id) {
+        setSelectedCategory(transferCategory.id);
+      } else {
+        // Default to first expense category
+        const expenseCategory = categories.find((c: any) => c.type === 'expense');
+        if (expenseCategory?.id) {
+          setSelectedCategory(expenseCategory.id);
+        }
+      }
+    }
+  }, [payerAccounts?.accounts, receiverAccounts, selectedAccount, receiverAccount, categories, selectedCategory]);
 
   const settleMutation = useMutation({
     mutationFn: async () => {
@@ -116,6 +145,7 @@ export default function SettlementModal({
         payerUserId: payerAccounts.userProfile.id,
         receiverUserId: receiverUserId,
         amount: amount,
+        categoryId: selectedCategory,
       });
 
       return createSettlement(
@@ -124,7 +154,8 @@ export default function SettlementModal({
         amount,
         selectedAccount,
         receiverAccount,
-        payerAccounts.member.householdId
+        payerAccounts.member.householdId,
+        selectedCategory || undefined
       );
     },
     onSuccess: (result) => {
@@ -159,6 +190,8 @@ export default function SettlementModal({
       Alert.alert('Settlement Complete', message);
       setSelectedAccount('');
       setReceiverAccount('');
+      setSelectedCategory('');
+      setShowCategoryPicker(false);
       onClose();
     },
     onError: (error: any) => {
@@ -289,6 +322,59 @@ export default function SettlementModal({
               </View>
             )}
 
+            {/* Category selector */}
+            <View className="mb-6">
+              <Text className="text-sm font-semibold text-gray-700 mb-3">Category:</Text>
+              <Pressable
+                onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+                disabled={settleMutation.isPending || categoriesLoading}
+                className={cn(
+                  'p-4 rounded-xl border-2 flex-row items-center justify-between',
+                  selectedCategory ? 'bg-teal-50 border-teal-600' : 'bg-gray-50 border-gray-200'
+                )}
+              >
+                <Text className={cn(
+                  'font-semibold',
+                  selectedCategory ? 'text-teal-900' : 'text-gray-500'
+                )}>
+                  {categoriesLoading
+                    ? 'Loading...'
+                    : categories?.find((c: any) => c.id === selectedCategory)?.name || 'Select category'}
+                </Text>
+                <ChevronDown size={20} color={selectedCategory ? '#0D9488' : '#9CA3AF'} />
+              </Pressable>
+
+              {/* Category dropdown */}
+              {showCategoryPicker && categories && (
+                <View className="mt-2 bg-white border border-gray-200 rounded-xl overflow-hidden">
+                  <ScrollView style={{ maxHeight: 200 }}>
+                    {categories
+                      .filter((c: any) => c.type === 'expense')
+                      .map((category: any) => (
+                        <Pressable
+                          key={category.id}
+                          onPress={() => {
+                            setSelectedCategory(category.id);
+                            setShowCategoryPicker(false);
+                          }}
+                          className={cn(
+                            'p-3 border-b border-gray-100',
+                            selectedCategory === category.id ? 'bg-teal-50' : ''
+                          )}
+                        >
+                          <Text className={cn(
+                            'font-medium',
+                            selectedCategory === category.id ? 'text-teal-900' : 'text-gray-900'
+                          )}>
+                            {category.name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+
             {/* Summary */}
             <View className="bg-gray-50 p-4 rounded-xl mb-6">
               <Text className="text-xs text-gray-600 mb-2">SETTLEMENT SUMMARY</Text>
@@ -296,10 +382,16 @@ export default function SettlementModal({
                 <Text className="text-sm text-gray-700">You pay:</Text>
                 <Text className="text-sm font-semibold text-gray-900">{amount.toFixed(2)} CHF</Text>
               </View>
-              <View className="flex-row justify-between">
+              <View className="flex-row justify-between mb-2">
                 <Text className="text-sm text-gray-700">From:</Text>
                 <Text className="text-sm font-semibold text-gray-900">
                   {selectedPayerAcct?.name || 'Select account'}
+                </Text>
+              </View>
+              <View className="flex-row justify-between">
+                <Text className="text-sm text-gray-700">Category:</Text>
+                <Text className="text-sm font-semibold text-gray-900">
+                  {categories?.find((c: any) => c.id === selectedCategory)?.name || 'None'}
                 </Text>
               </View>
             </View>

@@ -148,6 +148,7 @@ const schema = i.schema({
       amount: i.number(), // Settlement amount in CHF
       payerAccountId: i.string(), // Account debited
       receiverAccountId: i.string(), // Account credited
+      categoryId: i.string().optional(), // Category for budget tracking
       note: i.string().optional(), // Optional note
       settledAt: i.number(), // Timestamp when settled
       createdAt: i.number(),

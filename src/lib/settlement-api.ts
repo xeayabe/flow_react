@@ -61,7 +61,8 @@ export async function createSettlement(
   amount: number,
   payerAccountId: string,
   receiverAccountId: string,
-  householdId: string
+  householdId: string,
+  categoryId?: string
 ) {
   console.warn('🚨🚨🚨 SETTLEMENT FUNCTION CALLED 🚨🚨🚨');
   console.log('💳 === SETTLEMENT START (INTERNAL TRANSFER) ===');
@@ -71,6 +72,7 @@ export async function createSettlement(
   console.log('- Payer Account:', payerAccountId?.substring(0, 8));
   console.log('- Receiver Account:', receiverAccountId?.substring(0, 8));
   console.log('- Household:', householdId?.substring(0, 8));
+  console.log('- Category:', categoryId?.substring(0, 8) || 'None');
 
   const settlementId = uuidv4();
   const now = Date.now();
@@ -122,6 +124,7 @@ export async function createSettlement(
       amount,
       payerAccountId,
       receiverAccountId,
+      categoryId: categoryId || undefined,
       note: `Debt settlement: ${amount.toFixed(2)} CHF`,
       settledAt: now,
       createdAt: now,
