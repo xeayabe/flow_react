@@ -205,6 +205,11 @@ export default function SettlementModal({
       return;
     }
 
+    if (!selectedCategory) {
+      Alert.alert('Required', 'Please select a category for this settlement');
+      return;
+    }
+
     const selectedAcct = payerAccounts?.accounts.find((a: any) => a.id === selectedAccount);
     if (selectedAcct && selectedAcct.balance < amount) {
       Alert.alert(

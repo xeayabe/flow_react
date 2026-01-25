@@ -133,6 +133,40 @@ export async function createSettlement(
 
   console.log('📝 Settlement logged:', settlementId);
 
+  // Step 3b: Create a transaction for the payer (member) showing their settlement payment
+  // This allows the member to see their payment in their transaction list
+  const payerTransactionId = uuidv4();
+  const todayDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
+  console.log('📝 Creating settlement transaction for payer...');
+  console.log('  - Transaction ID:', payerTransactionId);
+  console.log('  - Amount:', amount);
+  console.log('  - Category ID:', categoryId || 'None');
+
+  // Only create transaction if we have a valid categoryId
+  if (categoryId) {
+    await db.transact([
+      db.tx.transactions[payerTransactionId].update({
+        userId: payerUserId,
+        householdId,
+        accountId: payerAccountId,
+        categoryId: categoryId, // Use the selected category
+        type: 'expense',
+        amount: amount, // The member's payment amount (e.g., 38.6 CHF)
+        date: todayDate,
+        note: `Debt settlement - paid to household`,
+        isShared: false, // Not shared - this is the member's individual payment
+        paidByUserId: payerUserId, // Member paid this
+        isRecurring: false,
+        createdAt: now,
+        updatedAt: now,
+      }),
+    ]);
+    console.log('📝 Payer transaction created:', payerTransactionId);
+  } else {
+    console.log('⚠️ No category selected, skipping payer transaction creation');
+  }
+
   // Step 4: Mark unpaid splits as paid AND reduce original transaction amounts
   console.log('📊 === STEP 4: Finding splits to settle ===');
   console.log('📊 Settlement params: payerUserId=', payerUserId, 'receiverUserId=', receiverUserId);
