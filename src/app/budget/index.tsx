@@ -296,7 +296,9 @@ export default function BudgetOverviewScreen() {
                         {group.icon && `${group.icon} `}{group.name}
                       </Text>
 
-                      {groupDetails.map((detail: any) => {
+                      {groupDetails
+                        .sort((a: any, b: any) => b.allocatedAmount - a.allocatedAmount)
+                        .map((detail: any) => {
                         const percentage = detail.allocatedAmount > 0 ? (detail.spentAmount / detail.allocatedAmount) * 100 : 0;
                         const statusColor = getStatusColor(detail.status);
 

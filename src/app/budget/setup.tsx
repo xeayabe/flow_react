@@ -640,7 +640,9 @@ export default function BudgetSetupScreen() {
                     {/* Categories in Group */}
                     <View>
                       {hasCategories ? (
-                        group!.categories.map((category) => {
+                        group!.categories
+                          .sort((a, b) => b.allocatedAmount - a.allocatedAmount)
+                          .map((category) => {
                           const amount = allocations[category.id] || 0;
                           // Calculate percentage relative to the group's budget, not total income
                           const percentage = groupBudgetAmount > 0 ? calculatePercentage(amount, groupBudgetAmount) : 0;

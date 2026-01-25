@@ -271,6 +271,8 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Category allocation with dual CHF/percentage inputs
   - Real-time sync between amount and percentage
   - Grouped by 50/30/20 framework (Needs/Wants/Savings)
+  - **Categories sorted by budget allocation** (highest budget first within each group)
+  - Category group order preserved
   - Respects category group allocations from previous step
 - ✅ **Budget Features**
   - Auto-Balance button distributes remaining amount proportionally
@@ -285,6 +287,8 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - Overall progress with visual progress bar showing allocation percentage
   - 50/30/20 summary cards with spent percentages per group
   - Category breakdown with status indicators
+  - **Categories sorted by budget allocation** (highest budget first within each group)
+  - Category group order preserved (Needs, Wants, Savings)
   - Edit Budget button to modify allocations (goes to category group allocation first)
 - ✅ **Real-Time Spent Tracking**
   - Creating expense transactions updates budget spent amounts
