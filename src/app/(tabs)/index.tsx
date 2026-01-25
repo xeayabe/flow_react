@@ -31,6 +31,7 @@ import {
   FloatingActionButton,
 } from '@/components/DashboardWidgets';
 import DebtBalanceWidget from '@/components/DebtBalanceWidget';
+import TrueBalanceWidget from '@/components/TrueBalanceWidget';
 
 interface BudgetSummaryData {
   totalIncome: number;
@@ -290,19 +291,8 @@ export default function DashboardScreen() {
             budgetPeriodEnd={budgetPeriod.end}
           />
 
-          {/* Summary Cards Row */}
-          <View className="flex-row gap-4">
-            <TotalBalanceCard totalBalance={totalBalance} />
-            {summary && (
-              <ThisMonthSpendingCard
-                monthSpending={monthSpending}
-                budgetAllocated={summary.totalAllocated}
-              />
-            )}
-          </View>
-
-          {/* Debt Balance Widget */}
-          <DebtBalanceWidget />
+          {/* True Balance Widget */}
+          <TrueBalanceWidget />
 
           {/* Budget Status Widget */}
           {summary ? (
