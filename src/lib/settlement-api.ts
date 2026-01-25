@@ -203,7 +203,7 @@ export async function createSettlement(
 
   console.log('📊 Splits to mark as paid:', splitsToSettle.length);
   splitsToSettle.forEach((s: any) => {
-    console.log(`  - Will settle: ${s.id} for ${s.splitAmount} CHF`);
+    console.log(`  - Will settle: ${s.id} for ${s.splitAmount} CHF, txId: ${s.transactionId}`);
   });
 
   // Step 5: Mark splits as paid AND reduce original transaction amounts
@@ -239,6 +239,8 @@ export async function createSettlement(
     const transactionsToUpdate = allTransactions.filter((t: any) => transactionIds.includes(t.id));
 
     console.log(`📝 Found ${transactionsToUpdate.length} transactions to update out of ${allTransactions.length} total`);
+    console.log('📝 Looking for transaction IDs:', transactionIds);
+    console.log('📝 Available transaction IDs in DB:', allTransactions.map((t: any) => t.id));
     transactionsToUpdate.forEach((t: any) => {
       const reduction = transactionReductions[t.id];
       console.log(`  - Transaction ${t.id.substring(0, 8)}: userId=${t.userId?.substring(0, 8)}, paidBy=${t.paidByUserId?.substring(0, 8)}, current=${t.amount}, reduction=${reduction}, new=${t.amount - reduction}`);
