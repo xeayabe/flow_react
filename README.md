@@ -1360,3 +1360,133 @@ bun start
     - Check for "❌ No partner found in household" → only 1 member in household
   - If split preview shows "50%" → income data not in budgetSummary (use default)
   - If widget shows but amount is 0 → no shared_expense_splits yet (expected)
+
+### FEATURE: Settlement with Transaction Record (PART 5) (2026-01-25)
+- **Feature**: Settle shared expense debts by creating settlement transactions and updating account balances
+- **User Flow**:
+  1. User views Debt Balance Widget showing "You owe [Partner] 150 CHF"
+  2. User taps "Settle Debt" button (red button, only shows when user owes)
+  3. Settlement Modal opens with:
+     - Settlement amount displayed prominently in red box
+     - List of payer's accounts to choose from (debit account)
+     - List of receiver's accounts to choose from (credit account)
+     - First account auto-selected for both
+     - Warning if payer account has insufficient balance
+  4. User confirms by tapping "Pay [amount] CHF" button
+  5. On success:
+     - Settlement transaction created (type="settlement")
+     - Payer account balance decreased by settlement amount
+     - Receiver account balance increased by settlement amount
+     - All unpaid splits between payer and receiver marked as paid (isPaid=true)
+     - Alert shows success: "Payment of 150.00 CHF has been recorded"
+     - Modal closes
+     - Widget disappears (balance now 0)
+
+- **Implementation Details**:
+
+  **New File**: `src/lib/settlement-api.ts`
+  - Function: `createSettlement(payerUserId, receiverUserId, amount, payerAccountId, receiverAccountId, householdId)`
+  - Step 1: Creates settlement transaction record:
+    - type: "settlement" (special transaction type)
+    - amount: Settlement amount in CHF
+    - note: "Debt settlement: [amount] CHF to [receiverUserId]"
+    - isShared: false (settlement is not a shared expense)
+    - paidByUserId: payerUserId
+  - Step 2: Updates both account balances (atomic transaction):
+    - Debits payer account: `balance - amount`
+    - Credits receiver account: `balance + amount`
+  - Step 3: Marks unpaid splits as paid:
+    - Finds all splits where `owerUserId === payerUserId` AND `owedToUserId === receiverUserId` AND `isPaid === false`
+    - Updates each split: `isPaid: true`
+  - Returns: `{ settlementId, transactionId, amount, splitsSettled }`
+  - Comprehensive logging at each step for debugging
+
+  **New Component**: `src/components/SettlementModal.tsx`
+  - Modal properties: visible, onClose, amount, receiverUserId, receiverName
+  - Account Selection:
+    - Queries payer's accounts (from current user)
+    - Queries receiver's accounts (from receiverUserId)
+    - Shows account name with current balance
+    - Warns if payer account balance < settlement amount
+    - Allows overdraft with confirmation
+  - UI Elements:
+    - Red header box: "Settle Debt" title with close button
+    - Amount box: Shows settlement amount in red with receiver name
+    - Two account sections: Payer's accounts and Receiver's accounts
+    - Summary box: Shows from/to account names and settlement amount
+    - Action buttons:
+      - "Pay [amount] CHF" button (disabled until accounts selected)
+      - "Cancel" button (secondary)
+  - Success Flow:
+    - On settlement creation success:
+      - Invalidates queries: ['debt-balance'], ['accounts'], ['transactions'], ['payer-accounts'], ['receiver-accounts']
+      - Shows success alert with amount
+      - Clears account selections
+      - Closes modal
+      - Dashboard automatically refreshes to show widget hidden (balance = 0)
+
+  **Modified File**: `src/components/DebtBalanceWidget.tsx`
+  - New state: `showSettlement` (boolean)
+  - New import: `SettlementModal` component
+  - New constant: `receiverUserId` (determines who receives payment)
+  - Added "Settle Debt" button:
+    - Only shows when user owes (youOwe === true)
+    - Tapping opens settlement modal
+    - Red button for visual emphasis (matching debt color)
+  - Added SettlementModal component at bottom:
+    - Only renders when showSettlement === true
+    - Passes correct amount, receiverUserId, and receiverName
+
+- **Database Changes**:
+  - Transactions table already supports `type="settlement"`
+  - SharedExpenseSplits table already has `isPaid` flag for marking settled debts
+
+- **Test Scenarios**:
+  - **Scenario 1: Simple Settlement**
+    - Alexander owes Cecilia 50 CHF (from 1 shared expense split)
+    - Alexander taps "Settle Debt"
+    - Selects his Checking account to pay, Cecilia's Savings account to receive
+    - Taps "Pay 50.00 CHF"
+    - Settlement transaction created
+    - Both accounts updated
+    - Split marked as paid
+    - Widget disappears
+
+  - **Scenario 2: Multiple Splits Settlement**
+    - Alexander owes Cecilia 100 CHF total (from 3 different shared expenses)
+    - Alexander settles for 100 CHF
+    - All 3 splits marked as paid
+    - Widget disappears
+
+  - **Scenario 3: Insufficient Balance Warning**
+    - Alexander's Checking account has 30 CHF balance
+    - Alexander owes Cecilia 50 CHF
+    - Selects Checking account as payer
+    - Warning appears: "Account balance (30.00 CHF) is less than settlement amount (50.00 CHF). Continue anyway?"
+    - Alexander can choose to continue (overdraft) or select different account
+
+  - **Scenario 4: Settlement Appears in Transaction History**
+    - Settlement transaction should appear in:
+      - Recent Transactions widget on dashboard
+      - Full Transaction list (/transactions tab)
+      - Transaction type: "settlement" (special category indicator)
+    - Can be viewed/edited like normal transactions
+
+- **Edge Cases Handled**:
+  - ✓ Multiple accounts to choose from: Both payer and receiver can select from their accounts
+  - ✓ Account balance too low: Warning shown but overdraft allowed
+  - ✓ No accounts available: Modal shows error or disables buttons
+  - ✓ Settlement during pending mutation: Button disabled until complete
+  - ✓ Modal cancellation: Modal closes, settlement not created
+  - ✓ Multiple settlements: Can settle multiple times, each creates new transaction
+
+- **Files Created/Modified**:
+  - `src/lib/settlement-api.ts` (NEW) - Settlement transaction creation logic
+  - `src/components/SettlementModal.tsx` (NEW) - Settlement UI component
+  - `src/components/DebtBalanceWidget.tsx` (MODIFIED) - Added settlement button and modal
+
+- **Next Steps**:
+  - Settlement UI for reversed debts (when user is owed money) - currently only shows settle button when owing
+  - Settlement history/ledger showing all past settlements
+  - Batch settlements for multiple household members
+  - Settlement notifications/confirmations

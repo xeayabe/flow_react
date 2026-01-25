@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { calculateDebtBalance, DebtBalance, calculateSplitRatio } from '@/lib/shared-expenses-api';
 import { db } from '@/lib/db';
+import SettlementModal from './SettlementModal';
 
 interface DebtInfo extends DebtBalance {
   otherUserName: string;
@@ -13,6 +14,7 @@ interface DebtInfo extends DebtBalance {
 
 export default function DebtBalanceWidget() {
   const { user } = db.useAuth();
+  const [showSettlement, setShowSettlement] = useState(false);
 
   const { data: debtInfo } = useQuery({
     queryKey: ['debt-balance', user?.email],
@@ -135,32 +137,53 @@ export default function DebtBalanceWidget() {
 
   const youOwe = debtInfo.whoOwesUserId === debtInfo.currentUserId;
 
+  // Determine who receives the payment
+  const receiverUserId = youOwe ? debtInfo.whoIsOwedUserId : debtInfo.whoOwesUserId;
+
   return (
-    <View className="bg-white rounded-2xl p-4 border border-gray-200 mx-4 mb-4">
-      <View className="flex-row items-center justify-between mb-2">
-        <Text className="text-sm text-gray-600">Household Balance</Text>
-        <Text className="text-xs text-gray-500">
-          {debtInfo.currentUserPercentage.toFixed(0)}% / {debtInfo.otherUserPercentage.toFixed(0)}%
-        </Text>
+    <>
+      <View className="bg-white rounded-2xl p-4 border border-gray-200 mx-4 mb-4">
+        <View className="flex-row items-center justify-between mb-2">
+          <Text className="text-sm text-gray-600">Household Balance</Text>
+          <Text className="text-xs text-gray-500">
+            {debtInfo.currentUserPercentage.toFixed(0)}% / {debtInfo.otherUserPercentage.toFixed(0)}%
+          </Text>
+        </View>
+
+        {youOwe ? (
+          <View>
+            <Text className="text-base text-gray-700 mb-1">
+              You owe <Text className="font-bold">{debtInfo.otherUserName}</Text>
+            </Text>
+            <Text className="text-3xl font-bold text-red-600 mb-4">{debtInfo.amount.toFixed(2)} CHF</Text>
+            <Pressable
+              onPress={() => setShowSettlement(true)}
+              className="bg-red-600 py-3 rounded-xl active:opacity-80"
+            >
+              <Text className="text-white text-center font-semibold">Settle Debt</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View>
+            <Text className="text-base text-gray-700 mb-1">
+              <Text className="font-bold">{debtInfo.otherUserName}</Text> owes you
+            </Text>
+            <Text className="text-3xl font-bold text-green-600">{debtInfo.amount.toFixed(2)} CHF</Text>
+          </View>
+        )}
+
+        <Text className="text-xs text-gray-500 mt-2">Shared expenses split based on income ratio</Text>
       </View>
 
-      {youOwe ? (
-        <View>
-          <Text className="text-base text-gray-700 mb-1">
-            You owe <Text className="font-bold">{debtInfo.otherUserName}</Text>
-          </Text>
-          <Text className="text-3xl font-bold text-red-600">{debtInfo.amount.toFixed(2)} CHF</Text>
-        </View>
-      ) : (
-        <View>
-          <Text className="text-base text-gray-700 mb-1">
-            <Text className="font-bold">{debtInfo.otherUserName}</Text> owes you
-          </Text>
-          <Text className="text-3xl font-bold text-green-600">{debtInfo.amount.toFixed(2)} CHF</Text>
-        </View>
+      {youOwe && (
+        <SettlementModal
+          visible={showSettlement}
+          onClose={() => setShowSettlement(false)}
+          amount={debtInfo.amount}
+          receiverUserId={receiverUserId}
+          receiverName={debtInfo.otherUserName}
+        />
       )}
-
-      <Text className="text-xs text-gray-500 mt-2">Shared expenses split based on income ratio</Text>
-    </View>
+    </>
   );
 }
