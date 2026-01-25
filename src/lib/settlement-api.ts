@@ -63,6 +63,7 @@ export async function createSettlement(
   receiverAccountId: string,
   householdId: string
 ) {
+  console.warn('🚨🚨🚨 SETTLEMENT FUNCTION CALLED 🚨🚨🚨');
   console.log('💳 === SETTLEMENT START (INTERNAL TRANSFER) ===');
   console.log('- Payer (member who owes):', payerUserId?.substring(0, 8));
   console.log('- Receiver (admin who paid):', receiverUserId?.substring(0, 8));
