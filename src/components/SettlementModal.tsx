@@ -111,6 +111,13 @@ export default function SettlementModal({
         throw new Error('Missing required data');
       }
 
+      console.warn('🎯🎯🎯 SETTLEMENT MUTATION STARTING 🎯🎯🎯');
+      console.log('Calling createSettlement with:', {
+        payerUserId: payerAccounts.userProfile.id,
+        receiverUserId: receiverUserId,
+        amount: amount,
+      });
+
       return createSettlement(
         payerAccounts.userProfile.id,
         receiverUserId,
