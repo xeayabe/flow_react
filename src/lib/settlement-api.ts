@@ -95,21 +95,28 @@ export async function createSettlement(
   });
 
   console.log('📊 Total splits in household:', splitData.shared_expense_splits?.length || 0);
+  console.log('📊 Total transactions in household:', splitData.transactions?.length || 0);
 
   // Find unpaid splits where payer owes money
   const payerUnpaidSplits = (splitData.shared_expense_splits || []).filter((s: any) => s.owerUserId === payerUserId && !s.isPaid);
 
   console.log('📊 Unpaid splits for payer:', payerUnpaidSplits.length);
+  payerUnpaidSplits.forEach((s: any) => {
+    console.log(`  - Split ${s.id}: owes ${s.splitAmount} CHF, transaction: ${s.transactionId}`);
+  });
 
   // Only settle splits where receiver paid the original expense
   const splitsToSettle = payerUnpaidSplits.filter((split: any) => {
     const transaction = (splitData.transactions || []).find((t: any) => t.id === split.transactionId);
     const shouldSettle = transaction?.paidByUserId === receiverUserId;
-    console.log(`  Split ${split.id}: receiver paid=${shouldSettle}, amount=${split.splitAmount}`);
+    console.log(`  Split ${split.id}: tx=${split.transactionId}, paidBy=${transaction?.paidByUserId}, receiver=${receiverUserId}, matches=${shouldSettle}, amount=${split.splitAmount}`);
     return shouldSettle;
   });
 
   console.log('📊 Splits to mark as paid:', splitsToSettle.length);
+  splitsToSettle.forEach((s: any) => {
+    console.log(`  - Will settle: ${s.id} for ${s.splitAmount} CHF`);
+  });
 
   // Step 5: Mark splits as paid AND reduce original transaction amounts
   if (splitsToSettle.length > 0) {
@@ -129,6 +136,11 @@ export async function createSettlement(
     // Get current transaction amounts
     const transactionIds = Object.keys(transactionUpdates);
     const transactionsToUpdate = (splitData.transactions || []).filter((t: any) => transactionIds.includes(t.id));
+
+    console.log(`📝 Found ${transactionsToUpdate.length} transactions to update (from ${transactionIds.length} transaction IDs)`);
+    transactionsToUpdate.forEach((t: any) => {
+      console.log(`  - Transaction ${t.id}: current amount=${t.amount}, category=${t.category}`);
+    });
 
     // Build all updates: mark splits as paid + reduce transaction amounts
     const allUpdates: any[] = [];
@@ -157,6 +169,7 @@ export async function createSettlement(
       );
     }
 
+    console.log(`📝 About to execute ${allUpdates.length} updates in transact()`);
     await db.transact(allUpdates);
     console.log('✅ All splits marked as paid and transaction amounts reduced');
   } else {
