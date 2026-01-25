@@ -15,6 +15,7 @@ export interface Transaction {
   amount: number;
   date: string; // ISO format YYYY-MM-DD
   note?: string;
+  payee?: string; // Merchant/vendor name
   isShared: boolean;
   paidByUserId?: string;
   isRecurring: boolean;
@@ -33,6 +34,7 @@ export interface CreateTransactionRequest {
   amount: number;
   date: string;
   note?: string;
+  payee?: string; // Merchant/vendor name
   isRecurring?: boolean;
   recurringDay?: number;
   isShared?: boolean;
@@ -118,6 +120,7 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
         amount: request.amount,
         date: request.date,
         note: request.note,
+        payee: request.payee && request.payee.trim() ? request.payee.trim() : undefined,
         isShared: request.isShared || false,
         paidByUserId: request.isShared ? request.paidByUserId : request.userId,
         isRecurring: request.isRecurring || false,
@@ -644,6 +647,7 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
       accountId: request.accountId,
       date: request.date,
       note: request.note,
+      payee: request.payee && request.payee.trim() ? request.payee.trim() : undefined,
       isRecurring: request.isRecurring || false,
       recurringDay: request.recurringDay,
       isExcludedFromBudget: request.isExcludedFromBudget || false,

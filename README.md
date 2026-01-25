@@ -1910,6 +1910,50 @@ bun start
   - `src/lib/dashboard-helpers.ts` - Removed settlement color handling
   - `src/app/transactions/[id]/edit.tsx` - Removed settlement edit prevention
 
+### FEATURE: Payee/Merchant Field for Transactions (2026-01-25)
+- **Feature**: Added optional payee/merchant field to track where money was spent
+- **Use Cases**: Track specific vendors like "Migros", "Coop", "Netflix", "Restaurant La Piazza", etc.
+- **Implementation**:
+  - Updated database schema to add `payee` field (optional string)
+  - Updated Transaction and CreateTransactionRequest interfaces to support payee
+  - Added payee input field in Add Transaction form (after amount, before category)
+  - Added payee input field in Edit Transaction form
+  - Updated transaction list display to show payee prominently (bold, above category)
+  - Updated dashboard Recent Transactions widget to show payee
+  - CSV Import/Export now supports payee column
+  - Auto-detection patterns: 'payee', 'merchant', 'vendor', 'store', 'shop'
+
+- **UI/UX**:
+  - Payee field appears after Amount and before Category
+  - Placeholder text: "e.g., Migros, Coop, Netflix..."
+  - Helper text: "Where did you spend this money?"
+  - Field is optional - can be left blank
+  - In transaction lists, payee shows in bold above the category name
+  - Makes transactions easier to identify at a glance
+
+- **CSV Import/Export**:
+  - Payee column automatically detected from CSV headers
+  - Supports common column names: payee, merchant, vendor, store, shop
+  - Exported CSVs include Payee column
+  - Format: Date, Type, Amount, Category, Account, Payee, Note
+
+- **Files Modified**:
+  - `src/lib/db.ts` - Added payee field to transactions schema
+  - `src/lib/transactions-api.ts` - Updated interfaces and functions
+  - `src/app/transactions/add.tsx` - Added payee input field
+  - `src/app/transactions/[id]/edit.tsx` - Added payee input field
+  - `src/app/(tabs)/transactions.tsx` - Display payee in list
+  - `src/components/DashboardWidgets.tsx` - Display payee in Recent Transactions
+  - `src/lib/import-export-api.ts` - CSV import/export support
+
+- **Test Scenarios**:
+  1. Add transaction without payee: Works normally ✓
+  2. Add transaction with payee "Migros": Shows prominently in list ✓
+  3. Edit transaction to add/change payee: Updates correctly ✓
+  4. Transaction list shows payee in bold above category ✓
+  5. CSV import with payee column: Auto-detects and imports ✓
+  6. CSV export: Includes payee column ✓
+
 ### FEATURE: True Balance - Assets, Liabilities, and Net Worth Tracking (2026-01-25)
 - **Feature**: Displays accurate financial position by separating Assets, Liabilities, and Net Worth
 - **IMPORTANT**: Accounts/wallets are personal to each user (not household-wide)

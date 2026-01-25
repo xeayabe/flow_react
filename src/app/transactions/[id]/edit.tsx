@@ -21,6 +21,7 @@ interface FormData {
   accountId: string;
   date: string;
   note: string;
+  payee: string; // Merchant/vendor name
   isRecurring: boolean;
   recurringDay: number;
   isExcludedFromBudget: boolean;
@@ -56,6 +57,7 @@ export default function EditTransactionScreen() {
     accountId: '',
     date: new Date().toISOString().split('T')[0],
     note: '',
+    payee: '',
     isRecurring: false,
     recurringDay: 1,
     isExcludedFromBudget: false,
@@ -130,6 +132,7 @@ export default function EditTransactionScreen() {
         accountId: tx.accountId,
         date: tx.date,
         note: tx.note || '',
+        payee: tx.payee || '',
         isRecurring: tx.isRecurring,
         recurringDay: tx.recurringDay || 1,
         isExcludedFromBudget: tx.isExcludedFromBudget || false,
@@ -152,6 +155,7 @@ export default function EditTransactionScreen() {
         amount: parseFloat(formData.amount),
         date: formData.date,
         note: formData.note || undefined,
+        payee: formData.payee || undefined,
         isRecurring: formData.isRecurring,
         recurringDay: formData.isRecurring ? formData.recurringDay : undefined,
         isExcludedFromBudget: formData.isExcludedFromBudget,
@@ -360,6 +364,22 @@ export default function EditTransactionScreen() {
                   />
                 </View>
                 {errors.amount && <Text className="text-xs text-red-500 mt-2">{errors.amount}</Text>}
+              </View>
+
+              {/* Payee / Merchant Input (Optional) */}
+              <View className="mb-8">
+                <Text className="text-sm font-semibold text-gray-700 mb-3">Payee / Merchant (Optional)</Text>
+                <TextInput
+                  className="px-4 py-3 rounded-lg border-2 border-gray-200 text-base"
+                  placeholder="e.g., Migros, Coop, Netflix..."
+                  placeholderTextColor="#9CA3AF"
+                  autoCapitalize="words"
+                  value={formData.payee}
+                  onChangeText={(text) => setFormData({ ...formData, payee: text })}
+                />
+                <Text className="text-xs text-gray-500 mt-2">
+                  Where did you spend this money?
+                </Text>
               </View>
 
               {/* Category Dropdown */}

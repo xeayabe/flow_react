@@ -22,6 +22,7 @@ export interface ParsedRow {
   type: 'income' | 'expense';
   category: string;
   categoryGroup?: string;
+  payee: string;
   note: string;
   account?: string;
   originalRow: Record<string, string>;
@@ -36,6 +37,7 @@ export interface ColumnMapping {
   type: string | null;
   category: string | null;
   categoryGroup: string | null;
+  payee: string | null;
   note: string | null;
   account: string | null;
 }
@@ -88,6 +90,7 @@ export interface ExportTransaction {
   amount: number;
   category: string;
   account: string;
+  payee: string;
   note: string;
 }
 
@@ -98,7 +101,8 @@ const COLUMN_PATTERNS = {
   type: ['type', 'typ', 'kind', 'transaction type', 'trans type', 'cleared'],
   category: ['category', 'kategorie', 'cat', 'group', 'classification', 'category group/category'],
   categoryGroup: ['category group', 'categorygroup', 'cat group', 'catgroup', 'group'],
-  note: ['note', 'memo', 'description', 'desc', 'comment', 'remarks', 'payee', 'merchant'],
+  payee: ['payee', 'merchant', 'vendor', 'store', 'shop'],
+  note: ['note', 'memo', 'description', 'desc', 'comment', 'remarks'],
   account: ['account', 'konto', 'bank', 'wallet', 'source'],
 };
 
@@ -383,6 +387,7 @@ export function autoDetectColumnMappings(headers: string[]): ColumnMapping {
     type: null,
     category: null,
     categoryGroup: null,
+    payee: null,
     note: null,
     account: null,
   };
@@ -614,6 +619,9 @@ export function validateAndTransformData(
       ? (row[mapping.categoryGroup] || '').trim()
       : '';
 
+    // Get payee
+    const payee = mapping.payee ? (row[mapping.payee] || '').trim() : '';
+
     // Get note
     const note = mapping.note ? (row[mapping.note] || '').trim() : '';
 
@@ -626,6 +634,7 @@ export function validateAndTransformData(
       type,
       category,
       categoryGroup: categoryGroup || undefined,
+      payee,
       note,
       account,
       originalRow: row,
@@ -776,6 +785,7 @@ export async function importTransactions(
             amount: row.amount,
             date: row.date,
             note: row.note || undefined,
+            payee: row.payee || undefined,
             isShared: false,
             paidByUserId: userId,
             isRecurring: false,
@@ -851,6 +861,7 @@ export async function exportToCSV(
       Amount: t.type === 'income' ? t.amount : -t.amount,
       Category: t.category,
       Account: t.account,
+      Payee: t.payee,
       Note: t.note,
     }));
 
@@ -911,6 +922,7 @@ export async function exportToExcel(
       Amount: t.type === 'income' ? t.amount : -t.amount,
       Category: t.category,
       Account: t.account,
+      Payee: t.payee,
       Note: t.note,
     }));
 
@@ -997,6 +1009,7 @@ export async function getTransactionsForExport(
       amount: number;
       categoryId: string;
       accountId: string;
+      payee?: string;
       note?: string;
     }[];
 
@@ -1027,6 +1040,7 @@ export async function getTransactionsForExport(
       amount: t.amount,
       category: categoryMap.get(t.categoryId) || 'Unknown',
       account: accountMap.get(t.accountId) || 'Unknown',
+      payee: t.payee || '',
       note: t.note || '',
     }));
   } catch (error) {

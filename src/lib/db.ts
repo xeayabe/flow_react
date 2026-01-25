@@ -75,6 +75,7 @@ const schema = i.schema({
       amount: i.number(),
       date: i.string(), // ISO format YYYY-MM-DD
       note: i.string().optional(),
+      payee: i.string().optional(), // Merchant/vendor name (e.g., "Migros", "Coop", "Netflix")
       isShared: i.boolean(),
       paidByUserId: i.string().optional(),
       isRecurring: i.boolean(),

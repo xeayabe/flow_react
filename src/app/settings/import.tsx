@@ -64,6 +64,7 @@ export default function ImportScreen() {
     type: null,
     category: null,
     categoryGroup: null,
+    payee: null,
     note: null,
     account: null,
   });
@@ -233,6 +234,7 @@ export default function ImportScreen() {
       type: null,
       category: null,
       categoryGroup: null,
+      payee: null,
       note: null,
       account: null,
     });

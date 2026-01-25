@@ -15,6 +15,7 @@ import {
 import { Account, getUserAccounts } from '@/lib/accounts-api';
 import { Transaction } from '@/lib/transactions-api';
 import { Category } from '@/lib/categories-api';
+import { cn } from '@/lib/cn';
 import {
   formatCurrency,
   formatTransactionAmount,
@@ -141,7 +142,13 @@ export const RecentTransactionsWidget: React.FC<{
                   <IconComponent size={18} color="#666" />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm font-semibold text-gray-900">
+                  {/* Payee (if present) - prominent display */}
+                  {tx.payee && (
+                    <Text className="text-sm font-bold text-gray-900 mb-0.5">
+                      {tx.payee}
+                    </Text>
+                  )}
+                  <Text className={cn("text-sm font-semibold", tx.payee ? "text-gray-600" : "text-gray-900")}>
                     {tx.categoryName || 'Transaction'}
                   </Text>
                   <Text className="text-xs text-gray-500 mt-0.5">

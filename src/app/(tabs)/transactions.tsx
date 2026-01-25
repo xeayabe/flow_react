@@ -597,6 +597,12 @@ export default function TransactionsTabScreen() {
                           )}
                         </View>
                         <View className="flex-1">
+                          {/* Payee (if present) - prominent display */}
+                          {tx.payee && (
+                            <Text className="text-base font-semibold text-gray-900 mb-1">
+                              {tx.payee}
+                            </Text>
+                          )}
                           <View className="flex-row items-center gap-2">
                             <Text className="font-semibold text-sm" style={{ color: '#1F2937' }}>
                               {tx.categoryName || 'Unknown'}
@@ -610,6 +616,12 @@ export default function TransactionsTabScreen() {
                           <Text className="text-xs" style={{ color: '#9CA3AF' }}>
                             {tx.accountName || 'Unknown Account'}
                           </Text>
+                          {/* Note (if present and no payee) */}
+                          {!tx.payee && tx.note && (
+                            <Text className="text-xs text-gray-500 mt-1">
+                              {tx.note}
+                            </Text>
+                          )}
                         </View>
                       </View>
 
