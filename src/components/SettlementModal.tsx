@@ -296,32 +296,6 @@ export default function SettlementModal({
               </View>
             )}
 
-            {/* Receiver's account - Read-only display */}
-            {receiverLoading ? (
-              <View className="py-8 items-center">
-                <ActivityIndicator size="large" color="#006A6A" />
-              </View>
-            ) : (
-              <View className="mb-6">
-                <Text className="text-sm font-semibold text-gray-700 mb-3">
-                  Settle to {receiverName}'s account:
-                </Text>
-                {receiverAccounts && receiverAccounts.length > 0 ? (
-                  <View className="p-4 rounded-xl bg-green-50 border-2 border-green-600">
-                    <Text className="font-semibold text-gray-900 mb-1">
-                      {receiverAccounts[0]?.name || 'Default Account'}
-                    </Text>
-                    <Text className="text-sm text-gray-600">
-                      Current balance: {receiverAccounts[0]?.balance.toFixed(2) || '0.00'} CHF
-                    </Text>
-                  </View>
-                ) : (
-                  <View className="p-4 rounded-xl bg-gray-50 border-2 border-gray-200">
-                    <Text className="text-sm text-gray-600">No account available</Text>
-                  </View>
-                )}
-              </View>
-            )}
 
             {/* Category selector */}
             <View className="mb-6">
@@ -387,12 +361,6 @@ export default function SettlementModal({
                 <Text className="text-sm text-gray-700">From account:</Text>
                 <Text className="text-sm font-semibold text-gray-900">
                   {selectedPayerAcct?.name || 'Select account'}
-                </Text>
-              </View>
-              <View className="flex-row justify-between mb-2">
-                <Text className="text-sm text-gray-700">To:</Text>
-                <Text className="text-sm font-semibold text-gray-900">
-                  {receiverName}'s {receiverAccounts?.[0]?.name || 'account'}
                 </Text>
               </View>
               <View className="flex-row justify-between">
