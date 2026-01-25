@@ -287,8 +287,12 @@ export async function getHouseholdTransactionsWithCreators(householdId: string):
     const transactions = (result.data.transactions ?? []) as Transaction[];
     const users = result.data.users ?? [];
 
+    // Filter out old settlement transactions (from previous approach)
+    // Settlement transactions should NOT appear in transaction list
+    const filteredTransactions = transactions.filter((tx: any) => tx.type !== 'settlement');
+
     // Enrich transactions with creator names
-    const enrichedTransactions = transactions.map((tx) => {
+    const enrichedTransactions = filteredTransactions.map((tx) => {
       const creator = users.find((u: any) => u.id === tx.userId);
       return {
         ...tx,

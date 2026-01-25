@@ -168,3 +168,35 @@ export async function getSettlementHistory(householdId: string) {
     return [];
   }
 }
+
+/**
+ * Cleanup old settlement transactions that were created by the previous approach
+ * This should be run once to remove legacy settlement transactions from the transactions table
+ */
+export async function cleanupOldSettlementTransactions(householdId: string) {
+  console.log('🧹 === CLEANUP OLD SETTLEMENT TRANSACTIONS ===');
+
+  const { data } = await db.queryOnce({
+    transactions: {
+      $: {
+        where: { householdId },
+      },
+    },
+  });
+
+  // Find transactions with type='settlement' (old approach)
+  const settlementTransactions = (data.transactions || []).filter((tx: any) => tx.type === 'settlement');
+
+  console.log(`Found ${settlementTransactions.length} old settlement transactions to delete`);
+
+  if (settlementTransactions.length > 0) {
+    await db.transact(settlementTransactions.map((tx: any) => db.tx.transactions[tx.id].delete()));
+    console.log('✅ Old settlement transactions deleted');
+  }
+
+  console.log('🧹 === CLEANUP COMPLETE ===');
+
+  return {
+    deleted: settlementTransactions.length,
+  };
+}
