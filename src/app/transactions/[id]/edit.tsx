@@ -13,6 +13,7 @@ import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { savePayeeMapping, getCategorySuggestion } from '@/lib/payee-mappings-api';
 import { cn } from '@/lib/cn';
 import PayeePickerModal from '@/components/PayeePickerModal';
+import CategoryPickerModal from '@/components/CategoryPickerModal';
 
 type TransactionType = 'income' | 'expense';
 
@@ -702,69 +703,20 @@ export default function EditTransactionScreen() {
         </View>
       </Modal>
 
-      {/* Category Modal */}
-      <Modal visible={showCategoryModal} animationType="slide" transparent={false}>
-        <View className="flex-1 bg-white">
-          <SafeAreaView edges={['top']} className="bg-white">
-            <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
-              <Text className="text-xl font-semibold text-gray-900">Select Category</Text>
-              <Pressable onPress={() => setShowCategoryModal(false)}>
-                <X size={24} color="#6B7280" />
-              </Pressable>
-            </View>
-          </SafeAreaView>
-
-          <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 40 }}>
-            {categoriesQuery.isLoading || categoryGroupsQuery.isLoading ? (
-              <View className="items-center justify-center py-8">
-                <ActivityIndicator size="large" color="#006A6A" />
-              </View>
-            ) : filteredCategories.length === 0 ? (
-              <View className="items-center justify-center py-8">
-                <Text className="text-gray-500 text-center">No categories available for {formData.type}</Text>
-              </View>
-            ) : (
-              <>
-            {groupOrder.map((groupKey) => {
-              const groupCategories = groupedCategories[groupKey] || [];
-              if (groupCategories.length === 0) return null;
-
-                  // Get the group info from the map
-                  const groupInfo = groupKeyToInfo[groupKey];
-                  const displayName = groupInfo ? (groupInfo.icon ? `${groupInfo.icon} ${groupInfo.name}` : groupInfo.name) : 'Categories';
-
-              return (
-                    <View key={groupKey}>
-                      <Text className="text-sm font-semibold text-gray-700 mt-6 mb-3">{displayName}</Text>
-                  {groupCategories.map((category: any) => (
-                    <Pressable
-                      key={category.id}
-                      onPress={() => {
-                        setFormData({ ...formData, categoryId: category.id });
-                        setShowCategoryModal(false);
-                      }}
-                      className={cn(
-                        'p-4 rounded-lg mb-2 flex-row items-center justify-between',
-                        formData.categoryId === category.id ? 'bg-teal-50' : 'bg-gray-50'
-                      )}
-                    >
-                      <View className="flex-row items-center gap-3 flex-1">
-                        {category.icon && <Text className="text-lg">{category.icon}</Text>}
-                        <Text className={cn('font-medium', formData.categoryId === category.id ? 'text-teal-600' : 'text-gray-900')}>
-                          {category.name}
-                        </Text>
-                      </View>
-                      {formData.categoryId === category.id && <Check size={20} color="#006A6A" />}
-                    </Pressable>
-                  ))}
-                </View>
-              );
-            })}
-              </>
-            )}
-          </ScrollView>
-        </View>
-      </Modal>
+      {/* Category Picker Modal (NEW) */}
+      {householdQuery.data?.householdId && householdQuery.data?.userRecord?.id && (
+        <CategoryPickerModal
+          visible={showCategoryModal}
+          onClose={() => setShowCategoryModal(false)}
+          onSelectCategory={(categoryId, categoryName) => {
+            setFormData({ ...formData, categoryId });
+          }}
+          userId={householdQuery.data.userRecord.id}
+          householdId={householdQuery.data.householdId}
+          currentCategoryId={formData.categoryId}
+          transactionType={formData.type}
+        />
+      )}
 
       {/* Account Modal */}
       <Modal visible={showAccountModal} animationType="slide" transparent={false}>

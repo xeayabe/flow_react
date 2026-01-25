@@ -2160,3 +2160,65 @@ bun start
 
 - **Files Modified**:
   - `src/app/(tabs)/index.tsx` - Integrated TrueBalanceWidget
+
+### FEATURE: Category Picker Modal with Search and Usage Stats (2026-01-25)
+- **Feature**: Enhanced category selection with full-screen modal picker, replacing inline dropdown
+- **UI/UX Improvements**:
+  - **Full-Screen Modal**: Dedicated search and selection interface
+  - **Search Bar**: Search categories in real-time with instant filtering
+  - **Usage Statistics**: Shows count of how many times each category has been used (e.g., "12 uses")
+  - **Sorted by Usage**: Most frequently used categories appear first, easy access to common choices
+  - **Category Groups**: Displays category group subtitle (Needs/Wants/Savings) for context
+  - **Icons**: Shows category icons for visual scanning
+  - **Large Touch Targets**: 56px height buttons for mobile-friendly interaction
+  - **Current Selection Highlighted**: Selected category shows in teal with border
+  - **Type-Aware**: Only shows categories matching transaction type (income/expense)
+
+- **Implementation**:
+  - Created `CategoryPickerModal.tsx` component:
+    - Full-screen modal with slide animation
+    - Search functionality with real-time filtering
+    - Loads user's personal categories (not household-wide)
+    - Counts usage from user's own transactions
+    - Sorts by usage count descending, then alphabetically
+    - Shows category groups as subtitles
+    - Filters categories by transaction type (income vs expense)
+  - Updated Add Transaction form:
+    - Replaced inline category dropdown with modal button
+    - Button shows "Select category" or selected category name
+    - Opens full-screen modal on tap
+    - Closes modal after selection
+  - Updated Edit Transaction form:
+    - Same modal picker pattern
+    - Pre-selects current category
+    - Maintains existing functionality
+
+- **Example Flow**:
+  ```
+  1. Open Add Transaction form
+  2. Tap "Select category" button (in Category field)
+  3. Full-screen modal opens with search bar
+  4. See all categories sorted by usage:
+     - "Groceries (12 uses)" [Needs]
+     - "Shopping (8 uses)" [Wants]
+     - "Amazon Prime (5 uses)" [Wants]
+     - "Utilities (3 uses)" [Needs]
+  5. Search: Type "groc" → filters to show only "Groceries"
+  6. Tap "Groceries" → Modal closes, category selected
+  7. Form shows "Groceries" in category field
+  ```
+
+- **Benefits**:
+  - **Faster Selection**: Most-used categories appear first (efficient for frequent transactions)
+  - **Easy Discovery**: Search filters long category lists instantly
+  - **Visual Context**: Icons and category groups help identification
+  - **Mobile-Optimized**: Full-screen modal with large touch targets
+  - **Usage Insights**: See which categories you use most
+  - **Type Safety**: Only shows relevant categories for income/expense
+
+- **Files Created**:
+  - `src/components/CategoryPickerModal.tsx` - Full-screen modal with search and usage stats
+
+- **Files Modified**:
+  - `src/app/transactions/add.tsx` - Replaced inline dropdown with modal picker
+  - `src/app/transactions/[id]/edit.tsx` - Same modal picker pattern
