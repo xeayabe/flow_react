@@ -361,15 +361,28 @@ export default function BudgetSetupScreen() {
       return;
     }
 
-    // Check if at least one group percentage is set
-    const groupPercentagesSet = Object.values(groupPercentages).filter(p => p > 0);
-    if (groupPercentagesSet.length === 0) {
-      setShowSaveError('Please set a percentage for at least one category group');
+    // Calculate total group percentages (only groups with non-zero allocations)
+    const totalGroupPercentage = Object.entries(groupPercentages).reduce((sum, [group, percentage]) => {
+      // Only count groups that have categories with allocations
+      const groupCategories = Object.entries(allocations).filter(([catId]) => {
+        const category = (categoriesQuery.data || []).find((c: any) => c.id === catId);
+        return category && category.categoryGroup === group;
+      });
+
+      const groupTotal = groupCategories.reduce((total, [, amount]) => total + (amount || 0), 0);
+
+      // Only include this group's percentage if it has allocations
+      return groupTotal > 0 ? sum + percentage : sum;
+    }, 0);
+
+    // Check if any category has an allocation
+    const hasAnyAllocation = Object.values(allocations).some(amount => (amount || 0) > 0);
+    if (!hasAnyAllocation) {
+      setShowSaveError('Please allocate at least one category');
       return;
     }
 
-    // Check if group percentages total 100%
-    const totalGroupPercentage = Object.values(groupPercentages).reduce((sum, p) => sum + p, 0);
+    // Check if allocated groups total 100%
     if (totalGroupPercentage < 99.99 || totalGroupPercentage > 100.01) {
       setShowSaveError(`Category group percentages must total 100%. Currently: ${Math.round(totalGroupPercentage * 10) / 10}%`);
       return;
@@ -379,11 +392,6 @@ export default function BudgetSetupScreen() {
     const nonZeroAllocations = Object.fromEntries(
       Object.entries(allocations).filter(([_, amount]) => (amount || 0) > 0)
     );
-
-    if (Object.keys(nonZeroAllocations).length === 0) {
-      setShowSaveError('Please allocate at least one category');
-      return;
-    }
 
     // Check that total allocations don't exceed income
     const totalAllocated = Object.values(nonZeroAllocations).reduce((sum, amount) => sum + amount, 0);
