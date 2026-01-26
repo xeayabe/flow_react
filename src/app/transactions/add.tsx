@@ -766,117 +766,123 @@ export default function AddTransactionScreen() {
       </Modal>
 
       {/* Date Picker Modal */}
-      <Modal visible={showDatePicker} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setShowDatePicker(false)}>
-        <SafeAreaView edges={['top']} className="bg-white">
-          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
-            <Text className="text-xl font-semibold text-gray-900">Select Date</Text>
-            <Pressable onPress={() => setShowDatePicker(false)}>
-              <X size={24} color="#6B7280" />
-            </Pressable>
-          </View>
+      <Modal visible={showDatePicker} animationType="slide" transparent onRequestClose={() => setShowDatePicker(false)}>
+        <Pressable className="flex-1 bg-black/50 justify-end" onPress={() => setShowDatePicker(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <View className="bg-white rounded-t-3xl">
+              <SafeAreaView edges={['bottom']} className="bg-white">
+                <View className="flex-row items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+                  <Text className="text-xl font-semibold text-gray-900">Select Date</Text>
+                  <Pressable onPress={() => setShowDatePicker(false)}>
+                    <X size={24} color="#6B7280" />
+                  </Pressable>
+                </View>
 
-          <View className="px-6 py-6 pb-8">
-            {/* Month/Year Navigation */}
-            <View className="flex-row items-center justify-between mb-6">
-              <Pressable
-                onPress={() => {
-                  const prev = new Date(calendarMonth);
-                  prev.setMonth(prev.getMonth() - 1);
-                  setCalendarMonth(prev);
-                }}
-                className="p-2"
-              >
-                <ChevronLeft size={24} color="#006A6A" />
-              </Pressable>
-              <Text className="text-lg font-semibold text-gray-900">
-                {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </Text>
-              <Pressable
-                onPress={() => {
-                  const next = new Date(calendarMonth);
-                  next.setMonth(next.getMonth() + 1);
-                  setCalendarMonth(next);
-                }}
-                className="p-2"
-              >
-                <ChevronRight size={24} color="#006A6A" />
-              </Pressable>
-            </View>
-
-            {/* Day Labels */}
-            <View className="flex-row mb-2">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <Text key={day} className="flex-1 text-center font-semibold text-gray-700 text-sm">
-                  {day}
-                </Text>
-              ))}
-            </View>
-
-            {/* Calendar Grid */}
-            <View className="flex-row flex-wrap">
-              {(() => {
-                const year = calendarMonth.getFullYear();
-                const month = calendarMonth.getMonth();
-                const firstDay = new Date(year, month, 1).getDay();
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const days = [];
-
-                // Empty cells for days before month starts
-                for (let i = 0; i < firstDay; i++) {
-                  days.push(null);
-                }
-
-                // Days in month
-                for (let i = 1; i <= daysInMonth; i++) {
-                  days.push(i);
-                }
-
-                return days.map((day, index) => {
-                  const dateStr =
-                    day === null
-                      ? null
-                      : `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const isSelected = dateStr === tempDate;
-                  const isToday = dateStr === new Date().toISOString().split('T')[0];
-
-                  return (
+                <View className="px-6 pt-4 pb-6">
+                  {/* Month/Year Navigation */}
+                  <View className="flex-row items-center justify-between mb-4">
                     <Pressable
-                      key={index}
                       onPress={() => {
-                        if (dateStr) {
-                          setTempDate(dateStr);
-                          setFormData({ ...formData, date: dateStr });
-                          if (errors.date) setErrors({ ...errors, date: undefined });
-                          setShowDatePicker(false);
-                        }
+                        const prev = new Date(calendarMonth);
+                        prev.setMonth(prev.getMonth() - 1);
+                        setCalendarMonth(prev);
                       }}
-                      disabled={!day}
-                      style={{ width: '14.28%' }}
-                      className={cn(
-                        'aspect-square items-center justify-center rounded-lg mb-2',
-                        isSelected && 'bg-teal-600',
-                        isToday && !isSelected && 'bg-teal-100 border-2 border-teal-600',
-                        !day && 'bg-transparent'
-                      )}
+                      className="p-2"
                     >
-                      {day && (
-                        <Text
-                          className={cn(
-                            'text-base font-semibold',
-                            isSelected && 'text-white',
-                            !isSelected && 'text-gray-900'
-                          )}
-                        >
-                          {day}
-                        </Text>
-                      )}
+                      <ChevronLeft size={24} color="#006A6A" />
                     </Pressable>
-                  );
-                });
-              })()}
+                    <Text className="text-lg font-semibold text-gray-900">
+                      {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </Text>
+                    <Pressable
+                      onPress={() => {
+                        const next = new Date(calendarMonth);
+                        next.setMonth(next.getMonth() + 1);
+                        setCalendarMonth(next);
+                      }}
+                      className="p-2"
+                    >
+                      <ChevronRight size={24} color="#006A6A" />
+                    </Pressable>
+                  </View>
+
+                  {/* Day Labels */}
+                  <View className="flex-row mb-2">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                      <Text key={day} className="flex-1 text-center font-semibold text-gray-700 text-sm">
+                        {day}
+                      </Text>
+                    ))}
+                  </View>
+
+                  {/* Calendar Grid */}
+                  <View className="flex-row flex-wrap">
+                    {(() => {
+                      const year = calendarMonth.getFullYear();
+                      const month = calendarMonth.getMonth();
+                      const firstDay = new Date(year, month, 1).getDay();
+                      const daysInMonth = new Date(year, month + 1, 0).getDate();
+                      const days = [];
+
+                      // Empty cells for days before month starts
+                      for (let i = 0; i < firstDay; i++) {
+                        days.push(null);
+                      }
+
+                      // Days in month
+                      for (let i = 1; i <= daysInMonth; i++) {
+                        days.push(i);
+                      }
+
+                      return days.map((day, index) => {
+                        const dateStr =
+                          day === null
+                            ? null
+                            : `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        const isSelected = dateStr === tempDate;
+                        const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+                        return (
+                          <Pressable
+                            key={index}
+                            onPress={() => {
+                              if (dateStr) {
+                                setTempDate(dateStr);
+                                setFormData({ ...formData, date: dateStr });
+                                if (errors.date) setErrors({ ...errors, date: undefined });
+                                setShowDatePicker(false);
+                              }
+                            }}
+                            disabled={!day}
+                            style={{ width: '14.28%' }}
+                            className={cn(
+                              'aspect-square items-center justify-center rounded-lg mb-2',
+                              isSelected && 'bg-teal-600',
+                              isToday && !isSelected && 'bg-teal-100 border-2 border-teal-600',
+                              !day && 'bg-transparent'
+                            )}
+                          >
+                            {day && (
+                              <Text
+                                className={cn(
+                                  'text-base font-semibold',
+                                  isSelected && 'text-white',
+                                  !isSelected && 'text-gray-900'
+                                )}
+                              >
+                                {day}
+                              </Text>
+                            )}
+                          </Pressable>
+                        );
+                      });
+                    })()}
+                  </View>
+                </View>
+              </SafeAreaView>
             </View>
-          </View>
-        </SafeAreaView>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* Add Another Modal */}

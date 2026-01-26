@@ -595,111 +595,117 @@ export default function EditTransactionScreen() {
       </SafeAreaView>
 
       {/* Date Picker Modal */}
-      <Modal visible={showDatePicker} transparent={false} animationType="slide" presentationStyle="formSheet">
-        <SafeAreaView edges={['top']} className="bg-white">
-          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
-            <Text className="text-lg font-bold">Select Date</Text>
-            <Pressable onPress={() => setShowDatePicker(false)}>
-              <X size={24} color="#006A6A" />
-            </Pressable>
-          </View>
+      <Modal visible={showDatePicker} transparent animationType="slide" onRequestClose={() => setShowDatePicker(false)}>
+        <Pressable className="flex-1 bg-black/50 justify-end" onPress={() => setShowDatePicker(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <View className="bg-white rounded-t-3xl">
+              <SafeAreaView edges={['bottom']} className="bg-white">
+                <View className="flex-row items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+                  <Text className="text-xl font-semibold text-gray-900">Select Date</Text>
+                  <Pressable onPress={() => setShowDatePicker(false)}>
+                    <X size={24} color="#6B7280" />
+                  </Pressable>
+                </View>
 
-          <View className="px-6 py-6 pb-8">
-            {/* Month/Year Navigation */}
-            <View className="flex-row items-center justify-between mb-6">
-              <Pressable
-                onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
-                className="p-2"
-              >
-                <ChevronLeft size={24} color="#006A6A" />
-              </Pressable>
-              <Text className="text-lg font-semibold text-gray-900">
-                {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </Text>
-              <Pressable
-                onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
-                className="p-2"
-              >
-                <ChevronRight size={24} color="#006A6A" />
-              </Pressable>
-            </View>
-
-            {/* Day Labels */}
-            <View className="flex-row mb-2">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <Text key={day} className="flex-1 text-center font-semibold text-gray-700 text-sm">
-                  {day}
-                </Text>
-              ))}
-            </View>
-
-            {/* Calendar Grid */}
-            <View className="flex-row flex-wrap">
-              {(() => {
-                const year = calendarMonth.getFullYear();
-                const month = calendarMonth.getMonth();
-                const firstDay = new Date(year, month, 1).getDay();
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-                // Get today's date components in local time
-                const now = new Date();
-                const todayYear = now.getFullYear();
-                const todayMonth = now.getMonth();
-                const todayDay = now.getDate();
-
-                const days = [];
-
-                // Empty cells before first day
-                for (let i = 0; i < firstDay; i++) {
-                  days.push(<View key={`empty-${i}`} style={{ width: '14.28%' }} className="aspect-square" />);
-                }
-
-                // Days of month
-                for (let day = 1; day <= daysInMonth; day++) {
-                  // Create date string in YYYY-MM-DD format directly (no timezone conversion)
-                  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const isSelected = dateStr === formData.date;
-                  const isToday = year === todayYear && month === todayMonth && day === todayDay;
-                  // Compare year/month/day directly to avoid timezone issues
-                  const isFuture = year > todayYear ||
-                    (year === todayYear && month > todayMonth) ||
-                    (year === todayYear && month === todayMonth && day > todayDay);
-
-                  days.push(
+                <View className="px-6 pt-4 pb-6">
+                  {/* Month/Year Navigation */}
+                  <View className="flex-row items-center justify-between mb-4">
                     <Pressable
-                      key={day}
-                      onPress={() => {
-                        if (dateStr && !isFuture) {
-                          setFormData({ ...formData, date: dateStr });
-                          if (errors.date) setErrors({ ...errors, date: undefined });
-                          setShowDatePicker(false);
-                        }
-                      }}
-                      disabled={isFuture}
-                      style={{ width: '14.28%' }}
-                      className={cn(
-                        'aspect-square items-center justify-center rounded-lg mb-2',
-                        isSelected ? 'bg-teal-600' : isToday && !isSelected ? 'bg-teal-100 border-2 border-teal-600' : 'bg-gray-50',
-                        isFuture ? 'opacity-30' : ''
-                      )}
+                      onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
+                      className="p-2"
                     >
-                      <Text
-                        className={cn(
-                          'text-base font-semibold',
-                          isSelected ? 'text-white' : 'text-gray-900'
-                        )}
-                      >
+                      <ChevronLeft size={24} color="#006A6A" />
+                    </Pressable>
+                    <Text className="text-lg font-semibold text-gray-900">
+                      {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </Text>
+                    <Pressable
+                      onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
+                      className="p-2"
+                    >
+                      <ChevronRight size={24} color="#006A6A" />
+                    </Pressable>
+                  </View>
+
+                  {/* Day Labels */}
+                  <View className="flex-row mb-2">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                      <Text key={day} className="flex-1 text-center font-semibold text-gray-700 text-sm">
                         {day}
                       </Text>
-                    </Pressable>
-                  );
-                }
+                    ))}
+                  </View>
 
-                return days;
-              })()}
+                  {/* Calendar Grid */}
+                  <View className="flex-row flex-wrap">
+                    {(() => {
+                      const year = calendarMonth.getFullYear();
+                      const month = calendarMonth.getMonth();
+                      const firstDay = new Date(year, month, 1).getDay();
+                      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+                      // Get today's date components in local time
+                      const now = new Date();
+                      const todayYear = now.getFullYear();
+                      const todayMonth = now.getMonth();
+                      const todayDay = now.getDate();
+
+                      const days = [];
+
+                      // Empty cells before first day
+                      for (let i = 0; i < firstDay; i++) {
+                        days.push(<View key={`empty-${i}`} style={{ width: '14.28%' }} className="aspect-square" />);
+                      }
+
+                      // Days of month
+                      for (let day = 1; day <= daysInMonth; day++) {
+                        // Create date string in YYYY-MM-DD format directly (no timezone conversion)
+                        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        const isSelected = dateStr === formData.date;
+                        const isToday = year === todayYear && month === todayMonth && day === todayDay;
+                        // Compare year/month/day directly to avoid timezone issues
+                        const isFuture = year > todayYear ||
+                          (year === todayYear && month > todayMonth) ||
+                          (year === todayYear && month === todayMonth && day > todayDay);
+
+                        days.push(
+                          <Pressable
+                            key={day}
+                            onPress={() => {
+                              if (dateStr && !isFuture) {
+                                setFormData({ ...formData, date: dateStr });
+                                if (errors.date) setErrors({ ...errors, date: undefined });
+                                setShowDatePicker(false);
+                              }
+                            }}
+                            disabled={isFuture}
+                            style={{ width: '14.28%' }}
+                            className={cn(
+                              'aspect-square items-center justify-center rounded-lg mb-2',
+                              isSelected ? 'bg-teal-600' : isToday && !isSelected ? 'bg-teal-100 border-2 border-teal-600' : 'bg-gray-50',
+                              isFuture ? 'opacity-30' : ''
+                            )}
+                          >
+                            <Text
+                              className={cn(
+                                'text-base font-semibold',
+                                isSelected ? 'text-white' : 'text-gray-900'
+                              )}
+                            >
+                              {day}
+                            </Text>
+                          </Pressable>
+                        );
+                      }
+
+                      return days;
+                    })()}
+                  </View>
+                </View>
+              </SafeAreaView>
             </View>
-          </View>
-        </SafeAreaView>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* Category Picker Modal (NEW) */}
