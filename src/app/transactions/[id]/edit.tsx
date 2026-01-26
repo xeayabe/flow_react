@@ -437,9 +437,9 @@ export default function EditTransactionScreen() {
                 {errors.categoryId && <Text className="text-xs text-red-500 mt-2">{errors.categoryId}</Text>}
               </View>
 
-              {/* Account Dropdown */}
+              {/* Wallet Dropdown */}
               <View className="mb-8">
-                <Text className="text-sm font-semibold text-gray-700 mb-3">Account</Text>
+                <Text className="text-sm font-semibold text-gray-700 mb-3">Wallet</Text>
                 <Pressable
                   onPress={() => setShowAccountModal(true)}
                   className={cn(
@@ -449,7 +449,7 @@ export default function EditTransactionScreen() {
                 >
                   <View className="flex-1">
                     <Text className={cn('font-medium', selectedAccount ? 'text-gray-900' : 'text-gray-500')}>
-                      {selectedAccount?.name || 'Select account'}
+                      {selectedAccount?.name || 'Select wallet'}
                     </Text>
                     {selectedAccount && (
                       <Text className="text-xs text-gray-500 mt-1">{formatBalance(selectedAccount.balance, selectedAccount.currency)}</Text>
@@ -718,41 +718,41 @@ export default function EditTransactionScreen() {
         />
       )}
 
-      {/* Account Modal */}
-      <Modal visible={showAccountModal} animationType="slide" transparent={false}>
+      {/* Wallet Modal */}
+      <Modal visible={showAccountModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAccountModal(false)}>
         <View className="flex-1 bg-white">
-          <SafeAreaView edges={['top']} className="bg-white">
+          <SafeAreaView edges={['top']} className="bg-white flex-1">
             <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
-              <Text className="text-xl font-semibold text-gray-900">Select Account</Text>
+              <Text className="text-xl font-semibold text-gray-900">Select Wallet</Text>
               <Pressable onPress={() => setShowAccountModal(false)}>
                 <X size={24} color="#6B7280" />
               </Pressable>
             </View>
-          </SafeAreaView>
 
-          <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 40, paddingTop: 16 }}>
-            {accountsQuery.data?.map((account) => (
-              <Pressable
-                key={account.id}
-                onPress={() => {
-                  setFormData({ ...formData, accountId: account.id });
-                  setShowAccountModal(false);
-                }}
-                className={cn(
-                  'p-4 rounded-lg mb-2 flex-row items-center justify-between',
-                  formData.accountId === account.id ? 'bg-teal-50' : 'bg-gray-50'
-                )}
-              >
-                <View className="flex-1">
-                  <Text className={cn('font-semibold', formData.accountId === account.id ? 'text-teal-600' : 'text-gray-900')}>
-                    {account.name}
-                  </Text>
-                  <Text className="text-sm text-gray-500 mt-1">{formatBalance(account.balance, account.currency)}</Text>
-                </View>
-                {formData.accountId === account.id && <Check size={20} color="#006A6A" />}
-              </Pressable>
-            ))}
-          </ScrollView>
+            <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 40, paddingTop: 16 }}>
+              {accountsQuery.data?.map((account) => (
+                <Pressable
+                  key={account.id}
+                  onPress={() => {
+                    setFormData({ ...formData, accountId: account.id });
+                    setShowAccountModal(false);
+                  }}
+                  className={cn(
+                    'p-4 rounded-lg mb-2 flex-row items-center justify-between',
+                    formData.accountId === account.id ? 'bg-teal-50' : 'bg-gray-50'
+                  )}
+                >
+                  <View className="flex-1">
+                    <Text className={cn('font-semibold', formData.accountId === account.id ? 'text-teal-600' : 'text-gray-900')}>
+                      {account.name}
+                    </Text>
+                    <Text className="text-sm text-gray-500 mt-1">{formatBalance(account.balance, account.currency)}</Text>
+                  </View>
+                  {formData.accountId === account.id && <Check size={20} color="#006A6A" />}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </SafeAreaView>
         </View>
       </Modal>
 
