@@ -616,7 +616,7 @@ export default function EditTransactionScreen() {
                 <ChevronLeft size={24} color="#006A6A" />
               </Pressable>
               <Text className="text-lg font-semibold text-gray-900">
-                {calendarMonth.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}
+                {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </Text>
               <Pressable
                 onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
@@ -636,7 +636,7 @@ export default function EditTransactionScreen() {
             </View>
 
             {/* Calendar Grid */}
-            <View className="flex-row flex-wrap justify-between">
+            <View className="flex-row flex-wrap">
               {(() => {
                 const year = calendarMonth.getFullYear();
                 const month = calendarMonth.getMonth();
@@ -653,7 +653,7 @@ export default function EditTransactionScreen() {
 
                 // Empty cells before first day
                 for (let i = 0; i < firstDay; i++) {
-                  days.push(<View key={`empty-${i}`} className="w-12 h-12" />);
+                  days.push(<View key={`empty-${i}`} style={{ width: '14.28%' }} className="aspect-square" />);
                 }
 
                 // Days of month
@@ -678,15 +678,16 @@ export default function EditTransactionScreen() {
                         }
                       }}
                       disabled={isFuture}
+                      style={{ width: '14.28%' }}
                       className={cn(
-                        'w-12 h-12 items-center justify-center rounded-lg mb-2',
+                        'aspect-square items-center justify-center rounded-lg mb-2',
                         isSelected ? 'bg-teal-600' : isToday && !isSelected ? 'bg-teal-100 border-2 border-teal-600' : 'bg-gray-50',
                         isFuture ? 'opacity-30' : ''
                       )}
                     >
                       <Text
                         className={cn(
-                          'text-sm font-semibold',
+                          'text-base font-semibold',
                           isSelected ? 'text-white' : 'text-gray-900'
                         )}
                       >

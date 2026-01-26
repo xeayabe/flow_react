@@ -530,116 +530,6 @@ export default function AddTransactionScreen() {
                 {errors.date && <Text className="text-xs text-red-500 mt-2">{errors.date}</Text>}
               </View>
 
-              {/* Date Picker Calendar */}
-              {showDatePicker && (
-                <ScrollView
-                  className="mb-8 p-4 rounded-lg border-2 border-gray-200 bg-gray-50 max-h-96"
-                  scrollEnabled={true}
-                  showsVerticalScrollIndicator={false}
-                >
-                  {/* Month/Year Header */}
-                  <View className="flex-row items-center justify-between mb-4">
-                    <Pressable
-                      onPress={() => {
-                        const prev = new Date(calendarMonth);
-                        prev.setMonth(prev.getMonth() - 1);
-                        setCalendarMonth(prev);
-                      }}
-                      className="p-2"
-                    >
-                      <ChevronLeft size={20} color="#006A6A" />
-                    </Pressable>
-                    <Text className="text-sm font-semibold text-gray-900">
-                      {calendarMonth.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}
-                    </Text>
-                    <Pressable
-                      onPress={() => {
-                        const next = new Date(calendarMonth);
-                        next.setMonth(next.getMonth() + 1);
-                        setCalendarMonth(next);
-                      }}
-                      className="p-2"
-                    >
-                      <ChevronRight size={20} color="#006A6A" />
-                    </Pressable>
-                  </View>
-
-                  {/* Day Labels */}
-                  <View className="flex-row justify-between mb-2">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                      <Text key={day} className="w-12 text-center text-xs font-semibold text-gray-600">
-                        {day}
-                      </Text>
-                    ))}
-                  </View>
-
-                  {/* Calendar Days */}
-                  <View className="flex-row flex-wrap justify-between">
-                    {(() => {
-                      const year = calendarMonth.getFullYear();
-                      const month = calendarMonth.getMonth();
-                      const firstDay = new Date(year, month, 1).getDay();
-                      const daysInMonth = new Date(year, month + 1, 0).getDate();
-                      const days = [];
-
-                      // Empty cells for days before month starts
-                      for (let i = 0; i < firstDay; i++) {
-                        days.push(null);
-                      }
-
-                      // Days in month
-                      for (let i = 1; i <= daysInMonth; i++) {
-                        days.push(i);
-                      }
-
-                      return days.map((day, index) => {
-                        const dateStr =
-                          day === null
-                            ? null
-                            : `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                        const isSelected = dateStr === tempDate;
-                        const isToday = dateStr === new Date().toISOString().split('T')[0];
-
-                        const isDisabled = !dateStr;
-                        return (
-                          <Pressable
-                            key={index}
-                            onPress={() => {
-                              if (dateStr) {
-                                setTempDate(dateStr);
-                                setFormData({ ...formData, date: dateStr });
-                                if (errors.date) setErrors({ ...errors, date: undefined });
-                                setShowDatePicker(false);
-                              }
-                            }}
-                            disabled={isDisabled}
-                            className={cn(
-                              'w-12 h-12 items-center justify-center rounded-lg mb-2',
-                              isSelected && 'bg-teal-600',
-                              isToday && !isSelected && 'bg-teal-100 border-2 border-teal-600',
-                              !dateStr && 'bg-transparent'
-                            )}
-                          >
-                            {day && (
-                              <Text
-                                className={cn(
-                                  'text-sm font-semibold',
-                                  isSelected && 'text-white',
-                                  !isSelected && 'text-gray-900'
-                                )}
-                              >
-                                {day}
-                              </Text>
-                            )}
-                          </Pressable>
-                        );
-                      });
-                    })()}
-                  </View>
-
-                  {/* Done/Cancel Buttons - Removed as selecting a day now closes the picker */}
-                </ScrollView>
-              )}
 
               {/* Note */}
               <View className="mb-8">
@@ -870,6 +760,122 @@ export default function AddTransactionScreen() {
                   {formData.accountId === account.id && <Check size={20} color="#006A6A" />}
                 </Pressable>
               ))}
+            </ScrollView>
+          </SafeAreaView>
+        </View>
+      </Modal>
+
+      {/* Date Picker Modal */}
+      <Modal visible={showDatePicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowDatePicker(false)}>
+        <View className="flex-1 bg-white">
+          <SafeAreaView edges={['top']} className="bg-white flex-1">
+            <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
+              <Text className="text-xl font-semibold text-gray-900">Select Date</Text>
+              <Pressable onPress={() => setShowDatePicker(false)}>
+                <X size={24} color="#6B7280" />
+              </Pressable>
+            </View>
+
+            <ScrollView className="flex-1 px-6 py-6" contentContainerStyle={{ paddingBottom: 40 }}>
+              {/* Month/Year Navigation */}
+              <View className="flex-row items-center justify-between mb-6">
+                <Pressable
+                  onPress={() => {
+                    const prev = new Date(calendarMonth);
+                    prev.setMonth(prev.getMonth() - 1);
+                    setCalendarMonth(prev);
+                  }}
+                  className="p-2"
+                >
+                  <ChevronLeft size={24} color="#006A6A" />
+                </Pressable>
+                <Text className="text-lg font-semibold text-gray-900">
+                  {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    const next = new Date(calendarMonth);
+                    next.setMonth(next.getMonth() + 1);
+                    setCalendarMonth(next);
+                  }}
+                  className="p-2"
+                >
+                  <ChevronRight size={24} color="#006A6A" />
+                </Pressable>
+              </View>
+
+              {/* Day Labels */}
+              <View className="flex-row mb-2">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                  <Text key={day} className="flex-1 text-center font-semibold text-gray-700 text-sm">
+                    {day}
+                  </Text>
+                ))}
+              </View>
+
+              {/* Calendar Grid */}
+              <View className="flex-row flex-wrap">
+                {(() => {
+                  const year = calendarMonth.getFullYear();
+                  const month = calendarMonth.getMonth();
+                  const firstDay = new Date(year, month, 1).getDay();
+                  const daysInMonth = new Date(year, month + 1, 0).getDate();
+                  const days = [];
+
+                  // Empty cells for days before month starts
+                  for (let i = 0; i < firstDay; i++) {
+                    days.push(null);
+                  }
+
+                  // Days in month
+                  for (let i = 1; i <= daysInMonth; i++) {
+                    days.push(i);
+                  }
+
+                  return days.map((day, index) => {
+                    const dateStr =
+                      day === null
+                        ? null
+                        : `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const isSelected = dateStr === tempDate;
+                    const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+                    return (
+                      <Pressable
+                        key={index}
+                        onPress={() => {
+                          if (dateStr) {
+                            setTempDate(dateStr);
+                            setFormData({ ...formData, date: dateStr });
+                            if (errors.date) setErrors({ ...errors, date: undefined });
+                            setShowDatePicker(false);
+                          }
+                        }}
+                        disabled={!day}
+                        style={{ width: '14.28%' }}
+                        className={cn(
+                          'aspect-square items-center justify-center rounded-lg mb-2',
+                          isSelected && 'bg-teal-600',
+                          isToday && !isSelected && 'bg-teal-100 border-2 border-teal-600',
+                          !day && 'bg-transparent'
+                        )}
+                      >
+                        {day && (
+                          <Text
+                            className={cn(
+                              'text-base font-semibold',
+                              isSelected && 'text-white',
+                              !isSelected && 'text-gray-900'
+                            )}
+                          >
+                            {day}
+                          </Text>
+                        )}
+                      </Pressable>
+                    );
+                  });
+                })()}
+              </View>
             </ScrollView>
           </SafeAreaView>
         </View>
