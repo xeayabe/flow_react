@@ -351,28 +351,36 @@ export default function TransactionsTabScreen() {
               >
                 <Text className="text-xs font-medium text-gray-700">💰 {transactionType === 'all' ? 'All Types' : transactionType}</Text>
               </Pressable>
-              <Pressable
-                onPress={() => setShowCategoryModal(true)}
-                className={cn('px-3 py-2 rounded-full flex-row items-center gap-1',
-                  selectedCategories.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
-                )}
-              >
-                <Text className={cn('text-xs font-medium',
-                  selectedCategories.length === 0 ? 'text-gray-700' : 'text-teal-700'
-                )}>
-                  🏷️ {selectedCategories.length === 0
-                    ? 'All Categories'
-                    : selectedCategories.length === 1
-                      ? (() => {
-                          const cat = categoriesQuery.data?.find((c: any) => c.id === selectedCategories[0]);
-                          return cat ? cat.name : '1 selected';
-                        })()
-                      : `${selectedCategories.length} selected`}
-                </Text>
+              <View className={cn('flex-row items-center rounded-full',
+                selectedCategories.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
+              )}>
+                <Pressable
+                  onPress={() => setShowCategoryModal(true)}
+                  className="px-3 py-2"
+                >
+                  <Text className={cn('text-xs font-medium',
+                    selectedCategories.length === 0 ? 'text-gray-700' : 'text-teal-700'
+                  )}>
+                    🏷️ {selectedCategories.length === 0
+                      ? 'All Categories'
+                      : selectedCategories.length === 1
+                        ? (() => {
+                            const cat = categoriesQuery.data?.find((c: any) => c.id === selectedCategories[0]);
+                            return cat ? cat.name : '1 selected';
+                          })()
+                        : `${selectedCategories.length} selected`}
+                  </Text>
+                </Pressable>
                 {selectedCategories.length > 0 && (
-                  <Text className="text-xs font-medium text-teal-700">×</Text>
+                  <Pressable
+                    onPress={() => setSelectedCategories([])}
+                    className="pr-3 py-2"
+                    hitSlop={{ top: 10, bottom: 10, left: 5, right: 10 }}
+                  >
+                    <Text className="text-xs font-medium text-teal-700">×</Text>
+                  </Pressable>
                 )}
-              </Pressable>
+              </View>
               {monthFilterLabel && (
                 <Pressable
                   onPress={clearAllFilters}
@@ -449,46 +457,62 @@ export default function TransactionsTabScreen() {
                 </Text>
               </Pressable>
 
-              <Pressable
-                onPress={() => setShowCategoryModal(true)}
-                className={cn('px-3 py-2 rounded-full flex-row items-center gap-1',
-                  selectedCategories.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
-                )}
-              >
-                <Text className="text-xs font-medium text-gray-700">🏷️</Text>
-                <Text className={cn('text-xs font-medium',
-                  selectedCategories.length === 0 ? 'text-gray-700' : 'text-teal-700'
-                )}>
-                  {selectedCategories.length === 0
-                    ? 'All Categories'
-                    : selectedCategories.length === 1
-                      ? (() => {
-                          const cat = categoriesQuery.data?.find((c: any) => c.id === selectedCategories[0]);
-                          return cat ? cat.name : '1 selected';
-                        })()
-                      : `${selectedCategories.length} selected`}
-                </Text>
+              <View className={cn('flex-row items-center rounded-full',
+                selectedCategories.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
+              )}>
+                <Pressable
+                  onPress={() => setShowCategoryModal(true)}
+                  className="px-3 py-2 flex-row items-center gap-1"
+                >
+                  <Text className="text-xs font-medium text-gray-700">🏷️</Text>
+                  <Text className={cn('text-xs font-medium',
+                    selectedCategories.length === 0 ? 'text-gray-700' : 'text-teal-700'
+                  )}>
+                    {selectedCategories.length === 0
+                      ? 'All Categories'
+                      : selectedCategories.length === 1
+                        ? (() => {
+                            const cat = categoriesQuery.data?.find((c: any) => c.id === selectedCategories[0]);
+                            return cat ? cat.name : '1 selected';
+                          })()
+                        : `${selectedCategories.length} selected`}
+                  </Text>
+                </Pressable>
                 {selectedCategories.length > 0 && (
-                  <Text className="text-xs font-medium text-teal-700">×</Text>
+                  <Pressable
+                    onPress={() => setSelectedCategories([])}
+                    className="pr-3 py-2"
+                    hitSlop={{ top: 10, bottom: 10, left: 5, right: 10 }}
+                  >
+                    <Text className="text-xs font-medium text-teal-700">×</Text>
+                  </Pressable>
                 )}
-              </Pressable>
+              </View>
 
-              <Pressable
-                onPress={() => setShowAccountModal(true)}
-                className={cn('px-3 py-2 rounded-full flex-row items-center gap-1',
-                  selectedAccounts.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
-                )}
-              >
-                <Text className="text-xs font-medium text-gray-700">💳</Text>
-                <Text className={cn('text-xs font-medium',
-                  selectedAccounts.length === 0 ? 'text-gray-700' : 'text-teal-700'
-                )}>
-                  {selectedAccounts.length === 0 ? 'All Accounts' : `${selectedAccounts.length} selected`}
-                </Text>
+              <View className={cn('flex-row items-center rounded-full',
+                selectedAccounts.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
+              )}>
+                <Pressable
+                  onPress={() => setShowAccountModal(true)}
+                  className="px-3 py-2 flex-row items-center gap-1"
+                >
+                  <Text className="text-xs font-medium text-gray-700">💳</Text>
+                  <Text className={cn('text-xs font-medium',
+                    selectedAccounts.length === 0 ? 'text-gray-700' : 'text-teal-700'
+                  )}>
+                    {selectedAccounts.length === 0 ? 'All Accounts' : `${selectedAccounts.length} selected`}
+                  </Text>
+                </Pressable>
                 {selectedAccounts.length > 0 && (
-                  <Text className="text-xs font-medium text-teal-700">×</Text>
+                  <Pressable
+                    onPress={() => setSelectedAccounts([])}
+                    className="pr-3 py-2"
+                    hitSlop={{ top: 10, bottom: 10, left: 5, right: 10 }}
+                  >
+                    <Text className="text-xs font-medium text-teal-700">×</Text>
+                  </Pressable>
                 )}
-              </Pressable>
+              </View>
 
               {monthFilterLabel && (
                 <Pressable
