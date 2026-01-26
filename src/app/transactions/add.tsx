@@ -766,9 +766,9 @@ export default function AddTransactionScreen() {
       </Modal>
 
       {/* Date Picker Modal */}
-      <Modal visible={showDatePicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowDatePicker(false)}>
-        <View className="flex-1 bg-white">
-          <SafeAreaView edges={['top']} className="bg-white flex-1">
+      <Modal visible={showDatePicker} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setShowDatePicker(false)}>
+        <View className="bg-white">
+          <SafeAreaView edges={['top']} className="bg-white">
             <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
               <Text className="text-xl font-semibold text-gray-900">Select Date</Text>
               <Pressable onPress={() => setShowDatePicker(false)}>
@@ -776,7 +776,7 @@ export default function AddTransactionScreen() {
               </Pressable>
             </View>
 
-            <ScrollView className="flex-1 px-6 py-6" contentContainerStyle={{ paddingBottom: 40 }}>
+            <ScrollView className="px-6 py-6" contentContainerStyle={{ paddingBottom: 40 }}>
               {/* Month/Year Navigation */}
               <View className="flex-row items-center justify-between mb-6">
                 <Pressable

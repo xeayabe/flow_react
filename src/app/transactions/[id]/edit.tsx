@@ -595,8 +595,8 @@ export default function EditTransactionScreen() {
       </SafeAreaView>
 
       {/* Date Picker Modal */}
-      <Modal visible={showDatePicker} transparent={false} animationType="slide">
-        <View className="flex-1 bg-white">
+      <Modal visible={showDatePicker} transparent={false} animationType="slide" presentationStyle="formSheet">
+        <View className="bg-white">
           <SafeAreaView edges={['top']} className="bg-white">
             <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
               <Text className="text-lg font-bold">Select Date</Text>
@@ -606,7 +606,7 @@ export default function EditTransactionScreen() {
             </View>
           </SafeAreaView>
 
-          <ScrollView className="flex-1 px-6 py-4">
+          <ScrollView className="px-6 py-4">
             {/* Month/Year Navigation */}
             <View className="flex-row items-center justify-between mb-6">
               <Pressable
