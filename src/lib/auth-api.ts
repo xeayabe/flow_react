@@ -1,6 +1,4 @@
 import { db } from './db';
-import { createDefaultCategories } from './categories-api';
-import { createDefaultCategoryGroups } from './category-groups-api';
 import { calculateBudgetPeriod } from './payday-utils';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
@@ -278,12 +276,6 @@ export async function createDefaultHousehold(userId: string, name: string): Prom
 
     console.log('✅ Household member created with role: admin');
     console.log('✅ Personal budget period set:', budgetPeriod.start, '-', budgetPeriod.end);
-
-    // Create default categories for household
-    await createDefaultCategories(householdId);
-
-    // Create default category groups for household
-    await createDefaultCategoryGroups(householdId, userId);
 
     console.log('✅ Default household created:', { householdId, householdName });
 
