@@ -596,17 +596,15 @@ export default function EditTransactionScreen() {
 
       {/* Date Picker Modal */}
       <Modal visible={showDatePicker} transparent={false} animationType="slide" presentationStyle="formSheet">
-        <View className="bg-white">
-          <SafeAreaView edges={['top']} className="bg-white">
-            <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
-              <Text className="text-lg font-bold">Select Date</Text>
-              <Pressable onPress={() => setShowDatePicker(false)}>
-                <X size={24} color="#006A6A" />
-              </Pressable>
-            </View>
-          </SafeAreaView>
+        <SafeAreaView edges={['top']} className="bg-white">
+          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
+            <Text className="text-lg font-bold">Select Date</Text>
+            <Pressable onPress={() => setShowDatePicker(false)}>
+              <X size={24} color="#006A6A" />
+            </Pressable>
+          </View>
 
-          <ScrollView className="px-6 py-4">
+          <View className="px-6 py-6 pb-8">
             {/* Month/Year Navigation */}
             <View className="flex-row items-center justify-between mb-6">
               <Pressable
@@ -700,8 +698,8 @@ export default function EditTransactionScreen() {
                 return days;
               })()}
             </View>
-          </ScrollView>
-        </View>
+          </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Category Picker Modal (NEW) */}
