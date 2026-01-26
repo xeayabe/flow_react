@@ -639,8 +639,8 @@ export default function TransactionsTabScreen() {
 
       {/* Filter Modals */}
       {/* Date Range Modal */}
-      <Modal visible={showDateRangeModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowDateRangeModal(false)}>
-        <SafeAreaView edges={['top']} className="flex-1 bg-white">
+      <Modal visible={showDateRangeModal} animationType="slide" transparent={false} onRequestClose={() => setShowDateRangeModal(false)}>
+        <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-white">
           <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
             <Text className="text-lg font-bold">Select Date Range</Text>
             <Pressable onPress={() => setShowDateRangeModal(false)}>
@@ -670,8 +670,8 @@ export default function TransactionsTabScreen() {
       </Modal>
 
       {/* Type Modal */}
-      <Modal visible={showTypeModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowTypeModal(false)}>
-        <SafeAreaView edges={['top']} className="flex-1 bg-white">
+      <Modal visible={showTypeModal} animationType="slide" transparent={false} onRequestClose={() => setShowTypeModal(false)}>
+        <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-white">
           <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
             <Text className="text-lg font-bold">Select Type</Text>
             <Pressable onPress={() => setShowTypeModal(false)}>
@@ -701,8 +701,8 @@ export default function TransactionsTabScreen() {
       </Modal>
 
       {/* Category Modal */}
-      <Modal visible={showCategoryModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCategoryModal(false)}>
-        <SafeAreaView edges={['top']} className="flex-1 bg-white">
+      <Modal visible={showCategoryModal} animationType="slide" transparent={false} onRequestClose={() => setShowCategoryModal(false)}>
+        <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-white">
           <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
             <Text className="text-lg font-bold">Select Categories</Text>
             <Pressable onPress={() => setShowCategoryModal(false)}>
@@ -745,8 +745,8 @@ export default function TransactionsTabScreen() {
       </Modal>
 
       {/* Wallet Modal */}
-      <Modal visible={showAccountModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAccountModal(false)}>
-        <SafeAreaView edges={['top']} className="flex-1 bg-white">
+      <Modal visible={showAccountModal} animationType="slide" transparent={false} onRequestClose={() => setShowAccountModal(false)}>
+        <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-white">
           <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
             <Text className="text-lg font-bold">Select Wallets</Text>
             <Pressable onPress={() => setShowAccountModal(false)}>
