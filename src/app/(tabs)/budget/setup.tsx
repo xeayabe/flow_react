@@ -17,6 +17,7 @@ import { ChevronLeft, X, Zap } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 import { saveBudget, getBudgetDetails, getBudgetSummary, getMemberBudgetPeriod } from '@/lib/budget-api';
+import { getCategories } from '@/lib/categories-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
 import { calculatePercentage, calculateAmountFromPercentage, autoBalanceRemaining, apply503020Split } from '@/lib/budget-utils';
@@ -109,24 +110,12 @@ export default function BudgetSetupScreen() {
   };
 
   const categoriesQuery = useQuery({
-    queryKey: ['categories', householdId],
+    queryKey: ['categories', householdId, userId],
     queryFn: async () => {
-      if (!householdId) return [];
-
-      const result = await db.queryOnce({
-        categories: {
-          $: {
-            where: {
-              householdId: householdId,
-              type: 'expense',
-            },
-          },
-        },
-      });
-
-      return result.data.categories || [];
+      if (!householdId || !userId) return [];
+      return getCategories(householdId, userId);
     },
-    enabled: !!householdId,
+    enabled: !!householdId && !!userId,
   });
 
   const categoryGroupsQuery = useQuery({
@@ -242,7 +231,9 @@ export default function BudgetSetupScreen() {
 
     // Add categories to their groups
     if (categoriesQuery.data) {
-      categoriesQuery.data.forEach((cat: any) => {
+      categoriesQuery.data
+        .filter((cat: any) => cat.type === 'expense')
+        .forEach((cat: any) => {
         const group = cat.categoryGroup || 'other';
         if (grouped[group]) {
           grouped[group].categories.push({
