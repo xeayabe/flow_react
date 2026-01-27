@@ -190,8 +190,12 @@ export default function PaydaySettingsScreen() {
       } else {
         // NO RESET: Period starts in the future
         // Just update the payday setting - DON'T change period dates yet
-        // The automatic reset will happen when the current period ends
+        // Keep the current budget period and spending intact
         console.log('No reset: Period starts in the future, only updating payday setting');
+        console.log('Current member period will remain:', {
+          currentStart: memberQuery.data.member.budgetPeriodStart,
+          currentEnd: memberQuery.data.member.budgetPeriodEnd,
+        });
 
         await db.transact([
           db.tx.householdMembers[memberQuery.data.member.id].update({
@@ -202,12 +206,22 @@ export default function PaydaySettingsScreen() {
           }),
         ]);
       }
+
+      // Return the shouldReset value so onSuccess knows whether to invalidate budgets
+      return { shouldReset };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       setSuccessMessage('Payday saved!');
       queryClient.invalidateQueries({ queryKey: ['member-payday'] });
-      queryClient.invalidateQueries({ queryKey: ['budgets'] });
-      queryClient.invalidateQueries({ queryKey: ['my-budget-period'] });
+
+      // Only invalidate budgets and period if a reset happened
+      if (result?.shouldReset) {
+        queryClient.invalidateQueries({ queryKey: ['budgets'] });
+        queryClient.invalidateQueries({ queryKey: ['my-budget-period'] });
+        queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+        queryClient.invalidateQueries({ queryKey: ['budget-details'] });
+      }
+
       setTimeout(() => {
         setSuccessMessage('');
         router.back();
