@@ -671,68 +671,74 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
 /**
  * Check if budget reset is needed and perform it if required
  * Call this on app load (dashboard, budget pages)
- * NOTE: This now checks the member's personal budget period
+ * NOTE: This now checks ALL members in the household and resets any that need it
  */
 export async function checkAndResetBudgetIfNeeded(householdId: string, userId?: string): Promise<boolean> {
   try {
-    // If userId provided, check member's personal period
-    if (userId) {
-      const memberResult = await db.queryOnce({
-        householdMembers: {
-          $: {
-            where: { userId, householdId, status: 'active' },
-          },
+    let anyResetHappened = false;
+
+    // Get ALL active members of the household
+    const membersResult = await db.queryOnce({
+      householdMembers: {
+        $: {
+          where: { householdId, status: 'active' },
         },
-      });
+      },
+    });
 
-      if (!memberResult || !memberResult.data) {
-        console.error('Query failed - memberResult is undefined in checkAndResetBudgetIfNeeded');
-        return false;
-      }
+    if (!membersResult || !membersResult.data) {
+      console.error('Query failed - membersResult is undefined in checkAndResetBudgetIfNeeded');
+      return false;
+    }
 
-      const member = memberResult.data.householdMembers?.[0];
-      if (member?.budgetPeriodEnd) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+    const allMembers = membersResult.data.householdMembers || [];
+    console.log(`Checking budget reset for ${allMembers.length} household members`);
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Check EACH member's budget period
+    for (const member of allMembers) {
+      if (member.budgetPeriodEnd && member.paydayDay) {
         const periodEnd = new Date(member.budgetPeriodEnd + 'T00:00:00');
         periodEnd.setHours(0, 0, 0, 0);
 
         if (today > periodEnd) {
-          console.log('Member budget period has ended, triggering reset...');
-          return resetMemberBudgetPeriod(userId, householdId);
+          console.log(`Member ${member.userId} budget period has ended (${member.budgetPeriodEnd}), triggering reset...`);
+          const resetSuccess = await resetMemberBudgetPeriod(member.userId, householdId);
+          if (resetSuccess) {
+            anyResetHappened = true;
+          }
         }
-        return false;
       }
     }
 
-    // Fall back to household-level check for backward compatibility
-    const householdResult = await db.queryOnce({
-      households: { $: { where: { id: householdId } } },
-    });
+    // Fall back to household-level check for backward compatibility (if no member has personal periods set)
+    if (allMembers.length === 0 || !allMembers.some(m => m.budgetPeriodEnd)) {
+      const householdResult = await db.queryOnce({
+        households: { $: { where: { id: householdId } } },
+      });
 
-    if (!householdResult || !householdResult.data) {
-      console.error('Query failed - householdResult is undefined');
-      return false;
+      if (!householdResult || !householdResult.data) {
+        console.error('Query failed - householdResult is undefined');
+        return false;
+      }
+
+      const household = householdResult.data.households?.[0];
+      if (!household) return false;
+
+      if (household.budgetPeriodEnd) {
+        const periodEnd = new Date(household.budgetPeriodEnd + 'T00:00:00');
+        periodEnd.setHours(0, 0, 0, 0);
+
+        if (today > periodEnd) {
+          console.log('Household budget period has ended, triggering reset...');
+          return resetBudgetPeriod(householdId);
+        }
+      }
     }
 
-    const household = householdResult.data.households?.[0];
-    if (!household) return false;
-
-    // Check if current date is past the budget period end date
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const periodEnd = new Date(household.budgetPeriodEnd + 'T00:00:00');
-    periodEnd.setHours(0, 0, 0, 0);
-
-    // If today > period end date, reset is needed
-    if (today > periodEnd) {
-      console.log('Budget period has ended, triggering reset...');
-      return resetBudgetPeriod(householdId);
-    }
-
-    return false;
+    return anyResetHappened;
   } catch (error) {
     console.error('Error checking budget reset:', error);
     return false;
