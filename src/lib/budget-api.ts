@@ -136,13 +136,13 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
       totalAllocated = totalIncome;
     }
 
-    // First, delete existing budget for this period (allows re-doing budget)
+    // First, deactivate existing active budgets (allows re-doing budget)
     const existingBudgets = await db.queryOnce({
       budgets: {
         $: {
           where: {
             userId,
-            periodStart: budgetPeriod.start,
+            isActive: true,
           },
         },
       },
@@ -205,8 +205,6 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
           userId,
           householdId,
           categoryId,
-          periodStart: budgetPeriod.start,
-          periodEnd: budgetPeriod.end,
           allocatedAmount,
           spentAmount: 0,
           percentage,
@@ -644,13 +642,12 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
     const paydayDay = household.paydayDay ?? 25; // Default to 25 if not set
     const { start: newPeriodStart, end: newPeriodEnd } = calculateBudgetPeriod(paydayDay);
 
-    // Step 3: Get all active budgets from current period
+    // Step 3: Get all active budgets
     const oldBudgetsResult = await db.queryOnce({
       budgets: {
         $: {
           where: {
             householdId,
-            periodEnd: household.budgetPeriodEnd,
             isActive: true,
           },
         },
@@ -673,8 +670,6 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
         userId: oldBudget.userId,
         householdId,
         categoryId: oldBudget.categoryId,
-        periodStart: newPeriodStart,
-        periodEnd: newPeriodEnd,
         allocatedAmount: oldBudget.allocatedAmount,
         spentAmount: 0, // Reset to 0!
         percentage: oldBudget.percentage,
@@ -878,7 +873,6 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
           $: {
             where: {
               userId,
-              periodEnd: oldPeriodEnd,
               isActive: true,
             },
           },
@@ -911,8 +905,6 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
         userId: oldBudget.userId,
         householdId,
         categoryId: oldBudget.categoryId,
-        periodStart: newPeriod.start,
-        periodEnd: newPeriod.end,
         allocatedAmount: oldBudget.allocatedAmount,
         spentAmount: 0,
         percentage: oldBudget.percentage,

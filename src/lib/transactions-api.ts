@@ -159,7 +159,7 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
                   where: {
                     userId: request.userId,
                     categoryId: request.categoryId,
-                    periodStart: budgetPeriod.start,
+                    isActive: true,
                   },
                 },
               },
@@ -452,7 +452,7 @@ export async function deleteTransaction(transactionId: string): Promise<Transact
                     where: {
                       userId: transaction.userId,
                       categoryId: transaction.categoryId,
-                      periodStart: budgetPeriod.start,
+                      isActive: true,
                     },
                   },
                 },
@@ -718,7 +718,7 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
                       where: {
                         userId: request.userId,
                         categoryId: originalTx.categoryId,
-                        periodStart: budgetPeriod.start,
+                        isActive: true,
                       },
                     },
                   },
@@ -739,7 +739,7 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
                       where: {
                         userId: request.userId,
                         categoryId: request.categoryId,
-                        periodStart: budgetPeriod.start,
+                        isActive: true,
                       },
                     },
                   },
@@ -759,7 +759,7 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
                     where: {
                       userId: request.userId,
                       categoryId: request.categoryId,
-                      periodStart: budgetPeriod.start,
+                      isActive: true,
                     },
                   },
                 },

@@ -350,7 +350,7 @@ export async function createSettlement(
                     where: {
                       userId: tx.userId,
                       categoryId: tx.categoryId,
-                      periodStart: budgetPeriod.start,
+                      isActive: true,
                     },
                   },
                 },

@@ -2499,3 +2499,88 @@ budgets (category-level):
 - **Files Modified**:
   - `src/lib/transactions-api.ts` - Updated `getHouseholdTransactionsWithCreators` filter to show only user's own transactions
 
+### FIX: Removed periodStart/periodEnd from Budget Schema - Made Budgets "Timeless" (2026-01-27)
+
+**Critical Bug Fixed**: Budget queries were failing after payday changes, causing budget spent amounts to show as 0 CHF even when expenses existed.
+
+#### Root Cause
+The `budgets` and `budgetSummary` tables stored `periodStart` and `periodEnd` fields. When users changed their payday:
+1. Budget period was recalculated dynamically (e.g., from "2025-12-25 to 2026-01-24" → "2026-01-06 to 2026-02-05")
+2. Existing budgets still had OLD period dates stored (e.g., `periodStart: "2025-12-25"`)
+3. Budget queries filtered by NEW period dates (e.g., `periodStart: "2026-01-06"`)
+4. No budgets matched → spent amounts showed as 0 CHF
+
+#### Solution: "Timeless" Budgets
+Removed `periodStart` and `periodEnd` from the database schema entirely. Budgets now define WHAT to track (allocations per category), not WHEN. Period filtering happens only when querying transactions:
+
+**Before (BROKEN)**:
+```typescript
+// Budgets table had: periodStart, periodEnd
+// Query looked for: budgets WHERE userId AND periodStart="2026-01-06"
+// This failed when stored periodStart was "2025-12-25"
+```
+
+**After (FIXED)**:
+```typescript
+// Budgets table: userId, categoryId, allocatedAmount, spentAmount, isActive
+// Query uses: budgets WHERE userId AND categoryId AND isActive=true
+// Period filtering ONLY on transactions, not budgets
+```
+
+#### Schema Changes
+
+**`budgets` table** - Removed:
+- `periodStart` (removed)
+- `periodEnd` (removed)
+
+**`budgetSummary` table** - Removed:
+- `periodStart` (removed)
+- `periodEnd` (removed)
+- Added: `isActive` (boolean, optional)
+
+#### Code Changes
+
+**Files Modified:**
+1. **`src/lib/db.ts`**
+   - Removed `periodStart` and `periodEnd` from `budgets` entity
+   - Removed `periodStart` and `periodEnd` from `budgetSummary` entity
+   - Added `isActive` field to `budgetSummary` entity
+
+2. **`src/lib/budget-api.ts`**
+   - `saveBudget()`: Changed budget deletion query from `periodStart` filter to `isActive: true`
+   - `saveBudget()`: Removed `periodStart`/`periodEnd` from budget creation
+   - `resetBudgetForNewPeriod()`: Changed query to filter by `isActive: true` instead of `periodEnd`
+   - `resetMemberBudgetIfNeeded()`: Changed query to filter by `isActive: true` instead of `periodEnd`
+
+3. **`src/lib/transactions-api.ts`**
+   - `createTransaction()`: Changed budget query from `periodStart` filter to `isActive: true`
+   - `deleteTransaction()`: Changed budget query from `periodStart` filter to `isActive: true`
+   - `updateTransaction()`: Changed all budget queries (old category, new category, amount change) from `periodStart` filter to `isActive: true`
+
+4. **`src/lib/settlement-api.ts`**
+   - `createSettlement()`: Changed budget query from `periodStart` filter to `isActive: true`
+
+#### How It Works Now
+
+1. **Budget Creation**: User sets allocations per category → budgets created with `isActive: true` (no period dates)
+2. **Transaction Created**: System queries `budgets WHERE userId AND categoryId AND isActive: true` → updates `spentAmount`
+3. **Spent Calculation**: Filters transactions by date range (from dynamic period calculation) → sums amounts → updates budget
+4. **Payday Change**: Period recalculates dynamically → same budgets still match (because query uses `isActive: true`, not period dates)
+
+#### Benefits
+
+✅ **Payday changes work correctly**: Budgets persist across payday changes without showing 0 CHF
+✅ **No stale period dates**: Period always calculated dynamically from `paydayDay` setting
+✅ **Simpler architecture**: Period is a query-time concern, not a storage concern
+✅ **Auto-reset still works**: When new month starts, period shifts forward automatically
+✅ **Budget updates work**: Transactions update budget spent amounts correctly regardless of payday setting
+
+#### Testing
+
+After this fix:
+- ✅ Changing payday from 27 → 28 → 6 no longer causes budget to show 0 CHF
+- ✅ Transactions dated within current period correctly update budget spent amounts
+- ✅ Budget period dates display correctly (from dynamic calculation)
+- ✅ All budget queries work without period date filters
+
+
