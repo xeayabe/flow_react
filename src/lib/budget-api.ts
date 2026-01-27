@@ -28,6 +28,7 @@ export interface BudgetWithDetails {
 /**
  * Get user's personal budget period from their household membership
  * Falls back to household period for backward compatibility
+ * IMPORTANT: Returns the period with active budget data, not necessarily the calculated "current" period
  */
 export async function getMemberBudgetPeriod(userId: string, householdId: string): Promise<{
   start: string;
@@ -50,14 +51,42 @@ export async function getMemberBudgetPeriod(userId: string, householdId: string)
 
   const member = memberResult.data.householdMembers?.[0];
 
-  // If member has personal budget period set, use it
+  // If member has personal budget period set, check if there's active budget data for it
   if (member?.budgetPeriodStart && member?.budgetPeriodEnd && member?.paydayDay) {
-    return {
-      start: member.budgetPeriodStart,
-      end: member.budgetPeriodEnd,
-      paydayDay: member.paydayDay,
-      source: 'member',
-    };
+    // Check if there are active budgets for this period
+    const budgetsResult = await db.queryOnce({
+      budgets: {
+        $: {
+          where: {
+            userId,
+            periodStart: member.budgetPeriodStart,
+            isActive: true,
+          },
+        },
+      },
+    });
+
+    const hasActiveBudgets = (budgetsResult.data.budgets?.length ?? 0) > 0;
+
+    // If there are active budgets for this period, use it
+    if (hasActiveBudgets) {
+      return {
+        start: member.budgetPeriodStart,
+        end: member.budgetPeriodEnd,
+        paydayDay: member.paydayDay,
+        source: 'member',
+      };
+    } else {
+      // No active budgets for stored period - recalculate based on payday
+      // This handles the case where period was updated but no budget exists yet
+      const calculatedPeriod = calculateBudgetPeriod(member.paydayDay);
+      return {
+        start: calculatedPeriod.start,
+        end: calculatedPeriod.end,
+        paydayDay: member.paydayDay,
+        source: 'member',
+      };
+    }
   }
 
   // Fall back to household period for backward compatibility
