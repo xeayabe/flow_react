@@ -84,10 +84,39 @@ export async function getMemberBudgetPeriod(userId: string, householdId: string)
         source: 'member',
       };
     } else {
-      // No active budgets for stored period - recalculate based on payday
-      // This handles the case where period was updated but no budget exists yet
+      // No active budgets for stored period - check if there are ANY active budgets for this user
+      const allBudgetsResult = await db.queryOnce({
+        budgets: {
+          $: {
+            where: {
+              userId,
+              isActive: true,
+            },
+          },
+        },
+      });
+
+      const allActiveBudgets = allBudgetsResult.data.budgets || [];
+      console.log(`Total active budgets for user: ${allActiveBudgets.length}`);
+
+      if (allActiveBudgets.length > 0) {
+        // Use the period from the most recent active budget
+        const mostRecentBudget = allActiveBudgets[0];
+        console.log('Found active budgets with different period, using:', {
+          start: mostRecentBudget.periodStart,
+          end: mostRecentBudget.periodEnd,
+        });
+        return {
+          start: mostRecentBudget.periodStart,
+          end: mostRecentBudget.periodEnd,
+          paydayDay: member.paydayDay,
+          source: 'member',
+        };
+      }
+
+      // No active budgets at all - recalculate based on payday
       const calculatedPeriod = calculateBudgetPeriod(member.paydayDay);
-      console.log('No active budgets for stored period, recalculated:', calculatedPeriod);
+      console.log('No active budgets found anywhere, recalculated:', calculatedPeriod);
       return {
         start: calculatedPeriod.start,
         end: calculatedPeriod.end,
