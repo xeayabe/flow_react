@@ -122,7 +122,7 @@ export default function DebtBalanceWidget() {
       }
 
       const currentMember = memberData.householdMembers[0];
-      console.log('🏠 Current member:', currentMember.id, 'Role:', currentMember.role, 'Household:', currentMember.householdId);
+      console.log('🏠 Current member:', currentMember.id, 'Household:', currentMember.householdId);
 
       // Get all household members
       const { data: allMembersData } = await db.queryOnce({

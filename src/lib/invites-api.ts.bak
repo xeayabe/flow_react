@@ -24,6 +24,7 @@ export async function createInviteCode(userId: string, householdId: string) {
     status: 'pending',
     expiresAt,
     createdAt: Date.now(),
+    updatedAt: Date.now()
   };
 
   await db.transact([
@@ -64,6 +65,7 @@ export async function validateInviteCode(code: string) {
     await db.transact([
       db.tx.household_invites[invite.id].update({
         status: 'expired',
+        updatedAt: Date.now()
       })
     ]);
     return { valid: false, error: 'Code expired' };

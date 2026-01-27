@@ -54,6 +54,7 @@ export async function migrateCategoryGroups(householdId: string): Promise<{ succ
           await db.transact([
             db.tx.categories[category.id].update({
               categoryGroup: matchingGroup.key,
+              updatedAt: now,
             }),
           ]);
 

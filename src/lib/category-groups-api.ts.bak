@@ -71,11 +71,13 @@ export async function createDefaultCategoryGroups(householdId: string, userId: s
         key: group.key,
         name: group.name,
         type: group.type,
+        icon: group.icon,
         isDefault: true,
         displayOrder: group.displayOrder,
         isActive: true,
         createdByUserId: userId,
         createdAt: now,
+        updatedAt: now,
       });
     });
 
@@ -107,6 +109,7 @@ export async function updateCategoryGroupName(
     await db.transact([
       db.tx.categoryGroups[categoryGroupId].update({
         name: name.trim(),
+        updatedAt: now,
       }),
     ]);
 
@@ -185,6 +188,7 @@ export async function createCustomCategoryGroup(
         isActive: true,
         createdByUserId: userId,
         createdAt: now,
+        updatedAt: now,
       }),
     ]);
 
@@ -204,6 +208,7 @@ export async function deleteCategoryGroup(categoryGroupId: string): Promise<{ su
     await db.transact([
       db.tx.categoryGroups[categoryGroupId].update({
         isActive: false,
+        updatedAt: now,
       }),
     ]);
 
@@ -226,6 +231,7 @@ export async function updateCategoryGroupDisplay(
     await db.transact([
       db.tx.categoryGroups[categoryGroupId].update({
         ...updates,
+        updatedAt: now,
       }),
     ]);
 

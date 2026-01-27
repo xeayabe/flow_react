@@ -226,7 +226,8 @@ export async function createAccount(
       for (const account of existingAccounts.data.accounts || []) {
         await db.transact([
           db.tx.accounts[account.id].update({
-            isDefault: false
+            isDefault: false,
+            updatedAt: Date.now(),
           }),
         ]);
       }
@@ -399,7 +400,8 @@ export async function updateAccount(
         if (account.id !== accountId) {
           await db.transact([
             db.tx.accounts[account.id].update({
-              isDefault: false
+              isDefault: false,
+              updatedAt: Date.now(),
             }),
           ]);
         }
@@ -407,7 +409,9 @@ export async function updateAccount(
     }
 
     // Build update object
-    const updates: Record<string, unknown> = {};
+    const updates: Record<string, unknown> = {
+      updatedAt: Date.now(),
+    };
 
     if (updateData.name !== undefined) updates.name = updateData.name;
     if (updateData.institution !== undefined) updates.institution = updateData.institution;
@@ -451,7 +455,8 @@ export async function deleteAccount(accountId: string): Promise<AccountResponse>
 
     await db.transact([
       db.tx.accounts[accountId].update({
-        isActive: false
+        isActive: false,
+        updatedAt: Date.now(),
       }),
     ]);
 

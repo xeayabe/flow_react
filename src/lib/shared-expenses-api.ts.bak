@@ -147,6 +147,7 @@ export async function createExpenseSplits(
         splitAmount: record.splitAmount,
         splitPercentage: record.splitPercentage,
         isPaid: record.isPaid,
+        createdAt: record.createdAt,
       })
     )
   );
@@ -192,6 +193,7 @@ export async function markSplitAsPaid(splitId: string): Promise<void> {
   await db.transact([
     db.tx.shared_expense_splits[splitId].update({
       isPaid: true,
+      updatedAt: Date.now()
     })
   ]);
 

@@ -46,12 +46,14 @@ export async function ensureDefaultCategoryGroups(householdId: string, userId: s
             householdId,
             key: group.key,
             name: group.name,
+            icon: group.icon,
             type: group.type,
             isDefault: true,
             displayOrder: group.displayOrder,
             isActive: true,
             createdByUserId: userId,
             createdAt: now,
+            updatedAt: now,
           })
         );
       }

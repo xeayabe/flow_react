@@ -93,6 +93,8 @@ export async function createDefaultCategories(householdId: string): Promise<Cate
           isShareable: true,
           isDefault: true,
           isActive: true,
+          createdAt: now,
+          updatedAt: now,
         }),
       ]);
     }
@@ -110,6 +112,8 @@ export async function createDefaultCategories(householdId: string): Promise<Cate
           isShareable: true,
           isDefault: true,
           isActive: true,
+          createdAt: now,
+          updatedAt: now,
         }),
       ]);
     }
@@ -127,6 +131,8 @@ export async function createDefaultCategories(householdId: string): Promise<Cate
           isShareable: true,
           isDefault: true,
           isActive: true,
+          createdAt: now,
+          updatedAt: now,
         }),
       ]);
     }
@@ -144,6 +150,8 @@ export async function createDefaultCategories(householdId: string): Promise<Cate
           isShareable: true,
           isDefault: true,
           isActive: true,
+          createdAt: now,
+          updatedAt: now,
         }),
       ]);
     }
@@ -161,6 +169,8 @@ export async function createDefaultCategories(householdId: string): Promise<Cate
           isShareable: true,
           isDefault: true,
           isActive: true,
+          createdAt: now,
+          updatedAt: now,
         }),
       ]);
     }
@@ -232,7 +242,11 @@ export async function createCategory(request: CreateCategoryRequest): Promise<Ca
         isShareable: false, // Phase 1: all personal
         isDefault: false, // User-created
         createdByUserId: request.createdByUserId,
+        icon: request.icon,
+        color: request.color,
         isActive: true,
+        createdAt: now,
+        updatedAt: now,
       }),
     ]);
 
@@ -382,6 +396,7 @@ export async function toggleCategorySharing(
     await db.transact([
       db.tx.categories[categoryId].update({
         isShareable,
+        updatedAt: Date.now(),
       }),
     ]);
 
@@ -403,6 +418,7 @@ export async function deleteCategory(categoryId: string): Promise<CategoryRespon
     await db.transact([
       db.tx.categories[categoryId].update({
         isActive: false,
+        updatedAt: Date.now(),
       }),
     ]);
 

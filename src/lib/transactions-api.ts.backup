@@ -189,7 +189,11 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
         date: request.date,
         note: request.note,
         isShared: request.isShared || false,
-        paidByUserId: request.isShared ? request.paidByUserId : request.userId
+        paidByUserId: request.isShared ? request.paidByUserId : request.userId,
+        isRecurring: request.isRecurring || false,
+        recurringDay: request.recurringDay,
+        createdAt: now,
+        updatedAt: now
       } as Transaction
     };
   } catch (error) {
@@ -401,7 +405,8 @@ export async function deleteTransaction(transactionId: string): Promise<Transact
       db.tx.transactions[transactionId].delete(),
       // Update account balance
       db.tx.accounts[transaction.accountId].update({
-        balance: restoredBalance
+        balance: restoredBalance,
+        updatedAt: Date.now(),
       }),
     ];
 
@@ -636,7 +641,10 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
       date: request.date,
       note: request.note,
       payee: request.payee && request.payee.trim() ? request.payee.trim() : undefined,
-      isExcludedFromBudget: request.isExcludedFromBudget || false
+      isRecurring: request.isRecurring || false,
+      recurringDay: request.recurringDay,
+      isExcludedFromBudget: request.isExcludedFromBudget || false,
+      updatedAt: now,
     });
 
     // If account changed, update both old and new accounts separately
@@ -646,10 +654,12 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
         // Update old account (with reversal only)
         db.tx.accounts[originalTx.accountId].update({
           balance: oldAccountNewBalance,
+          updatedAt: now,
         }),
         // Update new account (with new transaction applied)
         db.tx.accounts[request.accountId].update({
           balance: newAccountNewBalance,
+          updatedAt: now,
         }),
       ]);
     } else {
@@ -658,6 +668,7 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
         txUpdate,
         db.tx.accounts[originalTx.accountId].update({
           balance: newAccountNewBalance,
+          updatedAt: now,
         }),
       ]);
     }
@@ -778,6 +789,10 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
         note: request.note,
         isShared: originalTx.isShared,
         paidByUserId: originalTx.paidByUserId,
+        isRecurring: request.isRecurring || false,
+        recurringDay: request.recurringDay,
+        createdAt: originalTx.createdAt,
+        updatedAt: now,
       } as Transaction,
     };
   } catch (error) {

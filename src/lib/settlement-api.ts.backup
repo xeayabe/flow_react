@@ -102,9 +102,11 @@ export async function createSettlement(
   await db.transact([
     db.tx.accounts[payerAccountId].update({
       balance: newPayerBalance,
+      updatedAt: now,
     }),
     db.tx.accounts[receiverAccountId].update({
       balance: newReceiverBalance,
+      updatedAt: now,
     }),
   ]);
 
@@ -120,9 +122,12 @@ export async function createSettlement(
       payerUserId,
       receiverUserId,
       amount,
+      payerAccountId,
+      receiverAccountId,
       categoryId: categoryId || undefined,
       note: `Debt settlement: ${amount.toFixed(2)} CHF`,
       settledAt: now,
+      createdAt: now,
     }),
   ]);
 
@@ -152,6 +157,9 @@ export async function createSettlement(
         note: `Debt settlement - paid to household`,
         isShared: false, // Not shared - this is the member's individual payment
         paidByUserId: payerUserId, // Member paid this
+        isRecurring: false,
+        createdAt: now,
+        updatedAt: now,
       }),
     ]);
     console.log('📝 Payer transaction created:', payerTransactionId);
@@ -288,6 +296,7 @@ export async function createSettlement(
             splitsToSettle.map(split =>
               db.tx.shared_expense_splits[split.id].update({
                 isPaid: true,
+                updatedAt: now,
               })
             )
           );
@@ -309,6 +318,7 @@ export async function createSettlement(
               console.log(`  📌 Updating ${tx.id.substring(0, 8)}: ${tx.amount} -> ${newAmount}`);
               return db.tx.transactions[tx.id].update({
                 amount: newAmount,
+                updatedAt: now,
               });
             })
           );

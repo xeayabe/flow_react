@@ -187,7 +187,9 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
         householdId,
         totalIncome,
         totalAllocated: totalAllocated,
-        totalSpent: existingSummaryRecord?.totalSpent ?? 0 // Preserve spent amount if updating
+        totalSpent: existingSummaryRecord?.totalSpent ?? 0, // Preserve spent amount if updating
+        createdAt: now,
+        updatedAt: now,
       }),
     ]);
 
@@ -207,7 +209,9 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
           spentAmount: 0,
           percentage,
           categoryGroup: group,
-          isActive: true
+          isActive: true,
+          createdAt: now,
+          updatedAt: now,
         });
       });
 
@@ -426,6 +430,7 @@ async function updateBudgetSpentAmountAsync(
     const ops: any[] = [
       db.tx.budgets[budget.id].update({
         spentAmount: Math.max(0, spentAmount),
+        updatedAt: now,
       }),
     ];
 
@@ -433,6 +438,7 @@ async function updateBudgetSpentAmountAsync(
       ops.push(
         db.tx.budgetSummary[summary.id].update({
           totalSpent,
+          updatedAt: now,
         })
       );
     }
@@ -553,6 +559,7 @@ export async function recalculateBudgetSpentAmounts(
 
       return db.tx.budgets[budget.id].update({
         spentAmount: newSpentAmount,
+        updatedAt: now,
       });
     });
 
@@ -589,6 +596,7 @@ export async function recalculateBudgetSpentAmounts(
       await db.transact([
         db.tx.budgetSummary[summary.id].update({
           totalSpent,
+          updatedAt: now,
         }),
       ]);
     } else {
@@ -652,6 +660,7 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
     const archiveTransactions = oldBudgets.map((budget: any) =>
       db.tx.budgets[budget.id].update({
         isActive: false,
+        updatedAt: Date.now(),
       })
     );
 
@@ -665,12 +674,17 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
         spentAmount: 0, // Reset to 0!
         percentage: oldBudget.percentage,
         categoryGroup: oldBudget.categoryGroup,
-        isActive: true
+        isActive: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       })
     );
 
     // Step 6: Update household with new period
     const householdTransaction = db.tx.households[householdId].update({
+      budgetPeriodStart: newPeriodStart,
+      budgetPeriodEnd: newPeriodEnd,
+      updatedAt: Date.now(),
     });
 
     // Step 7: Update budget summary
@@ -692,6 +706,7 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
       totalIncome: oldSummary?.totalIncome || 0,
       totalAllocated: oldSummary?.totalAllocated || 0,
       totalSpent: 0, // Reset!
+      updatedAt: Date.now(),
     });
 
     // Execute all transactions atomically
@@ -746,12 +761,10 @@ export async function checkAndResetBudgetIfNeeded(householdId: string, userId?: 
 
     // Check EACH member's budget period
     for (const member of allMembers) {
-      if (member.paydayDay) {
-        // Calculate current period dynamically
-        const currentPeriod = getCurrentBudgetPeriod(member.paydayDay);
+      if (member.budgetPeriodEnd && member.paydayDay) {
         // Compare strings directly (YYYY-MM-DD format)
-        if (todayStr > currentPeriod.periodEndISO) {
-          console.log(`Member ${member.userId} budget period has ended (${currentPeriod.periodEndISO}), today is ${todayStr}, triggering reset...`);
+        if (todayStr > member.budgetPeriodEnd) {
+          console.log(`Member ${member.userId} budget period has ended (${member.budgetPeriodEnd}), today is ${todayStr}, triggering reset...`);
           const resetSuccess = await resetMemberBudgetPeriod(member.userId, householdId);
           if (resetSuccess) {
             anyResetHappened = true;
@@ -761,7 +774,7 @@ export async function checkAndResetBudgetIfNeeded(householdId: string, userId?: 
     }
 
     // Fall back to household-level check for backward compatibility (if no member has personal periods set)
-    if (allMembers.length === 0 || !allMembers.some(m => m.paydayDay)) {
+    if (allMembers.length === 0 || !allMembers.some(m => m.budgetPeriodEnd)) {
       const householdResult = await db.queryOnce({
         households: { $: { where: { id: householdId } } },
       });
@@ -774,11 +787,9 @@ export async function checkAndResetBudgetIfNeeded(householdId: string, userId?: 
       const household = householdResult.data.households?.[0];
       if (!household) return false;
 
-      if (household.paydayDay) {
-        // Calculate current period dynamically
-        const currentPeriod = getCurrentBudgetPeriod(household.paydayDay);
+      if (household.budgetPeriodEnd) {
         // Compare strings directly (YYYY-MM-DD format)
-        if (todayStr > currentPeriod.periodEndISO) {
+        if (todayStr > household.budgetPeriodEnd) {
           console.log('Household budget period has ended, triggering reset...');
           return resetBudgetPeriod(householdId);
         }
@@ -831,10 +842,13 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
     console.log('Member found:', {
       id: member.id,
       paydayDay: member.paydayDay,
+      currentBudgetPeriodStart: member.budgetPeriodStart,
+      currentBudgetPeriodEnd: member.budgetPeriodEnd,
     });
 
-    // Calculate the current period dynamically (no need to save old period)
-    const currentPeriod = getCurrentBudgetPeriod(member.paydayDay);
+    // IMPORTANT: Save the OLD period end before we update the member record
+    const oldPeriodEnd = member.budgetPeriodEnd;
+    console.log('Saved old period end:', oldPeriodEnd);
 
     // Calculate new period based on member's payday
     const newPeriod = calculateBudgetPeriod(member.paydayDay);
@@ -843,6 +857,9 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
     // Update member's budget period
     await db.transact([
       db.tx.householdMembers[member.id].update({
+        budgetPeriodStart: newPeriod.start,
+        budgetPeriodEnd: newPeriod.end,
+        lastBudgetReset: Date.now(),
       }),
     ]);
 
@@ -878,6 +895,7 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
     const archiveOps = oldBudgets.map((budget: any) =>
       db.tx.budgets[budget.id].update({
         isActive: false,
+        updatedAt: Date.now(),
       })
     );
 
@@ -892,6 +910,8 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
         percentage: oldBudget.percentage,
         categoryGroup: oldBudget.categoryGroup,
         isActive: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       })
     );
 
@@ -937,6 +957,8 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
       totalIncome: oldSummary?.totalIncome || 0,
       totalAllocated: oldSummary?.totalAllocated || 0,
       totalSpent: 0, // Reset spent to 0!
+      createdAt: oldSummary?.createdAt || Date.now(),
+      updatedAt: Date.now(),
     });
 
     const allTransactions = [...archiveOps, ...newBudgetOps, summaryTransaction];

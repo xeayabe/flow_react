@@ -13,29 +13,15 @@ const schema = i.schema({
     households: i.entity({
       name: i.string(),
       currency: i.string(),
-      createdByUserId: i.string(),
-      paydayDay: i.number().optional(), // 1-31 or -1 for last day
-      payFrequency: i.string().optional(), // 'monthly'
-      budgetPeriodStart: i.string().optional(), // ISO format YYYY-MM-DD
-      budgetPeriodEnd: i.string().optional(), // ISO format YYYY-MM-DD
+      paydayDay: i.number().optional(), // 1-31 or -1 for last day (fallback for legacy)
       splitMethod: i.string().optional(), // 'automatic' or 'manual'
       manualSplitRatios: i.json().optional(), // JSON: { userId1: 60, userId2: 40 }
-      createdAt: i.number(),
-      updatedAt: i.number().optional(),
     }),
     householdMembers: i.entity({
       householdId: i.string(),
       userId: i.string(),
-      role: i.string(),
-      status: i.string(),
-      joinedAt: i.number(),
-      // Personal budget fields (moved from households for per-member budget cycles)
-      paydayDay: i.number().optional(), // 1-31 or -1 for last day
-      payFrequency: i.string().optional(), // 'monthly'
-      budgetPeriodStart: i.string().optional(), // ISO format YYYY-MM-DD
-      budgetPeriodEnd: i.string().optional(), // ISO format YYYY-MM-DD
-      lastBudgetReset: i.number().optional(), // timestamp
-      monthlyIncome: i.number().optional(), // For shared expense splits
+      status: i.string(), // 'active' | 'inactive'
+      paydayDay: i.number().optional(), // 1-31 or -1 for last day (source of truth for budget period)
     }),
     accounts: i.entity({
       userId: i.string(),
@@ -44,14 +30,11 @@ const schema = i.schema({
       institution: i.string(),
       accountType: i.string(),
       balance: i.number(),
-      startingBalance: i.number(),
       currency: i.string(),
       last4Digits: i.string().optional(),
       isDefault: i.boolean(),
       isActive: i.boolean(),
       isExcludedFromBudget: i.boolean().optional(), // Exclude wallet from budget calculations
-      createdAt: i.number(),
-      updatedAt: i.number(),
     }),
     categories: i.entity({
       householdId: i.string(),
@@ -61,12 +44,7 @@ const schema = i.schema({
       isShareable: i.boolean(),
       isDefault: i.boolean(),
       createdByUserId: i.string().optional(),
-      // DEPRECATED: icon and color are no longer used - emoji is stored directly in name field
-      icon: i.string().optional(), // @deprecated
-      color: i.string().optional(), // @deprecated
       isActive: i.boolean(),
-      createdAt: i.number(),
-      updatedAt: i.number(),
     }),
     transactions: i.entity({
       userId: i.string(),
@@ -80,11 +58,7 @@ const schema = i.schema({
       payee: i.string().optional(), // Merchant/vendor name (e.g., "Migros", "Coop", "Netflix")
       isShared: i.boolean(),
       paidByUserId: i.string().optional(),
-      isRecurring: i.boolean(),
-      recurringDay: i.number().optional(),
       isExcludedFromBudget: i.boolean().optional(), // Exclude transaction from budget calculations
-      createdAt: i.number(),
-      updatedAt: i.number(),
     }),
     budgets: i.entity({
       userId: i.string(),
@@ -95,8 +69,6 @@ const schema = i.schema({
       percentage: i.number(), // (allocatedAmount / totalIncome) * 100
       categoryGroup: i.string(), // 'needs' | 'wants' | 'savings' | 'other'
       isActive: i.boolean().optional(), // default true
-      createdAt: i.number(),
-      updatedAt: i.number(),
     }),
     budgetSummary: i.entity({
       userId: i.string(),
@@ -104,9 +76,6 @@ const schema = i.schema({
       totalIncome: i.number(), // Monthly income set by user
       totalAllocated: i.number(), // Sum of all category budgets
       totalSpent: i.number().optional(), // Sum of spent_amount, default 0
-      isActive: i.boolean().optional(), // default true
-      createdAt: i.number(),
-      updatedAt: i.number(),
     }),
     categoryGroups: i.entity({
       householdId: i.string(),
@@ -140,20 +109,15 @@ const schema = i.schema({
       splitAmount: i.number(), // How much they owe (e.g., 40.00 CHF)
       splitPercentage: i.number(), // Their percentage (e.g., 40.0)
       isPaid: i.boolean(), // true if settled, false if still owed
-      createdAt: i.number(),
-      updatedAt: i.number().optional(),
     }),
     settlements: i.entity({
       householdId: i.string(),
       payerUserId: i.string(), // Who paid (e.g., Cecilia)
       receiverUserId: i.string(), // Who received (e.g., Alexander)
       amount: i.number(), // Settlement amount in CHF
-      payerAccountId: i.string(), // Account debited
-      receiverAccountId: i.string(), // Account credited
       categoryId: i.string().optional(), // Category for budget tracking
       note: i.string().optional(), // Optional note
       settledAt: i.number(), // Timestamp when settled
-      createdAt: i.number(),
     }),
     payee_category_mappings: i.entity({
       userId: i.string(), // Personal to each user (like categories)

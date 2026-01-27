@@ -71,7 +71,7 @@ export default function PayeePickerModal({
             mappedPayees.set(normalized, {
               payee: tx.payee, // Use original casing
               usageCount: 1,
-              lastUsedAt: Date.now(), // Use current time since createdAt doesn't exist
+              lastUsedAt: tx.createdAt
             });
           }
         }

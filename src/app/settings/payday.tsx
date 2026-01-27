@@ -67,8 +67,7 @@ export default function PaydaySettingsScreen() {
   // Calculate budget period based on selected payday - use new dynamic utility
   const budgetPeriod = selectedPayday ? getCurrentBudgetPeriod(selectedPayday) : null;
 
-  // Save mutation - SIMPLIFIED
-  // Just updates paydayDay - period is calculated dynamically, no need for complex reset logic
+  // Save mutation - Updates paydayDay and recalculates budget spent amounts
   const saveMutation = useMutation({
     mutationFn: async (paydayDay: number) => {
       if (!memberQuery.data?.member?.id) throw new Error('No member ID');
@@ -78,17 +77,32 @@ export default function PaydaySettingsScreen() {
       console.log('💾 Saving payday change:', {
         paydayDay,
         memberId: memberQuery.data.member.id,
+        userId: memberQuery.data.userRecord.id,
       });
 
-      // SIMPLE: Just update the payday setting
-      // The period is ALWAYS calculated dynamically from paydayDay
-      // No need to store periodStart/periodEnd or reset budgets
+      // Step 1: Update the payday setting
       await db.transact([
         db.tx.householdMembers[memberQuery.data.member.id].update({
           paydayDay,
-          payFrequency: 'monthly',
         }),
       ]);
+
+      // Step 2: Recalculate budget spent amounts with the NEW payday
+      // This ensures all budget spentAmount values reflect the correct period
+      const { getCurrentBudgetPeriod } = await import('../../lib/budget-period-utils');
+      const { recalculateBudgetSpentAmounts } = await import('../../lib/budget-api');
+
+      const newPeriod = getCurrentBudgetPeriod(paydayDay);
+      console.log('📊 Recalculating budgets for new period:', {
+        periodStart: newPeriod.periodStartISO,
+        periodEnd: newPeriod.periodEndISO,
+      });
+
+      await recalculateBudgetSpentAmounts(
+        memberQuery.data.userRecord.id,
+        newPeriod.periodStartISO,
+        newPeriod.periodEndISO
+      );
 
       return { paydayDay };
     },
@@ -176,11 +190,6 @@ export default function PaydaySettingsScreen() {
                   <Text className="text-teal-700">
                     Day {currentMember.paydayDay === -1 ? 'Last day' : currentMember.paydayDay} of each month
                   </Text>
-                  {currentMember.budgetPeriodStart && currentMember.budgetPeriodEnd && (
-                    <Text className="text-teal-600 text-sm mt-1">
-                      Period: {formatDateSwiss(currentMember.budgetPeriodStart)} - {formatDateSwiss(currentMember.budgetPeriodEnd)}
-                    </Text>
-                  )}
                 </View>
               )}
 

@@ -81,6 +81,7 @@ export async function savePayeeMapping(
         categoryId,
         lastUsedAt: Date.now(),
         usageCount: (existingMapping.usageCount || 0) + 1,
+        updatedAt: Date.now()
       })
     ]);
   } else {
@@ -96,6 +97,7 @@ export async function savePayeeMapping(
         lastUsedAt: Date.now(),
         usageCount: 1,
         createdAt: Date.now(),
+        updatedAt: Date.now()
       })
     ]);
   }

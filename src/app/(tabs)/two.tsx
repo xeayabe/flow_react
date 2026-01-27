@@ -46,9 +46,7 @@ export default function TabTwoScreen() {
       });
 
       console.log('Household members found:', memberData.householdMembers);
-      const role = memberData.householdMembers[0]?.role || null;
-      console.log('User role:', role);
-      return role;
+      return null; // Role field no longer exists
     },
     enabled: !!userProfile?.id
   });
@@ -106,17 +104,6 @@ export default function TabTwoScreen() {
       description: 'Manage your accounts and wallets',
       onPress: () => router.push('/accounts'),
     },
-    // Only show invite button for admins (Phase 2)
-    ...(userRole === 'admin'
-      ? [
-          {
-            icon: <UserPlus size={24} color="#006A6A" />,
-            label: 'Invite Partner',
-            description: 'Share a code to invite your partner',
-            onPress: () => router.push('/settings/invite'),
-          },
-        ]
-      : []),
     {
       icon: <Calendar size={24} color="#006A6A" />,
       label: 'Payday & Budget Period',
@@ -209,15 +196,6 @@ export default function TabTwoScreen() {
               </Pressable>
             ))}
           </View>
-
-          {/* Show message for members (Phase 2) */}
-          {userRole === 'member' && (
-            <View className="p-4 bg-gray-50 rounded-xl mx-6 my-4">
-              <Text className="text-gray-600 text-sm text-center">
-                💡 Only the household admin can invite new members
-              </Text>
-            </View>
-          )}
 
           {/* Sign Out Button */}
           <View className="mt-12 px-6">
