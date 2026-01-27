@@ -288,6 +288,10 @@ export async function getBudgetSummary(
 
 /**
  * Get all budget records for a period with category details
+ *
+ * IMPORTANT: Now retrieves ALL active budgets for the user, not filtered by periodStart.
+ * This is because period is calculated dynamically - the stored periodStart in budgets
+ * may be outdated if user changed their payday.
  */
 export async function getBudgetDetails(userId: string, periodStart: string): Promise<BudgetWithDetails[]> {
   try {
@@ -296,7 +300,7 @@ export async function getBudgetDetails(userId: string, periodStart: string): Pro
         $: {
           where: {
             userId,
-            periodStart,
+            isActive: true,
           },
         },
       },
@@ -305,6 +309,13 @@ export async function getBudgetDetails(userId: string, periodStart: string): Pro
 
     const budgets = result.data.budgets || [];
     const categories = result.data.categories || [];
+
+    console.log('📋 getBudgetDetails - Found budgets:', {
+      userId,
+      requestedPeriodStart: periodStart,
+      budgetsFound: budgets.length,
+      budgetPeriods: budgets.map((b: any) => ({ categoryId: b.categoryId, periodStart: b.periodStart })),
+    });
 
     return budgets.map((budget: any) => {
       const category = categories.find((c: any) => c.id === budget.categoryId);
@@ -357,12 +368,14 @@ async function updateBudgetSpentAmountAsync(
 ): Promise<void> {
   try {
     // Single query to get budget, summary, all budgets, and accounts for exclusion check
+    // IMPORTANT: Query budgets and summary by userId only, not by periodStart
+    // because stored periodStart may be outdated if user changed payday
     const result = await db.queryOnce({
       budgets: {
         $: {
           where: {
             userId,
-            periodStart,
+            isActive: true,
           },
         },
       },
@@ -370,7 +383,6 @@ async function updateBudgetSpentAmountAsync(
         $: {
           where: {
             userId,
-            periodStart,
           },
         },
       },
@@ -518,12 +530,14 @@ export async function recalculateBudgetSpentAmounts(
     });
 
     // Update all budgets with recalculated spent amounts
+    // IMPORTANT: Query ALL active budgets, not filtered by periodStart
+    // because the stored periodStart may be outdated if user changed payday
     const budgetsResult = await db.queryOnce({
       budgets: {
         $: {
           where: {
             userId,
-            periodStart,
+            isActive: true,
           },
         },
       },
@@ -556,12 +570,13 @@ export async function recalculateBudgetSpentAmounts(
     }
 
     // Recalculate budget summary total spent and group spent amounts
+    // IMPORTANT: Query by userId only, not by periodStart
+    // because budgetSummary may have outdated periodStart if user changed payday
     const summaryResult = await db.queryOnce({
       budgetSummary: {
         $: {
           where: {
             userId,
-            periodStart,
           },
         },
       },
