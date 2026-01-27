@@ -184,7 +184,6 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
     await db.transact([
       db.tx.budgetSummary[summaryId].update({
         userId,
-        householdId,
         totalIncome,
         totalAllocated: totalAllocated,
         totalSpent: existingSummaryRecord?.totalSpent ?? 0 // Preserve spent amount if updating
@@ -201,7 +200,6 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
 
         return db.tx.budgets[budgetId].update({
           userId,
-          householdId,
           categoryId,
           allocatedAmount,
           spentAmount: 0,
@@ -639,7 +637,6 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
       budgets: {
         $: {
           where: {
-            householdId,
             isActive: true,
           },
         },
@@ -659,7 +656,6 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
     const newBudgetTransactions = oldBudgets.map((oldBudget: any) =>
       db.tx.budgets[generateId()].update({
         userId: oldBudget.userId,
-        householdId,
         categoryId: oldBudget.categoryId,
         allocatedAmount: oldBudget.allocatedAmount,
         spentAmount: 0, // Reset to 0!
@@ -678,7 +674,6 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
       budgetSummary: {
         $: {
           where: {
-            householdId,
           },
         },
       },
@@ -688,7 +683,6 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
     const summaryId = oldSummary?.id || generateId();
 
     const summaryTransaction = db.tx.budgetSummary[summaryId].update({
-      householdId,
       totalIncome: oldSummary?.totalIncome || 0,
       totalAllocated: oldSummary?.totalAllocated || 0,
       totalSpent: 0, // Reset!
@@ -885,7 +879,6 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
     const newBudgetOps = oldBudgets.map((oldBudget: any) =>
       db.tx.budgets[generateId()].update({
         userId: oldBudget.userId,
-        householdId,
         categoryId: oldBudget.categoryId,
         allocatedAmount: oldBudget.allocatedAmount,
         spentAmount: 0,
@@ -933,7 +926,6 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
 
     const summaryTransaction = db.tx.budgetSummary[summaryId].update({
       userId,
-      householdId,
       totalIncome: oldSummary?.totalIncome || 0,
       totalAllocated: oldSummary?.totalAllocated || 0,
       totalSpent: 0, // Reset spent to 0!

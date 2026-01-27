@@ -25,7 +25,6 @@ const schema = i.schema({
     }),
     accounts: i.entity({
       userId: i.string(),
-      householdId: i.string(),
       name: i.string(),
       institution: i.string(),
       accountType: i.string(),
@@ -62,7 +61,6 @@ const schema = i.schema({
     }),
     budgets: i.entity({
       userId: i.string(),
-      householdId: i.string(),
       categoryId: i.string(),
       allocatedAmount: i.number(), // Budget amount in CHF
       spentAmount: i.number().optional(), // Calculated from transactions, default 0
@@ -72,7 +70,6 @@ const schema = i.schema({
     }),
     budgetSummary: i.entity({
       userId: i.string(),
-      householdId: i.string(),
       totalIncome: i.number(), // Monthly income set by user
       totalAllocated: i.number(), // Sum of all category budgets
       totalSpent: i.number().optional(), // Sum of spent_amount, default 0

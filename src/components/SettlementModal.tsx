@@ -58,7 +58,7 @@ export default function SettlementModal({
 
       const { data: accountData } = await db.queryOnce({
         accounts: {
-          $: { where: { householdId: member.householdId, userId: userProfile.id } },
+          $: { where: { userId: userProfile.id } },
         },
       });
 
