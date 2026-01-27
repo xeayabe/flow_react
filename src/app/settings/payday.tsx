@@ -175,7 +175,7 @@ export default function PaydaySettingsScreen() {
           );
         }
 
-        // Update member record
+        // Update member record with new period
         transactions.push(
           db.tx.householdMembers[memberQuery.data.member.id].update({
             paydayDay,
@@ -189,49 +189,18 @@ export default function PaydaySettingsScreen() {
         await db.transact(transactions);
       } else {
         // NO RESET: Period starts in the future
-        console.log('No reset: Period starts in the future, recalculating spending');
+        // Just update the payday setting - DON'T change period dates yet
+        // The automatic reset will happen when the current period ends
+        console.log('No reset: Period starts in the future, only updating payday setting');
 
-        const transactions: any[] = [];
-
-        // Update member record
-        transactions.push(
+        await db.transact([
           db.tx.householdMembers[memberQuery.data.member.id].update({
-            paydayDay,
+            paydayDay, // Update payday for future resets
             payFrequency: 'monthly',
-            budgetPeriodStart: period.start,
-            budgetPeriodEnd: period.end,
-            lastBudgetReset: now,
-          })
-        );
-
-        // Update all active budget records for this user
-        const budgetsResult = await db.queryOnce({
-          budgets: {
-            $: {
-              where: {
-                userId,
-                isActive: true,
-              },
-            },
-          },
-        });
-
-        const activeBudgets = budgetsResult.data.budgets || [];
-        activeBudgets.forEach((budget: any) => {
-          transactions.push(
-            db.tx.budgets[budget.id].update({
-              periodStart: period.start,
-              periodEnd: period.end,
-              updatedAt: now,
-            })
-          );
-        });
-
-        await db.transact(transactions);
-
-        // After updating period dates, recalculate spending for new period
-        const { recalculateBudgetSpentAmounts } = await import('@/lib/budget-api');
-        await recalculateBudgetSpentAmounts(userId, period.start, period.end);
+            // DON'T update budgetPeriodStart/budgetPeriodEnd yet - keep current period
+            // The period will update automatically when checkAndResetBudgetIfNeeded runs
+          }),
+        ]);
       }
     },
     onSuccess: () => {
