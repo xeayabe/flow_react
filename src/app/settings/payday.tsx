@@ -70,19 +70,74 @@ export default function PaydaySettingsScreen() {
   const saveMutation = useMutation({
     mutationFn: async (paydayDay: number) => {
       if (!memberQuery.data?.member?.id) throw new Error('No member ID');
+      if (!memberQuery.data?.userRecord?.id) throw new Error('No user ID');
+      if (!memberQuery.data?.member?.householdId) throw new Error('No household ID');
 
       const period = calculateBudgetPeriod(paydayDay);
       const now = Date.now();
+      const userId = memberQuery.data.userRecord.id;
+      const householdId = memberQuery.data.member.householdId;
 
-      await db.transact([
+      // Find existing budget summary for this user
+      const summaryResult = await db.queryOnce({
+        budgetSummary: {
+          $: {
+            where: {
+              userId,
+            },
+          },
+        },
+      });
+
+      const existingSummary = summaryResult.data.budgetSummary?.[0];
+      const transactions: any[] = [];
+
+      // Update member record
+      transactions.push(
         db.tx.householdMembers[memberQuery.data.member.id].update({
           paydayDay,
           payFrequency: 'monthly',
           budgetPeriodStart: period.start,
           budgetPeriodEnd: period.end,
           lastBudgetReset: now,
-        }),
-      ]);
+        })
+      );
+
+      // Update budget summary if it exists
+      if (existingSummary) {
+        transactions.push(
+          db.tx.budgetSummary[existingSummary.id].update({
+            periodStart: period.start,
+            periodEnd: period.end,
+            updatedAt: now,
+          })
+        );
+      }
+
+      // Update all active budget records for this user
+      const budgetsResult = await db.queryOnce({
+        budgets: {
+          $: {
+            where: {
+              userId,
+              isActive: true,
+            },
+          },
+        },
+      });
+
+      const activeBudgets = budgetsResult.data.budgets || [];
+      activeBudgets.forEach((budget: any) => {
+        transactions.push(
+          db.tx.budgets[budget.id].update({
+            periodStart: period.start,
+            periodEnd: period.end,
+            updatedAt: now,
+          })
+        );
+      });
+
+      await db.transact(transactions);
     },
     onSuccess: () => {
       setSuccessMessage('Payday saved!');
