@@ -53,6 +53,11 @@ export async function getMemberBudgetPeriod(userId: string, householdId: string)
 
   // If member has personal budget period set, check if there's active budget data for it
   if (member?.budgetPeriodStart && member?.budgetPeriodEnd && member?.paydayDay) {
+    console.log('Member has budget period:', {
+      stored: { start: member.budgetPeriodStart, end: member.budgetPeriodEnd },
+      paydayDay: member.paydayDay,
+    });
+
     // Check if there are active budgets for this period
     const budgetsResult = await db.queryOnce({
       budgets: {
@@ -67,9 +72,11 @@ export async function getMemberBudgetPeriod(userId: string, householdId: string)
     });
 
     const hasActiveBudgets = (budgetsResult.data.budgets?.length ?? 0) > 0;
+    console.log(`Active budgets found for stored period: ${hasActiveBudgets} (count: ${budgetsResult.data.budgets?.length ?? 0})`);
 
     // If there are active budgets for this period, use it
     if (hasActiveBudgets) {
+      console.log('Using stored period with active budgets');
       return {
         start: member.budgetPeriodStart,
         end: member.budgetPeriodEnd,
@@ -80,6 +87,7 @@ export async function getMemberBudgetPeriod(userId: string, householdId: string)
       // No active budgets for stored period - recalculate based on payday
       // This handles the case where period was updated but no budget exists yet
       const calculatedPeriod = calculateBudgetPeriod(member.paydayDay);
+      console.log('No active budgets for stored period, recalculated:', calculatedPeriod);
       return {
         start: calculatedPeriod.start,
         end: calculatedPeriod.end,
