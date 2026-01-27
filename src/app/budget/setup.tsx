@@ -19,7 +19,8 @@ import { db } from '@/lib/db';
 import { saveBudget, getBudgetDetails, getBudgetSummary, getMemberBudgetPeriod } from '@/lib/budget-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { getCategories } from '@/lib/categories-api';
-import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
+import { formatDateSwiss } from '@/lib/payday-utils';
+import { getCurrentBudgetPeriod } from '@/lib/budget-period-utils';
 import { calculatePercentage, calculateAmountFromPercentage, autoBalanceRemaining, apply503020Split } from '@/lib/budget-utils';
 import { cn } from '@/lib/cn';
 
@@ -103,8 +104,8 @@ export default function BudgetSetupScreen() {
   });
 
   const budgetPeriod = budgetPeriodQuery.data ?? {
-    start: calculateBudgetPeriod(25).start,
-    end: calculateBudgetPeriod(25).end,
+    start: getCurrentBudgetPeriod(25).periodStartISO,
+    end: getCurrentBudgetPeriod(25).periodEndISO,
     paydayDay: 25,
     source: 'household' as const,
   };

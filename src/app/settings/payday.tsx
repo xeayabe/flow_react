@@ -5,17 +5,9 @@ import { Stack, router } from 'expo-router';
 import { ChevronLeft, X } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/db';
-import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
+import { formatDateSwiss } from '@/lib/payday-utils';
+import { getCurrentBudgetPeriod } from '@/lib/budget-period-utils';
 import { cn } from '@/lib/cn';
-
-// Helper function to generate unique IDs
-function generateId(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
 
 export default function PaydaySettingsScreen() {
   const queryClient = useQueryClient();
@@ -72,156 +64,43 @@ export default function PaydaySettingsScreen() {
     }
   }, [memberQuery.data?.member?.paydayDay]);
 
-  // Calculate budget period based on selected payday
-  const budgetPeriod = selectedPayday ? calculateBudgetPeriod(selectedPayday) : null;
+  // Calculate budget period based on selected payday - use new dynamic utility
+  const budgetPeriod = selectedPayday ? getCurrentBudgetPeriod(selectedPayday) : null;
 
-  // Save mutation
+  // Save mutation - SIMPLIFIED
+  // Just updates paydayDay - period is calculated dynamically, no need for complex reset logic
   const saveMutation = useMutation({
     mutationFn: async (paydayDay: number) => {
       if (!memberQuery.data?.member?.id) throw new Error('No member ID');
       if (!memberQuery.data?.userRecord?.id) throw new Error('No user ID');
       if (!memberQuery.data?.member?.householdId) throw new Error('No household ID');
 
-      const period = calculateBudgetPeriod(paydayDay);
-      const now = Date.now();
-      const userId = memberQuery.data.userRecord.id;
-      const householdId = memberQuery.data.member.householdId;
-
-      // Determine if we need to reset (if period start is today or in the past)
-      // Use local date string to avoid timezone issues
-      const todayDate = new Date();
-      const todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
-
-      // Compare strings directly (YYYY-MM-DD format)
-      const shouldReset = period.start <= todayStr;
-
-      console.log('Payday change:', {
+      console.log('💾 Saving payday change:', {
         paydayDay,
-        newPeriod: period,
-        today: todayStr,
-        periodStart: period.start,
-        shouldReset,
+        memberId: memberQuery.data.member.id,
       });
 
-      if (shouldReset) {
-        // RESET SCENARIO: Period starts today or in the past
-        console.log('Reset triggered: Period starts today or in the past');
+      // SIMPLE: Just update the payday setting
+      // The period is ALWAYS calculated dynamically from paydayDay
+      // No need to store periodStart/periodEnd or reset budgets
+      await db.transact([
+        db.tx.householdMembers[memberQuery.data.member.id].update({
+          paydayDay,
+          payFrequency: 'monthly',
+        }),
+      ]);
 
-        // Get all active budgets
-        const budgetsResult = await db.queryOnce({
-          budgets: {
-            $: {
-              where: {
-                userId,
-                isActive: true,
-              },
-            },
-          },
-        });
-
-        const oldBudgets = budgetsResult.data.budgets || [];
-        const transactions: any[] = [];
-
-        // Archive old budgets
-        oldBudgets.forEach((budget: any) => {
-          transactions.push(
-            db.tx.budgets[budget.id].update({
-              isActive: false,
-              updatedAt: now,
-            })
-          );
-        });
-
-        // Create new budgets with RESET spending (0)
-        oldBudgets.forEach((oldBudget: any) => {
-          const newId = generateId();
-          transactions.push(
-            db.tx.budgets[newId].update({
-              userId: oldBudget.userId,
-              householdId,
-              categoryId: oldBudget.categoryId,
-              periodStart: period.start,
-              periodEnd: period.end,
-              allocatedAmount: oldBudget.allocatedAmount,
-              spentAmount: 0, // RESET to 0
-              percentage: oldBudget.percentage,
-              categoryGroup: oldBudget.categoryGroup,
-              isActive: true,
-              createdAt: now,
-              updatedAt: now,
-            })
-          );
-        });
-
-        // Get budget summary
-        const summaryResult = await db.queryOnce({
-          budgetSummary: {
-            $: {
-              where: {
-                userId,
-              },
-            },
-          },
-        });
-
-        const existingSummary = summaryResult.data.budgetSummary?.[0];
-
-        // Reset budget summary (only totalSpent, not period dates)
-        if (existingSummary) {
-          transactions.push(
-            db.tx.budgetSummary[existingSummary.id].update({
-              totalSpent: 0, // RESET to 0
-              updatedAt: now,
-            })
-          );
-        }
-
-        // Update member record with new period
-        transactions.push(
-          db.tx.householdMembers[memberQuery.data.member.id].update({
-            paydayDay,
-            payFrequency: 'monthly',
-            budgetPeriodStart: period.start,
-            budgetPeriodEnd: period.end,
-            lastBudgetReset: now,
-          })
-        );
-
-        await db.transact(transactions);
-      } else {
-        // NO RESET: Period starts in the future
-        // Just update the payday setting - DON'T change period dates yet
-        // Keep the current budget period and spending intact
-        console.log('No reset: Period starts in the future, only updating payday setting');
-        console.log('Current member period will remain:', {
-          currentStart: memberQuery.data.member.budgetPeriodStart,
-          currentEnd: memberQuery.data.member.budgetPeriodEnd,
-        });
-
-        await db.transact([
-          db.tx.householdMembers[memberQuery.data.member.id].update({
-            paydayDay, // Update payday for future resets
-            payFrequency: 'monthly',
-            // DON'T update budgetPeriodStart/budgetPeriodEnd yet - keep current period
-            // The period will update automatically when checkAndResetBudgetIfNeeded runs
-          }),
-        ]);
-      }
-
-      // Return the shouldReset value so onSuccess knows whether to invalidate budgets
-      return { shouldReset };
+      return { paydayDay };
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       setSuccessMessage('Payday saved!');
-      queryClient.invalidateQueries({ queryKey: ['member-payday'] });
 
-      // Only invalidate budgets and period if a reset happened
-      if (result?.shouldReset) {
-        queryClient.invalidateQueries({ queryKey: ['budgets'] });
-        queryClient.invalidateQueries({ queryKey: ['my-budget-period'] });
-        queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
-        queryClient.invalidateQueries({ queryKey: ['budget-details'] });
-      }
+      // Invalidate all budget-related queries to trigger recalculation with new payday
+      queryClient.invalidateQueries({ queryKey: ['member-payday'] });
+      queryClient.invalidateQueries({ queryKey: ['my-budget-period'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-details'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
 
       setTimeout(() => {
         setSuccessMessage('');
@@ -347,7 +226,7 @@ export default function PaydaySettingsScreen() {
                   <View className="mb-3">
                     <Text className="text-xs text-green-600 mb-1">Period:</Text>
                     <Text className="text-base font-semibold text-green-800">
-                      {formatDateSwiss(budgetPeriod.start)} - {formatDateSwiss(budgetPeriod.end)}
+                      {formatDateSwiss(budgetPeriod.periodStartISO)} - {formatDateSwiss(budgetPeriod.periodEndISO)}
                     </Text>
                   </View>
 
@@ -358,7 +237,7 @@ export default function PaydaySettingsScreen() {
                     </View>
                     <View className="flex-1">
                       <Text className="text-xs text-green-600 mb-1">Resets on:</Text>
-                      <Text className="text-base font-semibold text-green-800">{formatDateSwiss(budgetPeriod.resetsOn)}</Text>
+                      <Text className="text-base font-semibold text-green-800">{formatDateSwiss(budgetPeriod.nextResetISO)}</Text>
                     </View>
                   </View>
                 </View>

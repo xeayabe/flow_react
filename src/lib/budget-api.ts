@@ -4,6 +4,7 @@
 
 import { db } from './db';
 import { calculateBudgetPeriod } from './payday-utils';
+import { getCurrentBudgetPeriod } from './budget-period-utils';
 import { isAllocationValid, calculatePercentage } from './budget-utils';
 
 export interface BudgetSetupRequest {
@@ -27,16 +28,25 @@ export interface BudgetWithDetails {
 
 /**
  * Get user's personal budget period from their household membership
- * Falls back to household period for backward compatibility
- * IMPORTANT: Returns the period with active budget data, not necessarily the calculated "current" period
+ *
+ * IMPORTANT: This now ALWAYS calculates the period dynamically from paydayDay.
+ * The period is NOT retrieved from stored values - it's computed based on:
+ * - Today's date
+ * - User's paydayDay setting
+ *
+ * This ensures:
+ * 1. Period dates are always correct
+ * 2. Changing payday doesn't cause weird resets
+ * 3. On payday, period automatically shifts forward
  */
 export async function getMemberBudgetPeriod(userId: string, householdId: string): Promise<{
   start: string;
   end: string;
   paydayDay: number;
   source: 'member' | 'household';
+  daysRemaining: number;
 }> {
-  // First try to get member's personal budget period
+  // First try to get member's payday setting
   const memberResult = await db.queryOnce({
     householdMembers: {
       $: {
@@ -51,82 +61,28 @@ export async function getMemberBudgetPeriod(userId: string, householdId: string)
 
   const member = memberResult.data.householdMembers?.[0];
 
-  // If member has personal budget period set, check if there's active budget data for it
-  if (member?.budgetPeriodStart && member?.budgetPeriodEnd && member?.paydayDay) {
-    console.log('Member has budget period:', {
-      stored: { start: member.budgetPeriodStart, end: member.budgetPeriodEnd },
-      paydayDay: member.paydayDay,
+  // If member has payday set, use dynamic calculation
+  if (member?.paydayDay) {
+    const paydayDay = member.paydayDay;
+    const dynamicPeriod = getCurrentBudgetPeriod(paydayDay);
+
+    console.log('📊 getMemberBudgetPeriod - Dynamic calculation:', {
+      paydayDay,
+      periodStart: dynamicPeriod.periodStartISO,
+      periodEnd: dynamicPeriod.periodEndISO,
+      daysRemaining: dynamicPeriod.daysRemaining,
     });
 
-    // Check if there are active budgets for this period
-    const budgetsResult = await db.queryOnce({
-      budgets: {
-        $: {
-          where: {
-            userId,
-            periodStart: member.budgetPeriodStart,
-            isActive: true,
-          },
-        },
-      },
-    });
-
-    const hasActiveBudgets = (budgetsResult.data.budgets?.length ?? 0) > 0;
-    console.log(`Active budgets found for stored period: ${hasActiveBudgets} (count: ${budgetsResult.data.budgets?.length ?? 0})`);
-
-    // If there are active budgets for this period, use it
-    if (hasActiveBudgets) {
-      console.log('Using stored period with active budgets');
-      return {
-        start: member.budgetPeriodStart,
-        end: member.budgetPeriodEnd,
-        paydayDay: member.paydayDay,
-        source: 'member',
-      };
-    } else {
-      // No active budgets for stored period - check if there are ANY active budgets for this user
-      const allBudgetsResult = await db.queryOnce({
-        budgets: {
-          $: {
-            where: {
-              userId,
-              isActive: true,
-            },
-          },
-        },
-      });
-
-      const allActiveBudgets = allBudgetsResult.data.budgets || [];
-      console.log(`Total active budgets for user: ${allActiveBudgets.length}`);
-
-      if (allActiveBudgets.length > 0) {
-        // Use the period from the most recent active budget
-        const mostRecentBudget = allActiveBudgets[0];
-        console.log('Found active budgets with different period, using:', {
-          start: mostRecentBudget.periodStart,
-          end: mostRecentBudget.periodEnd,
-        });
-        return {
-          start: mostRecentBudget.periodStart,
-          end: mostRecentBudget.periodEnd,
-          paydayDay: member.paydayDay,
-          source: 'member',
-        };
-      }
-
-      // No active budgets at all - recalculate based on payday
-      const calculatedPeriod = calculateBudgetPeriod(member.paydayDay);
-      console.log('No active budgets found anywhere, recalculated:', calculatedPeriod);
-      return {
-        start: calculatedPeriod.start,
-        end: calculatedPeriod.end,
-        paydayDay: member.paydayDay,
-        source: 'member',
-      };
-    }
+    return {
+      start: dynamicPeriod.periodStartISO,
+      end: dynamicPeriod.periodEndISO,
+      paydayDay,
+      source: 'member',
+      daysRemaining: dynamicPeriod.daysRemaining,
+    };
   }
 
-  // Fall back to household period for backward compatibility
+  // Fall back to household payday for backward compatibility
   const householdResult = await db.queryOnce({
     households: {
       $: {
@@ -137,15 +93,21 @@ export async function getMemberBudgetPeriod(userId: string, householdId: string)
 
   const household = householdResult.data.households?.[0];
   const paydayDay = household?.paydayDay ?? 25;
-  const period = household?.budgetPeriodStart && household?.budgetPeriodEnd
-    ? { start: household.budgetPeriodStart, end: household.budgetPeriodEnd }
-    : calculateBudgetPeriod(paydayDay);
+  const dynamicPeriod = getCurrentBudgetPeriod(paydayDay);
+
+  console.log('📊 getMemberBudgetPeriod - Fallback to household:', {
+    paydayDay,
+    periodStart: dynamicPeriod.periodStartISO,
+    periodEnd: dynamicPeriod.periodEndISO,
+    daysRemaining: dynamicPeriod.daysRemaining,
+  });
 
   return {
-    start: period.start,
-    end: period.end,
+    start: dynamicPeriod.periodStartISO,
+    end: dynamicPeriod.periodEndISO,
     paydayDay,
     source: 'household',
+    daysRemaining: dynamicPeriod.daysRemaining,
   };
 }
 
@@ -481,6 +443,9 @@ async function updateBudgetSpentAmountAsync(
  * Recalculate budget spent amounts from actual transactions
  * Useful for backfilling spent amounts if they weren't properly tracked
  * Excludes transactions from wallets marked as excluded from budget
+ *
+ * IMPORTANT: This function filters transactions by the passed-in period dates.
+ * The caller is responsible for passing the correct (dynamically calculated) period.
  */
 export async function recalculateBudgetSpentAmounts(
   userId: string,
@@ -488,6 +453,12 @@ export async function recalculateBudgetSpentAmounts(
   periodEnd: string
 ): Promise<void> {
   try {
+    console.log('💰 recalculateBudgetSpentAmounts - START', {
+      userId,
+      periodStart,
+      periodEnd,
+    });
+
     // Get all accounts to check which ones are excluded from budget
     const accountsResult = await db.queryOnce({
       accounts: {
@@ -521,6 +492,21 @@ export async function recalculateBudgetSpentAmounts(
     const transactions = allTransactions.filter(
       (tx: any) => tx.date >= periodStart && tx.date <= periodEnd && !excludedAccountIds.has(tx.accountId) && !tx.isExcludedFromBudget
     );
+
+    console.log('💰 recalculateBudgetSpentAmounts - Transactions found:', {
+      total: allTransactions.length,
+      inPeriod: transactions.length,
+      periodStart,
+      periodEnd,
+    });
+
+    // Log a few sample transactions for debugging
+    if (transactions.length > 0) {
+      console.log('💰 Sample transactions in period:');
+      transactions.slice(0, 5).forEach((tx: any) => {
+        console.log(`  - ${tx.date}: ${tx.amount} CHF (category: ${tx.categoryId})`);
+      });
+    }
 
     // Group transactions by category
     const spentByCategory: Record<string, number> = {};
@@ -586,10 +572,12 @@ export async function recalculateBudgetSpentAmounts(
       // Calculate total spent from actual transactions (will be 0 if no transactions)
       const totalSpent = Object.values(spentByCategory).reduce((sum: number, amount: number) => sum + amount, 0);
 
-      console.log('Recalculating budget summary:', {
+      console.log('💰 recalculateBudgetSpentAmounts - Updating summary:', {
         totalSpent,
-        spentByGroup,
+        spentByCategory,
         transactionCount: transactions.length,
+        periodStart,
+        periodEnd,
       });
 
       await db.transact([
@@ -598,9 +586,11 @@ export async function recalculateBudgetSpentAmounts(
           updatedAt: now,
         }),
       ]);
+    } else {
+      console.log('💰 recalculateBudgetSpentAmounts - No summary found for user');
     }
 
-    console.log('Budget spent amounts recalculated successfully');
+    console.log('💰 recalculateBudgetSpentAmounts - END');
   } catch (error) {
     console.error('Recalculate budget spent amounts error:', error);
     throw error;

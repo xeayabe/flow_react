@@ -8,7 +8,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { db } from '@/lib/db';
 import { getBudgetSummary, getBudgetDetails, getMemberBudgetPeriod } from '@/lib/budget-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
-import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
+import { formatDateSwiss } from '@/lib/payday-utils';
+import { getCurrentBudgetPeriod } from '@/lib/budget-period-utils';
 
 interface BudgetSummaryData {
   totalIncome: number;
@@ -75,8 +76,8 @@ export default function BudgetOverviewScreen() {
   });
 
   const budgetPeriod = budgetPeriodQuery.data ?? {
-    start: calculateBudgetPeriod(25).start,
-    end: calculateBudgetPeriod(25).end,
+    start: getCurrentBudgetPeriod(25).periodStartISO,
+    end: getCurrentBudgetPeriod(25).periodEndISO,
     paydayDay: 25,
     source: 'household' as const,
   };

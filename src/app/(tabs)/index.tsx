@@ -10,7 +10,8 @@ import { getRecentTransactions, Transaction } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { getBudgetSummary, getBudgetDetails, recalculateBudgetSpentAmounts, checkAndResetBudgetIfNeeded, getMemberBudgetPeriod } from '@/lib/budget-api';
-import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
+import { formatDateSwiss } from '@/lib/payday-utils';
+import { getCurrentBudgetPeriod } from '@/lib/budget-period-utils';
 import {
   calculateTotalBalance,
   calculatePeriodSpending,
@@ -86,10 +87,11 @@ export default function DashboardScreen() {
   });
 
   const budgetPeriod = budgetPeriodQuery.data ?? {
-    start: calculateBudgetPeriod(25).start,
-    end: calculateBudgetPeriod(25).end,
+    start: getCurrentBudgetPeriod(25).periodStartISO,
+    end: getCurrentBudgetPeriod(25).periodEndISO,
     paydayDay: 25,
     source: 'household' as const,
+    daysRemaining: getCurrentBudgetPeriod(25).daysRemaining,
   };
 
   // Get all accounts
@@ -174,11 +176,19 @@ export default function DashboardScreen() {
   React.useEffect(() => {
     if (userId && householdId && !summaryQuery.isLoading && summaryQuery.data && !hasRecalculated) {
       setHasRecalculated(true);
+
+      console.log('🔄 Dashboard: Recalculating spent amounts for period:', {
+        periodStart: budgetPeriod.start,
+        periodEnd: budgetPeriod.end,
+        paydayDay: budgetPeriod.paydayDay,
+      });
+
       recalculateBudgetSpentAmounts(
         userId,
         budgetPeriod.start,
         budgetPeriod.end
       ).then(() => {
+        console.log('✅ Dashboard: Spent amounts recalculated, refetching summary');
         refetchBudgetSummary();
       }).catch((error) => {
         console.warn('Failed to recalculate budget spent amounts:', error);

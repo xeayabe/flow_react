@@ -1260,6 +1260,44 @@ budgets (category-level):
   - "Days remaining" calculation updates correctly
   - Dashboard shows data from new period instead of old
 
+### BUG FIX: Dynamic Budget Period Calculation (2026-01-27)
+- **Problem**: Budget periods were stored in the database and retrieved, causing issues:
+  1. Period dates displayed correctly but transactions from within period not showing up
+  2. Budget spent amounts wrong because of incorrect period filtering
+  3. Changing payday caused immediate reset when it shouldn't
+  4. Auto-reset on payday didn't work reliably
+- **Root Cause**: The period dates were stored in `householdMembers` table but the transaction filtering logic used these stale stored values instead of dynamically calculating from `paydayDay`.
+- **Solution**: Period is now ALWAYS calculated dynamically from `paydayDay`, never stored and retrieved.
+- **Implementation**:
+  - Created new `src/lib/budget-period-utils.ts` with:
+    - `getCurrentBudgetPeriod(paydayDay)` - Always calculates dynamically based on today's date
+    - `getPeriodDisplayString(paydayDay)` - Display helper (e.g., "6 Jan – 5 Feb")
+    - `isInCurrentPeriod(date, paydayDay)` - Check if a date is in current period
+  - Updated `getMemberBudgetPeriod()` in `budget-api.ts`:
+    - Now uses dynamic calculation from `paydayDay` instead of stored period dates
+    - Returns `daysRemaining` computed dynamically
+  - Simplified payday change logic in `settings/payday.tsx`:
+    - Just updates `paydayDay` - no complex reset logic needed
+    - Period automatically recalculates on next query
+  - Updated all budget screens to use new utility:
+    - `src/app/(tabs)/index.tsx`
+    - `src/app/(tabs)/budget/index.tsx`
+    - `src/app/(tabs)/budget/setup.tsx`
+    - `src/app/budget/index.tsx`
+    - `src/app/budget/setup.tsx`
+- **Key Changes**:
+  - `src/lib/budget-period-utils.ts`: NEW FILE - Dynamic period calculation
+  - `src/lib/budget-api.ts`: `getMemberBudgetPeriod()` now uses `getCurrentBudgetPeriod()`
+  - `src/app/settings/payday.tsx`: Simplified to just update `paydayDay`
+  - Added debug logging to `recalculateBudgetSpentAmounts()` for troubleshooting
+- **Result**:
+  - Period dates always correct based on current date and payday setting
+  - Transactions from current period show up correctly
+  - Budget spent amounts calculated from actual transactions in dynamic period
+  - Changing payday doesn't cause immediate reset (spent amounts recalculate for new period)
+  - On payday, period automatically shifts forward (no manual reset needed)
+  - Console logs show period dates and transaction counts for debugging
+
 ### FEATURE: Shared Expense Splits (PART 3 OF 4) (2026-01-25)
 - **Feature**: Added shared expense controls to transaction form for multi-member households
 - **Implementation**:
