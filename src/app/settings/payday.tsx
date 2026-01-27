@@ -88,17 +88,18 @@ export default function PaydaySettingsScreen() {
       const householdId = memberQuery.data.member.householdId;
 
       // Determine if we need to reset (if period start is today or in the past)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const periodStartDate = new Date(period.start + 'T00:00:00');
-      periodStartDate.setHours(0, 0, 0, 0);
+      // Use local date string to avoid timezone issues
+      const todayDate = new Date();
+      const todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
 
-      const shouldReset = periodStartDate <= today;
+      // Compare strings directly (YYYY-MM-DD format)
+      const shouldReset = period.start <= todayStr;
 
       console.log('Payday change:', {
         paydayDay,
         newPeriod: period,
-        today: today.toISOString().split('T')[0],
+        today: todayStr,
+        periodStart: period.start,
         shouldReset,
       });
 

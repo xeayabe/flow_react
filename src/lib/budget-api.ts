@@ -755,17 +755,16 @@ export async function checkAndResetBudgetIfNeeded(householdId: string, userId?: 
     const allMembers = membersResult.data.householdMembers || [];
     console.log(`Checking budget reset for ${allMembers.length} household members`);
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use local date string to avoid timezone issues
+    const todayDate = new Date();
+    const todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
 
     // Check EACH member's budget period
     for (const member of allMembers) {
       if (member.budgetPeriodEnd && member.paydayDay) {
-        const periodEnd = new Date(member.budgetPeriodEnd + 'T00:00:00');
-        periodEnd.setHours(0, 0, 0, 0);
-
-        if (today > periodEnd) {
-          console.log(`Member ${member.userId} budget period has ended (${member.budgetPeriodEnd}), triggering reset...`);
+        // Compare strings directly (YYYY-MM-DD format)
+        if (todayStr > member.budgetPeriodEnd) {
+          console.log(`Member ${member.userId} budget period has ended (${member.budgetPeriodEnd}), today is ${todayStr}, triggering reset...`);
           const resetSuccess = await resetMemberBudgetPeriod(member.userId, householdId);
           if (resetSuccess) {
             anyResetHappened = true;
@@ -789,10 +788,8 @@ export async function checkAndResetBudgetIfNeeded(householdId: string, userId?: 
       if (!household) return false;
 
       if (household.budgetPeriodEnd) {
-        const periodEnd = new Date(household.budgetPeriodEnd + 'T00:00:00');
-        periodEnd.setHours(0, 0, 0, 0);
-
-        if (today > periodEnd) {
+        // Compare strings directly (YYYY-MM-DD format)
+        if (todayStr > household.budgetPeriodEnd) {
           console.log('Household budget period has ended, triggering reset...');
           return resetBudgetPeriod(householdId);
         }
