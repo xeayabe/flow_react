@@ -8,6 +8,15 @@ import { db } from '@/lib/db';
 import { calculateBudgetPeriod, formatDateSwiss } from '@/lib/payday-utils';
 import { cn } from '@/lib/cn';
 
+// Helper function to generate unique IDs
+function generateId(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export default function PaydaySettingsScreen() {
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
@@ -78,66 +87,177 @@ export default function PaydaySettingsScreen() {
       const userId = memberQuery.data.userRecord.id;
       const householdId = memberQuery.data.member.householdId;
 
-      // Find existing budget summary for this user
-      const summaryResult = await db.queryOnce({
-        budgetSummary: {
-          $: {
-            where: {
-              userId,
-            },
-          },
-        },
+      // Determine if we need to reset (if period start is today or in the past)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const periodStartDate = new Date(period.start + 'T00:00:00');
+      periodStartDate.setHours(0, 0, 0, 0);
+
+      const shouldReset = periodStartDate <= today;
+
+      console.log('Payday change:', {
+        paydayDay,
+        newPeriod: period,
+        today: today.toISOString().split('T')[0],
+        shouldReset,
       });
 
-      const existingSummary = summaryResult.data.budgetSummary?.[0];
-      const transactions: any[] = [];
+      if (shouldReset) {
+        // RESET SCENARIO: Period starts today or in the past
+        console.log('Reset triggered: Period starts today or in the past');
 
-      // Update member record
-      transactions.push(
-        db.tx.householdMembers[memberQuery.data.member.id].update({
-          paydayDay,
-          payFrequency: 'monthly',
-          budgetPeriodStart: period.start,
-          budgetPeriodEnd: period.end,
-          lastBudgetReset: now,
-        })
-      );
+        // Get all active budgets
+        const budgetsResult = await db.queryOnce({
+          budgets: {
+            $: {
+              where: {
+                userId,
+                isActive: true,
+              },
+            },
+          },
+        });
 
-      // Update budget summary if it exists
-      if (existingSummary) {
-        transactions.push(
-          db.tx.budgetSummary[existingSummary.id].update({
-            periodStart: period.start,
-            periodEnd: period.end,
-            updatedAt: now,
-          })
-        );
-      }
+        const oldBudgets = budgetsResult.data.budgets || [];
+        const transactions: any[] = [];
 
-      // Update all active budget records for this user
-      const budgetsResult = await db.queryOnce({
-        budgets: {
-          $: {
-            where: {
-              userId,
+        // Archive old budgets
+        oldBudgets.forEach((budget: any) => {
+          transactions.push(
+            db.tx.budgets[budget.id].update({
+              isActive: false,
+              updatedAt: now,
+            })
+          );
+        });
+
+        // Create new budgets with RESET spending (0)
+        oldBudgets.forEach((oldBudget: any) => {
+          const newId = generateId();
+          transactions.push(
+            db.tx.budgets[newId].update({
+              userId: oldBudget.userId,
+              householdId,
+              categoryId: oldBudget.categoryId,
+              periodStart: period.start,
+              periodEnd: period.end,
+              allocatedAmount: oldBudget.allocatedAmount,
+              spentAmount: 0, // RESET to 0
+              percentage: oldBudget.percentage,
+              categoryGroup: oldBudget.categoryGroup,
               isActive: true,
+              createdAt: now,
+              updatedAt: now,
+            })
+          );
+        });
+
+        // Get budget summary
+        const summaryResult = await db.queryOnce({
+          budgetSummary: {
+            $: {
+              where: {
+                userId,
+              },
             },
           },
-        },
-      });
+        });
 
-      const activeBudgets = budgetsResult.data.budgets || [];
-      activeBudgets.forEach((budget: any) => {
+        const existingSummary = summaryResult.data.budgetSummary?.[0];
+
+        // Reset budget summary
+        if (existingSummary) {
+          transactions.push(
+            db.tx.budgetSummary[existingSummary.id].update({
+              periodStart: period.start,
+              periodEnd: period.end,
+              totalSpent: 0, // RESET to 0
+              updatedAt: now,
+            })
+          );
+        }
+
+        // Update member record
         transactions.push(
-          db.tx.budgets[budget.id].update({
-            periodStart: period.start,
-            periodEnd: period.end,
-            updatedAt: now,
+          db.tx.householdMembers[memberQuery.data.member.id].update({
+            paydayDay,
+            payFrequency: 'monthly',
+            budgetPeriodStart: period.start,
+            budgetPeriodEnd: period.end,
+            lastBudgetReset: now,
           })
         );
-      });
 
-      await db.transact(transactions);
+        await db.transact(transactions);
+      } else {
+        // NO RESET: Period starts in the future
+        console.log('No reset: Period starts in the future, recalculating spending');
+
+        // Find existing budget summary for this user
+        const summaryResult = await db.queryOnce({
+          budgetSummary: {
+            $: {
+              where: {
+                userId,
+              },
+            },
+          },
+        });
+
+        const existingSummary = summaryResult.data.budgetSummary?.[0];
+        const transactions: any[] = [];
+
+        // Update member record
+        transactions.push(
+          db.tx.householdMembers[memberQuery.data.member.id].update({
+            paydayDay,
+            payFrequency: 'monthly',
+            budgetPeriodStart: period.start,
+            budgetPeriodEnd: period.end,
+            lastBudgetReset: now,
+          })
+        );
+
+        // Update budget summary if it exists
+        if (existingSummary) {
+          transactions.push(
+            db.tx.budgetSummary[existingSummary.id].update({
+              periodStart: period.start,
+              periodEnd: period.end,
+              updatedAt: now,
+            })
+          );
+        }
+
+        // Update all active budget records for this user
+        const budgetsResult = await db.queryOnce({
+          budgets: {
+            $: {
+              where: {
+                userId,
+                isActive: true,
+              },
+            },
+          },
+        });
+
+        const activeBudgets = budgetsResult.data.budgets || [];
+        activeBudgets.forEach((budget: any) => {
+          transactions.push(
+            db.tx.budgets[budget.id].update({
+              periodStart: period.start,
+              periodEnd: period.end,
+              updatedAt: now,
+            })
+          );
+        });
+
+        await db.transact(transactions);
+
+        // After updating period dates, recalculate spending for new period
+        const { recalculateBudgetSpentAmounts } = await import('@/lib/budget-api');
+        await recalculateBudgetSpentAmounts(userId, period.start, period.end);
+      }
     },
     onSuccess: () => {
       setSuccessMessage('Payday saved!');
