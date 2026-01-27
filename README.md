@@ -1029,6 +1029,72 @@ bun start
   - Updated `resetMemberBudgetPeriod()` in `src/lib/budget-api.ts` to also reset budget summary with `totalSpent: 0`
 - **Impact**: On payday, both individual category budgets AND the overall budget summary now correctly reset to 0
 
+### FIX: Budget Reset on Payday Now Works for All Household Members (2026-01-27)
+
+**Issue**: Budget reset was not happening automatically for all household members on their individual paydays.
+
+**Root Causes Identified**:
+1. Reset only triggered when each individual member opened the dashboard
+2. Changing payday created data inconsistency between `householdMembers`, `budgets`, and `budgetSummary` tables
+3. `budgetSummary` table had redundant `periodStart/periodEnd` fields that weren't syncing properly with member data
+
+**Fixes Implemented**:
+
+1. **Automatic Reset for All Members**
+   - `checkAndResetBudgetIfNeeded()` now checks ALL active household members, not just the current user
+   - When any member opens the dashboard, it triggers resets for all members whose payday has passed
+   - Each member's budget resets on their individual payday automatically
+
+2. **Smart Payday Change Behavior**
+   - **Set payday to TODAY or past date** → Triggers immediate reset (fresh start with 0 spending)
+   - **Set payday to FUTURE date** → Updates period dates and recalculates spending for new period
+   - Example scenarios:
+     - Set to Day 28 (tomorrow, today is 27th): Shows 0 spending (correct, no future transactions)
+     - Set to Day 27 (today): Resets budget to 0 (fresh start)
+     - Set to Day 26 (yesterday): Resets budget to 0 (fresh start)
+
+3. **Data Structure Cleanup (Option 1 - Remove Redundancy)**
+   - **Source of truth**: `householdMembers` table stores `budgetPeriodStart`, `budgetPeriodEnd`, `paydayDay`
+   - **Removed redundant fields**: `budgetSummary.periodStart` and `budgetSummary.periodEnd` no longer used
+   - **Benefits**: Eliminates sync issues, single source of truth, cleaner data model
+   - `budgetSummary` now only stores: `totalIncome`, `totalAllocated`, `totalSpent`
+   - Period dates are always read from `householdMembers` table
+
+**Files Modified**:
+- `src/lib/budget-api.ts`:
+  - Updated `checkAndResetBudgetIfNeeded()` to check all household members
+  - Updated `getMemberBudgetPeriod()` to find active budgets intelligently
+  - Updated `getBudgetSummary()` to query by userId only (no period filter)
+  - Updated `saveBudget()` to not set period fields in budgetSummary
+  - Updated `resetBudgetPeriod()` and `resetMemberBudgetPeriod()` to not update period fields in budgetSummary
+- `src/app/settings/payday.tsx`:
+  - Added logic to detect if payday change should trigger reset (when period starts today or in past)
+  - Reset scenario: Archives old budgets, creates new budgets with 0 spending, resets summary
+  - No-reset scenario: Updates period dates, recalculates spending for new period
+  - Removed budgetSummary period updates (no longer needed)
+
+**Data Model**:
+```
+householdMembers (source of truth):
+  - paydayDay
+  - budgetPeriodStart
+  - budgetPeriodEnd
+  - lastBudgetReset
+  - monthlyIncome
+
+budgetSummary (aggregates only):
+  - totalIncome
+  - totalAllocated
+  - totalSpent
+  ❌ NO period fields (removed redundancy)
+
+budgets (category-level):
+  - periodStart (synced with member period)
+  - periodEnd (synced with member period)
+  - allocatedAmount
+  - spentAmount
+```
+
 ### BUG FIX: Members Can Now Create Categories, Budgets, and Category Groups (2026-01-24)
 - **Problem**: Invited members (like Cecilia) couldn't create categories, category groups, or budgets
 - **Root Cause**: All creation APIs looked up household using `WHERE createdByUserId = userId`, which only works for admins who created the household

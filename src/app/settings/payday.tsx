@@ -165,12 +165,10 @@ export default function PaydaySettingsScreen() {
 
         const existingSummary = summaryResult.data.budgetSummary?.[0];
 
-        // Reset budget summary
+        // Reset budget summary (only totalSpent, not period dates)
         if (existingSummary) {
           transactions.push(
             db.tx.budgetSummary[existingSummary.id].update({
-              periodStart: period.start,
-              periodEnd: period.end,
               totalSpent: 0, // RESET to 0
               updatedAt: now,
             })
@@ -193,18 +191,6 @@ export default function PaydaySettingsScreen() {
         // NO RESET: Period starts in the future
         console.log('No reset: Period starts in the future, recalculating spending');
 
-        // Find existing budget summary for this user
-        const summaryResult = await db.queryOnce({
-          budgetSummary: {
-            $: {
-              where: {
-                userId,
-              },
-            },
-          },
-        });
-
-        const existingSummary = summaryResult.data.budgetSummary?.[0];
         const transactions: any[] = [];
 
         // Update member record
@@ -217,17 +203,6 @@ export default function PaydaySettingsScreen() {
             lastBudgetReset: now,
           })
         );
-
-        // Update budget summary if it exists
-        if (existingSummary) {
-          transactions.push(
-            db.tx.budgetSummary[existingSummary.id].update({
-              periodStart: period.start,
-              periodEnd: period.end,
-              updatedAt: now,
-            })
-          );
-        }
 
         // Update all active budget records for this user
         const budgetsResult = await db.queryOnce({

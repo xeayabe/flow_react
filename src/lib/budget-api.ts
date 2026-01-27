@@ -204,7 +204,6 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
         $: {
           where: {
             userId,
-            periodStart: budgetPeriod.start,
           },
         },
       },
@@ -218,13 +217,12 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
     }
 
     // Create new budget summary with updated values
+    // NOTE: We no longer store periodStart/periodEnd here - they come from householdMembers
     const summaryId = generateId();
     await db.transact([
       db.tx.budgetSummary[summaryId].update({
         userId,
         householdId,
-        periodStart: budgetPeriod.start,
-        periodEnd: budgetPeriod.end,
         totalIncome,
         totalAllocated: totalAllocated,
         totalSpent: existingSummaryRecord?.totalSpent ?? 0, // Preserve spent amount if updating
@@ -285,6 +283,7 @@ export async function saveBudget(request: BudgetSetupRequest): Promise<{ success
 
 /**
  * Get budget summary for current period
+ * NOTE: Period dates come from householdMembers, not budgetSummary
  */
 export async function getBudgetSummary(
   userId: string,
@@ -297,7 +296,6 @@ export async function getBudgetSummary(
         $: {
           where: {
             userId,
-            periodStart,
           },
         },
       },
@@ -695,7 +693,6 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
         $: {
           where: {
             householdId,
-            periodEnd: household.budgetPeriodEnd,
           },
         },
       },
@@ -706,8 +703,6 @@ export async function resetBudgetPeriod(householdId: string): Promise<boolean> {
 
     const summaryTransaction = db.tx.budgetSummary[summaryId].update({
       householdId,
-      periodStart: newPeriodStart,
-      periodEnd: newPeriodEnd,
       totalIncome: oldSummary?.totalIncome || 0,
       totalAllocated: oldSummary?.totalAllocated || 0,
       totalSpent: 0, // Reset!
@@ -929,7 +924,6 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
     console.log('New budgets to create:', newBudgetOps.length);
 
     // Reset budget summary for the member
-    // Query using the OLD period end to find the current summary that needs resetting
     let summaryResult;
     try {
       summaryResult = await db.queryOnce({
@@ -937,7 +931,6 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
           $: {
             where: {
               userId,
-              periodEnd: oldPeriodEnd,
             },
           },
         },
@@ -958,8 +951,6 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
     } else {
       console.log('Old budget summary found:', {
         id: oldSummary.id,
-        periodStart: oldSummary.periodStart,
-        periodEnd: oldSummary.periodEnd,
         totalIncome: oldSummary.totalIncome,
         totalSpent: oldSummary.totalSpent,
       });
@@ -969,8 +960,6 @@ export async function resetMemberBudgetPeriod(userId: string, householdId: strin
     const summaryTransaction = db.tx.budgetSummary[summaryId].update({
       userId,
       householdId,
-      periodStart: newPeriod.start,
-      periodEnd: newPeriod.end,
       totalIncome: oldSummary?.totalIncome || 0,
       totalAllocated: oldSummary?.totalAllocated || 0,
       totalSpent: 0, // Reset spent to 0!
