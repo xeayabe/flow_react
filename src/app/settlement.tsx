@@ -436,9 +436,6 @@ export default function SettlementScreen() {
                     <Text className="text-base font-semibold text-gray-900">
                       {originalPayee}
                     </Text>
-                    <Text className="text-sm text-gray-500">
-                      From the original shared expense
-                    </Text>
                   </View>
                 </View>
               </View>
