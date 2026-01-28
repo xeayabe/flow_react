@@ -210,7 +210,7 @@ export default function SettlementScreen() {
         payerWalletId,
         receiverWalletId,
         userInfo.householdId,
-        selectedCategoryId || undefined // Pass selected category
+        youOwe ? (selectedCategoryId || undefined) : undefined // Only pass category when you owe money
       );
     },
     onSuccess: () => {
@@ -436,32 +436,34 @@ export default function SettlementScreen() {
               </View>
             </View>
 
-            {/* Category Selection */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-600 mb-2">
-                Category
-              </Text>
-              <Pressable
-                onPress={() => setShowCategoryPicker(true)}
-                className="flex-row items-center justify-between p-3 rounded-xl border-2 border-gray-200 bg-gray-50"
-              >
-                <View className="flex-1">
-                  {selectedCategory ? (
-                    <>
-                      <Text className="text-base font-semibold text-gray-900">
-                        {selectedCategory.name}
-                      </Text>
-                      <Text className="text-sm text-gray-500">
-                        {selectedCategory.categoryGroup}
-                      </Text>
-                    </>
-                  ) : (
-                    <Text className="text-gray-400">Select category...</Text>
-                  )}
-                </View>
-                <ChevronDown size={20} color="#6B7280" />
-              </Pressable>
-            </View>
+            {/* Category Selection - Only show when you OWE money */}
+            {youOwe && (
+              <View className="mb-4">
+                <Text className="text-sm text-gray-600 mb-2">
+                  Category
+                </Text>
+                <Pressable
+                  onPress={() => setShowCategoryPicker(true)}
+                  className="flex-row items-center justify-between p-3 rounded-xl border-2 border-gray-200 bg-gray-50"
+                >
+                  <View className="flex-1">
+                    {selectedCategory ? (
+                      <>
+                        <Text className="text-base font-semibold text-gray-900">
+                          {selectedCategory.name}
+                        </Text>
+                        <Text className="text-sm text-gray-500">
+                          {selectedCategory.categoryGroup}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text className="text-gray-400">Select category...</Text>
+                    )}
+                  </View>
+                  <ChevronDown size={20} color="#6B7280" />
+                </Pressable>
+              </View>
+            )}
 
             {/* Your Wallet Selection */}
             <View className="mb-4">
@@ -540,10 +542,10 @@ export default function SettlementScreen() {
             </Pressable>
             <Pressable
               onPress={handleSettle}
-              disabled={settleMutation.isPending || selectedExpenses.length === 0 || !yourWalletId || !selectedCategoryId}
+              disabled={settleMutation.isPending || selectedExpenses.length === 0 || !yourWalletId || (youOwe && !selectedCategoryId)}
               className={cn(
                 "flex-1 py-3 rounded-xl",
-                settleMutation.isPending || selectedExpenses.length === 0 || !yourWalletId || !selectedCategoryId
+                settleMutation.isPending || selectedExpenses.length === 0 || !yourWalletId || (youOwe && !selectedCategoryId)
                   ? 'bg-gray-300'
                   : 'bg-teal-600 active:bg-teal-700'
               )}

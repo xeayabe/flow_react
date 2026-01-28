@@ -2920,10 +2920,12 @@ After (PRIVATE):
 
 **2. Category Selection:**
 - Added category dropdown showing all user's expense categories
+- **CONDITIONAL DISPLAY**: Category selection only shown when user OWES money (youOwe === true)
+- When receiving money, no category selection needed (they're receiving, not making an expense)
 - Category picker modal with full category list
 - Shows category name and category group for each option
 - Selected category highlighted with checkmark
-- Required field - settlement button disabled until category selected
+- Required field (when shown) - settlement button disabled until category selected
 
 **3. Auto Category Group:**
 - Category group automatically determined from selected category
@@ -2943,8 +2945,10 @@ After (PRIVATE):
 
 **Result**:
 - ✅ Payee displayed showing who receives/sends money
+- ✅ Category selection ONLY shown when user owes money (making payment)
+- ✅ Category selection hidden when user is receiving money (no expense to categorize)
 - ✅ Category selection from user's expense categories
 - ✅ Category group automatically shown with category
 - ✅ Settlement transaction properly categorized in budget
 - ✅ Matches transaction form behavior
-- ✅ All fields required before settlement can be completed
+- ✅ All required fields enforced before settlement can be completed
