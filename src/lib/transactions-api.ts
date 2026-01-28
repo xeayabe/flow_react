@@ -636,7 +636,9 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
       date: request.date,
       note: request.note,
       payee: request.payee && request.payee.trim() ? request.payee.trim() : undefined,
-      isExcludedFromBudget: request.isExcludedFromBudget || false
+      isExcludedFromBudget: request.isExcludedFromBudget || false,
+      isShared: request.isShared || false,
+      paidByUserId: request.paidByUserId || undefined,
     });
 
     // If account changed, update both old and new accounts separately
@@ -766,6 +768,7 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
 
     return {
       success: true,
+      transactionId: request.id, // Add transactionId for split creation
       data: {
         id: request.id,
         userId: request.userId,
@@ -776,8 +779,14 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
         amount: request.amount,
         date: request.date,
         note: request.note,
-        isShared: originalTx.isShared,
-        paidByUserId: originalTx.paidByUserId,
+        payee: request.payee,
+        isShared: request.isShared || false,
+        paidByUserId: request.paidByUserId,
+        isRecurring: request.isRecurring || false,
+        recurringDay: request.recurringDay,
+        isExcludedFromBudget: request.isExcludedFromBudget || false,
+        createdAt: originalTx.createdAt,
+        updatedAt: now,
       } as Transaction,
     };
   } catch (error) {
