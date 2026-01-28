@@ -253,11 +253,6 @@ export default function DebtBalanceWidget() {
         )}
 
         <Text className="text-xs text-gray-500 mt-2">Shared expenses split based on income ratio</Text>
-
-        {/* Debug button - tap to see data */}
-        <Pressable onPress={handleDebug} className="mt-2 py-1">
-          <Text className="text-xs text-blue-500 text-center">Tap here to debug</Text>
-        </Pressable>
       </View>
     </>
   );
