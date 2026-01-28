@@ -54,9 +54,10 @@ export async function getUnsettledSharedExpenses(
   });
 
   const allTransactions = txData.transactions || [];
-  // Filter out transactions that are already settled
-  const transactions = allTransactions.filter((t: any) => !t.settled);
-  console.log('Found shared transactions:', transactions.length, '(filtered', allTransactions.length - transactions.length, 'settled)');
+  // DON'T filter by transaction.settled - we only care about split.isPaid
+  // The transaction.settled flag is just for tracking, splits are the source of truth
+  const transactions = allTransactions;
+  console.log('Found shared transactions:', transactions.length);
 
   if (transactions.length === 0) {
     console.log('No shared transactions found');
