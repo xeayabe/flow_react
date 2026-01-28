@@ -473,14 +473,9 @@ export default function SettlementScreen() {
                 >
                   <View className="flex-1">
                     {selectedCategory ? (
-                      <>
-                        <Text className="text-base font-semibold text-gray-900">
-                          {selectedCategory.name}
-                        </Text>
-                        <Text className="text-sm text-gray-500">
-                          {selectedCategory.categoryGroup}
-                        </Text>
-                      </>
+                      <Text className="text-base font-semibold text-gray-900">
+                        {selectedCategory.name}
+                      </Text>
                     ) : (
                       <Text className="text-gray-400">Select category...</Text>
                     )}
