@@ -663,7 +663,6 @@ export default function SettlementScreen() {
                 >
                   <View className="flex-1">
                     <Text className="text-base font-semibold text-gray-900">{category.name}</Text>
-                    <Text className="text-sm text-gray-500 capitalize">{category.categoryGroup}</Text>
                   </View>
                   {selectedCategoryId === category.id && <Check size={24} color="#0D9488" />}
                 </Pressable>
