@@ -2994,3 +2994,59 @@ Example:
 3. Deselect 2 expenses, select only 1
 4. Complete settlement
 5. Go back to settlement screen - remaining 2 should still be visible
+
+### FEATURE: Settlement Shows Original Transaction Payee (2026-01-28)
+**Feature**: Settlement screen now displays the payee from the original shared expense transaction, and this payee is saved in the settlement transaction for proper record-keeping.
+
+**Why This Matters**:
+When settling a debt, users need to know WHO the original payment was made to (the payee) so they can:
+1. Choose the appropriate category for their settlement payment
+2. See the context of what they're paying for
+3. Have complete transaction records showing the original payee
+
+**Implementation**:
+
+**1. Added Payee to UnsettledExpense Interface:**
+- Added `payee: string` field to track the original transaction's payee
+- Populated from `transaction.payee` when loading unsettled expenses
+- Available for all unsettled shared expenses
+
+**2. Settlement Screen Display:**
+- Added "Original Payee (For Your Records)" field (read-only)
+- Shows the payee from the first selected expense
+- Only displayed when you OWE money (making a payment)
+- Helps users understand what they're paying for
+- Located above the category selection for context
+
+**3. Settlement Transaction Creation:**
+- Original payee is passed to the settlement API
+- Settlement transaction includes the payee in its record
+- Users can see the payee in their transaction list after settling
+- Maintains complete transaction history with proper payee information
+
+**Files Modified**:
+- `src/lib/settlement-api.ts`:
+  - Added `payee: string` field to `UnsettledExpense` interface (line 21)
+  - Populate payee when creating unsettled expenses (line 147)
+  - Added `payee?: string` parameter to `createSettlement` function (line 296)
+  - Include payee in settlement transaction creation (line 411)
+
+- `src/app/settlement.tsx`:
+  - Calculate `originalPayee` from first selected expense (line 312)
+  - Display "Original Payee" field in settlement details (lines 439-453)
+  - Pass payee to `createSettlement` API call (line 216)
+
+**Result**:
+- ✅ Settlement screen shows original transaction payee (read-only)
+- ✅ Payee helps users choose appropriate category
+- ✅ Settlement transaction includes payee in records
+- ✅ Complete transaction history maintained
+- ✅ Users can see what they paid for in their transaction list
+
+**Example Flow**:
+1. Ceci shares expense: "Whole Foods" (payee: Whole Foods)
+2. Alexander owes his share: 50 CHF
+3. Alexander goes to settlement screen
+4. Settlement shows: "Original Payee: Whole Foods"
+5. Alexander selects category: "Groceries"
+6. After settlement, his transaction list shows: "Whole Foods - 50 CHF - Groceries"

@@ -17,7 +17,8 @@ export interface UnsettledExpense {
   paidByUserId: string;
   description: string;
   splitId: string;
-  createdByUserId: string; // NEW: Track who created the transaction for privacy
+  createdByUserId: string; // Track who created the transaction for privacy
+  payee: string; // NEW: Payee from original transaction
 }
 
 /**
@@ -143,6 +144,7 @@ export async function getUnsettledSharedExpenses(
       paidByUserId: transaction.paidByUserId,
       description: transaction.note || transaction.payee || category?.name || 'Shared expense',
       createdByUserId: transaction.userId, // Track who created the transaction
+      payee: transaction.payee || 'Unknown', // Payee from original transaction
     });
   }
 
@@ -309,7 +311,8 @@ export async function createSettlement(
   receiverAccountId: string,
   householdId: string,
   categoryId?: string,
-  selectedSplitIds?: string[] // NEW: Only settle these specific splits
+  selectedSplitIds?: string[], // Only settle these specific splits
+  payee?: string // NEW: Payee from original transaction
 ) {
   console.warn('🚨🚨🚨 SETTLEMENT FUNCTION CALLED 🚨🚨🚨');
   console.log('💳 === SETTLEMENT START (INTERNAL TRANSFER) ===');
@@ -321,6 +324,7 @@ export async function createSettlement(
   console.log('- Household:', householdId?.substring(0, 8));
   console.log('- Category:', categoryId?.substring(0, 8) || 'None');
   console.log('- Selected Split IDs:', selectedSplitIds?.map(id => id.substring(0, 8)) || 'ALL (legacy behavior)');
+  console.log('- Payee:', payee || 'None');
 
   const settlementId = uuidv4();
   const now = Date.now();
@@ -405,6 +409,7 @@ export async function createSettlement(
         amount: amount, // The member's payment amount (e.g., 38.6 CHF)
         date: todayDate,
         note: `Debt settlement - paid to household`,
+        payee: payee || 'Debt Settlement', // Use the original payee
         isShared: false, // Not shared - this is the member's individual payment
         paidByUserId: payerUserId, // Member paid this
       }),

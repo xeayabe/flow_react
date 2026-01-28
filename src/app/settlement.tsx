@@ -211,7 +211,8 @@ export default function SettlementScreen() {
         receiverWalletId,
         userInfo.householdId,
         youOwe ? (selectedCategoryId || undefined) : undefined, // Only pass category when you owe money
-        selectedExpenses // Pass the selected split IDs
+        selectedExpenses, // Pass the selected split IDs
+        originalPayee // Pass the original payee from the transaction
       );
     },
     onSuccess: () => {
@@ -308,6 +309,10 @@ export default function SettlementScreen() {
   const youOwe = debtInfo && debtInfo.amount > 0;
   const partnerName = debtInfo?.otherMemberName || 'Partner';
   const totalDebt = Math.abs(debtInfo?.amount || 0);
+
+  // Get the payee from the first selected expense (for display in settlement details)
+  const firstSelectedExpense = expenses?.find((e) => selectedExpenses.includes(e.id));
+  const originalPayee = firstSelectedExpense?.payee || 'Unknown';
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -423,7 +428,7 @@ export default function SettlementScreen() {
             {/* Payee (Read-only) */}
             <View className="mb-4">
               <Text className="text-sm text-gray-600 mb-2">
-                {youOwe ? 'Payee (Who Receives)' : 'Payer (Who Sends)'}
+                {youOwe ? 'Paying To (Settlement Receiver)' : 'Receiving From (Settlement Sender)'}
               </Text>
               <View className="flex-row items-center p-3 rounded-xl border-2 border-gray-200 bg-gray-100">
                 <View className="flex-1">
@@ -436,6 +441,25 @@ export default function SettlementScreen() {
                 </View>
               </View>
             </View>
+
+            {/* Original Transaction Payee (Read-only) - Show when you owe money */}
+            {youOwe && (
+              <View className="mb-4">
+                <Text className="text-sm text-gray-600 mb-2">
+                  Original Payee (For Your Records)
+                </Text>
+                <View className="flex-row items-center p-3 rounded-xl border-2 border-gray-200 bg-gray-100">
+                  <View className="flex-1">
+                    <Text className="text-base font-semibold text-gray-900">
+                      {originalPayee}
+                    </Text>
+                    <Text className="text-sm text-gray-500">
+                      From the original shared expense
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
 
             {/* Category Selection - Only show when you OWE money */}
             {youOwe && (
