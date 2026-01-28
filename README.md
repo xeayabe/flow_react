@@ -1924,6 +1924,79 @@ budgets (category-level):
   - `src/app/(tabs)/transactions.tsx` - Updated to use household query with creator names, show creator names for other users' transactions
 
 ### REVISED FEATURE: Settlement as Internal Account Transfer (2026-01-25)
+
+### ENHANCEMENT: Batch Settlement Support & Settlement Tracking (2026-01-28)
+- **Feature**: Enhanced settlement workflow to support batch settlements and comprehensive tracking
+- **Database Schema Updates**:
+
+  **Transactions Table** - Added settlement tracking fields:
+  - `settled: boolean` - Marks if transaction has been settled (default: false)
+  - `settledAt: number` - Timestamp when transaction was settled
+  - `settlementId: string` - Links transaction to settlement record
+
+  **Settlements Table** - Enhanced with batch support:
+  - `paymentMethod: string` - How settlement was made (e.g., 'internal_transfer', 'cash')
+  - `settledExpenses: JSON` - Array of transaction IDs that were settled together
+  - `createdAt: number` - Timestamp when settlement was created
+
+- **API Functions** (`src/lib/settlement-api.ts`):
+
+  **`getUnsettledSharedExpenses(householdId, currentUserId)`**
+  - Returns ALL unsettled shared expenses for a user
+  - Filters out transactions marked as `settled: true`
+  - Returns `UnsettledExpense[]` with full details:
+    - Transaction ID, date, category, amounts
+    - Who paid, description
+    - Your share (positive = you owe, negative = you're owed)
+  - Sorted by date (newest first)
+
+  **`calculateHouseholdDebt(householdId, currentUserId)`**
+  - Calculates total net debt between household members
+  - Returns `DebtSummary`:
+    - `amount`: Total debt (positive = you owe, negative = you're owed)
+    - `otherMemberId`, `otherMemberName`, `otherMemberEmail`
+  - Uses unsettled expenses to compute balance
+
+  **`getUnsettledExpensesByDirection(householdId, currentUserId)`**
+  - Groups expenses by direction (what you owe vs what you're owed)
+  - Returns separated lists:
+    - `youOwe: UnsettledExpense[]` - Expenses where you owe money
+    - `youAreOwed: UnsettledExpense[]` - Expenses where you're owed money
+    - `totalYouOwe`, `totalYouAreOwed`, `netDebt` - Summary totals
+
+  **`createSettlement()` - Enhanced**
+  - Now tracks which transactions are being settled
+  - Updates transactions with settlement fields:
+    - Sets `settled: true`
+    - Records `settledAt` timestamp
+    - Links to `settlementId`
+  - Updates settlement record with `settledExpenses` array
+  - Maintains split tracking (`isPaid: true`) for compatibility
+
+- **Settlement Workflow**:
+  1. User views all unsettled expenses via `getUnsettledSharedExpenses()`
+  2. System calculates total debt via `calculateHouseholdDebt()`
+  3. User initiates settlement
+  4. `createSettlement()` processes:
+     - Transfers money between accounts
+     - Marks all related transactions as settled
+     - Updates splits as paid
+     - Records settlement with transaction IDs
+  5. Future queries filter out settled transactions
+
+- **Key Benefits**:
+  - **Batch Settlement**: Can settle multiple expenses at once
+  - **Settlement History**: Track which expenses were settled together
+  - **Prevent Double Settlement**: Settled transactions excluded from future debt calculations
+  - **Audit Trail**: Complete record of what was settled and when
+  - **Flexible Queries**: Can show settled vs unsettled expenses separately
+
+- **Database Migration Notes**:
+  - Existing transactions default to `settled: false` (unsettled)
+  - Old settlements work but don't have `settledExpenses` array (optional field)
+  - System is backward compatible with existing data
+
+
 - **Architecture Change**: Settlement is now an internal account transfer, NOT a transaction
   - Previous approach: Created settlement transaction (incorrectly affected budgets)
   - New approach: Transfer money between accounts + log settlement history + mark splits paid

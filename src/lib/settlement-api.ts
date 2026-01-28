@@ -52,8 +52,10 @@ export async function getUnsettledSharedExpenses(
     },
   });
 
-  const transactions = txData.transactions || [];
-  console.log('Found shared transactions:', transactions.length);
+  const allTransactions = txData.transactions || [];
+  // Filter out transactions that are already settled
+  const transactions = allTransactions.filter((t: any) => !t.settled);
+  console.log('Found shared transactions:', transactions.length, '(filtered', allTransactions.length - transactions.length, 'settled)');
 
   if (transactions.length === 0) {
     console.log('No shared transactions found');
@@ -339,15 +341,22 @@ export async function createSettlement(
 
   // Step 3: Log settlement in settlements table (for history only)
   console.log('📝 Logging settlement in settlements table...');
+
+  // Collect transaction IDs that will be settled (will be populated after we process splits)
+  const settledTransactionIds: string[] = [];
+
   await db.transact([
     db.tx.settlements[settlementId].update({
       householdId,
       payerUserId,
       receiverUserId,
       amount,
+      paymentMethod: 'internal_transfer', // Internal account transfer
       categoryId: categoryId || undefined,
       note: `Debt settlement: ${amount.toFixed(2)} CHF`,
+      settledExpenses: [], // Will be updated later with actual transaction IDs
       settledAt: now,
+      createdAt: now,
     }),
   ]);
 
@@ -525,19 +534,34 @@ export async function createSettlement(
 
       // Then execute transaction updates separately
       if (transactionsToUpdate.length > 0) {
-        console.log('🔄 Step 2: Updating transactions...');
+        console.log('🔄 Step 2: Updating transactions (amount + settlement tracking)...');
         try {
+          // Collect transaction IDs for settlement record
+          const settledTxIds = transactionsToUpdate.map((t: any) => t.id);
+
           await db.transact(
             transactionsToUpdate.map(tx => {
               const reductionAmount = transactionReductions[tx.id];
               const newAmount = Math.max(0, tx.amount - reductionAmount);
-              console.log(`  📌 Updating ${tx.id.substring(0, 8)}: ${tx.amount} -> ${newAmount}`);
+              console.log(`  📌 Updating ${tx.id.substring(0, 8)}: ${tx.amount} -> ${newAmount}, settled=true`);
               return db.tx.transactions[tx.id].update({
                 amount: newAmount,
+                settled: true,
+                settledAt: now,
+                settlementId: settlementId,
               });
             })
           );
-          console.log('✅ Transaction amounts updated successfully');
+          console.log('✅ Transaction amounts updated and marked as settled');
+
+          // Update settlement record with settled transaction IDs
+          console.log('🔄 Step 2b: Updating settlement record with transaction IDs...');
+          await db.transact([
+            db.tx.settlements[settlementId].update({
+              settledExpenses: settledTxIds,
+            }),
+          ]);
+          console.log('✅ Settlement record updated with', settledTxIds.length, 'transaction IDs');
         } catch (error) {
           console.error('❌ Transaction updates failed:', error);
           throw error;

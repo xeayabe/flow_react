@@ -61,6 +61,10 @@ const schema = i.schema({
       isShared: i.boolean(),
       paidByUserId: i.string().optional(),
       isExcludedFromBudget: i.boolean().optional(), // Exclude transaction from budget calculations
+      // Settlement tracking
+      settled: i.boolean().optional(), // true if this expense has been settled
+      settledAt: i.number().optional(), // Timestamp when settled
+      settlementId: i.string().optional(), // Links to settlements.id
     }),
     budgets: i.entity({
       userId: i.string(),
@@ -112,12 +116,15 @@ const schema = i.schema({
     }),
     settlements: i.entity({
       householdId: i.string(),
-      payerUserId: i.string(), // Who paid (e.g., Cecilia)
-      receiverUserId: i.string(), // Who received (e.g., Alexander)
+      payerUserId: i.string(), // Who paid (member who owes)
+      receiverUserId: i.string(), // Who received (member who is owed)
       amount: i.number(), // Settlement amount in CHF
-      categoryId: i.string().optional(), // Category for budget tracking
+      paymentMethod: i.string().optional(), // How they settled (e.g., 'internal_transfer', 'cash', 'bank_transfer')
+      categoryId: i.string().optional(), // Category for budget tracking (optional)
       note: i.string().optional(), // Optional note
+      settledExpenses: i.json().optional(), // JSON array of transaction IDs that were settled: string[]
       settledAt: i.number(), // Timestamp when settled
+      createdAt: i.number().optional(), // Timestamp when settlement record created
     }),
     payee_category_mappings: i.entity({
       userId: i.string(), // Personal to each user (like categories)
