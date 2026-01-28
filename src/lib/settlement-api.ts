@@ -308,7 +308,8 @@ export async function createSettlement(
   payerAccountId: string,
   receiverAccountId: string,
   householdId: string,
-  categoryId?: string
+  categoryId?: string,
+  selectedSplitIds?: string[] // NEW: Only settle these specific splits
 ) {
   console.warn('🚨🚨🚨 SETTLEMENT FUNCTION CALLED 🚨🚨🚨');
   console.log('💳 === SETTLEMENT START (INTERNAL TRANSFER) ===');
@@ -319,6 +320,7 @@ export async function createSettlement(
   console.log('- Receiver Account:', receiverAccountId?.substring(0, 8));
   console.log('- Household:', householdId?.substring(0, 8));
   console.log('- Category:', categoryId?.substring(0, 8) || 'None');
+  console.log('- Selected Split IDs:', selectedSplitIds?.map(id => id.substring(0, 8)) || 'ALL (legacy behavior)');
 
   const settlementId = uuidv4();
   const now = Date.now();
@@ -474,7 +476,7 @@ export async function createSettlement(
 
   // Only settle splits where receiver paid the original expense
   // The split.owedToUserId should match receiverUserId (the admin who paid)
-  const splitsToSettle = payerUnpaidSplits.filter((split: any) => {
+  let splitsToSettle = payerUnpaidSplits.filter((split: any) => {
     const transaction = transactionMap.get(split.transactionId);
     // Use both checks: owedToUserId should match receiver, and transaction.paidByUserId should too
     const owedToMatches = split.owedToUserId === receiverUserId;
@@ -483,6 +485,15 @@ export async function createSettlement(
     console.log(`  Checking split ${split.id}: owedTo=${split.owedToUserId}, receiver=${receiverUserId}, owedToMatches=${owedToMatches}, paidBy=${transaction?.paidByUserId}, paidByMatches=${paidByMatches}, settling=${shouldSettle}`);
     return shouldSettle;
   });
+
+  // NEW: If specific split IDs were selected, only settle those
+  if (selectedSplitIds && selectedSplitIds.length > 0) {
+    console.log('🎯 Filtering to only selected splits:', selectedSplitIds.map(id => id.substring(0, 8)));
+    splitsToSettle = splitsToSettle.filter((split: any) => selectedSplitIds.includes(split.id));
+    console.log('🎯 After filtering:', splitsToSettle.length, 'splits to settle');
+  } else {
+    console.log('⚠️ No selectedSplitIds provided - settling ALL unpaid splits (legacy behavior)');
+  }
 
   console.log('📊 Splits to mark as paid:', splitsToSettle.length);
   splitsToSettle.forEach((s: any) => {

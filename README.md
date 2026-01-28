@@ -2953,3 +2953,44 @@ After (PRIVATE):
 - ✅ Matches transaction form behavior
 - ✅ All required fields enforced before settlement can be completed
 \n### BUG FIX: Settlement Disappearing Expenses (2026-01-28)\n**Issue**: When settling 2 out of 3 expenses, only 1 settlement transaction appeared and the last expense to settle disappeared.\n\n**Root Cause**:\nThe settlement logic was incorrectly marking the ENTIRE transaction as `settled: true` even when only SOME splits were paid. This caused the `getUnsettledSharedExpenses` function to filter out the transaction completely, making remaining unsettled expenses disappear.\n\nExample:\n- Transaction A has 3 splits (3 shared expenses)\n- User settles 2 splits\n- System marked Transaction A as `settled: true`\n- System filters out Transaction A from unsettled expenses\n- Third split becomes invisible even though it's still unpaid\n\n**Fix**:\nModified `createSettlement` function in `src/lib/settlement-api.ts`:\n1. **Only mark splits as paid**: Changed to mark individual splits as `isPaid: true` (correct behavior)\n2. **Check all splits before marking transaction as settled**: Added logic to check if ALL splits for a transaction are paid before marking the transaction as `settled: true`\n3. **Conditional transaction settlement**: Transaction only marked as settled when every single split is paid\n\n**Files Modified**:\n- `src/lib/settlement-api.ts` (lines 537-587):\n  - Separated amount reduction from settlement marking\n  - Added loop to check all splits for each transaction\n  - Only set `settled: true` when all splits are `isPaid: true`\n  - Keeps transaction as unsettled if any splits remain unpaid\n\n**Result**:\n- ✅ Settling 2 out of 3 expenses works correctly\n- ✅ Third expense remains visible in settlement screen\n- ✅ Transaction amounts properly reduced for each settlement\n- ✅ Transactions only marked as settled when fully paid\n- ✅ All settlement transactions appear in transaction list
+
+### CRITICAL BUG FIX: Settlement Settling Wrong Splits (2026-01-28)
+**Issue**: When settling 1 out of 3 expenses, ALL splits were being marked as paid instead of just the selected one. This caused all remaining expenses to disappear.
+
+**Root Cause**:
+The `createSettlement` function was NOT receiving information about which specific splits were selected. It was settling ALL unpaid splits between the payer and receiver, regardless of user selection.
+
+Example:
+- User has 3 unsettled expenses (3 splits)
+- User selects only 1 expense to settle
+- Frontend: `selectedExpenses = [split1.id]`
+- Backend: Receives no split IDs, settles ALL 3 splits
+- Result: All 3 splits marked as paid, remaining 2 disappear
+
+**Fix**:
+1. **Added `selectedSplitIds` parameter** to `createSettlement` function in `src/lib/settlement-api.ts`
+2. **Filter splits by selection**: Only settle splits that are in the `selectedSplitIds` array
+3. **Pass selection from frontend**: Settlement screen now passes `selectedExpenses` array to backend
+
+**Files Modified**:
+- `src/lib/settlement-api.ts`:
+  - Added `selectedSplitIds?: string[]` parameter to `createSettlement` function (line 311)
+  - Added filtering logic to only settle selected splits (lines 492-498)
+  - Added detailed logging for debugging selection
+  
+- `src/app/settlement.tsx`:
+  - Pass `selectedExpenses` array to `createSettlement` call (line 214)
+
+**Result**:
+- ✅ Settling 1 out of 3 expenses only marks that 1 split as paid
+- ✅ Remaining 2 expenses stay visible and unpaid
+- ✅ User can settle expenses one at a time or multiple at once
+- ✅ Selection is properly respected by backend
+- ✅ No more disappearing expenses
+
+**Testing**:
+1. Create 3 shared expenses
+2. Go to settlement screen - all 3 should show
+3. Deselect 2 expenses, select only 1
+4. Complete settlement
+5. Go back to settlement screen - remaining 2 should still be visible

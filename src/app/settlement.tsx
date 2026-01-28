@@ -210,7 +210,8 @@ export default function SettlementScreen() {
         payerWalletId,
         receiverWalletId,
         userInfo.householdId,
-        youOwe ? (selectedCategoryId || undefined) : undefined // Only pass category when you owe money
+        youOwe ? (selectedCategoryId || undefined) : undefined, // Only pass category when you owe money
+        selectedExpenses // Pass the selected split IDs
       );
     },
     onSuccess: () => {
