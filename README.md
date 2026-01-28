@@ -2737,4 +2737,104 @@ After this fix:
 - ✅ Users can convert personal expenses to shared (or vice versa) when editing
 - ✅ Consistent UX between add and edit flows
 
+### ENHANCEMENT: Settlement Wallet Selection (2026-01-28)
 
+**Feature**: Added wallet selection dropdowns to the Settlement Screen so users can specify which wallets are involved in the settlement transaction.
+
+**Problem**: Previously, the settlement screen automatically selected the first available wallet for both payer and receiver. Users needed the ability to choose specific wallets for the settlement.
+
+**Implementation**:
+
+**1. Settlement Screen (`src/app/settlement.tsx`):**
+- Added new state variables:
+  - `yourWalletId` - Selected wallet for current user
+  - `partnerWalletId` - Selected wallet for partner
+  - `showYourWalletPicker` - Modal visibility for your wallet picker
+  - `showPartnerWalletPicker` - Modal visibility for partner's wallet picker
+
+- Added new queries:
+  - `partnerAccountsData` - Fetches partner's wallets from database
+  - Default wallet auto-selection when data loads
+
+- Added wallet selection UI:
+  - **Your Wallet dropdown**: Shows current user's wallets with name, balance
+  - **Partner's Wallet dropdown**: Shows partner's wallets with name, balance
+  - Labels change based on debt direction:
+    - If you owe: "Pay From (Your Wallet)" / "Send To (Partner's Wallet)"
+    - If you're owed: "Receive In (Your Wallet)" / "From (Partner's Wallet)"
+
+- Added wallet picker modals:
+  - Page sheet presentation with close button
+  - List of wallets showing: name, institution, balance
+  - Selected wallet highlighted with checkmark
+  - Teal color for your wallet, blue for partner's wallet
+
+- Updated settlement mutation:
+  - Uses selected wallet IDs instead of auto-selecting first wallet
+  - Correctly determines payer/receiver based on debt direction
+  - Validates both wallets are selected before allowing settlement
+
+- Updated settle button:
+  - Text changes based on debt direction: "Pay X CHF" vs "Confirm Received X CHF"
+  - Disabled until both wallets are selected
+
+**UI Design**:
+```
+┌─────────────────────────────────────┐
+│ Settlement Details                  │
+│                                     │
+│ Pay From (Your Wallet):            │
+│ ┌─────────────────────────────────┐│
+│ │ 💳 UBS Checking                 ▼│
+│ │    2,500.00 CHF                 ││
+│ └─────────────────────────────────┘│
+│                                     │
+│ Send To (Alexander's Wallet):      │
+│ ┌─────────────────────────────────┐│
+│ │ 💳 Revolut                      ▼│
+│ │    1,200.00 CHF                 ││
+│ └─────────────────────────────────┘│
+│                                     │
+│ Selected expenses: 3 of 3          │
+│ ─────────────────────────────────  │
+│ Settlement Amount: 105.36 CHF      │
+└─────────────────────────────────────┘
+```
+
+**Files Modified**:
+- `src/app/settlement.tsx`: Added wallet selection dropdowns and picker modals
+
+**Result**:
+- ✅ Users can select which wallet to pay from or receive into
+- ✅ Partner's wallets are visible and selectable
+- ✅ Clear labels indicate payment direction (pay vs receive)
+- ✅ Default wallet auto-selected but changeable
+- ✅ Both wallets must be selected to enable settlement button
+
+### ENHANCEMENT: Improved Share Toggle Visibility (2026-01-28)
+
+**Problem**: The share expense toggle was hard to see - too subtle styling.
+
+**The Fix**:
+
+**Both Add and Edit Transaction Screens:**
+- Enhanced toggle container with dynamic styling based on state:
+  - OFF state: White background, gray border (`border-gray-300 bg-white`)
+  - ON state: Teal background, teal border (`border-teal-600 bg-teal-50`)
+- Updated text colors to match state:
+  - OFF: Gray text (`text-gray-900`, `text-gray-600`)
+  - ON: Teal text (`text-teal-700`, `text-teal-600`)
+- Improved Switch component colors:
+  - Track OFF: `#9CA3AF` (more visible gray)
+  - Track ON: `#0D9488` (teal)
+  - Thumb changes based on state for better visual feedback
+
+**Files Modified**:
+- `src/app/transactions/add.tsx`: Improved toggle styling
+- `src/app/transactions/[id]/edit.tsx`: Improved toggle styling (matching)
+
+**Result**:
+- ✅ Toggle now has clear visual distinction between on/off states
+- ✅ Entire container changes appearance when toggled
+- ✅ Much better visibility and contrast
+- ✅ Consistent styling across add and edit screens
