@@ -13,6 +13,7 @@ import { migrateCategoryGroups } from '@/lib/migrate-categories';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { createExpenseSplits, calculateSplitRatio } from '@/lib/shared-expenses-api';
 import { getCategorySuggestion, savePayeeMapping } from '@/lib/payee-mappings-api';
+import { createRecurringTemplate } from '@/lib/recurring-api';
 import PayeePickerModal from '@/components/PayeePickerModal';
 import CategoryPickerModal from '@/components/CategoryPickerModal';
 import { cn } from '@/lib/cn';
@@ -229,6 +230,24 @@ export default function AddTransactionScreen() {
   // Create transaction mutation
   const createMutation = useMutation({
     mutationFn: async () => {
+      // Check if this is a recurring expense - create template instead of transaction
+      if (formData.isRecurring) {
+        console.log('📅 Creating recurring template (not transaction)');
+        const templateId = await createRecurringTemplate({
+          userId: householdQuery.data!.userRecord.id,
+          householdId: householdQuery.data!.householdId,
+          amount: parseFloat(formData.amount),
+          categoryId: formData.categoryId,
+          accountId: formData.accountId,
+          recurringDay: formData.recurringDay,
+          payee: formData.payee || undefined,
+          note: formData.note || undefined,
+        });
+        console.log('✅ Recurring template created:', templateId);
+        return { success: true, templateId, isTemplate: true };
+      }
+
+      // Regular transaction (not recurring)
       const result = await createTransaction({
         userId: householdQuery.data!.userRecord.id,
         householdId: householdQuery.data!.householdId,
@@ -239,8 +258,8 @@ export default function AddTransactionScreen() {
         date: formData.date,
         note: formData.note || undefined,
         payee: formData.payee || undefined,
-        isRecurring: formData.isRecurring,
-        recurringDay: formData.isRecurring ? formData.recurringDay : undefined,
+        isRecurring: false, // Always false since we handle recurring separately
+        recurringDay: undefined,
         isShared: isShared,
         paidByUserId: isShared ? paidByUserId : undefined,
       });
@@ -262,9 +281,9 @@ export default function AddTransactionScreen() {
         console.log('Expense splits created successfully');
       }
 
-      return result;
+      return { ...result, isTemplate: false };
     },
-    onSuccess: async () => {
+    onSuccess: async (result: any) => {
       // Save payee-category mapping for smart learning
       if (formData.payee.trim() && formData.categoryId && householdQuery.data?.userRecord?.id) {
         await savePayeeMapping(
@@ -279,9 +298,26 @@ export default function AddTransactionScreen() {
       queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['all-payees', householdQuery.data?.userRecord?.id] });
+      queryClient.invalidateQueries({ queryKey: ['recurring-templates'] });
 
-      // Show the "add another" modal immediately
-      setShowAddAnotherModal(true);
+      // Show appropriate message based on whether it's a template or transaction
+      if (result.isTemplate) {
+        Alert.alert(
+          'Recurring Expense Set Up!',
+          `Your recurring expense will appear on day ${formData.recurringDay} of each month. You can add it from the dashboard when it's due.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                router.back();
+              },
+            },
+          ]
+        );
+      } else {
+        // Show the "add another" modal immediately for regular transactions
+        setShowAddAnotherModal(true);
+      }
     },
     onError: (error) => {
       console.error('Transaction creation failed:', error);
@@ -549,17 +585,31 @@ export default function AddTransactionScreen() {
               </View>
 
               {/* Recurring Checkbox */}
-              <View className="mb-8 flex-row items-center justify-between p-4 rounded-lg border border-gray-200">
-                <Text className="font-medium text-gray-900">This repeats monthly</Text>
-                <Pressable
-                  onPress={() => setFormData({ ...formData, isRecurring: !formData.isRecurring })}
-                  className={cn(
-                    'w-6 h-6 rounded border-2 items-center justify-center',
-                    formData.isRecurring ? 'bg-teal-600 border-teal-600' : 'border-gray-300'
-                  )}
-                >
-                  {formData.isRecurring && <Check size={16} color="white" />}
-                </Pressable>
+              <View className="mb-4 p-4 rounded-lg border border-gray-200">
+                <View className="flex-row items-center justify-between">
+                  <Text className="font-medium text-gray-900">This repeats monthly</Text>
+                  <Pressable
+                    onPress={() => {
+                      const newValue = !formData.isRecurring;
+                      setFormData({ ...formData, isRecurring: newValue });
+                      // If enabling recurring, disable shared
+                      if (newValue) {
+                        setIsShared(false);
+                      }
+                    }}
+                    className={cn(
+                      'w-6 h-6 rounded border-2 items-center justify-center',
+                      formData.isRecurring ? 'bg-teal-600 border-teal-600' : 'border-gray-300'
+                    )}
+                  >
+                    {formData.isRecurring && <Check size={16} color="white" />}
+                  </Pressable>
+                </View>
+                {formData.isRecurring && (
+                  <Text className="text-xs text-gray-600 mt-2">
+                    This will create a recurring template. You can add it each month from the dashboard.
+                  </Text>
+                )}
               </View>
 
               {/* Recurring Day Selector */}
@@ -583,8 +633,8 @@ export default function AddTransactionScreen() {
                 </View>
               )}
 
-              {/* SHARED EXPENSE CONTROLS - Only show if household has 2+ members and transaction type is expense */}
-              {householdMembersQuery.data && householdMembersQuery.data.length >= 2 && formData.type === 'expense' && (
+              {/* SHARED EXPENSE CONTROLS - Only show if household has 2+ members, transaction type is expense, and NOT recurring */}
+              {householdMembersQuery.data && householdMembersQuery.data.length >= 2 && formData.type === 'expense' && !formData.isRecurring && (
                 <>
                   {/* Shared expense toggle */}
                   <View className={cn(

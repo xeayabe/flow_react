@@ -33,6 +33,7 @@ import {
 } from '@/components/DashboardWidgets';
 import DebtBalanceWidget from '@/components/DebtBalanceWidget';
 import TrueBalanceWidget from '@/components/TrueBalanceWidget';
+import RecurringExpensesWidget from '@/components/RecurringExpensesWidget';
 
 interface BudgetSummaryData {
   totalIncome: number;
@@ -300,6 +301,9 @@ export default function DashboardScreen() {
             budgetPeriodStart={budgetPeriod.start}
             budgetPeriodEnd={budgetPeriod.end}
           />
+
+          {/* Recurring Expenses Widget - Shows reminders for recurring expenses that are due */}
+          <RecurringExpensesWidget />
 
           {/* Debt Balance Widget */}
           <DebtBalanceWidget />

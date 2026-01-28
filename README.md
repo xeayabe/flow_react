@@ -3050,3 +3050,115 @@ When settling a debt, users need to know WHO the original payment was made to (t
 4. Settlement shows: "Original Payee: Whole Foods"
 5. Alexander selects category: "Groceries"
 6. After settlement, his transaction list shows: "Whole Foods - 50 CHF - Groceries"
+
+### FEATURE: Recurring Expenses - Template System (2026-01-28)
+**Feature**: Fixed recurring expenses to create templates instead of immediate transactions. Recurring expenses now appear on the dashboard when due and can be added manually.
+
+**Problem**:
+Previously, when users set up a recurring expense (e.g., "Rent - 1,500 CHF on the 1st"), the system immediately created a transaction in the transaction list, affecting the current budget. This was incorrect behavior.
+
+**Solution**:
+Implemented a template-based system where recurring expenses create templates that:
+1. Do NOT appear in transaction list immediately
+2. Do NOT affect budget until manually added
+3. Show reminders on dashboard when due
+4. Can be added each month with one tap
+
+**Implementation**:
+
+**1. New Database Schema:**
+- Added `recurringTemplates` entity to store recurring expense templates
+- Added `createdFromTemplateId` field to transactions to track template origin
+- Templates store: amount, category, wallet, recurring day (1-31), payee, note
+
+**2. Recurring API (`src/lib/recurring-api.ts`):**
+- `createRecurringTemplate()` - Creates template (not transaction)
+- `getActiveRecurringTemplates()` - Gets active templates for user
+- `shouldCreateThisMonth()` - Checks if template is due this month
+- `createTransactionFromTemplate()` - Creates actual transaction from template
+- Handles edge cases like Feb 31 → Feb 28
+
+**3. Add Transaction Screen Updates (`src/app/transactions/add.tsx`):**
+- Modified mutation to detect recurring expenses
+- If recurring: creates template only (no transaction)
+- If regular: creates normal transaction
+- Recurring expenses cannot be shared (disabled automatically)
+- Shows helpful message: "This will create a recurring template"
+- Alert after creation: "Your recurring expense will appear on day X of each month"
+
+**4. Dashboard Widget (`src/components/RecurringExpensesWidget.tsx`):**
+- Shows amber-colored widget with due recurring expenses
+- Only appears when recurring expenses are due (recurring day has passed)
+- Displays: payee/category, amount, due date
+- "Add" button creates transaction for current month
+- Automatically hides templates after adding
+- Widget disappears if no recurring expenses are due
+
+**5. Dashboard Integration (`src/app/(tabs)/index.tsx`):**
+- Added RecurringExpensesWidget after Welcome Header
+- Appears prominently at top of dashboard
+- Only shows when there are due recurring expenses
+
+**Files Created**:
+- `src/lib/recurring-api.ts` - Complete recurring template management
+- `src/components/RecurringExpensesWidget.tsx` - Dashboard reminder widget
+
+**Files Modified**:
+- `src/lib/db.ts`:
+  - Added `recurringTemplates` entity
+  - Added `createdFromTemplateId` field to transactions
+- `src/app/transactions/add.tsx`:
+  - Import recurring API
+  - Modified createMutation to handle templates
+  - Added template vs transaction detection
+  - Disabled shared expenses for recurring
+  - Added helpful UI messages
+- `src/app/(tabs)/index.tsx`:
+  - Import RecurringExpensesWidget
+  - Added widget to dashboard
+
+**User Flow**:
+
+**Creating Recurring Expense:**
+1. User goes to Add Transaction
+2. Enters amount: 1,500 CHF
+3. Selects category: Rent
+4. Selects wallet: UBS Checking
+5. Checks "This repeats monthly"
+6. Sets day: 1st of month
+7. Saves
+
+Result:
+- ✅ Template created (not transaction)
+- ✅ Does NOT appear in transaction list
+- ✅ Does NOT affect current budget
+- ✅ Alert: "Your recurring expense will appear on day 1 of each month"
+
+**Adding Recurring Expense (Each Month):**
+1. User opens dashboard on/after the 1st
+2. Sees amber widget: "Recurring Expenses - Ready to add this month"
+3. Shows: "Rent - 1,500 CHF • Due: Feb 1"
+4. Taps "Add" button
+5. Transaction created with date = Feb 1
+
+Result:
+- ✅ Transaction appears in transaction list
+- ✅ Counts toward Feb budget
+- ✅ Widget hides this template until next month
+- ✅ Template ready for next month (March)
+
+**Edge Cases Handled**:
+1. **Month with fewer days**: Recurring day 31 in February → Creates transaction on Feb 28/29
+2. **Already added**: If template added this month, widget doesn't show it again
+3. **Multiple templates**: Widget shows all due templates, can add each individually
+4. **Future dates**: If recurring day hasn't arrived yet (e.g., today is 5th, recurring day is 15th), widget doesn't show it
+
+**Result**:
+- ✅ Recurring expenses work correctly (template-based)
+- ✅ No immediate transactions created
+- ✅ Dashboard shows reminders when due
+- ✅ One-tap add each month
+- ✅ Budget accuracy maintained
+- ✅ Clean separation: templates vs transactions
+- ✅ Recurring expenses cannot be shared
+- ✅ User-friendly alerts and messages

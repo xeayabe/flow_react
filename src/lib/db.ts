@@ -65,6 +65,8 @@ const schema = i.schema({
       settled: i.boolean().optional(), // true if this expense has been settled
       settledAt: i.number().optional(), // Timestamp when settled
       settlementId: i.string().optional(), // Links to settlements.id
+      // Recurring transaction tracking
+      createdFromTemplateId: i.string().optional(), // Links to recurringTemplates.id
     }),
     budgets: i.entity({
       userId: i.string(),
@@ -135,6 +137,19 @@ const schema = i.schema({
       usageCount: i.number(), // How many times used (for analytics)
       createdAt: i.number(),
       updatedAt: i.number(),
+    }),
+    recurringTemplates: i.entity({
+      userId: i.string(),
+      householdId: i.string(),
+      amount: i.number(),
+      categoryId: i.string(),
+      accountId: i.string(), // wallet ID
+      recurringDay: i.number(), // 1-31, day of month when transaction should be created
+      payee: i.string().optional(),
+      note: i.string().optional(),
+      isActive: i.boolean(), // false = deleted/deactivated
+      createdAt: i.number(),
+      lastCreatedDate: i.string().optional(), // ISO date string (YYYY-MM-DD) of last transaction created
     }),
   },
   links: {
