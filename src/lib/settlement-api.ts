@@ -3,6 +3,231 @@ import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
+ * Unsettled shared expense with details
+ */
+export interface UnsettledExpense {
+  id: string;
+  transactionId: string;
+  date: string;
+  category: string;
+  categoryId: string;
+  totalAmount: number;
+  yourShare: number;
+  paidBy: string;
+  paidByUserId: string;
+  description: string;
+  splitId: string;
+}
+
+/**
+ * Summary of debt between household members
+ */
+export interface DebtSummary {
+  amount: number; // positive = you owe, negative = you're owed
+  otherMemberId: string;
+  otherMemberName: string;
+  otherMemberEmail: string;
+}
+
+/**
+ * Get ALL unsettled shared expenses for the current user in a household
+ */
+export async function getUnsettledSharedExpenses(
+  householdId: string,
+  currentUserId: string
+): Promise<UnsettledExpense[]> {
+  console.log('=== getUnsettledSharedExpenses START ===');
+  console.log('Household ID:', householdId);
+  console.log('Current User ID:', currentUserId);
+
+  // Get all shared transactions for this household
+  const { data: txData } = await db.queryOnce({
+    transactions: {
+      $: {
+        where: {
+          householdId,
+          isShared: true,
+        },
+      },
+    },
+  });
+
+  const transactions = txData.transactions || [];
+  console.log('Found shared transactions:', transactions.length);
+
+  if (transactions.length === 0) {
+    console.log('No shared transactions found');
+    return [];
+  }
+
+  // Get all splits
+  const { data: splitData } = await db.queryOnce({
+    shared_expense_splits: {},
+  });
+
+  const allSplits = splitData.shared_expense_splits || [];
+  console.log('Total splits in DB:', allSplits.length);
+
+  // Create transaction map for quick lookup
+  const transactionMap = new Map(transactions.map((t: any) => [t.id, t]));
+  const transactionIds = transactions.map((t: any) => t.id);
+
+  // Filter splits for this household's transactions
+  const householdSplits = allSplits.filter((s: any) => transactionIds.includes(s.transactionId));
+  console.log('Household splits:', householdSplits.length);
+
+  // Get categories for display
+  const { data: categoryData } = await db.queryOnce({
+    categories: {
+      $: { where: { householdId } },
+    },
+  });
+  const categories = categoryData.categories || [];
+  const categoryMap = new Map(categories.map((c: any) => [c.id, c]));
+
+  // Get users for display
+  const { data: userData } = await db.queryOnce({
+    users: {},
+  });
+  const users = userData.users || [];
+  const userMap = new Map(users.map((u: any) => [u.id, u]));
+
+  // Find unpaid splits where current user owes money OR is owed money
+  const unsettledExpenses: UnsettledExpense[] = [];
+
+  for (const split of householdSplits) {
+    if (split.isPaid) continue; // Skip settled splits
+
+    const transaction = transactionMap.get(split.transactionId);
+    if (!transaction) continue;
+
+    // Check if current user is involved in this split
+    const currentUserOwes = split.owerUserId === currentUserId;
+    const currentUserIsOwed = split.owedToUserId === currentUserId;
+
+    if (!currentUserOwes && !currentUserIsOwed) continue;
+
+    const category = categoryMap.get(transaction.categoryId);
+    const paidByUser = userMap.get(transaction.paidByUserId);
+
+    unsettledExpenses.push({
+      id: split.id,
+      transactionId: transaction.id,
+      splitId: split.id,
+      date: transaction.date,
+      category: category?.name || 'Unknown',
+      categoryId: transaction.categoryId,
+      totalAmount: transaction.amount,
+      yourShare: currentUserOwes ? split.splitAmount : -split.splitAmount, // positive = you owe, negative = you're owed
+      paidBy: paidByUser?.name || paidByUser?.email?.split('@')[0] || 'Unknown',
+      paidByUserId: transaction.paidByUserId,
+      description: transaction.note || transaction.payee || category?.name || 'Shared expense',
+    });
+  }
+
+  // Sort by date (newest first)
+  unsettledExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  console.log('Unsettled expenses for user:', unsettledExpenses.length);
+  console.log('=== getUnsettledSharedExpenses END ===');
+
+  return unsettledExpenses;
+}
+
+/**
+ * Calculate total household debt between current user and other member
+ */
+export async function calculateHouseholdDebt(
+  householdId: string,
+  currentUserId: string
+): Promise<DebtSummary | null> {
+  console.log('=== calculateHouseholdDebt START ===');
+  console.log('Household ID:', householdId);
+  console.log('Current User ID:', currentUserId);
+
+  // Get other household member
+  const { data: memberData } = await db.queryOnce({
+    householdMembers: {
+      $: { where: { householdId, status: 'active' } },
+    },
+  });
+
+  const members = memberData.householdMembers || [];
+  const otherMember = members.find((m: any) => m.userId !== currentUserId);
+
+  if (!otherMember) {
+    console.log('No other member found in household');
+    return null;
+  }
+
+  const otherUserId = otherMember.userId;
+  console.log('Other member ID:', otherUserId);
+
+  // Get other member's user details
+  const { data: userData } = await db.queryOnce({
+    users: {
+      $: { where: { id: otherUserId } },
+    },
+  });
+
+  const otherUser = userData.users?.[0];
+
+  // Get all unsettled expenses
+  const unsettledExpenses = await getUnsettledSharedExpenses(householdId, currentUserId);
+
+  // Calculate net debt
+  // yourShare positive = you owe, yourShare negative = you're owed
+  let totalDebt = 0;
+  for (const expense of unsettledExpenses) {
+    totalDebt += expense.yourShare;
+  }
+
+  // Round to 2 decimal places
+  totalDebt = Math.round(totalDebt * 100) / 100;
+
+  console.log('Total debt:', totalDebt, '(positive = you owe, negative = you are owed)');
+  console.log('=== calculateHouseholdDebt END ===');
+
+  return {
+    amount: totalDebt,
+    otherMemberId: otherUserId,
+    otherMemberName: otherUser?.name || otherUser?.email?.split('@')[0] || 'Unknown',
+    otherMemberEmail: otherUser?.email || '',
+  };
+}
+
+/**
+ * Get all unsettled expenses grouped by who owes whom
+ */
+export async function getUnsettledExpensesByDirection(
+  householdId: string,
+  currentUserId: string
+): Promise<{
+  youOwe: UnsettledExpense[];
+  youAreOwed: UnsettledExpense[];
+  totalYouOwe: number;
+  totalYouAreOwed: number;
+  netDebt: number;
+}> {
+  const allExpenses = await getUnsettledSharedExpenses(householdId, currentUserId);
+
+  const youOwe = allExpenses.filter((e) => e.yourShare > 0);
+  const youAreOwed = allExpenses.filter((e) => e.yourShare < 0);
+
+  const totalYouOwe = youOwe.reduce((sum, e) => sum + e.yourShare, 0);
+  const totalYouAreOwed = Math.abs(youAreOwed.reduce((sum, e) => sum + e.yourShare, 0));
+  const netDebt = totalYouOwe - totalYouAreOwed;
+
+  return {
+    youOwe,
+    youAreOwed,
+    totalYouOwe: Math.round(totalYouOwe * 100) / 100,
+    totalYouAreOwed: Math.round(totalYouAreOwed * 100) / 100,
+    netDebt: Math.round(netDebt * 100) / 100,
+  };
+}
+
+/**
  * Debug function to check splits and transactions state
  */
 export async function debugSettlementData(householdId: string, payerUserId: string, receiverUserId: string) {
