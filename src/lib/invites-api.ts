@@ -149,6 +149,7 @@ export async function acceptInviteCode(code: string, newUserId: string) {
       householdId: invite.householdId,
       userId: newUserId,
       status: 'active',
+      role: 'member', // Invited users are members, not admin
       // Personal budget fields - initialized with household's payday
       paydayDay: householdPayday,
     })

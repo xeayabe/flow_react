@@ -4,6 +4,13 @@ export default function SettingsLayout() {
   return (
     <Stack>
       <Stack.Screen
+        name="household-members"
+        options={{
+          headerShown: false,
+          title: 'Household Members',
+        }}
+      />
+      <Stack.Screen
         name="categories"
         options={{
           headerShown: true,

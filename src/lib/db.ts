@@ -20,8 +20,11 @@ const schema = i.schema({
     householdMembers: i.entity({
       householdId: i.string(),
       userId: i.string(),
-      status: i.string(), // 'active' | 'inactive'
+      status: i.string(), // 'active' | 'inactive' | 'removed'
+      role: i.string().optional(), // 'admin' | 'member' (admin = household creator)
       paydayDay: i.number().optional(), // 1-31 or -1 for last day (source of truth for budget period)
+      removedAt: i.number().optional(), // Timestamp when removed
+      removedBy: i.string().optional(), // userId of admin who removed
     }),
     accounts: i.entity({
       userId: i.string(),

@@ -104,6 +104,17 @@ export default function TabTwoScreen() {
       description: 'Manage your accounts and wallets',
       onPress: () => router.push('/accounts'),
     },
+    // Only show household members if household has 2+ members
+    ...(showSplitSettings
+      ? [
+          {
+            icon: <Users size={24} color="#006A6A" />,
+            label: 'Household Members',
+            description: 'View and manage household members',
+            onPress: () => router.push('/settings/household-members'),
+          },
+        ]
+      : []),
     {
       icon: <Calendar size={24} color="#006A6A" />,
       label: 'Payday & Budget Period',
@@ -114,7 +125,7 @@ export default function TabTwoScreen() {
     ...(showSplitSettings
       ? [
           {
-            icon: <Users size={24} color="#006A6A" />,
+            icon: <PieChart size={24} color="#006A6A" />,
             label: 'Expense Splitting',
             description: 'Manage how shared expenses are divided',
             onPress: () => router.push('/settings/split-settings'),

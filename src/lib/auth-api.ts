@@ -249,13 +249,14 @@ export async function createDefaultHousehold(userId: string, name: string): Prom
       }),
     ]);
 
-    // Create household member record
+    // Create household member record (admin role for creator)
     const memberId = uuidv4();
     await db.transact([
       db.tx.householdMembers[memberId].update({
         householdId,
         userId,
         status: 'active',
+        role: 'admin', // Household creator is admin
         // Personal budget fields - admin gets default payday setup
         paydayDay: defaultPaydayDay,
       }),

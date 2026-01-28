@@ -31,6 +31,31 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 - ✅ Default household creation on signup
 - ✅ Automatic household member assignment
 
+### Household Members Management (US-007)
+- ✅ **Household Members Screen** - View all members in the household
+  - Shows member name, email, and role (Admin/Member)
+  - Current user highlighted with "(You)" label
+  - Admin badge with crown icon for household admin
+  - Accessible from Profile tab when household has 2+ members
+- ✅ **Remove Member (Admin Only)** - Admin can remove household members
+  - "Remove Member" button only visible to admin
+  - Cannot remove yourself (use "Leave Household" instead)
+  - Cannot remove member with unsettled debt
+  - Confirmation modal shows removal consequences
+- ✅ **Debt Check Before Removal** - Validates debt status
+  - If debt exists: Shows amount and direction (who owes whom)
+  - "Go to Settlement" button navigates to settle debt first
+  - Green checkmark shows when debt is cleared (0 CHF)
+- ✅ **Role-Based Access Control**
+  - Admin role assigned to household creator
+  - Member role assigned to invited users
+  - Only admin can remove members from household
+- ✅ **Database Schema Updates**
+  - `role` field: 'admin' | 'member'
+  - `removedAt`: Timestamp when member was removed
+  - `removedBy`: UserId of admin who removed the member
+  - `status`: Now supports 'active' | 'inactive' | 'removed'
+
 ### Invite Partner (US-005)
 - ✅ **6-Digit Invite Code System** - Generate shareable codes instead of links
   - Codes are 6 characters (uppercase alphanumeric, excluding confusing chars: I, 1, O, 0)
