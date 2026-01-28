@@ -2838,3 +2838,65 @@ After this fix:
 - ✅ Entire container changes appearance when toggled
 - ✅ Much better visibility and contrast
 - ✅ Consistent styling across add and edit screens
+
+### PRIVACY FIX: Settlement Screen Privacy Protection (2026-01-28)
+
+**Problem**: Settlement screen exposed private financial data:
+1. **Category Privacy Leak**: Displayed other member's personal category names
+2. **Wallet Privacy Leak**: Displayed other member's wallet names and balances
+
+**The Fix**:
+
+**1. Category Privacy Protection:**
+- Added `getCategoryDisplay()` helper function with privacy rules:
+  - Shows category name if it's a common category (Groceries, Rent, Utilities, etc.)
+  - Shows category name if current user created the transaction
+  - Otherwise shows "Shared Expense" (protects partner's personal categories)
+- Updated `UnsettledExpense` interface to include `createdByUserId`
+- Description only shown for transactions created by current user
+
+**2. Wallet Privacy Protection:**
+- Removed partner wallet selection dropdown entirely
+- Users only see and select their own wallets
+- Settlement automatically uses partner's default wallet
+- Added privacy-friendly helper text: "{Partner} will receive this in their default wallet"
+- Partner's wallet names and balances completely hidden
+
+**UI Changes**:
+```
+Before (PRIVACY LEAK):
+┌─────────────────────────────────────┐
+│ ☑ Shopping                          │ ← Partner's personal category!
+│ ☑ Work Lunch                        │ ← User's personal category!
+│                                     │
+│ Partner's Wallet:                   │
+│ [Their Savings (5,000 CHF) ▼]      │ ← Their wallet exposed!
+└─────────────────────────────────────┘
+
+After (PRIVATE):
+┌─────────────────────────────────────┐
+│ ☑ Shared Expense                    │ ← Partner's category hidden
+│ ☑ Work Lunch                        │ ← Your category visible
+│                                     │
+│ Your Wallet:                        │
+│ [UBS Checking (2,500 CHF) ▼]       │ ← Only YOUR wallets
+│ ℹ️ Partner receives in default     │ ← Privacy info
+└─────────────────────────────────────┘
+```
+
+**Files Modified**:
+- `src/lib/settlement-api.ts`: Added `createdByUserId` to `UnsettledExpense` interface
+- `src/app/settlement.tsx`:
+  - Added category privacy filter with common categories list
+  - Removed partner wallet selection state and queries
+  - Removed partner wallet picker modal
+  - Updated mutation to fetch partner's default wallet automatically
+  - Added privacy-friendly helper text
+
+**Result**:
+- ✅ Partner's personal category names completely hidden
+- ✅ Common categories (Groceries, Rent, etc.) still visible to both
+- ✅ Partner's wallet information completely hidden
+- ✅ Settlement still works - uses partner's default wallet automatically
+- ✅ Users only see their own financial data
+- ✅ Descriptions only shown for user's own transactions

@@ -17,6 +17,7 @@ export interface UnsettledExpense {
   paidByUserId: string;
   description: string;
   splitId: string;
+  createdByUserId: string; // NEW: Track who created the transaction for privacy
 }
 
 /**
@@ -124,6 +125,7 @@ export async function getUnsettledSharedExpenses(
       paidBy: paidByUser?.name || paidByUser?.email?.split('@')[0] || 'Unknown',
       paidByUserId: transaction.paidByUserId,
       description: transaction.note || transaction.payee || category?.name || 'Shared expense',
+      createdByUserId: transaction.userId, // Track who created the transaction
     });
   }
 

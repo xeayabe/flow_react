@@ -16,6 +16,36 @@ import { getCurrentUserHouseholdInfo } from '@/lib/household-members-api';
 import { formatBalance, type Account } from '@/lib/accounts-api';
 import { cn } from '@/lib/cn';
 
+// Common categories that can be shown to all members
+const COMMON_CATEGORIES = [
+  'Groceries',
+  'Rent',
+  'Utilities',
+  'Dining Out',
+  'Transport',
+  'Transportation',
+  'Entertainment',
+  'Healthcare',
+  'Health',
+  'Insurance',
+];
+
+// Helper function to determine if category should be visible for privacy
+function getCategoryDisplay(expense: UnsettledExpense, currentUserId: string): string {
+  // Show if it's a common category
+  if (COMMON_CATEGORIES.includes(expense.category)) {
+    return expense.category;
+  }
+
+  // Show if current user created the transaction
+  if (expense.createdByUserId === currentUserId) {
+    return expense.category;
+  }
+
+  // Otherwise hide for privacy
+  return 'Shared Expense';
+}
+
 export default function SettlementScreen() {
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
@@ -28,9 +58,7 @@ export default function SettlementScreen() {
 
   // Wallet selection state
   const [yourWalletId, setYourWalletId] = useState<string>('');
-  const [partnerWalletId, setPartnerWalletId] = useState<string>('');
   const [showYourWalletPicker, setShowYourWalletPicker] = useState(false);
-  const [showPartnerWalletPicker, setShowPartnerWalletPicker] = useState(false);
 
   // Payment methods
   const paymentMethods = [
@@ -107,21 +135,7 @@ export default function SettlementScreen() {
     enabled: !!userInfo?.userId,
   });
 
-  // Get partner's accounts for settlement
-  const { data: partnerAccountsData } = useQuery({
-    queryKey: ['partner-accounts', debtInfo?.otherMemberId],
-    queryFn: async () => {
-      const { data } = await db.queryOnce({
-        accounts: {
-          $: { where: { userId: debtInfo!.otherMemberId, isActive: true } },
-        },
-      });
-      return data.accounts || [];
-    },
-    enabled: !!debtInfo?.otherMemberId,
-  });
-
-  // Set default wallets when data loads
+  // Set default wallet when data loads
   useEffect(() => {
     if (accountsData && accountsData.length > 0 && !yourWalletId) {
       const defaultWallet = accountsData.find((a: any) => a.isDefault) || accountsData[0];
@@ -129,19 +143,8 @@ export default function SettlementScreen() {
     }
   }, [accountsData, yourWalletId]);
 
-  useEffect(() => {
-    if (partnerAccountsData && partnerAccountsData.length > 0 && !partnerWalletId) {
-      const defaultWallet = partnerAccountsData.find((a: any) => a.isDefault) || partnerAccountsData[0];
-      setPartnerWalletId(defaultWallet.id);
-    }
-  }, [partnerAccountsData, partnerWalletId]);
-
-  const payerAccount = accountsData?.[0]; // Current user's account
-  const receiverAccount = accountsData?.find((a: any) => a.userId === debtInfo?.otherMemberId); // Other member's account
-
-  // Get selected wallet objects for display
+  // Get selected wallet object for display
   const yourWallet = accountsData?.find((a: any) => a.id === yourWalletId);
-  const partnerWallet = partnerAccountsData?.find((a: any) => a.id === partnerWalletId);
 
   // Settlement mutation
   const settleMutation = useMutation({
@@ -150,9 +153,9 @@ export default function SettlementScreen() {
         throw new Error('Missing required data for settlement');
       }
 
-      // Check if wallets are selected
-      if (!yourWalletId || !partnerWalletId) {
-        throw new Error('Please select wallets for settlement');
+      // Check if wallet is selected
+      if (!yourWalletId) {
+        throw new Error('Please select your wallet for settlement');
       }
 
       // Determine who is payer and who is receiver based on debt direction
@@ -160,11 +163,24 @@ export default function SettlementScreen() {
       const payerUserId = youOwe ? userInfo.userId : debtInfo.otherMemberId;
       const receiverUserId = youOwe ? debtInfo.otherMemberId : userInfo.userId;
 
+      // Get partner's default wallet for settlement
+      const { data: partnerAccountsData } = await db.queryOnce({
+        accounts: {
+          $: { where: { userId: debtInfo.otherMemberId, isActive: true } },
+        },
+      });
+      const partnerAccounts = partnerAccountsData.accounts || [];
+      const partnerDefaultWallet = partnerAccounts.find((a: any) => a.isDefault) || partnerAccounts[0];
+
+      if (!partnerDefaultWallet) {
+        throw new Error('Partner has no wallet available');
+      }
+
       // Determine wallet IDs based on debt direction
-      // If you owe: your wallet sends, partner wallet receives
-      // If you're owed: partner wallet sends, your wallet receives
-      const payerWalletId = youOwe ? yourWalletId : partnerWalletId;
-      const receiverWalletId = youOwe ? partnerWalletId : yourWalletId;
+      // If you owe: your wallet sends, partner's default wallet receives
+      // If you're owed: partner's default wallet sends, your wallet receives
+      const payerWalletId = youOwe ? yourWalletId : partnerDefaultWallet.id;
+      const receiverWalletId = youOwe ? partnerDefaultWallet.id : yourWalletId;
 
       return createSettlement(
         payerUserId,
@@ -181,7 +197,6 @@ export default function SettlementScreen() {
       queryClient.invalidateQueries({ queryKey: ['unsettled-expenses'] });
       queryClient.invalidateQueries({ queryKey: ['household-debt'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['partner-accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
 
@@ -333,7 +348,7 @@ export default function SettlementScreen() {
                       {/* Date and Category */}
                       <View className="flex-row items-center justify-between mb-1">
                         <Text className="text-base font-semibold text-gray-900">
-                          {expense.category}
+                          {getCategoryDisplay(expense, userInfo?.userId || '')}
                         </Text>
                         <Text className="text-xs text-gray-500">
                           {new Date(expense.date).toLocaleDateString('en-GB', {
@@ -343,8 +358,8 @@ export default function SettlementScreen() {
                         </Text>
                       </View>
 
-                      {/* Description */}
-                      {expense.description && (
+                      {/* Description - only show if user created the transaction */}
+                      {expense.description && expense.createdByUserId === userInfo?.userId && (
                         <Text className="text-sm text-gray-600 mb-2">
                           {expense.description}
                         </Text>
@@ -413,38 +428,17 @@ export default function SettlementScreen() {
                 </View>
                 <ChevronDown size={20} color="#6B7280" />
               </Pressable>
-            </View>
 
-            {/* Partner's Wallet Selection */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-600 mb-2">
-                {youOwe ? `Send To (${partnerName}'s Wallet)` : `From (${partnerName}'s Wallet)`}
-              </Text>
-              <Pressable
-                onPress={() => setShowPartnerWalletPicker(true)}
-                className="flex-row items-center justify-between p-3 rounded-xl border-2 border-gray-200 bg-gray-50"
-              >
-                <View className="flex-row items-center flex-1">
-                  <View className="w-10 h-10 rounded-full bg-blue-100 items-center justify-center mr-3">
-                    <Wallet size={20} color="#3B82F6" />
-                  </View>
-                  <View className="flex-1">
-                    {partnerWallet ? (
-                      <>
-                        <Text className="text-base font-semibold text-gray-900">
-                          {partnerWallet.name}
-                        </Text>
-                        <Text className="text-sm text-gray-500">
-                          {formatBalance(partnerWallet.balance || 0, partnerWallet.currency || 'CHF')}
-                        </Text>
-                      </>
-                    ) : (
-                      <Text className="text-gray-400">Select {partnerName}'s wallet...</Text>
-                    )}
-                  </View>
-                </View>
-                <ChevronDown size={20} color="#6B7280" />
-              </Pressable>
+              {/* Privacy-friendly helper text */}
+              <View className="mt-3 flex-row items-start bg-blue-50 p-3 rounded-lg">
+                <Text className="text-blue-700 mr-2">ℹ️</Text>
+                <Text className="text-sm text-blue-700 flex-1">
+                  {youOwe
+                    ? `${partnerName} will receive this in their default wallet`
+                    : `${partnerName} will pay from their default wallet`
+                  }
+                </Text>
+              </View>
             </View>
 
             {/* Divider */}
@@ -481,10 +475,10 @@ export default function SettlementScreen() {
             </Pressable>
             <Pressable
               onPress={handleSettle}
-              disabled={settleMutation.isPending || selectedExpenses.length === 0 || !yourWalletId || !partnerWalletId}
+              disabled={settleMutation.isPending || selectedExpenses.length === 0 || !yourWalletId}
               className={cn(
                 "flex-1 py-3 rounded-xl",
-                settleMutation.isPending || selectedExpenses.length === 0 || !yourWalletId || !partnerWalletId
+                settleMutation.isPending || selectedExpenses.length === 0 || !yourWalletId
                   ? 'bg-gray-300'
                   : 'bg-teal-600 active:bg-teal-700'
               )}
@@ -545,57 +539,6 @@ export default function SettlementScreen() {
                 <View className="items-center py-8">
                   <Wallet size={48} color="#9CA3AF" />
                   <Text className="text-gray-500 mt-3">No wallets found</Text>
-                </View>
-              )}
-            </ScrollView>
-          </SafeAreaView>
-        </View>
-      </Modal>
-
-      {/* Partner's Wallet Picker Modal */}
-      <Modal
-        visible={showPartnerWalletPicker}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowPartnerWalletPicker(false)}
-      >
-        <View className="flex-1 bg-white">
-          <SafeAreaView edges={['top']} className="flex-1">
-            <View className="flex-row items-center justify-between px-4 py-4 border-b border-gray-200">
-              <Text className="text-lg font-semibold text-gray-900">{partnerName}'s Wallet</Text>
-              <Pressable onPress={() => setShowPartnerWalletPicker(false)} className="p-2">
-                <X size={24} color="#6B7280" />
-              </Pressable>
-            </View>
-            <ScrollView className="flex-1 px-4 pt-4">
-              {partnerAccountsData?.map((wallet: any) => (
-                <Pressable
-                  key={wallet.id}
-                  onPress={() => {
-                    setPartnerWalletId(wallet.id);
-                    setShowPartnerWalletPicker(false);
-                  }}
-                  className={cn(
-                    "flex-row items-center p-4 rounded-xl mb-2 border-2",
-                    partnerWalletId === wallet.id ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white"
-                  )}
-                >
-                  <View className="w-12 h-12 rounded-full bg-blue-100 items-center justify-center mr-3">
-                    <Wallet size={24} color="#3B82F6" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold text-gray-900">{wallet.name}</Text>
-                    <Text className="text-sm text-gray-500">
-                      {wallet.institution} • {formatBalance(wallet.balance || 0, wallet.currency || 'CHF')}
-                    </Text>
-                  </View>
-                  {partnerWalletId === wallet.id && <Check size={24} color="#3B82F6" />}
-                </Pressable>
-              ))}
-              {(!partnerAccountsData || partnerAccountsData.length === 0) && (
-                <View className="items-center py-8">
-                  <Wallet size={48} color="#9CA3AF" />
-                  <Text className="text-gray-500 mt-3">{partnerName} has no wallets</Text>
                 </View>
               )}
             </ScrollView>
