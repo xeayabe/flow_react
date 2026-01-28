@@ -104,7 +104,14 @@ export default function TabTwoScreen() {
       description: 'Manage your accounts and wallets',
       onPress: () => router.push('/accounts'),
     },
-    // Only show household members if household has 2+ members
+    // Household & Members Section
+    {
+      icon: <UserPlus size={24} color="#006A6A" />,
+      label: 'Invite Partner',
+      description: 'Share a code to invite someone to your household',
+      onPress: () => router.push('/settings/invite'),
+    },
+    // Show household members if 2+ members
     ...(showSplitSettings
       ? [
           {
