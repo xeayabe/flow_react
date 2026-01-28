@@ -372,10 +372,10 @@ export default function SettlementScreen() {
                     </View>
 
                     <View className="flex-1">
-                      {/* Date and Category */}
+                      {/* Date and Payee */}
                       <View className="flex-row items-center justify-between mb-1">
                         <Text className="text-base font-semibold text-gray-900">
-                          {getCategoryDisplay(expense, userInfo?.userId || '')}
+                          {expense.payee || 'Shared Expense'}
                         </Text>
                         <Text className="text-xs text-gray-500">
                           {new Date(expense.date).toLocaleDateString('en-GB', {
