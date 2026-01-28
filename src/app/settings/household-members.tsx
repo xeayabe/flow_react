@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Modal, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { ArrowLeft, Crown, UserMinus, AlertTriangle, X, AlertCircle } from 'lucide-react-native';
@@ -102,17 +103,18 @@ export default function HouseholdMembersScreen() {
 
   return (
     <View className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="bg-white flex-row items-center px-4 py-4 border-b border-gray-200">
-        <Pressable onPress={() => router.back()} className="p-2 -ml-2">
-          <ArrowLeft size={24} color="#374151" />
-        </Pressable>
-        <Text className="text-lg font-semibold ml-2 text-gray-900">Household Members</Text>
-      </View>
+      <SafeAreaView edges={['top']} className="flex-1">
+        {/* Header */}
+        <View className="bg-white flex-row items-center px-4 py-4 border-b border-gray-200">
+          <Pressable onPress={() => router.back()} className="p-2 -ml-2">
+            <ArrowLeft size={24} color="#374151" />
+          </Pressable>
+          <Text className="text-lg font-semibold ml-2 text-gray-900">Household Members</Text>
+        </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 32 }}>
-        {/* Members List */}
-        <View className="mt-4 mx-4">
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 32 }}>
+          {/* Members List */}
+          <View className="mt-4 mx-4">
           {members?.map((member) => (
             <View
               key={member.id}
@@ -175,6 +177,7 @@ export default function HouseholdMembersScreen() {
           </View>
         </View>
       </ScrollView>
+      </SafeAreaView>
 
       {/* Removal Confirmation Modal */}
       <Modal
