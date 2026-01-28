@@ -425,22 +425,6 @@ export default function SettlementScreen() {
               Settlement Details
             </Text>
 
-            {/* Original Transaction Payee (Read-only) - Show when you owe money */}
-            {youOwe && (
-              <View className="mb-4">
-                <Text className="text-sm text-gray-600 mb-2">
-                  Original Payee (For Your Records)
-                </Text>
-                <View className="flex-row items-center p-3 rounded-xl border-2 border-gray-200 bg-gray-100">
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold text-gray-900">
-                      {originalPayee}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
             {/* Category Selection - Only show when you OWE money */}
             {youOwe && (
               <View className="mb-4">
