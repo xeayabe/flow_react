@@ -234,7 +234,7 @@ export default function DebtBalanceWidget() {
               onPress={() => router.push('/settlement')}
               className="bg-red-600 py-3 rounded-xl active:opacity-80"
             >
-              <Text className="text-white text-center font-semibold">Settle Debt</Text>
+              <Text className="text-white text-center font-semibold">View Details & Settle</Text>
             </Pressable>
           </View>
         ) : (
@@ -247,7 +247,7 @@ export default function DebtBalanceWidget() {
               onPress={() => router.push('/settlement')}
               className="bg-green-600 py-3 rounded-xl active:opacity-80"
             >
-              <Text className="text-white text-center font-semibold">View Settlement</Text>
+              <Text className="text-white text-center font-semibold">View Details & Settle</Text>
             </Pressable>
           </View>
         )}
