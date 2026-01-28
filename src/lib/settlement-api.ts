@@ -99,17 +99,33 @@ export async function getUnsettledSharedExpenses(
   // Find unpaid splits where current user owes money OR is owed money
   const unsettledExpenses: UnsettledExpense[] = [];
 
+  console.log('🔍 Processing splits for current user:', currentUserId.substring(0, 8));
   for (const split of householdSplits) {
-    if (split.isPaid) continue; // Skip settled splits
+    console.log(`  Split ${split.id.substring(0, 8)}: owerUserId=${split.owerUserId?.substring(0, 8)}, owedToUserId=${split.owedToUserId?.substring(0, 8)}, isPaid=${split.isPaid}, amount=${split.splitAmount}`);
+
+    if (split.isPaid) {
+      console.log(`    ❌ Skipping - already paid`);
+      continue; // Skip settled splits
+    }
 
     const transaction = transactionMap.get(split.transactionId);
-    if (!transaction) continue;
+    if (!transaction) {
+      console.log(`    ❌ Skipping - no transaction found for ID ${split.transactionId?.substring(0, 8)}`);
+      continue;
+    }
 
     // Check if current user is involved in this split
     const currentUserOwes = split.owerUserId === currentUserId;
     const currentUserIsOwed = split.owedToUserId === currentUserId;
 
-    if (!currentUserOwes && !currentUserIsOwed) continue;
+    console.log(`    currentUserOwes=${currentUserOwes}, currentUserIsOwed=${currentUserIsOwed}`);
+
+    if (!currentUserOwes && !currentUserIsOwed) {
+      console.log(`    ❌ Skipping - current user not involved in this split`);
+      continue;
+    }
+
+    console.log(`    ✅ Including split in unsettled expenses`);
 
     const category = categoryMap.get(transaction.categoryId);
     const paidByUser = userMap.get(transaction.paidByUserId);
