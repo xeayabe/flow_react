@@ -2681,4 +2681,60 @@ After this fix:
 - ✅ Budget period dates display correctly (from dynamic calculation)
 - ✅ All budget queries work without period date filters
 
+---
+
+## Recent Changes
+
+### UI/UX Improvements: Shared Expense Toggle Visibility (2026-01-28)
+
+**Problem**: User reported two issues with shared expense feature:
+1. Share toggle in Add Transaction screen was too bright/hard to see
+2. Edit Transaction screen was missing the share toggle entirely
+
+**The Fix**:
+
+**1. Add Transaction Screen (`src/app/transactions/add.tsx`):**
+- Improved shared expense toggle visibility:
+  - Changed from border-top design to rounded card with background
+  - Added `rounded-xl border-2 border-gray-200 bg-gray-50` styling
+  - Updated Switch colors:
+    - Inactive (off): `#E5E7EB` (lighter gray, more visible)
+    - Active (on): `#059669` (emerald green)
+  - Added `ios_backgroundColor="#E5E7EB"` for iOS consistency
+  - Result: Toggle now has clear visual separation and better contrast
+
+**2. Edit Transaction Screen (`src/app/transactions/[id]/edit.tsx`):**
+- **Added complete shared expense functionality** (was missing):
+  - Imported `Switch` and `createExpenseSplits` / `calculateSplitRatio` from shared-expenses-api
+  - Added shared expense state: `isShared` and `paidByUserId`
+  - Added queries:
+    - `householdMembersQuery`: Load all active household members
+    - `splitRatiosQuery`: Calculate split percentages
+  - Updated FormData interface to include `isShared?` and `paidByUserId?`
+  - Pre-fill shared state from transaction data when editing
+  - Auto-select current user as payer when members load
+  - Updated mutation to save shared expense data and create splits
+  - Added UI controls (matching add screen):
+    - Shared expense toggle (only for expense type, 2+ members)
+    - Split preview box showing percentages
+    - "Who paid?" selector with member cards
+  - Positioning: Added after recurring controls, before "Exclude from Budget"
+
+**Visual Improvements**:
+- Both screens now use consistent card design for shared expense toggle
+- Better contrast and visibility with lighter gray background
+- Clearer distinction between on/off states
+- Professional rounded styling matching app aesthetic
+
+**Files Modified**:
+- `src/app/transactions/add.tsx`: Enhanced toggle visibility
+- `src/app/transactions/[id]/edit.tsx`: Added full shared expense support
+- `README.md`: Documented changes
+
+**Result**:
+- ✅ Share toggle now clearly visible in Add Transaction screen
+- ✅ Edit Transaction screen now supports editing shared expense properties
+- ✅ Users can convert personal expenses to shared (or vice versa) when editing
+- ✅ Consistent UX between add and edit flows
+
 

@@ -587,7 +587,7 @@ export default function AddTransactionScreen() {
               {householdMembersQuery.data && householdMembersQuery.data.length >= 2 && formData.type === 'expense' && (
                 <>
                   {/* Shared expense toggle */}
-                  <View className="flex-row items-center justify-between p-4 border-t border-gray-200 mt-4 mb-4">
+                  <View className="flex-row items-center justify-between p-4 rounded-xl border-2 border-gray-200 bg-gray-50 mb-4">
                     <View className="flex-1">
                       <Text className="text-base font-semibold text-gray-900">Shared Expense</Text>
                       <Text className="text-sm text-gray-600">Split with household members</Text>
@@ -595,8 +595,9 @@ export default function AddTransactionScreen() {
                     <Switch
                       value={isShared}
                       onValueChange={setIsShared}
-                      trackColor={{ false: '#D1D5DB', true: '#10B981' }}
+                      trackColor={{ false: '#E5E7EB', true: '#059669' }}
                       thumbColor="#FFFFFF"
+                      ios_backgroundColor="#E5E7EB"
                     />
                   </View>
 

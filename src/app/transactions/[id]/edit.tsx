@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, Modal, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable, TextInput, Modal, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -11,6 +11,7 @@ import { getUserAccounts, formatBalance } from '@/lib/accounts-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { savePayeeMapping, getCategorySuggestion } from '@/lib/payee-mappings-api';
+import { createExpenseSplits, calculateSplitRatio } from '@/lib/shared-expenses-api';
 import { cn } from '@/lib/cn';
 import PayeePickerModal from '@/components/PayeePickerModal';
 import CategoryPickerModal from '@/components/CategoryPickerModal';
@@ -28,6 +29,8 @@ interface FormData {
   isRecurring: boolean;
   recurringDay: number;
   isExcludedFromBudget: boolean;
+  isShared?: boolean;
+  paidByUserId?: string;
 }
 
 interface FormErrors {
@@ -69,6 +72,10 @@ export default function EditTransactionScreen() {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Shared expense state
+  const [isShared, setIsShared] = useState(false);
+  const [paidByUserId, setPaidByUserId] = useState<string>('');
 
   // Get user and household info (works for both admin and members)
   const householdQuery = useQuery({
@@ -124,6 +131,51 @@ export default function EditTransactionScreen() {
     enabled: !!householdQuery.data?.householdId && !!householdQuery.data?.userRecord?.id,
   });
 
+  // Load household members for shared expenses
+  const householdMembersQuery = useQuery({
+    queryKey: ['household-members', householdQuery.data?.householdId],
+    queryFn: async () => {
+      if (!householdQuery.data?.householdId) return [];
+
+      const { data: membersData } = await db.queryOnce({
+        householdMembers: {
+          $: {
+            where: { householdId: householdQuery.data.householdId, status: 'active' },
+          },
+        },
+        users: {},
+      });
+
+      if (!membersData?.householdMembers) return [];
+
+      return membersData.householdMembers.map((member: any) => {
+        const memberUser = membersData.users?.find((u: any) => u.id === member.userId);
+        return {
+          ...member,
+          userId: member.userId,
+          userName: memberUser?.name || 'Unknown',
+          userEmail: memberUser?.email || 'unknown@email.com',
+        };
+      });
+    },
+    enabled: !!householdQuery.data?.householdId,
+  });
+
+  // Get split ratios for showing percentages
+  const splitRatiosQuery = useQuery({
+    queryKey: ['split-ratios', householdQuery.data?.householdId],
+    queryFn: async () => {
+      if (!householdQuery.data?.householdId) return [];
+      try {
+        return await calculateSplitRatio(householdQuery.data.householdId);
+      } catch (error) {
+        console.error('Error calculating split ratios:', error);
+        return [];
+      }
+    },
+    enabled: !!householdQuery.data?.householdId && isShared,
+  });
+
   // Pre-fill form when transaction loads
   useEffect(() => {
     if (transactionQuery.data) {
@@ -140,16 +192,33 @@ export default function EditTransactionScreen() {
         isRecurring: tx.isRecurring,
         recurringDay: tx.recurringDay || 1,
         isExcludedFromBudget: tx.isExcludedFromBudget || false,
+        isShared: tx.isShared || false,
+        paidByUserId: tx.paidByUserId || '',
       });
       setTempDate(tx.date);
       setCalendarMonth(new Date(tx.date + 'T00:00:00'));
+      // Set shared state
+      setIsShared(tx.isShared || false);
+      setPaidByUserId(tx.paidByUserId || '');
     }
   }, [transactionQuery.data]);
 
+  // Auto-select current user as payer when members load (if not already set)
+  useEffect(() => {
+    if (householdMembersQuery.data && householdMembersQuery.data.length > 0 && !paidByUserId && isShared) {
+      const currentMember = householdMembersQuery.data.find(
+        (m: any) => m.userId === householdQuery.data?.userRecord?.id
+      );
+      if (currentMember) {
+        setPaidByUserId(currentMember.userId);
+      }
+    }
+  }, [householdMembersQuery.data, householdQuery.data?.userRecord?.id, paidByUserId, isShared]);
+
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: () =>
-      updateTransaction({
+    mutationFn: async () => {
+      const result = await updateTransaction({
         id: id!,
         userId: householdQuery.data!.userRecord.id,
         householdId: householdQuery.data!.householdId,
@@ -163,7 +232,22 @@ export default function EditTransactionScreen() {
         isRecurring: formData.isRecurring,
         recurringDay: formData.isRecurring ? formData.recurringDay : undefined,
         isExcludedFromBudget: formData.isExcludedFromBudget,
-      }),
+        isShared: isShared,
+        paidByUserId: isShared ? paidByUserId : undefined,
+      });
+
+      // If shared status changed to true or split changed, update expense splits
+      if (isShared && id) {
+        await createExpenseSplits(
+          id,
+          parseFloat(formData.amount),
+          householdQuery.data!.householdId,
+          paidByUserId
+        );
+      }
+
+      return result;
+    },
     onSuccess: async () => {
       // Save payee-category mapping for smart learning (if category changed)
       if (formData.payee.trim() && formData.categoryId && householdQuery.data?.userRecord?.id) {
@@ -304,7 +388,7 @@ export default function EditTransactionScreen() {
     );
   }
 
-  if (transactionQuery.isLoading || householdQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading || categoryGroupsQuery.isLoading) {
+  if (transactionQuery.isLoading || householdQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading || categoryGroupsQuery.isLoading || householdMembersQuery.isLoading) {
     return (
       <View className="flex-1 bg-white items-center justify-center">
         <ActivityIndicator size="large" color="#006A6A" />
@@ -529,6 +613,83 @@ export default function EditTransactionScreen() {
                     <Text className="font-medium text-gray-900">of each month</Text>
                   </View>
                 </View>
+              )}
+
+              {/* SHARED EXPENSE CONTROLS - Only show if household has 2+ members and transaction type is expense */}
+              {householdMembersQuery.data && householdMembersQuery.data.length >= 2 && formData.type === 'expense' && (
+                <>
+                  {/* Shared expense toggle */}
+                  <View className="flex-row items-center justify-between p-4 rounded-xl border-2 border-gray-200 bg-gray-50 mb-4">
+                    <View className="flex-1">
+                      <Text className="text-base font-semibold text-gray-900">Shared Expense</Text>
+                      <Text className="text-sm text-gray-600">Split with household members</Text>
+                    </View>
+                    <Switch
+                      value={isShared}
+                      onValueChange={setIsShared}
+                      trackColor={{ false: '#E5E7EB', true: '#059669' }}
+                      thumbColor="#FFFFFF"
+                      ios_backgroundColor="#E5E7EB"
+                    />
+                  </View>
+
+                  {/* Who paid selector - only show when shared */}
+                  {isShared && (
+                    <View className="px-0 pb-4 mb-4">
+                      {/* Split Preview */}
+                      {formData.amount && parseFloat(formData.amount) > 0 && (
+                        <View className="bg-blue-50 p-3 rounded-xl mb-4 border border-blue-200">
+                          <Text className="text-xs text-blue-900 font-semibold mb-2">Split Preview:</Text>
+                          {householdMembersQuery.data?.map((member: any) => {
+                            const ratio = splitRatiosQuery.data?.find((r: any) => r.userId === member.userId);
+                            const percentage = ratio?.percentage || 50;
+                            const splitAmount = (parseFloat(formData.amount) * percentage) / 100;
+                            return (
+                              <Text key={member.userId} className="text-xs text-blue-700 mb-1">
+                                {member.userName}: {splitAmount.toFixed(2)} CHF ({percentage.toFixed(0)}%)
+                              </Text>
+                            );
+                          })}
+                        </View>
+                      )}
+
+                      <Text className="text-sm font-semibold text-gray-700 mb-3">Who paid?</Text>
+                      {householdMembersQuery.data.map((member: any) => (
+                        <Pressable
+                          key={member.userId}
+                          onPress={() => setPaidByUserId(member.userId)}
+                          className={`flex-row items-center p-3 rounded-xl mb-2 ${
+                            paidByUserId === member.userId
+                              ? 'bg-teal-50 border-2 border-teal-600'
+                              : 'bg-gray-50 border-2 border-gray-200'
+                          }`}
+                        >
+                          <View
+                            className={`w-6 h-6 rounded-full border-2 mr-3 items-center justify-center ${
+                              paidByUserId === member.userId
+                                ? 'border-teal-600 bg-teal-600'
+                                : 'border-gray-300'
+                            }`}
+                          >
+                            {paidByUserId === member.userId && (
+                              <Text className="text-white text-xs font-bold">✓</Text>
+                            )}
+                          </View>
+                          <View>
+                            <Text
+                              className={`text-base ${
+                                paidByUserId === member.userId ? 'font-semibold text-gray-900' : 'text-gray-700'
+                              }`}
+                            >
+                              {member.userName}
+                            </Text>
+                            <Text className="text-xs text-gray-500">{member.userEmail}</Text>
+                          </View>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </>
               )}
 
               {/* Exclude from Budget Toggle */}
