@@ -425,23 +425,6 @@ export default function SettlementScreen() {
               Settlement Details
             </Text>
 
-            {/* Payee (Read-only) */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-600 mb-2">
-                {youOwe ? 'Paying To (Settlement Receiver)' : 'Receiving From (Settlement Sender)'}
-              </Text>
-              <View className="flex-row items-center p-3 rounded-xl border-2 border-gray-200 bg-gray-100">
-                <View className="flex-1">
-                  <Text className="text-base font-semibold text-gray-900">
-                    {partnerName}
-                  </Text>
-                  <Text className="text-sm text-gray-500">
-                    {youOwe ? 'Will receive the payment' : 'Will send the payment'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
             {/* Original Transaction Payee (Read-only) - Show when you owe money */}
             {youOwe && (
               <View className="mb-4">
