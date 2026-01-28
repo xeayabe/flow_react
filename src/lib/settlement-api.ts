@@ -534,30 +534,60 @@ export async function createSettlement(
         }
       }
 
-      // Then execute transaction updates separately
+      // Then execute transaction updates separately (only reduce amounts, don't mark as settled yet)
       if (transactionsToUpdate.length > 0) {
-        console.log('🔄 Step 2: Updating transactions (amount + settlement tracking)...');
+        console.log('🔄 Step 2: Updating transactions (amount reduction only)...');
         try {
           // Collect transaction IDs for settlement record
           const settledTxIds = transactionsToUpdate.map((t: any) => t.id);
 
+          // First, reduce transaction amounts
           await db.transact(
             transactionsToUpdate.map(tx => {
               const reductionAmount = transactionReductions[tx.id];
               const newAmount = Math.max(0, tx.amount - reductionAmount);
-              console.log(`  📌 Updating ${tx.id.substring(0, 8)}: ${tx.amount} -> ${newAmount}, settled=true`);
+              console.log(`  📌 Updating ${tx.id.substring(0, 8)}: ${tx.amount} -> ${newAmount}`);
               return db.tx.transactions[tx.id].update({
                 amount: newAmount,
-                settled: true,
-                settledAt: now,
-                settlementId: settlementId,
               });
             })
           );
-          console.log('✅ Transaction amounts updated and marked as settled');
+          console.log('✅ Transaction amounts updated');
+
+          // After reducing amounts, check if transactions should be marked as settled
+          // A transaction is fully settled when ALL its splits are paid
+          console.log('🔄 Step 2b: Checking if transactions should be marked as fully settled...');
+
+          for (const tx of transactionsToUpdate) {
+            // Get all splits for this transaction
+            const { data: txSplitData } = await db.queryOnce({
+              shared_expense_splits: {
+                $: { where: { transactionId: tx.id } },
+              },
+            });
+
+            const txSplits = txSplitData.shared_expense_splits || [];
+            const allSplitsPaid = txSplits.length > 0 && txSplits.every((s: any) => s.isPaid);
+
+            console.log(`  📌 Transaction ${tx.id.substring(0, 8)}: ${txSplits.length} splits, all paid: ${allSplitsPaid}`);
+
+            // Only mark as settled if ALL splits are paid
+            if (allSplitsPaid) {
+              await db.transact([
+                db.tx.transactions[tx.id].update({
+                  settled: true,
+                  settledAt: now,
+                  settlementId: settlementId,
+                }),
+              ]);
+              console.log(`  ✅ Transaction ${tx.id.substring(0, 8)} marked as fully settled`);
+            } else {
+              console.log(`  ⏳ Transaction ${tx.id.substring(0, 8)} has unpaid splits, keeping as unsettled`);
+            }
+          }
 
           // Update settlement record with settled transaction IDs
-          console.log('🔄 Step 2b: Updating settlement record with transaction IDs...');
+          console.log('🔄 Step 2c: Updating settlement record with transaction IDs...');
           await db.transact([
             db.tx.settlements[settlementId].update({
               settledExpenses: settledTxIds,
