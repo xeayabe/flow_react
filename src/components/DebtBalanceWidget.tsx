@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, Alert } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { calculateDebtBalance, DebtBalance, calculateSplitRatio } from '@/lib/shared-expenses-api';
 import { db } from '@/lib/db';
 import SettlementModal from './SettlementModal';
@@ -230,7 +231,7 @@ export default function DebtBalanceWidget() {
             </Text>
             <Text className="text-3xl font-bold text-red-600 mb-4">{debtInfo.amount.toFixed(2)} CHF</Text>
             <Pressable
-              onPress={() => setShowSettlement(true)}
+              onPress={() => router.push('/settlement')}
               className="bg-red-600 py-3 rounded-xl active:opacity-80"
             >
               <Text className="text-white text-center font-semibold">Settle Debt</Text>
@@ -241,7 +242,13 @@ export default function DebtBalanceWidget() {
             <Text className="text-base text-gray-700 mb-1">
               <Text className="font-bold">{debtInfo.otherUserName}</Text> owes you
             </Text>
-            <Text className="text-3xl font-bold text-green-600">{debtInfo.amount.toFixed(2)} CHF</Text>
+            <Text className="text-3xl font-bold text-green-600 mb-4">{debtInfo.amount.toFixed(2)} CHF</Text>
+            <Pressable
+              onPress={() => router.push('/settlement')}
+              className="bg-green-600 py-3 rounded-xl active:opacity-80"
+            >
+              <Text className="text-white text-center font-semibold">View Settlement</Text>
+            </Pressable>
           </View>
         )}
 
@@ -252,16 +259,6 @@ export default function DebtBalanceWidget() {
           <Text className="text-xs text-blue-500 text-center">Tap here to debug</Text>
         </Pressable>
       </View>
-
-      {youOwe && (
-        <SettlementModal
-          visible={showSettlement}
-          onClose={() => setShowSettlement(false)}
-          amount={debtInfo.amount}
-          receiverUserId={receiverUserId}
-          receiverName={debtInfo.otherUserName}
-        />
-      )}
     </>
   );
 }

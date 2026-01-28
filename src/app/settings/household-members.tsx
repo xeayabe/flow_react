@@ -327,8 +327,8 @@ export default function HouseholdMembersScreen() {
                   <Pressable
                     onPress={() => {
                       closeModal();
-                      // Navigate to dashboard where settlement can happen
-                      router.push('/');
+                      // Navigate to settlement screen
+                      router.push('/settlement');
                     }}
                     className="flex-1 py-3 rounded-xl bg-teal-600 active:bg-teal-700"
                   >
