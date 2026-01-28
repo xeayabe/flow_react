@@ -3,7 +3,7 @@ import { View, Text, Pressable, ScrollView, ActivityIndicator, Alert, Modal } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CheckSquare, Square, CircleCheck, ChevronDown, Check, X, Wallet } from 'lucide-react-native';
+import { ArrowLeft, CheckSquare, Square, CircleCheck, ChevronDown, Check, X, Wallet, Tag } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import {
   getUnsettledSharedExpenses,
@@ -14,6 +14,7 @@ import {
 } from '@/lib/settlement-api';
 import { getCurrentUserHouseholdInfo } from '@/lib/household-members-api';
 import { formatBalance, type Account } from '@/lib/accounts-api';
+import { getCategories } from '@/lib/categories-api';
 import { cn } from '@/lib/cn';
 
 // Common categories that can be shown to all members
@@ -60,6 +61,10 @@ export default function SettlementScreen() {
   const [yourWalletId, setYourWalletId] = useState<string>('');
   const [showYourWalletPicker, setShowYourWalletPicker] = useState(false);
 
+  // Category selection state
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+
   // Payment methods
   const paymentMethods = [
     { value: 'internal_transfer', label: 'Internal Transfer' },
@@ -90,6 +95,19 @@ export default function SettlementScreen() {
     queryFn: () => calculateHouseholdDebt(userInfo!.householdId, userInfo!.userId),
     enabled: !!userInfo?.householdId && !!userInfo?.userId,
   });
+
+  // Get user's expense categories
+  const { data: categoriesData } = useQuery({
+    queryKey: ['categories', userInfo?.householdId, userInfo?.userId],
+    queryFn: async () => {
+      if (!userInfo?.householdId || !userInfo?.userId) return [];
+      return getCategories(userInfo.householdId, userInfo.userId);
+    },
+    enabled: !!userInfo?.householdId && !!userInfo?.userId,
+  });
+
+  // Filter to only expense categories
+  const expenseCategories = categoriesData?.filter((cat: any) => cat.type === 'expense') || [];
 
   // Initialize selected expenses (all expenses that the user owes)
   useEffect(() => {
@@ -146,6 +164,9 @@ export default function SettlementScreen() {
   // Get selected wallet object for display
   const yourWallet = accountsData?.find((a: any) => a.id === yourWalletId);
 
+  // Get selected category for display
+  const selectedCategory = expenseCategories.find((cat: any) => cat.id === selectedCategoryId);
+
   // Settlement mutation
   const settleMutation = useMutation({
     mutationFn: async () => {
@@ -189,7 +210,7 @@ export default function SettlementScreen() {
         payerWalletId,
         receiverWalletId,
         userInfo.householdId,
-        undefined // No category for settlements
+        selectedCategoryId || undefined // Pass selected category
       );
     },
     onSuccess: () => {
@@ -398,6 +419,50 @@ export default function SettlementScreen() {
               Settlement Details
             </Text>
 
+            {/* Payee (Read-only) */}
+            <View className="mb-4">
+              <Text className="text-sm text-gray-600 mb-2">
+                {youOwe ? 'Payee (Who Receives)' : 'Payer (Who Sends)'}
+              </Text>
+              <View className="flex-row items-center p-3 rounded-xl border-2 border-gray-200 bg-gray-100">
+                <View className="flex-1">
+                  <Text className="text-base font-semibold text-gray-900">
+                    {partnerName}
+                  </Text>
+                  <Text className="text-sm text-gray-500">
+                    {youOwe ? 'Will receive the payment' : 'Will send the payment'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Category Selection */}
+            <View className="mb-4">
+              <Text className="text-sm text-gray-600 mb-2">
+                Category
+              </Text>
+              <Pressable
+                onPress={() => setShowCategoryPicker(true)}
+                className="flex-row items-center justify-between p-3 rounded-xl border-2 border-gray-200 bg-gray-50"
+              >
+                <View className="flex-1">
+                  {selectedCategory ? (
+                    <>
+                      <Text className="text-base font-semibold text-gray-900">
+                        {selectedCategory.name}
+                      </Text>
+                      <Text className="text-sm text-gray-500">
+                        {selectedCategory.categoryGroup}
+                      </Text>
+                    </>
+                  ) : (
+                    <Text className="text-gray-400">Select category...</Text>
+                  )}
+                </View>
+                <ChevronDown size={20} color="#6B7280" />
+              </Pressable>
+            </View>
+
             {/* Your Wallet Selection */}
             <View className="mb-4">
               <Text className="text-sm text-gray-600 mb-2">
@@ -475,10 +540,10 @@ export default function SettlementScreen() {
             </Pressable>
             <Pressable
               onPress={handleSettle}
-              disabled={settleMutation.isPending || selectedExpenses.length === 0 || !yourWalletId}
+              disabled={settleMutation.isPending || selectedExpenses.length === 0 || !yourWalletId || !selectedCategoryId}
               className={cn(
                 "flex-1 py-3 rounded-xl",
-                settleMutation.isPending || selectedExpenses.length === 0 || !yourWalletId
+                settleMutation.isPending || selectedExpenses.length === 0 || !yourWalletId || !selectedCategoryId
                   ? 'bg-gray-300'
                   : 'bg-teal-600 active:bg-teal-700'
               )}
@@ -539,6 +604,54 @@ export default function SettlementScreen() {
                 <View className="items-center py-8">
                   <Wallet size={48} color="#9CA3AF" />
                   <Text className="text-gray-500 mt-3">No wallets found</Text>
+                </View>
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </View>
+      </Modal>
+
+      {/* Category Picker Modal */}
+      <Modal
+        visible={showCategoryPicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowCategoryPicker(false)}
+      >
+        <View className="flex-1 bg-white">
+          <SafeAreaView edges={['top']} className="flex-1">
+            <View className="flex-row items-center justify-between px-4 py-4 border-b border-gray-200">
+              <Text className="text-lg font-semibold text-gray-900">Select Category</Text>
+              <Pressable onPress={() => setShowCategoryPicker(false)} className="p-2">
+                <X size={24} color="#6B7280" />
+              </Pressable>
+            </View>
+            <ScrollView className="flex-1 px-4 pt-4">
+              {expenseCategories.map((category: any) => (
+                <Pressable
+                  key={category.id}
+                  onPress={() => {
+                    setSelectedCategoryId(category.id);
+                    setShowCategoryPicker(false);
+                  }}
+                  className={cn(
+                    "flex-row items-center justify-between p-4 rounded-xl mb-2 border-2",
+                    selectedCategoryId === category.id ? "border-teal-500 bg-teal-50" : "border-gray-200 bg-white"
+                  )}
+                >
+                  <View className="flex-1">
+                    <Text className="text-base font-semibold text-gray-900">{category.name}</Text>
+                    <Text className="text-sm text-gray-500 capitalize">{category.categoryGroup}</Text>
+                  </View>
+                  {selectedCategoryId === category.id && <Check size={24} color="#0D9488" />}
+                </Pressable>
+              ))}
+              {expenseCategories.length === 0 && (
+                <View className="items-center py-8">
+                  <Text className="text-gray-500 mt-3">No categories found</Text>
+                  <Text className="text-sm text-gray-400 mt-2 text-center px-8">
+                    Go to Settings → Categories to create expense categories
+                  </Text>
                 </View>
               )}
             </ScrollView>

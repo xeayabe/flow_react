@@ -2900,3 +2900,51 @@ After (PRIVATE):
 - ✅ Settlement still works - uses partner's default wallet automatically
 - ✅ Users only see their own financial data
 - ✅ Descriptions only shown for user's own transactions
+
+### FEATURE: Settlement Category and Payee Selection (2026-01-28)
+**Feature**: Added payee field and category selection to settlement form for proper transaction categorization.
+
+**Requirements**:
+- Payee should be set to the partner receiving/sending money (read-only)
+- Category selection from user's expense categories
+- Category group auto-selected based on chosen category (same behavior as transactions)
+
+**Implementation**:
+
+**1. Payee Field:**
+- Added read-only payee field showing partner's name
+- Label changes based on debt direction:
+  - If you owe: "Payee (Who Receives)"
+  - If you're owed: "Payer (Who Sends)"
+- Displays partner's name with descriptive text
+
+**2. Category Selection:**
+- Added category dropdown showing all user's expense categories
+- Category picker modal with full category list
+- Shows category name and category group for each option
+- Selected category highlighted with checkmark
+- Required field - settlement button disabled until category selected
+
+**3. Auto Category Group:**
+- Category group automatically determined from selected category
+- Displayed under category name in the dropdown
+- No separate category group selector needed (same as transactions)
+
+**Files Modified**:
+- `src/app/settlement.tsx`:
+  - Added `selectedCategoryId` state
+  - Added `showCategoryPicker` state
+  - Added query to load user's expense categories
+  - Added payee display field (read-only)
+  - Added category selection dropdown
+  - Added category picker modal
+  - Updated settlement mutation to pass category ID
+  - Button disabled until category selected
+
+**Result**:
+- ✅ Payee displayed showing who receives/sends money
+- ✅ Category selection from user's expense categories
+- ✅ Category group automatically shown with category
+- ✅ Settlement transaction properly categorized in budget
+- ✅ Matches transaction form behavior
+- ✅ All fields required before settlement can be completed
