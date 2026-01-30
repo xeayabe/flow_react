@@ -3162,3 +3162,76 @@ Result:
 - ✅ Clean separation: templates vs transactions
 - ✅ Recurring expenses cannot be shared
 - ✅ User-friendly alerts and messages
+
+### BUG FIX: Settlement Screen UX and Duplicate Splits (2026-01-30)
+
+**Issue 1: Misleading "Your share" Text**
+When viewing the settlement screen as an admin/receiver (someone who is owed money), the label "Your share" was confusing. It showed the amount the other member owes you, but "Your share" implied it was your portion of an expense, not the amount you're receiving.
+
+**Issue 2: Duplicate Splits on Transaction Update**
+When updating a shared transaction (e.g., changing amount or category), the system created NEW splits instead of updating the existing ones. This resulted in duplicate split records in the database that had to be manually deleted.
+
+**Root Cause**:
+1. **Issue 1**: The settlement screen used "Your share: X CHF" for both scenarios (when you owe and when you're owed), making it unclear for receivers
+2. **Issue 2**: The edit transaction mutation called `createExpenseSplits()` without first deleting existing splits, causing duplicates to accumulate
+
+**Fix**:
+
+**1. Settlement Screen Text (src/app/settlement.tsx:395-410)**:
+Changed from:
+```tsx
+Your share: {Math.abs(expense.yourShare).toFixed(2)} CHF
+```
+
+To:
+```tsx
+{expenseYouOwe ? 'You owe' : 'You are owed'}: {Math.abs(expense.yourShare).toFixed(2)} CHF
+```
+
+**2. Transaction Update Split Handling (src/app/transactions/[id]/edit.tsx:239-257)**:
+Changed from:
+```tsx
+if (isShared && id) {
+  await createExpenseSplits(...);
+}
+```
+
+To:
+```tsx
+if (id) {
+  if (isShared) {
+    // Delete existing splits first (to avoid duplicates)
+    const { deleteExpenseSplits } = await import('@/lib/shared-expenses-api');
+    await deleteExpenseSplits(id);
+
+    // Then create new splits with updated values
+    await createExpenseSplits(...);
+  } else if (originalTransaction?.isShared && !isShared) {
+    // If changed from shared to not shared, delete all splits
+    const { deleteExpenseSplits } = await import('@/lib/shared-expenses-api');
+    await deleteExpenseSplits(id);
+  }
+}
+```
+
+**Files Modified**:
+- `src/app/settlement.tsx` (line 407):
+  - Changed "Your share" to conditional text
+  - Shows "You owe" when amount is positive (red color)
+  - Shows "You are owed" when amount is negative (green color)
+
+- `src/app/transactions/[id]/edit.tsx` (lines 239-257):
+  - Added `deleteExpenseSplits()` call before creating new splits
+  - Handles three scenarios:
+    1. Transaction is shared → Delete old splits, create new ones
+    2. Transaction changed from shared to not shared → Delete all splits
+    3. Transaction is not shared → No split operations
+  - Prevents duplicate split records in database
+
+**Result**:
+- ✅ Settlement screen clearly shows "You owe" vs "You are owed"
+- ✅ Amount color matches the label (red for owe, green for owed)
+- ✅ Updating shared transactions no longer creates duplicate splits
+- ✅ Changing shared status properly adds/removes splits
+- ✅ Database remains clean without manual intervention
+- ✅ No more orphaned split records

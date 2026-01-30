@@ -404,7 +404,7 @@ export default function SettlementScreen() {
                             color: expenseYouOwe ? '#DC2626' : '#10B981',
                           }}
                         >
-                          Your share: {Math.abs(expense.yourShare).toFixed(2)} CHF
+                          {expenseYouOwe ? 'You owe' : 'You are owed'}: {Math.abs(expense.yourShare).toFixed(2)} CHF
                         </Text>
                       </View>
 

@@ -236,14 +236,25 @@ export default function EditTransactionScreen() {
         paidByUserId: isShared ? paidByUserId : undefined,
       });
 
-      // If shared status changed to true or split changed, update expense splits
-      if (isShared && id) {
-        await createExpenseSplits(
-          id,
-          parseFloat(formData.amount),
-          householdQuery.data!.householdId,
-          paidByUserId
-        );
+      // If shared status changed, update expense splits
+      if (id) {
+        if (isShared) {
+          // Delete existing splits first (to avoid duplicates)
+          const { deleteExpenseSplits } = await import('@/lib/shared-expenses-api');
+          await deleteExpenseSplits(id);
+
+          // Then create new splits with updated values
+          await createExpenseSplits(
+            id,
+            parseFloat(formData.amount),
+            householdQuery.data!.householdId,
+            paidByUserId
+          );
+        } else if (originalTransaction?.isShared && !isShared) {
+          // If changed from shared to not shared, delete all splits
+          const { deleteExpenseSplits } = await import('@/lib/shared-expenses-api');
+          await deleteExpenseSplits(id);
+        }
       }
 
       return result;
