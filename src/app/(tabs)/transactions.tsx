@@ -11,6 +11,7 @@ import { getCategories } from '@/lib/categories-api';
 import { getUserAccounts } from '@/lib/accounts-api';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { cn } from '@/lib/cn';
+import UpcomingRecurringSection from '@/components/UpcomingRecurringSection';
 
 interface TransactionWithDetails extends TransactionWithCreator {
   categoryName?: string;
@@ -534,6 +535,14 @@ export default function TransactionsTabScreen() {
               )}
             </ScrollView>
           </View>
+
+          {/* Upcoming Recurring Section */}
+          {householdQuery.data?.userRecord?.id && householdQuery.data?.householdId && (
+            <UpcomingRecurringSection
+              userId={householdQuery.data.userRecord.id}
+              householdId={householdQuery.data.householdId}
+            />
+          )}
 
           {/* Transaction List */}
           <SectionList

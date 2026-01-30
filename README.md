@@ -3235,3 +3235,136 @@ if (id) {
 - ✅ Changing shared status properly adds/removes splits
 - ✅ Database remains clean without manual intervention
 - ✅ No more orphaned split records
+
+### FEATURE: Upcoming Recurring Section in Transaction List (2026-01-30)
+
+**Feature**: Added a collapsible section at the top of the transaction list showing upcoming recurring expenses with ability to add them immediately.
+
+**Problem**:
+Users had to go to the dashboard to see upcoming recurring expenses. There was no way to view or add them directly from the transaction list screen where they manage all their transactions.
+
+**Solution**:
+Implemented a collapsible "Upcoming Recurring" section that appears at the top of the transaction list, showing all due recurring expenses with one-tap "Add Now" functionality.
+
+**Implementation**:
+
+**1. New Component (`src/components/UpcomingRecurringSection.tsx`):**
+- Collapsible section with chevron icon (right/down) and count badge
+- Shows all recurring templates that are due (using `shouldCreateThisMonth()`)
+- Each template displays:
+  - Recurring icon (🔄) and category name
+  - Amount and due date
+  - Overdue indicator (⚠️) if past due date
+  - Payee (if set)
+  - "Add Now" button to create transaction
+- Collapsed state persisted in AsyncStorage (key: `recurringSection_collapsed`)
+- Default state: Collapsed (to avoid cluttering the list)
+- Auto-hides when no recurring templates are due
+
+**2. Transaction List Integration (`src/app/(tabs)/transactions.tsx`):**
+- Added import for `UpcomingRecurringSection`
+- Placed component between filter bar and transaction list
+- Passes `userId` and `householdId` as props
+- Component conditionally renders only when user data is available
+
+**3. Visual Design:**
+- Light blue background (`#EFF6FF`) to distinguish from transactions
+- Blue border (`border-blue-200`) for visual separation
+- Header with collapsible chevron and "Tap to view" hint
+- Individual template cards with white background
+- Blue accent colors throughout for consistency
+- Overdue indicator in orange for attention
+
+**4. State Management:**
+- Uses React Query for template data fetching
+- Queries `recurring-templates` with userId and householdId
+- Filters templates using `shouldCreateThisMonth()` logic
+- Sorts by next occurrence date (earliest first)
+- Enriches templates with category names
+- Mutation for creating transactions invalidates all relevant queries
+
+**5. User Interaction:**
+- Tap header to toggle expand/collapse
+- Tap "Add Now" to create transaction from template
+- Shows loading indicator while creating
+- Auto-refreshes list after adding
+- State persists across app sessions
+
+**Files Created**:
+- `src/components/UpcomingRecurringSection.tsx` - Collapsible recurring section component
+
+**Files Modified**:
+- `src/app/(tabs)/transactions.tsx`:
+  - Added import for `UpcomingRecurringSection`
+  - Integrated component above transaction list (after filters)
+  - Conditional rendering based on user data availability
+
+**User Flow**:
+
+**Viewing Upcoming Recurring Expenses:**
+1. User navigates to Transactions tab
+2. Sees collapsed section at top: "▶ Upcoming Recurring (3)"
+3. Taps header to expand
+4. Views all due recurring expenses with details
+
+**Adding a Recurring Expense:**
+1. User sees "Rent - 1,500 CHF • Due: Feb 1"
+2. Taps "Add Now" button
+3. Transaction created for current/due date
+4. Button shows loading indicator
+5. List refreshes automatically
+6. Template removed from upcoming list (added this month)
+7. Transaction appears in main list below
+
+**State Persistence:**
+1. User expands section to view templates
+2. Navigates away from Transactions tab
+3. Returns to Transactions tab
+4. Section remains expanded (state persisted)
+
+**Visual Behavior**:
+
+**Collapsed State:**
+```
+┌─────────────────────────────────┐
+│ ▶ Upcoming Recurring (3)        │
+│   Tap to view                   │
+└─────────────────────────────────┘
+```
+
+**Expanded State:**
+```
+┌─────────────────────────────────┐
+│ ▼ Upcoming Recurring (3)        │
+│ ┌───────────────────────────┐   │
+│ │ 🔄 Rent                   │   │
+│ │ 1,500 CHF • Due: Feb 1   │   │
+│ │               [Add Now]   │   │
+│ └───────────────────────────┘   │
+│ ┌───────────────────────────┐   │
+│ │ 🔄 Gym - 80 CHF          │   │
+│ │ Due: Feb 5 • ⚠️ Overdue   │   │
+│ │               [Add Now]   │   │
+│ └───────────────────────────┘   │
+└─────────────────────────────────┘
+```
+
+**Edge Cases Handled**:
+1. **No recurring templates**: Section doesn't render at all
+2. **Already added this month**: Templates filtered out using `shouldCreateThisMonth()`
+3. **Future dates**: Only shows templates where recurring day has arrived
+4. **Overdue templates**: Shows orange warning indicator
+5. **Loading state**: Shows spinner in "Add Now" button while creating
+6. **State persistence**: Collapsed/expanded state saved in AsyncStorage
+7. **Multi-platform**: Works on iOS, Android, and Web
+
+**Result**:
+- ✅ Upcoming recurring expenses visible in transaction list
+- ✅ Collapsible section saves screen space
+- ✅ One-tap "Add Now" for quick transaction creation
+- ✅ State persisted across sessions
+- ✅ Clear visual distinction from regular transactions
+- ✅ Overdue indicator for missed recurring expenses
+- ✅ Auto-hides when no templates are due
+- ✅ Smooth animations and loading states
+- ✅ Consistent with app design system
