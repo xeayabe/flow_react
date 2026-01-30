@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ChevronRight, Tag, LogOut, Wallet, User, Calendar, PieChart, Upload, Download, Layers, UserPlus, Users } from 'lucide-react-native';
+import { ChevronRight, Tag, LogOut, Wallet, User, Calendar, PieChart, Upload, Download, Layers, UserPlus, Users, FileText } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { db } from '@/lib/db';
 import { signOut } from '@/lib/auth-api';
 
@@ -17,6 +19,7 @@ interface MenuItem {
 export default function TabTwoScreen() {
   const { user } = db.useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Query user profile
   const { data: profileData } = db.useQuery({
@@ -97,6 +100,83 @@ export default function TabTwoScreen() {
     ]);
   };
 
+  const handleDownloadReadme = async () => {
+    try {
+      setIsDownloading(true);
+
+      if (Platform.OS === 'web') {
+        // Web download
+        const response = await fetch('/README.md');
+        const content = await response.text();
+        const blob = new Blob([content], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'Flow_README.md';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        Alert.alert('Success', 'README file downloaded successfully!');
+      } else {
+        // Native - copy the pre-created README_DOWNLOAD.md
+        const sourcePath = FileSystem.documentDirectory + '../README_DOWNLOAD.md';
+        const destPath = FileSystem.documentDirectory + 'Flow_README.md';
+
+        try {
+          // Try to copy from the workspace
+          const info = await FileSystem.getInfoAsync(sourcePath);
+          if (info.exists) {
+            await FileSystem.copyAsync({
+              from: sourcePath,
+              to: destPath,
+            });
+          } else {
+            // If file doesn't exist in expected location, show helpful message
+            Alert.alert(
+              'README Available',
+              'The README file is available at:\n/home/user/workspace/README.md\n\nYou can access it from the Vibecode interface.',
+              [{ text: 'OK' }]
+            );
+            setIsDownloading(false);
+            return;
+          }
+        } catch (err) {
+          // Fallback: show where to find it
+          Alert.alert(
+            'README Available',
+            'The README file is available at:\n/home/user/workspace/README_DOWNLOAD.md\n\nYou can download it from the Vibecode interface.',
+            [{ text: 'OK' }]
+          );
+          setIsDownloading(false);
+          return;
+        }
+
+        // Share the file
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(destPath, {
+            mimeType: 'text/markdown',
+            dialogTitle: 'Download Flow README',
+            UTI: 'public.plain-text',
+          });
+          Alert.alert('Success', 'README file ready to download!');
+        } else {
+          Alert.alert('Success', `README saved to: ${destPath}`);
+        }
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      Alert.alert(
+        'README Available',
+        'The README file is available at:\n/home/user/workspace/README_DOWNLOAD.md\n\nYou can download it from the Vibecode interface.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const menuItems: MenuItem[] = [
     {
       icon: <Wallet size={24} color="#006A6A" />,
@@ -164,6 +244,12 @@ export default function TabTwoScreen() {
       onPress: () => router.push('/settings/export'),
     },
     {
+      icon: <FileText size={24} color="#F59E0B" />,
+      label: 'Download README',
+      description: 'Download complete documentation',
+      onPress: handleDownloadReadme,
+    },
+    {
       icon: <User size={24} color="#006A6A" />,
       label: 'Profile',
       description: 'Edit your personal information',
@@ -201,6 +287,7 @@ export default function TabTwoScreen() {
               <Pressable
                 key={index}
                 onPress={item.onPress}
+                disabled={isDownloading && item.label === 'Download README'}
                 className="flex-row items-center justify-between py-4 border-b border-gray-100"
               >
                 <View className="flex-row items-center gap-4 flex-1">
@@ -210,7 +297,11 @@ export default function TabTwoScreen() {
                     <Text className="text-sm text-gray-500 mt-0.5">{item.description}</Text>
                   </View>
                 </View>
-                <ChevronRight size={20} color="#9CA3AF" />
+                {isDownloading && item.label === 'Download README' ? (
+                  <ActivityIndicator size="small" color="#F59E0B" />
+                ) : (
+                  <ChevronRight size={20} color="#9CA3AF" />
+                )}
               </Pressable>
             ))}
           </View>
