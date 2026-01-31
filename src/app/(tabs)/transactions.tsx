@@ -228,10 +228,18 @@ export default function TransactionsTabScreen() {
       [startDate, endDate] = getDateRangeFilter(dateRange);
     }
 
+    // Get today's date for future filtering
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    const todayStr = today.toISOString().split('T')[0];
+
     return (transactionsQuery.data ?? [])
       .filter((tx) => {
         // Date range filter
         if (tx.date < startDate || tx.date > endDate) return false;
+
+        // Exclude future transactions (they show in "Upcoming" section)
+        if (tx.date > todayStr) return false;
 
         // Type filter
         if (transactionType !== 'all' && tx.type !== transactionType) return false;

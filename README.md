@@ -3508,3 +3508,53 @@ After:
 - ✅ Smooth navigation and UX
 - ✅ Consistent with app design system
 
+
+
+---
+
+### FEATURE: Future Transactions in Upcoming Section (2026-01-31)
+
+**Issue**: The "Upcoming" section only showed recurring templates, not future-dated transactions. When users created transactions with future dates (e.g., Feb 5), they appeared in the main transaction list alongside past transactions, making it confusing to see what's upcoming.
+
+**Solution**: Updated the "Upcoming" section to show both recurring templates AND future-dated transactions, with clear visual distinction between them.
+
+**1. Updated UpcomingRecurringSection Component:**
+- Added query to load future transactions from household
+- Filter transactions where date > today
+- Sort by date (earliest first)
+- Enrich with category and account names
+- Calculate total upcoming items (templates + future transactions)
+- Split into two sections: "RECURRING" and "SCHEDULED"
+- Different icons and styling for each type
+
+**2. Visual Distinction:**
+
+**Recurring Templates:**
+- Icon: 🔄 (RefreshCw icon in blue)
+- Label: "Due: Feb 1"
+- Buttons: [Edit] [Add Now]
+- Meaning: Template, not created yet, can add anytime
+
+**Future Transactions:**
+- Icon: 📅 (Calendar icon in purple)
+- Label: "Feb 5 • In 6 days"
+- Button: [Edit] only (no "Add Now")
+- Meaning: Already created transaction, scheduled for future
+- Shows relative time: "Tomorrow" or "In X days"
+
+**3. Filtered Main Transaction List:**
+- Added filter to exclude future transactions (date > today)
+- Main list now shows only past and today's transactions
+- Future transactions appear in "Upcoming" section until their date arrives
+
+**Result:**
+- ✅ "Upcoming" section shows both recurring templates and future transactions
+- ✅ Clear visual distinction with different icons (🔄 vs 📅)
+- ✅ Recurring templates have "Add Now" button
+- ✅ Future transactions have "Edit" button only
+- ✅ Main transaction list shows past + today only
+- ✅ Future transactions excluded from main list
+- ✅ Relative time labels ("Tomorrow", "In X days")
+- ✅ Automatic updates when dates arrive
+- ✅ Section headers separate recurring from scheduled
+
