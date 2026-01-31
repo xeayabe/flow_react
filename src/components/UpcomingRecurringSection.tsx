@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, ChevronDown, RefreshCw } from 'lucide-react-native';
+import { ChevronRight, ChevronDown, RefreshCw, Edit2 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getActiveRecurringTemplates,
@@ -64,6 +65,7 @@ export default function UpcomingRecurringSection({
   householdId,
 }: UpcomingRecurringSectionProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
 
   // Load collapsed state from AsyncStorage
@@ -117,7 +119,8 @@ export default function UpcomingRecurringSection({
 
   // Mutation to create transaction from template
   const createMutation = useMutation({
-    mutationFn: createTransactionFromTemplate,
+    mutationFn: ({ templateId, date }: { templateId: string; date?: Date }) =>
+      createTransactionFromTemplate(templateId, date),
     onSuccess: () => {
       // Refetch templates and transactions
       queryClient.invalidateQueries({ queryKey: ['recurring-templates', userId, householdId] });
@@ -134,9 +137,14 @@ export default function UpcomingRecurringSection({
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
   };
 
-  // Handle "Add Now" button press
+  // Handle "Add Now" button press - uses TODAY's date
   const handleAddNow = (templateId: string) => {
-    createMutation.mutate(templateId);
+    const today = new Date();
+    createMutation.mutate({ templateId, date: today });
+  };
+
+  const handleEditTemplate = (templateId: string) => {
+    router.push(`/recurring/edit/${templateId}`);
   };
 
   // Don't render if no templates
@@ -178,7 +186,7 @@ export default function UpcomingRecurringSection({
           {enrichedTemplates.map((template, idx) => {
             const nextDate = getNextOccurrenceDate(template.recurringDay);
             const overdueStatus = isOverdue(nextDate);
-            const isCreating = createMutation.isPending && createMutation.variables === template.id;
+            const isCreating = createMutation.isPending && createMutation.variables?.templateId === template.id;
 
             return (
               <View
@@ -219,20 +227,31 @@ export default function UpcomingRecurringSection({
                   )}
                 </View>
 
-                <Pressable
-                  onPress={() => handleAddNow(template.id)}
-                  disabled={isCreating}
-                  className={cn(
-                    'px-4 py-2 rounded-lg',
-                    isCreating ? 'bg-gray-300' : 'bg-blue-600'
-                  )}
-                >
-                  {isCreating ? (
-                    <ActivityIndicator size="small" color="white" />
-                  ) : (
-                    <Text className="text-xs font-semibold text-white">Add Now</Text>
-                  )}
-                </Pressable>
+                <View className="flex-row items-center gap-2">
+                  {/* Edit Button */}
+                  <Pressable
+                    onPress={() => handleEditTemplate(template.id)}
+                    className="p-2 rounded-lg bg-gray-100 active:bg-gray-200"
+                  >
+                    <Edit2 size={16} color="#6B7280" />
+                  </Pressable>
+
+                  {/* Add Now Button */}
+                  <Pressable
+                    onPress={() => handleAddNow(template.id)}
+                    disabled={isCreating}
+                    className={cn(
+                      'px-4 py-2 rounded-lg',
+                      isCreating ? 'bg-gray-300' : 'bg-blue-600'
+                    )}
+                  >
+                    {isCreating ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <Text className="text-xs font-semibold text-white">Add Now</Text>
+                    )}
+                  </Pressable>
+                </View>
               </View>
             );
           })}

@@ -36,12 +36,13 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     const inTransactionsFlow = segments[0] === 'transactions';
     const inBudgetFlow = segments[0] === 'budget';
     const inSettlementFlow = segments[0] === 'settlement';
+    const inRecurringFlow = segments[0] === 'recurring';
     const inLoginFlow = segments[0] === 'welcome' || segments[0] === 'signup' || segments[0] === 'login';
 
-    if (!user && (inAuthGroup || inAccountsFlow || inSettingsFlow || inTransactionsFlow || inBudgetFlow || inSettlementFlow)) {
+    if (!user && (inAuthGroup || inAccountsFlow || inSettingsFlow || inTransactionsFlow || inBudgetFlow || inSettlementFlow || inRecurringFlow)) {
       // Redirect to welcome if not authenticated
       router.replace('/welcome');
-    } else if (user && !inAuthGroup && !inAccountsFlow && !inSettingsFlow && !inTransactionsFlow && !inBudgetFlow && !inSettlementFlow && segments[0] !== 'modal') {
+    } else if (user && !inAuthGroup && !inAccountsFlow && !inSettingsFlow && !inTransactionsFlow && !inBudgetFlow && !inSettlementFlow && !inRecurringFlow && segments[0] !== 'modal') {
       // Redirect to dashboard if authenticated
       router.replace('/(tabs)');
     }
@@ -62,6 +63,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
         <Stack.Screen name="transactions" options={{ headerShown: false, presentation: 'card' }} />
         <Stack.Screen name="budget" options={{ headerShown: false, presentation: 'card' }} />
         <Stack.Screen name="settlement" options={{ headerShown: false, presentation: 'card' }} />
+        <Stack.Screen name="recurring" options={{ headerShown: false, presentation: 'card' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>

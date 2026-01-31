@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { RefreshCcw, Plus, Calendar } from 'lucide-react-native';
+import { RefreshCcw, Plus, Calendar, Edit2 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { db } from '@/lib/db';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import {
@@ -14,6 +15,7 @@ import { cn } from '@/lib/cn';
 
 export default function RecurringExpensesWidget() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { user } = db.useAuth();
   const [creatingTemplateId, setCreatingTemplateId] = useState<string | null>(null);
 
@@ -56,9 +58,9 @@ export default function RecurringExpensesWidget() {
 
   // Create transaction from template mutation
   const createFromTemplateMutation = useMutation({
-    mutationFn: async (templateId: string) => {
+    mutationFn: async ({ templateId, date }: { templateId: string; date?: Date }) => {
       setCreatingTemplateId(templateId);
-      return await createTransactionFromTemplate(templateId);
+      return await createTransactionFromTemplate(templateId, date);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recurring-templates'] });
@@ -77,7 +79,12 @@ export default function RecurringExpensesWidget() {
   });
 
   const handleAddThisMonth = (templateId: string) => {
-    createFromTemplateMutation.mutate(templateId);
+    const today = new Date();
+    createFromTemplateMutation.mutate({ templateId, date: today });
+  };
+
+  const handleEditTemplate = (templateId: string) => {
+    router.push(`/recurring/edit/${templateId}`);
   };
 
   // Get category name helper
@@ -141,23 +148,34 @@ export default function RecurringExpensesWidget() {
               </View>
             </View>
 
-            <Pressable
-              onPress={() => handleAddThisMonth(template.id)}
-              disabled={isCreating}
-              className={cn(
-                'px-4 py-2 rounded-lg flex-row items-center',
-                isCreating ? 'bg-gray-300' : 'bg-teal-600 active:bg-teal-700'
-              )}
-            >
-              {isCreating ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Plus size={16} color="#FFFFFF" />
-                  <Text className="text-sm font-semibold text-white ml-1">Add</Text>
-                </>
-              )}
-            </Pressable>
+            <View className="flex-row items-center gap-2">
+              {/* Edit Button */}
+              <Pressable
+                onPress={() => handleEditTemplate(template.id)}
+                className="p-2 rounded-lg bg-gray-100 active:bg-gray-200"
+              >
+                <Edit2 size={16} color="#6B7280" />
+              </Pressable>
+
+              {/* Add Now Button */}
+              <Pressable
+                onPress={() => handleAddThisMonth(template.id)}
+                disabled={isCreating}
+                className={cn(
+                  'px-4 py-2 rounded-lg flex-row items-center',
+                  isCreating ? 'bg-gray-300' : 'bg-teal-600 active:bg-teal-700'
+                )}
+              >
+                {isCreating ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Plus size={16} color="#FFFFFF" />
+                    <Text className="text-sm font-semibold text-white ml-1">Add</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
           </View>
         );
       })}

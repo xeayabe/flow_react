@@ -3368,3 +3368,143 @@ Implemented a collapsible "Upcoming Recurring" section that appears at the top o
 - ✅ Auto-hides when no templates are due
 - ✅ Smooth animations and loading states
 - ✅ Consistent with app design system
+
+---
+
+### FEATURE: Edit Recurring Expenses + Fix "Add Now" Date (2026-01-31)
+
+**Issue**: Two critical problems with recurring expenses:
+1. **No way to edit recurring templates** - Once created, users couldn't modify amount, category, day, etc.
+2. **"Add Now" used wrong date** - Clicking "Add Now" on Jan 30 created transaction with due date (Feb 1) instead of today's date (Jan 30)
+
+**Solution**: Added full edit functionality and fixed date logic.
+
+**1. Fixed "Add Now" Date Logic (`src/lib/recurring-api.ts`):**
+- Updated `createTransactionFromTemplate()` to accept optional `customDate` parameter
+- When "Add Now" is clicked: Uses today's date
+- When auto-created: Uses recurring day
+- Added logging to track which date is being used
+
+**2. Added Edit Button to UI:**
+- Updated `src/components/RecurringExpensesWidget.tsx`:
+  - Added Edit2 icon button next to "Add Now"
+  - Imported useRouter from expo-router
+  - Added handleEditTemplate() to navigate to edit page
+- Updated `src/components/UpcomingRecurringSection.tsx`:
+  - Added Edit2 icon button
+  - Same edit navigation functionality
+
+**3. Created Edit Page (`src/app/recurring/edit/[id].tsx`):**
+- Full edit form with all template fields:
+  - Amount (decimal input with CHF)
+  - Category (horizontal scroll selector)
+  - Account (horizontal scroll selector)
+  - Recurring Day (1-31 grid selector)
+  - Payee (optional text field)
+  - Note (optional multiline text)
+- Save Changes button updates template
+- Delete button (header right) deactivates template
+- Confirmation alerts for both actions
+- Loading states during mutations
+- Auto-populates form with current template data
+- React Query for data fetching and mutations
+- Validates amount, category, and account before saving
+
+**4. Updated Mutations:**
+- `src/components/RecurringExpensesWidget.tsx`:
+  - Changed mutation to accept `{ templateId, date }` object
+  - Pass `today` when "Add Now" clicked
+- `src/components/UpcomingRecurringSection.tsx`:
+  - Same mutation pattern
+  - Fixed comparison for loading state
+
+**5. Routing Configuration:**
+- Created `src/app/recurring/_layout.tsx` for recurring routes
+- Updated `src/app/_layout.tsx`:
+  - Added `inRecurringFlow` auth check
+  - Registered "recurring" route in Stack
+  - Added to protected routes list
+
+**Files Modified:**
+- `src/lib/recurring-api.ts` - Added customDate parameter to createTransactionFromTemplate()
+- `src/components/RecurringExpensesWidget.tsx` - Added Edit button and updated mutation
+- `src/components/UpcomingRecurringSection.tsx` - Added Edit button and updated mutation
+- `src/app/recurring/edit/[id].tsx` - NEW: Full edit page with form
+- `src/app/recurring/_layout.tsx` - NEW: Recurring routes layout
+- `src/app/_layout.tsx` - Added recurring route registration and auth
+
+**UI Changes:**
+
+Before:
+```
+┌─────────────────────────────┐
+│ 🔄 Rent - 1,500 CHF        │
+│    Due: Feb 1    [Add Now]  │
+└─────────────────────────────┘
+```
+
+After:
+```
+┌─────────────────────────────────┐
+│ 🔄 Rent - 1,500 CHF            │
+│    Due: Feb 1  [✏️] [Add Now]  │
+└─────────────────────────────────┘
+```
+
+**Usage Flow:**
+
+**Editing a Recurring Expense:**
+1. User sees recurring expense on dashboard or transaction list
+2. Taps Edit (✏️) button
+3. Edit page opens with pre-filled form
+4. Can modify:
+   - Amount (e.g., 1,500 → 1,600 CHF)
+   - Category (e.g., Rent → Housing)
+   - Account (e.g., Checking → Credit Card)
+   - Day (e.g., 1st → 5th)
+   - Payee (e.g., Landlord → Property Manager)
+   - Note (e.g., Monthly rent → Includes parking)
+5. Taps "Save Changes"
+6. Template updated, success alert shown
+7. Returns to previous screen
+8. Changes reflected immediately
+
+**Deleting a Recurring Expense:**
+1. User taps Edit (✏️) button
+2. Taps Trash icon in header
+3. Confirmation alert: "Are you sure? Past transactions won't be affected."
+4. Taps "Delete"
+5. Template deactivated (soft delete)
+6. Removed from recurring lists
+7. Past transactions remain unchanged
+
+**"Add Now" with Correct Date:**
+1. Today: Jan 30
+2. Recurring template: Rent - Due Feb 1
+3. User taps "Add Now"
+4. Transaction created with date = Jan 30 ✓
+5. Shows in transaction list as Jan 30 ✓
+6. Template's lastCreatedDate updated to Jan 30
+7. Won't show again this month
+
+**Edge Cases Handled:**
+1. **Amount validation**: Requires positive number
+2. **Category required**: Must select category before saving
+3. **Account required**: Must select account before saving
+4. **Delete confirmation**: Prevents accidental deletion
+5. **Past transactions preserved**: Deleting template doesn't affect history
+6. **Loading states**: Disabled buttons and spinners during save/delete
+7. **Navigation**: Auto-returns to previous screen after success
+8. **Date precision**: "Add Now" always uses current date, not recurring day
+
+**Result:**
+- ✅ Can edit all recurring template fields
+- ✅ Edit button visible on both dashboard and transaction list
+- ✅ Full edit page with beautiful form
+- ✅ Save and delete functionality
+- ✅ "Add Now" uses today's date correctly
+- ✅ Past transactions unaffected by edits/deletes
+- ✅ Proper validation and error handling
+- ✅ Smooth navigation and UX
+- ✅ Consistent with app design system
+

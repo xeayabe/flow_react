@@ -142,9 +142,12 @@ function getDaysInMonth(year: number, month: number): number {
 
 /**
  * Create a transaction from a recurring template
+ * @param templateId - The recurring template ID
+ * @param customDate - Optional: use this date instead of the recurring day (for "Add Now")
  */
 export async function createTransactionFromTemplate(
-  templateId: string
+  templateId: string,
+  customDate?: Date
 ): Promise<string> {
   console.log('📅 Creating transaction from template:', templateId.substring(0, 8));
 
@@ -153,16 +156,27 @@ export async function createTransactionFromTemplate(
     throw new Error('Recurring template not found');
   }
 
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
+  let transactionDate: Date;
 
-  // Handle months with fewer days (e.g., Feb 31 -> Feb 28)
-  const daysInMonth = getDaysInMonth(year, month);
-  const recurringDay = Math.min(template.recurringDay, daysInMonth);
+  if (customDate) {
+    // Use custom date (today when "Add Now" is clicked)
+    transactionDate = customDate;
+    console.log('📅 Using custom date (Add Now):', customDate.toISOString().split('T')[0]);
+  } else {
+    // Use recurring day for automatic creation
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+
+    // Handle months with fewer days (e.g., Feb 31 -> Feb 28)
+    const daysInMonth = getDaysInMonth(year, month);
+    const recurringDay = Math.min(template.recurringDay, daysInMonth);
+
+    transactionDate = new Date(year, month, recurringDay);
+    console.log('📅 Using recurring day:', recurringDay);
+  }
 
   // Create transaction date (YYYY-MM-DD format)
-  const transactionDate = new Date(year, month, recurringDay);
   const dateString = transactionDate.toISOString().split('T')[0];
 
   const transactionId = uuidv4();
