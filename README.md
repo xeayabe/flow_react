@@ -3558,3 +3558,109 @@ After:
 - ✅ Automatic updates when dates arrive
 - ✅ Section headers separate recurring from scheduled
 
+
+
+---
+
+### FIX: Future Transactions Excluded from Budget Calculations (2026-01-31)
+
+**Issue**: Future transactions were being included in budget calculations, net worth, and analytics, affecting current financial status incorrectly. For example, a transaction dated Feb 5 would count toward January's budget spent amount.
+
+**Solution**: Updated all calculation functions to exclude future transactions (date > today). Future transactions now only affect calculations when their date arrives.
+
+**Files Modified:**
+
+1. ** - Budget spent amounts calculation**
+   - Updated `recalculateBudgetSpentAmounts()` to filter out future transactions
+   - Only includes transactions where `date <= today`
+   - Ensures budget totals reflect actual spending, not scheduled future spending
+
+2. ** - Period spending calculation**
+   - Updated `filterTransactionsByPeriod()` to exclude future dates
+   - Dashboard spending widgets now show accurate current totals
+
+3. ** - Analytics calculations**
+   - Updated `getTransactionsInRange()` to exclude future transactions
+   - Pie charts and bar charts only show actual spending, not future scheduled
+
+**Behavior:**
+
+**Before (Incorrect):**
+- Create transaction: Feb 5, 100 CHF
+- Budget shows: +100 CHF spent (today is Jan 30) ❌
+- Analytics includes this transaction ❌
+- Net worth calculation affected ❌
+
+**After (Correct):**
+- Create transaction: Feb 5, 100 CHF
+- Budget shows: No change (not counted yet) ✓
+- Analytics excludes this transaction ✓
+- Transaction visible in "Upcoming" section ✓
+- On Feb 5: Automatically included in calculations ✓
+
+**What's Excluded:**
+- Budget spent amounts
+- Period spending calculations
+- Dashboard totals
+- Analytics charts (pie, bar)
+- Category breakdown totals
+
+**What's NOT Affected:**
+- Net worth: Based on account balances (not affected by future transactions)
+- Transaction list: Future transactions show in "Upcoming" section
+- Future transaction editing: Can still create and edit future transactions
+
+**Result:**
+- ✅ Future transactions excluded from budget calculations
+- ✅ Dashboard shows accurate current spending
+- ✅ Analytics reflect actual spending only
+- ✅ Budget status correct (not inflated by future expenses)
+- ✅ Transactions automatically included when date arrives
+- ✅ Consistent date filtering across all calculations
+
+
+---
+
+### FIX: Future Transactions Excluded from Budget Calculations (2026-01-31)
+
+**Issue**: Future transactions were being included in budget calculations, net worth, and analytics, affecting current financial status incorrectly. For example, a transaction dated Feb 5 would count toward January's budget spent amount.
+
+**Solution**: Updated all calculation functions to exclude future transactions (date > today). Future transactions now only affect calculations when their date arrives.
+
+**Files Modified:**
+
+1. **Budget spent amounts calculation** (src/lib/budget-api.ts)
+   - Updated recalculateBudgetSpentAmounts() to filter out future transactions
+   - Only includes transactions where date <= today
+   - Ensures budget totals reflect actual spending, not scheduled future spending
+
+2. **Period spending calculation** (src/lib/dashboard-helpers.ts)
+   - Updated filterTransactionsByPeriod() to exclude future dates
+   - Dashboard spending widgets now show accurate current totals
+
+3. **Analytics calculations** (src/lib/analytics-api.ts)
+   - Updated getTransactionsInRange() to exclude future transactions
+   - Pie charts and bar charts only show actual spending, not future scheduled
+
+**Behavior:**
+
+**Before (Incorrect):**
+- Create transaction: Feb 5, 100 CHF
+- Budget shows: +100 CHF spent (today is Jan 30) - WRONG
+- Analytics includes this transaction - WRONG
+
+**After (Correct):**
+- Create transaction: Feb 5, 100 CHF
+- Budget shows: No change (not counted yet) - CORRECT
+- Analytics excludes this transaction - CORRECT
+- Transaction visible in "Upcoming" section - CORRECT
+- On Feb 5: Automatically included in calculations - CORRECT
+
+**Result:**
+- Future transactions excluded from budget calculations
+- Dashboard shows accurate current spending
+- Analytics reflect actual spending only
+- Budget status correct (not inflated by future expenses)
+- Transactions automatically included when date arrives
+- Consistent date filtering across all calculations
+

@@ -36,7 +36,7 @@ function getCategoryColor(categoryGroup: string, index: number): string {
 }
 
 /**
- * Get transactions within a date range
+ * Get transactions within a date range (excludes future transactions)
  */
 export async function getTransactionsInRange(
   userId: string,
@@ -57,9 +57,14 @@ export async function getTransactionsInRange(
 
     let transactions = (result.data.transactions || []) as Transaction[];
 
-    // Filter by date range
+    // Get today's date for future filtering
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    const todayStr = today.toISOString().split('T')[0];
+
+    // Filter by date range AND exclude future transactions
     transactions = transactions.filter(
-      (tx) => tx.date >= startDate && tx.date <= endDate
+      (tx) => tx.date >= startDate && tx.date <= endDate && tx.date <= todayStr
     );
 
     // Filter by type if specified

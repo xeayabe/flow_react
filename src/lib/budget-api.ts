@@ -490,9 +490,20 @@ export async function recalculateBudgetSpentAmounts(
     });
 
     const allTransactions = transactionsResult.data.transactions ?? [];
-    // Filter by date AND exclude transactions from excluded accounts AND exclude transactions marked as excluded
+
+    // Get today's date for future filtering
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    const todayStr = today.toISOString().split('T')[0];
+
+    // Filter by date AND exclude transactions from excluded accounts AND exclude transactions marked as excluded AND exclude future transactions
     const transactions = allTransactions.filter(
-      (tx: any) => tx.date >= periodStart && tx.date <= periodEnd && !excludedAccountIds.has(tx.accountId) && !tx.isExcludedFromBudget
+      (tx: any) =>
+        tx.date >= periodStart &&
+        tx.date <= periodEnd &&
+        tx.date <= todayStr && // Exclude future transactions
+        !excludedAccountIds.has(tx.accountId) &&
+        !tx.isExcludedFromBudget
     );
 
     console.log('💰 recalculateBudgetSpentAmounts - Transactions found:', {

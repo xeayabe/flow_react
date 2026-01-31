@@ -132,14 +132,20 @@ export function calculateTotalBalance(accounts: Account[]): number {
 }
 
 /**
- * Filter transactions for current budget period
+ * Filter transactions for current budget period (excludes future transactions)
  */
 export function filterTransactionsByPeriod(
   transactions: Transaction[],
   startDate: string,
   endDate: string
 ): Transaction[] {
-  return transactions.filter((tx) => tx.date >= startDate && tx.date <= endDate);
+  const today = new Date();
+  today.setHours(23, 59, 59, 999); // End of today
+  const todayStr = today.toISOString().split('T')[0];
+
+  return transactions.filter(
+    (tx) => tx.date >= startDate && tx.date <= endDate && tx.date <= todayStr
+  );
 }
 
 /**
