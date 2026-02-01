@@ -293,12 +293,16 @@ export default function AddTransactionScreen() {
         );
       }
 
-      queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
+      // Invalidate all relevant queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['transactions'] }); // Catch all transactions queries
+      queryClient.invalidateQueries({ queryKey: ['transactions-household'] }); // Specifically for the household transactions
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['all-payees', householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['recurring-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] }); // Refresh budget totals
+      queryClient.invalidateQueries({ queryKey: ['budget-details'] }); // Refresh budget spent amounts
 
       // Show appropriate message based on whether it's a template or transaction
       if (result.isTemplate) {
