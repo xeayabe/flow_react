@@ -111,10 +111,14 @@ export default function BudgetSetupScreen() {
   };
 
   const categoriesQuery = useQuery({
-    queryKey: ['categories', householdId, userId],
+    queryKey: ['categories-budget', householdId, userId],
     queryFn: async () => {
       if (!householdId || !userId) return [];
-      return getCategories(householdId, userId);
+      const allCategories = await getCategories(householdId, userId);
+      // IMPORTANT: Filter to only show user's OWN categories for budget allocation
+      // Budget is personal, so we should NOT include shared categories from other household members
+      // This prevents double-counting allocations across multiple users' budgets
+      return allCategories.filter((cat: any) => cat.createdByUserId === userId);
     },
     enabled: !!householdId && !!userId,
   });
