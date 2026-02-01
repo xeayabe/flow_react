@@ -399,8 +399,9 @@ export default function BudgetSetupScreen() {
     );
 
     // Check that total allocations don't exceed income
+    // Add 0.01 CHF tolerance to account for floating-point precision errors
     const totalAllocated = Object.values(nonZeroAllocations).reduce((sum, amount) => sum + amount, 0);
-    if (totalAllocated > income) {
+    if (totalAllocated > income + 0.01) {
       setShowSaveError(`Total allocations (${totalAllocated.toFixed(2)} CHF) exceed your income (${income.toFixed(2)} CHF)`);
       return;
     }
