@@ -452,8 +452,13 @@ export default function AddTransactionScreen() {
                     keyboardType="decimal-pad"
                     value={formData.amount}
                     onChangeText={(text) => {
-                      const cleaned = text.replace(/[^0-9.]/g, '');
-                      setFormData({ ...formData, amount: cleaned });
+                      // Replace comma with dot for European locales, then clean
+                      const normalized = text.replace(',', '.');
+                      const cleaned = normalized.replace(/[^0-9.]/g, '');
+                      // Ensure only one decimal point
+                      const parts = cleaned.split('.');
+                      const finalValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+                      setFormData({ ...formData, amount: finalValue });
                       if (errors.amount) setErrors({ ...errors, amount: undefined });
                     }}
                   />
