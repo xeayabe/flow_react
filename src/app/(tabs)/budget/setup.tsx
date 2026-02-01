@@ -153,8 +153,14 @@ export default function BudgetSetupScreen() {
       // If there's an existing budget, load those values
       if (existingBudgetQuery.data && existingBudgetQuery.data.length > 0) {
         const existingAllocations: Record<string, number> = {};
+        // Create a set of user's category IDs for quick lookup
+        const userCategoryIds = new Set(categoriesQuery.data.map((cat: any) => cat.id));
+
+        // Only load allocations for categories that belong to the current user
         existingBudgetQuery.data.forEach((budget: any) => {
-          existingAllocations[budget.categoryId] = budget.allocatedAmount;
+          if (userCategoryIds.has(budget.categoryId)) {
+            existingAllocations[budget.categoryId] = budget.allocatedAmount;
+          }
         });
         setAllocations(existingAllocations);
 
