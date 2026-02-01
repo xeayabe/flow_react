@@ -263,7 +263,7 @@ export default function BudgetSetupScreen() {
   const allocatedPercentage = income > 0 ? (totalAllocated / income) * 100 : 0;
 
   // Handle amount change
-  const handleAmountChange = (categoryId: string, newAmount: string) => {
+  const handleAmountChange = (categoryId: string, newAmount: string, groupKey?: string) => {
     if (!newAmount) {
       setAllocations((prev) => ({
         ...prev,
@@ -272,21 +272,44 @@ export default function BudgetSetupScreen() {
       return;
     }
     const amount = parseFloat(newAmount) || 0;
-    const income = parseFloat(monthlyIncome) || 0;
 
-    // Calculate how much is already allocated (excluding this category)
-    const otherAllocations = Object.entries(allocations)
-      .filter(([id]) => id !== categoryId)
-      .reduce((sum, [, value]) => sum + value, 0);
+    // If groupKey provided, validate against group budget (not total income)
+    if (groupKey) {
+      const groupPercentageValue = groupPercentages[groupKey] || 0;
+      const income = parseFloat(monthlyIncome) || 0;
+      const groupBudgetAmount = calculateAmountFromPercentage(groupPercentageValue, income);
 
-    // Cap the allocation to not exceed income
-    const maxAllowable = Math.max(0, income - otherAllocations);
-    const cappedAmount = Math.min(Math.max(0, amount), maxAllowable);
+      // Calculate how much is already allocated in this group (excluding this category)
+      const categoriesInGroup = (categoriesQuery.data || []).filter(
+        (cat: any) => cat.categoryGroup === groupKey && cat.id !== categoryId
+      );
+      const otherAllocationsInGroup = categoriesInGroup.reduce(
+        (sum, cat: any) => sum + (allocations[cat.id] || 0),
+        0
+      );
 
-    setAllocations((prev) => ({
-      ...prev,
-      [categoryId]: cappedAmount,
-    }));
+      // Cap the allocation to not exceed group budget
+      const maxAllowable = Math.max(0, groupBudgetAmount - otherAllocationsInGroup);
+      const cappedAmount = Math.min(Math.max(0, amount), maxAllowable);
+
+      setAllocations((prev) => ({
+        ...prev,
+        [categoryId]: cappedAmount,
+      }));
+    } else {
+      // Fallback to old behavior (shouldn't happen in normal usage)
+      const income = parseFloat(monthlyIncome) || 0;
+      const otherAllocations = Object.entries(allocations)
+        .filter(([id]) => id !== categoryId)
+        .reduce((sum, [, value]) => sum + value, 0);
+      const maxAllowable = Math.max(0, income - otherAllocations);
+      const cappedAmount = Math.min(Math.max(0, amount), maxAllowable);
+
+      setAllocations((prev) => ({
+        ...prev,
+        [categoryId]: cappedAmount,
+      }));
+    }
   };
 
   // Handle percentage change (relative to group budget, not total income)
@@ -674,7 +697,7 @@ export default function BudgetSetupScreen() {
                                     ? parts[0] + '.' + parts.slice(1).join('')
                                     : filtered;
                                   setEditingValue(cleanValue);
-                                  handleAmountChange(category.id, cleanValue);
+                                  handleAmountChange(category.id, cleanValue, categoryGroup.key);
                                 }}
                                 onFocus={() => {
                                   setEditingField(`amount-${category.id}`);
