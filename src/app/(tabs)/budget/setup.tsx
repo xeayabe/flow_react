@@ -24,6 +24,19 @@ import { getCurrentBudgetPeriod } from '@/lib/budget-period-utils';
 import { calculatePercentage, calculateAmountFromPercentage, autoBalanceRemaining, apply503020Split } from '@/lib/budget-utils';
 import { cn } from '@/lib/cn';
 
+/**
+ * Clean up corrupted budget entries (budgets for categories not owned by user)
+ */
+async function cleanupCorruptedBudgetEntries(budgetIds: string[]): Promise<void> {
+  try {
+    const deleteOps = budgetIds.map((id) => db.tx.budgets[id].delete());
+    await db.transact(deleteOps);
+    console.log('✅ Deleted', budgetIds.length, 'corrupted budget entries');
+  } catch (error) {
+    console.error('Error cleaning up corrupted budget entries:', error);
+  }
+}
+
 interface CategoryWithAllocation {
   id: string;
   name: string;
@@ -156,12 +169,41 @@ export default function BudgetSetupScreen() {
         // Create a set of user's category IDs for quick lookup
         const userCategoryIds = new Set(categoriesQuery.data.map((cat: any) => cat.id));
 
+        console.log('🔍 Loading existing budget:', {
+          totalBudgetEntries: existingBudgetQuery.data.length,
+          userCategoryIds: Array.from(userCategoryIds),
+          budgetCategories: existingBudgetQuery.data.map((b: any) => ({ categoryId: b.categoryId, amount: b.allocatedAmount }))
+        });
+
         // Only load allocations for categories that belong to the current user
+        let skipped = 0;
+        const budgetsToDelete: string[] = [];
         existingBudgetQuery.data.forEach((budget: any) => {
           if (userCategoryIds.has(budget.categoryId)) {
             existingAllocations[budget.categoryId] = budget.allocatedAmount;
+          } else {
+            skipped++;
+            budgetsToDelete.push(budget.id);
+            console.log('⚠️ Found budget for category not owned by user - will clean up:', budget.categoryId, budget.allocatedAmount);
           }
         });
+
+        console.log('✅ Loaded allocations:', {
+          loaded: Object.keys(existingAllocations).length,
+          skipped,
+          totalAmount: Object.values(existingAllocations).reduce((sum, amount) => sum + amount, 0)
+        });
+
+        // Clean up corrupted budget entries in the background
+        if (budgetsToDelete.length > 0 && userId) {
+          console.log('🧹 Cleaning up', budgetsToDelete.length, 'corrupted budget entries');
+          cleanupCorruptedBudgetEntries(budgetsToDelete).then(() => {
+            console.log('✅ Cleanup complete, invalidating queries');
+            queryClient.invalidateQueries({ queryKey: ['budget-edit-details'] });
+            queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+          });
+        }
+
         setAllocations(existingAllocations);
 
         // Also load the monthly income from the budget summary
