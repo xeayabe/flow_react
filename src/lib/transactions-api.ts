@@ -97,17 +97,25 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
 
     console.log('Account found:', { accountId: account.id, currentBalance: account.balance });
 
-    // Calculate new balance
-    let newBalance = account.balance;
-    if (request.type === 'income') {
-      newBalance += request.amount;
-      console.log('Income transaction: adding', request.amount, 'to balance');
-    } else {
-      newBalance -= request.amount;
-      console.log('Expense transaction: subtracting', request.amount, 'from balance');
-    }
+    // Check if this is a future transaction
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const isFutureTransaction = request.date > todayStr;
 
-    console.log('New balance will be:', newBalance);
+    // Calculate new balance - only update if NOT a future transaction
+    let newBalance = account.balance;
+    if (!isFutureTransaction) {
+      if (request.type === 'income') {
+        newBalance += request.amount;
+        console.log('Income transaction: adding', request.amount, 'to balance');
+      } else {
+        newBalance -= request.amount;
+        console.log('Expense transaction: subtracting', request.amount, 'from balance');
+      }
+      console.log('New balance will be:', newBalance);
+    } else {
+      console.log('Future transaction detected - balance will NOT be updated until', request.date);
+    }
 
     // Create transaction and update account balance in a transaction
     await db.transact([
@@ -132,8 +140,8 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
 
     console.log('Transaction created successfully:', { transactionId, type: request.type, newBalance, isShared: request.isShared });
 
-    // Update budget spent amount if this is an expense transaction
-    if (request.type === 'expense') {
+    // Update budget spent amount if this is an expense transaction (skip future transactions)
+    if (request.type === 'expense' && !isFutureTransaction) {
       try {
         console.log('Updating budget for expense transaction');
 
@@ -385,12 +393,22 @@ export async function deleteTransaction(transactionId: string): Promise<Transact
     const splits = splitsResult.data?.shared_expense_splits || [];
     console.log(`Found ${splits.length} splits to delete`);
 
-    // Restore balance (opposite of what was added/subtracted)
+    // Check if this is a future transaction
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const isFutureTransaction = transaction.date > todayStr;
+
+    // Restore balance (opposite of what was added/subtracted) - only if NOT a future transaction
     let restoredBalance = account.balance;
-    if (transaction.type === 'income') {
-      restoredBalance -= transaction.amount;
+    if (!isFutureTransaction) {
+      if (transaction.type === 'income') {
+        restoredBalance -= transaction.amount;
+      } else {
+        restoredBalance += transaction.amount;
+      }
+      console.log('Restoring balance to:', restoredBalance);
     } else {
-      restoredBalance += transaction.amount;
+      console.log('Future transaction - no balance to restore');
     }
 
     // Build delete operations: splits first, then transaction and balance update
@@ -399,7 +417,7 @@ export async function deleteTransaction(transactionId: string): Promise<Transact
       ...splits.map((split: any) => db.tx.shared_expense_splits[split.id].delete()),
       // Delete transaction
       db.tx.transactions[transactionId].delete(),
-      // Update account balance
+      // Update account balance (only changes if not a future transaction)
       db.tx.accounts[transaction.accountId].update({
         balance: restoredBalance
       }),
@@ -410,8 +428,8 @@ export async function deleteTransaction(transactionId: string): Promise<Transact
 
     console.log(`✅ Transaction deleted: ${transactionId} (${splits.length} splits also deleted)`);
 
-    // Update budget spent amount if this was an expense transaction
-    if (transaction.type === 'expense') {
+    // Update budget spent amount if this was an expense transaction (skip future transactions)
+    if (transaction.type === 'expense' && !isFutureTransaction) {
       try {
         // Check if the account is excluded from budget
         if (transaction.accountId && transaction.accountId.length > 0) {

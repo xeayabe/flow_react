@@ -2685,6 +2685,36 @@ After this fix:
 
 ## Recent Changes
 
+### Fix: Future Transactions Not Counted in Balance/Budget Until Date (2026-02-01)
+
+**Problem**: When users added recurring transactions or transactions with future dates, they were immediately counted in:
+1. Account balance calculations
+2. Budget spent amounts
+
+This was incorrect - future transactions should only affect balances and budgets when their date arrives.
+
+**The Fix** (`src/lib/transactions-api.ts`):
+
+**1. Create Transaction:**
+- Added check for future transaction: `const isFutureTransaction = request.date > todayStr`
+- Account balance is now only updated if `!isFutureTransaction`
+- Budget spent amount is now only updated if `!isFutureTransaction`
+
+**2. Delete Transaction:**
+- Added same future transaction check
+- Balance is now only restored if the transaction was not a future transaction (since it wasn't deducted in the first place)
+- Budget spent amount is only updated if not a future transaction
+
+**Note**: The budget recalculation function (`recalculateBudgetSpentAmounts`) already correctly excluded future transactions with `tx.date <= todayStr`.
+
+**Result**:
+- ✅ Future-dated transactions don't affect current account balance
+- ✅ Future-dated transactions don't affect budget spent amounts
+- ✅ Recurring templates work correctly without affecting totals
+- ✅ When the date arrives, users can manually process or the app recalculates
+
+---
+
 ### UI/UX Improvements: Shared Expense Toggle Visibility (2026-01-28)
 
 **Problem**: User reported two issues with shared expense feature:
