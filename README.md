@@ -1132,6 +1132,46 @@ import { BudgetStatusCard } from '@/components/dashboard/BudgetStatusCard';
 **Integration:**
 The BudgetStatusCard is integrated into the main dashboard (`src/app/(tabs)/index.tsx`) and automatically fetches budget data from InstantDB. Budget details are enriched with category names, emojis, and groups before being passed to the component.
 
+#### Household Balance Widget (`src/components/dashboard/HouseholdBalanceWidget.tsx`)
+
+Prominent glass card that appears when there are unsettled shared expenses between household members:
+
+```typescript
+import { HouseholdBalanceWidget } from '@/components/dashboard/HouseholdBalanceWidget';
+
+<HouseholdBalanceWidget
+  debtAmount={347.85} // Positive if partner owes you, negative if you owe partner
+  partnerName="Sarah"
+  yourSplitRatio={59}
+  partnerSplitRatio={41}
+  hasUnsettledExpenses={true}
+/>
+```
+
+**Features:**
+- Pulsing glow animation for 10 seconds to draw attention
+- Large debt amount display with Swiss formatting
+- Clear debt direction: "You owe X" or "X owes you"
+- Split ratio display (e.g., "59% / 41%")
+- Primary teal button navigates to settlement flow
+- Conditional rendering (auto-hides when debt is zero)
+- Smooth React Native Reanimated animations
+- Touch feedback stops animation
+
+**Animation Details:**
+- Pulse: Opacity 1 → 0.6 → 1 over 3 seconds
+- Subtle scale variation (2%)
+- Repeats 3 times (~9 seconds)
+- Auto-stops after 10 seconds
+- Manual stop on button press
+
+**Conditional Rendering:**
+Widget only appears when:
+1. `hasUnsettledExpenses = true`
+2. `Math.abs(debtAmount) > 0.01 CHF`
+
+**Test Page:** Navigate to `/test-household-balance` to see 6 scenarios including debt directions, formatting, and conditional rendering.
+
 **Animation:**
 - Slides in from 20px below
 - Fades from opacity 0 to 1
