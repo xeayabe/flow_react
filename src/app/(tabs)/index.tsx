@@ -35,6 +35,8 @@ import DebtBalanceWidget from '@/components/DebtBalanceWidget';
 import TrueBalanceWidget from '@/components/TrueBalanceWidget';
 import RecurringExpensesWidget from '@/components/RecurringExpensesWidget';
 import { BudgetStatusCard } from '@/components/dashboard/BudgetStatusCard';
+import { HouseholdBalanceWidget } from '@/components/dashboard/HouseholdBalanceWidget';
+import { useHouseholdData } from '@/hooks/useHouseholdData';
 
 interface BudgetSummaryData {
   totalIncome: number;
@@ -45,6 +47,9 @@ interface BudgetSummaryData {
 export default function DashboardScreen() {
   const { user } = db.useAuth();
   const [showResetNotification, setShowResetNotification] = React.useState(false);
+
+  // Fetch household data for the Household Balance Widget
+  const householdData = useHouseholdData();
 
   // Get user profile and household membership
   const userProfileQuery = useQuery({
@@ -324,6 +329,17 @@ export default function DashboardScreen() {
 
           {/* True Balance Widget */}
           <TrueBalanceWidget />
+
+          {/* Household Balance Widget - Swiss Design */}
+          {householdData.partner && !householdData.isLoading && (
+            <HouseholdBalanceWidget
+              debtAmount={householdData.debtAmount}
+              partnerName={householdData.partner.name}
+              yourSplitRatio={householdData.yourSplitRatio}
+              partnerSplitRatio={householdData.partnerSplitRatio}
+              hasUnsettledExpenses={householdData.hasUnsettledExpenses}
+            />
+          )}
 
           {/* Budget Status Card - Swiss Design */}
           {enrichedBudgets.length > 0 && (

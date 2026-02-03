@@ -1188,6 +1188,14 @@ Widget only appears when:
 - Animation behavior
 - Hook usage examples
 
+**Dashboard Integration:**
+The HouseholdBalanceWidget is integrated into the main dashboard (`src/app/(tabs)/index.tsx`) between the TrueBalanceWidget and BudgetStatusCard. It automatically:
+- Fetches household data using `useHouseholdData` hook
+- Only appears when partner exists and is not loading
+- Conditionally renders based on `hasUnsettledExpenses` and debt amount
+- Shows pulsing animation to draw attention to unsettled expenses
+- Navigates to `/settle` when button is pressed
+
 **Animation:**
 - Slides in from 20px below
 - Fades from opacity 0 to 1
