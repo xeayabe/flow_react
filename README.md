@@ -1069,6 +1069,38 @@ import { ContextLine } from '@/components/budget/ContextLine';
 
 **Philosophy:** Replaces harsh red warnings with empathetic guidance. Budget overruns are "Flow Adjusted" - a natural part of financial management, not a failure.
 
+#### Budget Item Cards (`src/components/budget/BudgetItem.tsx`)
+
+Glass-effect budget category cards with Context Lines:
+
+```typescript
+import { BudgetItem } from '@/components/budget/BudgetItem';
+
+<BudgetItem
+  emoji="🛒"
+  label="Groceries"
+  spent={450}
+  allocated={1000}
+  animationDelay={0}
+/>
+```
+
+**Features:**
+- Glass effect (white/3% background, white/5% border)
+- Slide-in animation with fade (500ms)
+- Staggered animation delays for cascade effect
+- Emoji + category label
+- Spent/allocated amounts with tabular numbers
+- Integrated Context Line component
+- Soft shadows for depth
+- 12px rounded corners
+
+**Animation:**
+- Slides in from 20px below
+- Fades from opacity 0 to 1
+- Ease-out timing
+- Stagger by 100ms per card
+
 #### Testing
 
 **Visual Test Page:** `/design-test`
