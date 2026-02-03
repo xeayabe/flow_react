@@ -37,12 +37,13 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     const inBudgetFlow = segments[0] === 'budget';
     const inSettlementFlow = segments[0] === 'settlement';
     const inRecurringFlow = segments[0] === 'recurring';
+    const inTestPages = segments[0]?.startsWith('test-'); // Allow test pages
     const inLoginFlow = segments[0] === 'welcome' || segments[0] === 'signup' || segments[0] === 'login';
 
-    if (!user && (inAuthGroup || inWalletsFlow || inSettingsFlow || inTransactionsFlow || inBudgetFlow || inSettlementFlow || inRecurringFlow)) {
+    if (!user && (inAuthGroup || inWalletsFlow || inSettingsFlow || inTransactionsFlow || inBudgetFlow || inSettlementFlow || inRecurringFlow || inTestPages)) {
       // Redirect to welcome if not authenticated
       router.replace('/welcome');
-    } else if (user && !inAuthGroup && !inWalletsFlow && !inSettingsFlow && !inTransactionsFlow && !inBudgetFlow && !inSettlementFlow && !inRecurringFlow && segments[0] !== 'modal') {
+    } else if (user && !inAuthGroup && !inWalletsFlow && !inSettingsFlow && !inTransactionsFlow && !inBudgetFlow && !inSettlementFlow && !inRecurringFlow && !inTestPages && segments[0] !== 'modal') {
       // Redirect to dashboard if authenticated
       router.replace('/(tabs)');
     }
