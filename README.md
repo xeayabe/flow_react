@@ -891,13 +891,77 @@ bun start
 | Add Transaction | `/transactions/add` | FAB on Dashboard or Transactions tab |
 | Analytics | `/analytics` | Dashboard > Budget Breakdown > Analytics link |
 
+## Design System
+
+### Swiss Precision Aesthetic
+Flow uses a distinctive **Swiss-inspired glassmorphism design system** that brings calm, mindful budgeting to life.
+
+#### Core Design Tokens (`src/lib/design-tokens.ts`)
+
+**Color Palette:**
+- **Context Teal** (#2C5F5D) - Primary brand color, deep and sophisticated
+- **Context Sage** (#A8B5A1) - Success states, on-track budgets
+- **Context Lavender** (#B4A7D6) - Adjusted flow states (over budget)
+- **Context Dark** (#1A1C1E) - Background base
+
+**Budget Status Colors (4-tier system - NO RED!):**
+- **0-70% spent**: Sage Green (#A8B5A1) - "On Track"
+- **70-90% spent**: Soft Amber (#D4A574) - "Progressing"
+- **90-100% spent**: Deep Teal (#2C5F5D) - "Nearly There"
+- **100%+ spent**: Soft Lavender (#B4A7D6) - "Flow Adjusted"
+
+**Philosophy**: No harsh red warnings. Budget overruns are reframed as "Flow Adjusted" to reduce financial anxiety.
+
+**Glassmorphism:**
+- Glass surfaces with subtle transparency (3-5% white opacity)
+- Delicate borders with 5% white opacity
+- Backdrop blur effects for depth
+- Soft shadows for floating elements
+
+**Currency Formatting:**
+- Swiss CHF format: `CHF 1'234.50` (apostrophe as thousand separator)
+- Always 2 decimal places
+- Negative values: `-CHF 150.00`
+
+**Typography Scale:**
+- Hero: 48px / 700 weight (homepage headlines)
+- H1: 32px / 600 weight (screen titles)
+- H2: 24px / 600 weight (section headers)
+- H3: 20px / 600 weight (card titles)
+- Body: 16px / 400 weight (content)
+- Caption: 14px / 400 weight (metadata)
+- Label: 12px / 500 weight uppercase (field labels)
+
+**Spacing Scale:** 4, 8, 16, 24, 32, 48 (multiples of 4)
+
+**Border Radius:** 8, 12, 16, 24, full (9999)
+
+#### Utilities
+
+```typescript
+import { formatCHF, getBudgetStatusColor, glassStyles, createGlassStyle } from '@/lib/design-tokens';
+
+// Format currency
+formatCHF(1234.5) // "CHF 1'234.50"
+formatCHF(-150) // "-CHF 150.00"
+
+// Budget status colors
+getBudgetStatusColor(65) // Sage Green (on track)
+getBudgetStatusColor(85) // Soft Amber (progressing)
+getBudgetStatusColor(105) // Soft Lavender (flow adjusted)
+
+// Glassmorphism styles
+<View style={glassStyles.card}>...</View>
+<View style={createGlassStyle(0.05, 15)}>...</View>
+```
+
 ## Design Principles
 
+- **Swiss Precision**: Clean typography, generous whitespace, meticulous attention to detail
 - **Premium iOS Design**: Follows Apple's Human Interface Guidelines
-- **Calm & Empathetic**: Deep teal (#006A6A) and sage green color palette
-- **Material Design 3**: Modern rounded corners, subtle shadows, and smooth interactions
+- **Calm & Empathetic**: No harsh reds - budget overruns are "Flow Adjusted", not failures
+- **Glassmorphism**: Subtle transparency, blur effects, and layered depth
 - **Mobile-first**: Designed specifically for iOS with touch-optimized interactions
-- **Generous Whitespace**: Clean, uncluttered layouts that breathe
 - **Smooth Animations**: React Native Reanimated for fluid, delightful micro-interactions
 - **Accessible**: Proper form labels, error messages, and keyboard handling
 
