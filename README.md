@@ -1138,15 +1138,26 @@ Prominent glass card that appears when there are unsettled shared expenses betwe
 
 ```typescript
 import { HouseholdBalanceWidget } from '@/components/dashboard/HouseholdBalanceWidget';
+import { useHouseholdData } from '@/hooks/useHouseholdData';
+
+const householdData = useHouseholdData();
 
 <HouseholdBalanceWidget
-  debtAmount={347.85} // Positive if partner owes you, negative if you owe partner
-  partnerName="Sarah"
-  yourSplitRatio={59}
-  partnerSplitRatio={41}
-  hasUnsettledExpenses={true}
+  debtAmount={householdData.debtAmount}
+  partnerName={householdData.partner?.name || 'Partner'}
+  yourSplitRatio={householdData.yourSplitRatio}
+  partnerSplitRatio={householdData.partnerSplitRatio}
+  hasUnsettledExpenses={householdData.hasUnsettledExpenses}
 />
 ```
+
+**useHouseholdData Hook** (`src/hooks/useHouseholdData.ts`):
+Fetches and calculates household debt data:
+- Finds partner in household
+- Calculates net debt balance using `calculateDebtBalance`
+- Retrieves split ratios using `calculateSplitRatio`
+- Checks for unsettled expenses in `shared_expense_splits`
+- Returns loading state for conditional rendering
 
 **Features:**
 - Pulsing glow animation for 10 seconds to draw attention
@@ -1170,7 +1181,12 @@ Widget only appears when:
 1. `hasUnsettledExpenses = true`
 2. `Math.abs(debtAmount) > 0.01 CHF`
 
-**Test Page:** Navigate to `/test-household-balance` to see 6 scenarios including debt directions, formatting, and conditional rendering.
+**Test Page:** Navigate to `/test-household-balance` to see:
+- Your actual household data (live)
+- 6 mock scenarios with all debt directions
+- Visual verification checklist
+- Animation behavior
+- Hook usage examples
 
 **Animation:**
 - Slides in from 20px below

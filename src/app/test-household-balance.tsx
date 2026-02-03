@@ -3,6 +3,7 @@ import { View, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { HouseholdBalanceWidget } from '@/components/dashboard/HouseholdBalanceWidget';
+import { useHouseholdData } from '@/hooks/useHouseholdData';
 import { colors } from '@/lib/design-tokens';
 
 /**
@@ -10,6 +11,9 @@ import { colors } from '@/lib/design-tokens';
  * Shows debt scenarios and animation behavior
  */
 export default function TestHouseholdBalancePage() {
+  // Fetch real household data
+  const householdData = useHouseholdData();
+
   return (
     <>
       <Stack.Screen
@@ -31,6 +35,44 @@ export default function TestHouseholdBalancePage() {
               <Text className="text-white/60 text-base">
                 Prominent debt indicator with pulsing animation
               </Text>
+            </View>
+
+            {/* Real Data from Hook */}
+            <View className="mb-6">
+              <Text className="text-white text-lg font-semibold mb-3">
+                📊 Your Actual Household Data
+              </Text>
+              {householdData.isLoading ? (
+                <View className="bg-white/5 rounded-xl p-4 border border-white/10">
+                  <Text className="text-white/60 text-sm text-center">
+                    Loading household data...
+                  </Text>
+                </View>
+              ) : householdData.partner ? (
+                <>
+                  <HouseholdBalanceWidget
+                    debtAmount={householdData.debtAmount}
+                    partnerName={householdData.partner.name}
+                    yourSplitRatio={householdData.yourSplitRatio}
+                    partnerSplitRatio={householdData.partnerSplitRatio}
+                    hasUnsettledExpenses={householdData.hasUnsettledExpenses}
+                  />
+                  <View className="bg-white/5 rounded-xl p-3 border border-white/10 mt-2">
+                    <Text className="text-white/60 text-xs">
+                      Partner: {householdData.partner.name} •
+                      Debt: {householdData.debtAmount.toFixed(2)} CHF •
+                      Split: {householdData.yourSplitRatio}%/{householdData.partnerSplitRatio}% •
+                      Unsettled: {householdData.hasUnsettledExpenses ? 'Yes' : 'No'}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <View className="bg-white/5 rounded-xl p-4 border border-white/10">
+                  <Text className="text-white/60 text-sm text-center">
+                    No partner in household (single-member household)
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* Test Case 1: Partner owes you */}
@@ -262,20 +304,36 @@ export default function TestHouseholdBalancePage() {
             {/* Usage Example */}
             <View className="bg-white/5 rounded-2xl p-4 border border-white/10 mt-4">
               <Text className="text-white text-lg font-semibold mb-3">
-                💻 Usage Example
+                💻 Usage with Hook
               </Text>
 
-              <View className="bg-black/30 rounded-lg p-3">
+              <View className="bg-black/30 rounded-lg p-3 mb-3">
                 <Text className="text-white/80 text-xs font-mono leading-5">
-                  {`<HouseholdBalanceWidget
-  debtAmount={347.85}
-  partnerName="Sarah"
-  yourSplitRatio={59}
-  partnerSplitRatio={41}
-  hasUnsettledExpenses={true}
+                  {`import { useHouseholdData } from '@/hooks/useHouseholdData';
+
+const {
+  partner,
+  debtAmount,
+  yourSplitRatio,
+  partnerSplitRatio,
+  hasUnsettledExpenses,
+  isLoading
+} = useHouseholdData();
+
+<HouseholdBalanceWidget
+  debtAmount={debtAmount}
+  partnerName={partner?.name || ''}
+  yourSplitRatio={yourSplitRatio}
+  partnerSplitRatio={partnerSplitRatio}
+  hasUnsettledExpenses={hasUnsettledExpenses}
 />`}
                 </Text>
               </View>
+
+              <Text className="text-white/60 text-xs">
+                The hook automatically fetches household members, calculates debt
+                balance, and retrieves split ratios from InstantDB.
+              </Text>
             </View>
 
             {/* Integration Notes */}
