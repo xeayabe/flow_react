@@ -1019,6 +1019,18 @@ import { GlassCard, GlassButton, GlassHeader, GlassInputContainer, GlassSection 
 - `GlassInputContainer` - Form inputs with focus glow
 - `GlassSection` - Large content areas with padding
 
+#### Testing
+
+**Visual Test Page:** `/design-test`
+Navigate to this route in your app to see all design system components in action with automated acceptance criteria verification.
+
+**Automated Tests:** Run `bun test-design-system.js` to verify:
+- ✅ formatCurrency(13648.51) returns "13'648.51 CHF"
+- ✅ formatCurrency(-4940.55) returns "-4'940.55 CHF"
+- ✅ getBudgetColor(50) returns Sage Green #A8B5A1
+- ✅ getBudgetColor(105) returns Soft Lavender #B4A7D6
+- ✅ All components render without errors
+
 #### Utilities
 
 ```typescript
