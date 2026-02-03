@@ -975,6 +975,50 @@ getBudgetStatus(95)  // "NEARLY THERE"
 getBudgetStatus(105) // "FLOW ADJUSTED" (not "Over Budget"!)
 ```
 
+#### Glassmorphism Components (`src/components/ui/Glass.tsx`)
+
+Ready-to-use React Native components with Swiss glass aesthetics:
+
+```typescript
+import { GlassCard, GlassButton, GlassHeader, GlassInputContainer, GlassSection } from '@/components/ui/Glass';
+
+// Card with glass effect
+<GlassCard className="p-4">
+  <Text>Content with subtle transparency</Text>
+</GlassCard>
+
+// Premium buttons
+<GlassButton variant="primary" onPress={handleSubmit}>
+  <Text className="text-white font-semibold">Save Budget</Text>
+</GlassButton>
+
+<GlassButton variant="secondary" onPress={handleCancel}>
+  <Text className="text-white">Cancel</Text>
+</GlassButton>
+
+// Translucent header
+<GlassHeader className="px-6 py-4">
+  <Text className="text-white text-lg font-semibold">Settings</Text>
+</GlassHeader>
+
+// Input wrapper with focus state
+<GlassInputContainer focused={isFocused}>
+  <TextInput placeholder="Amount" />
+</GlassInputContainer>
+
+// Content section
+<GlassSection>
+  <Text className="text-white">Section content</Text>
+</GlassSection>
+```
+
+**Features:**
+- `GlassCard` - General-purpose glass card with shadows
+- `GlassButton` - Primary (teal solid) and Secondary (glass) variants
+- `GlassHeader` - Perfect for custom navigation headers
+- `GlassInputContainer` - Form inputs with focus glow
+- `GlassSection` - Large content areas with padding
+
 #### Utilities
 
 ```typescript
