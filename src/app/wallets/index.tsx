@@ -33,7 +33,7 @@ function WalletCard({ account, index }: { account: Account; index: number }) {
     <Animated.View entering={FadeInDown.delay(index * 100).duration(600)}>
       <Pressable
         onPress={() => {
-          router.push(`/accounts/edit?id=${account.id}`);
+          router.push(`/wallets/edit?id=${account.id}`);
         }}
         className="mb-4 rounded-3xl p-5"
         style={{

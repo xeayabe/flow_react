@@ -227,7 +227,7 @@ export const AccountsListWidget: React.FC<{ accounts: Account[]; isLoading?: boo
         {displayAccounts.map((account) => (
           <Pressable
             key={account.id}
-            onPress={() => router.push(`/accounts/${account.id}`)}
+            onPress={() => router.push(`/wallets/edit?id=${account.id}`)}
             className="rounded-lg bg-gray-50 border border-gray-100 p-3 active:bg-gray-100 flex-row items-center justify-between"
           >
             <View className="flex-1">
