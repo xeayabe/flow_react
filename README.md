@@ -1043,6 +1043,32 @@ import { TruePositionHero } from '@/components/TruePositionHero';
 
 **Usage:** Already integrated into the dashboard via `TrueBalanceWidget`. The hero card appears at the top, followed by detailed account breakdowns.
 
+#### Budget Components (`src/components/budget/ContextLine.tsx`)
+
+Ultra-thin 2px progress indicators with calm 4-tier color system:
+
+```typescript
+import { ContextLine } from '@/components/budget/ContextLine';
+
+<ContextLine
+  percentUsed={75}
+  remaining={250}
+/>
+```
+
+**Features:**
+- Ultra-thin 2px line (not chunky bars!)
+- 4-tier empathetic color system (no anxiety-inducing reds)
+- Sage Green (0-70%): "ON TRACK"
+- Soft Amber (70-90%): "PROGRESSING WELL"
+- Deep Teal (90-100%): "NEARLY THERE"
+- Soft Lavender (100%+): "FLOW ADJUSTED"
+- Status label dynamically colored
+- Remaining amount with tabular numbers
+- Smooth 1s transition animations
+
+**Philosophy:** Replaces harsh red warnings with empathetic guidance. Budget overruns are "Flow Adjusted" - a natural part of financial management, not a failure.
+
 #### Testing
 
 **Visual Test Page:** `/design-test`
