@@ -1074,6 +1074,94 @@ getBudgetStatusColor(105) // Soft Lavender (flow adjusted)
 <View style={createGlassStyle(0.05, 15)}>...</View>
 ```
 
+### Custom Hooks (`src/hooks/useDashboardData.ts`)
+
+Reusable hooks for fetching and aggregating dashboard data with React Query + InstantDB:
+
+#### `useDashboardData()`
+
+Complete dashboard data aggregation hook:
+
+```typescript
+import { useDashboardData } from '@/hooks/useDashboardData';
+
+function Dashboard() {
+  const {
+    data,         // Aggregated data object
+    loading,      // Combined loading state
+    error,        // Combined error state
+    refetch,      // Refetch all queries
+    // Convenience accessors
+    netWorth,     // number
+    assets,       // number
+    liabilities,  // number
+    userId,       // string
+    householdId,  // string
+  } = useDashboardData();
+
+  if (loading) return <LoadingSpinner />;
+
+  return (
+    <>
+      <TruePositionHero
+        netWorth={netWorth}
+        assets={assets}
+        liabilities={liabilities}
+      />
+      {/* Use data.accounts, data.transactions, etc. */}
+    </>
+  );
+}
+```
+
+**Data Object Structure:**
+```typescript
+{
+  user: UserRecord,
+  member: HouseholdMember,
+  budgetPeriod: { start, end, paydayDay, source, daysRemaining },
+  balance: { netWorth, assets: { accounts, total }, liabilities: { accounts, total } },
+  accounts: Account[],
+  budgetSummary: { totalIncome, totalAllocated, totalSpent },
+  transactions: Transaction[],
+}
+```
+
+#### `useBalanceData()`
+
+Simplified hook for just balance data (lighter weight):
+
+```typescript
+import { useBalanceData } from '@/hooks/useDashboardData';
+
+function NetWorthCard() {
+  const {
+    balance,      // Full balance breakdown
+    loading,      // Loading state
+    error,        // Error state
+    netWorth,     // number
+    assets,       // number
+    liabilities,  // number
+  } = useBalanceData();
+
+  return (
+    <TruePositionHero
+      netWorth={netWorth}
+      assets={assets}
+      liabilities={liabilities}
+    />
+  );
+}
+```
+
+**Features:**
+- Auto-refetches balance every 5 seconds
+- Integrates with React Query caching
+- Type-safe with TypeScript
+- Handles loading and error states
+- Automatically fetches budget period from member/household
+- Combines multiple API calls into single hook
+
 ## Design Principles
 
 - **Swiss Precision**: Clean typography, generous whitespace, meticulous attention to detail
