@@ -1095,6 +1095,43 @@ import { BudgetItem } from '@/components/budget/BudgetItem';
 - Soft shadows for depth
 - 12px rounded corners
 
+#### Budget Status Card (`src/components/dashboard/BudgetStatusCard.tsx`)
+
+Collapsible glass card showing all budget categories grouped by category type:
+
+```typescript
+import { BudgetStatusCard } from '@/components/dashboard/BudgetStatusCard';
+
+<BudgetStatusCard
+  budgets={[
+    {
+      id: '1',
+      categoryName: 'Groceries',
+      categoryEmoji: '🛒',
+      categoryGroup: 'Essential',
+      allocatedAmount: 1000,
+      spentAmount: 450,
+    },
+    // ... more budgets
+  ]}
+/>
+```
+
+**Features:**
+- Collapsible with smooth LayoutAnimation (300ms)
+- ChevronDown icon rotates 180° when expanded
+- Header shows total remaining with dynamic color
+  - Sage green when under budget
+  - Lavender when over budget
+- Groups budgets by categoryGroup
+- Each category displays as BudgetItem with staggered animations
+- Empty state handling
+- Touch feedback on header
+- Integrated with dashboard data
+
+**Integration:**
+The BudgetStatusCard is integrated into the main dashboard (`src/app/(tabs)/index.tsx`) and automatically fetches budget data from InstantDB. Budget details are enriched with category names, emojis, and groups before being passed to the component.
+
 **Animation:**
 - Slides in from 20px below
 - Fades from opacity 0 to 1

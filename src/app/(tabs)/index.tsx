@@ -34,6 +34,7 @@ import {
 import DebtBalanceWidget from '@/components/DebtBalanceWidget';
 import TrueBalanceWidget from '@/components/TrueBalanceWidget';
 import RecurringExpensesWidget from '@/components/RecurringExpensesWidget';
+import { BudgetStatusCard } from '@/components/dashboard/BudgetStatusCard';
 
 interface BudgetSummaryData {
   totalIncome: number;
@@ -276,6 +277,19 @@ export default function DashboardScreen() {
       };
     });
 
+  // Transform budget details for BudgetStatusCard
+  const enrichedBudgets = budgetDetails.map((budget: any) => {
+    const category = categories.find((c: any) => c.id === budget.categoryId);
+    return {
+      id: budget.id,
+      categoryName: category?.name || 'Unknown',
+      categoryEmoji: category?.icon || '📊',
+      categoryGroup: budget.categoryGroup || 'Other',
+      allocatedAmount: budget.allocatedAmount || 0,
+      spentAmount: budget.spentAmount || 0,
+    };
+  });
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       {/* Budget Reset Notification */}
@@ -310,6 +324,11 @@ export default function DashboardScreen() {
 
           {/* True Balance Widget */}
           <TrueBalanceWidget />
+
+          {/* Budget Status Card - Swiss Design */}
+          {enrichedBudgets.length > 0 && (
+            <BudgetStatusCard budgets={enrichedBudgets} />
+          )}
 
           {/* Budget Status Widget */}
           {summary ? (
