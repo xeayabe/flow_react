@@ -1019,6 +1019,30 @@ import { GlassCard, GlassButton, GlassHeader, GlassInputContainer, GlassSection 
 - `GlassInputContainer` - Form inputs with focus glow
 - `GlassSection` - Large content areas with padding
 
+#### Hero Components (`src/components/TruePositionHero.tsx`)
+
+Premium hero card for displaying financial position:
+
+```typescript
+import { TruePositionHero } from '@/components/TruePositionHero';
+
+<TruePositionHero
+  netWorth={8707.96}
+  assets={13648.51}
+  liabilities={4940.55}
+/>
+```
+
+**Features:**
+- Swiss-inspired teal gradient background
+- Large, prominent net worth display
+- Assets/liabilities breakdown with divider
+- Tabular numerals for perfect alignment
+- Soft shadows for depth
+- Lavender color for liabilities (empathetic, not red)
+
+**Usage:** Already integrated into the dashboard via `TrueBalanceWidget`. The hero card appears at the top, followed by detailed account breakdowns.
+
 #### Testing
 
 **Visual Test Page:** `/design-test`

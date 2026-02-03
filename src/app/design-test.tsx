@@ -5,6 +5,7 @@ import { Stack } from 'expo-router';
 import { formatCurrency } from '@/lib/formatCurrency';
 import { getBudgetColor, getBudgetStatus } from '@/lib/getBudgetColor';
 import { GlassCard, GlassButton, GlassHeader, GlassInputContainer, GlassSection } from '@/components/ui/Glass';
+import { TruePositionHero } from '@/components/TruePositionHero';
 import { colors, formatCHF, getBudgetStatusColor } from '@/lib/design-tokens';
 
 /**
@@ -58,6 +59,16 @@ export default function DesignSystemTest() {
               <Text className="text-white/60 text-base">
                 Acceptance Criteria Verification
               </Text>
+            </View>
+
+            {/* True Position Hero Demo */}
+            <View>
+              <Text className="text-white/60 text-sm mb-3">True Position Hero Component</Text>
+              <TruePositionHero
+                netWorth={8707.96}
+                assets={13648.51}
+                liabilities={4940.55}
+              />
             </View>
 
             {/* Currency Formatter Tests */}
