@@ -11,11 +11,16 @@ module.exports = {
   theme: {
     // NOTE to AI: You can extend the theme with custom colors or styles here.
     extend: {
-      // For example, you can add a primary or secondary color here.
-      // colors: {
-      //   primary: "#INSERT_VALID_HEX_CODE",
-      //   secondary: "#INSERT_VALID_HEX_CODE",
-      // },
+      // Swiss Precision Design System - Flow Colors
+      colors: {
+        'context-teal': '#2C5F5D',
+        'context-sage': '#A8B5A1',
+        'context-lavender': '#B4A7D6',
+        'context-dark': '#1A1C1E',
+      },
+      backdropBlur: {
+        'xl': '12px',
+      },
       fontSize: {
         xs: "10px",
         sm: "12px",
