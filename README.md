@@ -936,12 +936,31 @@ Flow uses a distinctive **Swiss-inspired glassmorphism design system** that brin
 
 **Border Radius:** 8, 12, 16, 24, full (9999)
 
+#### Currency Formatting (`src/lib/formatCurrency.ts`)
+
+The primary currency formatter with flexible options:
+
+```typescript
+import { formatCurrency } from '@/lib/formatCurrency';
+
+// Standard format (default)
+formatCurrency(13648.51) // "13'648.51 CHF"
+formatCurrency(-150) // "-150.00 CHF"
+
+// Without currency symbol
+formatCurrency(1234.5, { showCurrency: false }) // "1'234.50"
+
+// Show positive sign
+formatCurrency(50, { showSign: true }) // "+50.00 CHF"
+formatCurrency(-50, { showSign: true }) // "-50.00 CHF"
+```
+
 #### Utilities
 
 ```typescript
 import { formatCHF, getBudgetStatusColor, glassStyles, createGlassStyle } from '@/lib/design-tokens';
 
-// Format currency
+// Alternative currency formatter (prefix style)
 formatCHF(1234.5) // "CHF 1'234.50"
 formatCHF(-150) // "-CHF 150.00"
 
