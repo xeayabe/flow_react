@@ -955,6 +955,26 @@ formatCurrency(50, { showSign: true }) // "+50.00 CHF"
 formatCurrency(-50, { showSign: true }) // "-50.00 CHF"
 ```
 
+#### Budget Status Helpers (`src/lib/getBudgetColor.ts`)
+
+Empathetic budget tracking with no harsh red warnings:
+
+```typescript
+import { getBudgetColor, getBudgetStatus } from '@/lib/getBudgetColor';
+
+// Get color based on budget usage percentage
+getBudgetColor(65)  // "#A8B5A1" (Sage Green)
+getBudgetColor(85)  // "#D4A574" (Soft Amber)
+getBudgetColor(95)  // "#2C5F5D" (Deep Teal)
+getBudgetColor(105) // "#B4A7D6" (Soft Lavender)
+
+// Get empathetic status text
+getBudgetStatus(65)  // "ON TRACK"
+getBudgetStatus(85)  // "PROGRESSING WELL"
+getBudgetStatus(95)  // "NEARLY THERE"
+getBudgetStatus(105) // "FLOW ADJUSTED" (not "Over Budget"!)
+```
+
 #### Utilities
 
 ```typescript
@@ -964,7 +984,7 @@ import { formatCHF, getBudgetStatusColor, glassStyles, createGlassStyle } from '
 formatCHF(1234.5) // "CHF 1'234.50"
 formatCHF(-150) // "-CHF 150.00"
 
-// Budget status colors
+// Budget status colors (also available in design-tokens)
 getBudgetStatusColor(65) // Sage Green (on track)
 getBudgetStatusColor(85) // Soft Amber (progressing)
 getBudgetStatusColor(105) // Soft Lavender (flow adjusted)
