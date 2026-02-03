@@ -3,6 +3,7 @@ import { Text, View, ScrollView, ActivityIndicator, Pressable } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { TrendingUp } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { getUserAccounts } from '@/lib/accounts-api';
@@ -458,6 +459,24 @@ export default function DashboardScreen() {
 
           {/* Accounts List Widget */}
           <AccountsListWidget accounts={accounts} />
+
+          {/* Debug: Test Pages Links */}
+          <Pressable
+            onPress={() => router.push('/test-budget-status')}
+            className="bg-purple-600 rounded-xl p-4 mb-3"
+          >
+            <Text className="text-white text-center font-semibold">
+              🧪 Test Budget Status Card
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/test-household-balance')}
+            className="bg-indigo-600 rounded-xl p-4 mb-3"
+          >
+            <Text className="text-white text-center font-semibold">
+              🧪 Test Household Balance
+            </Text>
+          </Pressable>
 
           {/* Bottom Padding */}
           <View className="h-4" />
