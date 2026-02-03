@@ -129,7 +129,7 @@ export function HouseholdBalanceWidget({
           variant="primary"
           onPress={() => {
             setIsAnimating(false);
-            router.push('/settle');
+            router.push('/settlement');
           }}
         >
           <Text className="text-white text-center font-semibold" style={{ fontSize: 15 }}>
