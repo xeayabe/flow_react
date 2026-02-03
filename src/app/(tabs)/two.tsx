@@ -182,7 +182,7 @@ export default function TabTwoScreen() {
       icon: <Wallet size={24} color="#006A6A" />,
       label: 'Wallets',
       description: 'Manage your accounts and wallets',
-      onPress: () => router.push('/accounts'),
+      onPress: () => router.push('/wallets'),
     },
     // Household & Members Section
     {

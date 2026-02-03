@@ -44,7 +44,7 @@ export const WelcomeHeader: React.FC<{
  */
 export const TotalBalanceCard: React.FC<{ totalBalance: number }> = ({ totalBalance }) => (
   <Pressable
-    onPress={() => router.push('/accounts')}
+    onPress={() => router.push('/wallets')}
     className="flex-1 rounded-xl p-4 bg-white border border-gray-100 active:bg-gray-50"
   >
     <Text className="text-xs text-gray-600 font-medium mb-2">Total Balance</Text>
@@ -196,7 +196,7 @@ export const AccountsListWidget: React.FC<{ accounts: Account[]; isLoading?: boo
             Create your first account to start tracking
           </Text>
           <Pressable
-            onPress={() => router.push('/accounts/add')}
+            onPress={() => router.push('/wallets/add')}
             className="bg-amber-600 px-3 py-1.5 rounded-lg"
           >
             <Text className="text-xs font-semibold text-white">Add Account</Text>
@@ -213,7 +213,7 @@ export const AccountsListWidget: React.FC<{ accounts: Account[]; isLoading?: boo
         <Text className="font-semibold text-gray-900">Accounts</Text>
         {accounts.length > 4 && (
           <Pressable
-            onPress={() => router.push('/accounts')}
+            onPress={() => router.push('/wallets')}
             className="flex-row items-center gap-1 active:opacity-60"
           >
             <Text className="text-xs font-semibold text-teal-600">View All</Text>
@@ -351,7 +351,7 @@ export const FloatingActionButton: React.FC = () => {
   const handleFABPress = React.useCallback(() => {
     if (accounts.length === 0) {
       // No wallets - user needs to add one first
-      router.push('/accounts/add');
+      router.push('/wallets/add');
     } else {
       // Has wallets - most common action is add transaction
       router.push('/transactions/add');
@@ -365,7 +365,7 @@ export const FloatingActionButton: React.FC = () => {
 
   const handleAddAccount = React.useCallback(() => {
     setIsOpen(false);
-    router.push('/accounts/add');
+    router.push('/wallets/add');
   }, []);
 
   return (
@@ -430,7 +430,7 @@ export const QuickActionsBar: React.FC = () => (
     </Pressable>
 
     <Pressable
-      onPress={() => router.push('/accounts/add')}
+      onPress={() => router.push('/wallets/add')}
       className="flex-1 rounded-lg bg-teal-600 py-3 active:bg-teal-700 items-center justify-center flex-row gap-2"
     >
       <Plus size={18} color="white" />

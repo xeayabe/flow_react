@@ -9,7 +9,7 @@ import { getUserAccounts, formatBalance, type Account } from '@/lib/accounts-api
 import { db } from '@/lib/db';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-function getAccountIcon(accountType: string) {
+function getWalletIcon(accountType: string) {
   switch (accountType) {
     case 'Checking':
       return Building2;
@@ -26,8 +26,8 @@ function getAccountIcon(accountType: string) {
   }
 }
 
-function AccountCard({ account, index }: { account: Account; index: number }) {
-  const Icon = getAccountIcon(account.accountType);
+function WalletCard({ account, index }: { account: Account; index: number }) {
+  const Icon = getWalletIcon(account.accountType);
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 100).duration(600)}>
@@ -210,7 +210,7 @@ export default function WalletsScreen() {
           {!isLoading && accounts.length > 0 && (
             <>
               {accounts.map((account, index) => (
-                <AccountCard key={account.id} account={account} index={index} />
+                <WalletCard key={account.id} account={account} index={index} />
               ))}
             </>
           )}
@@ -219,7 +219,7 @@ export default function WalletsScreen() {
         {/* Floating Add Button */}
         <View className="absolute bottom-6 right-6">
           <Pressable
-            onPress={() => router.push('/accounts/add')}
+            onPress={() => router.push('/wallets/add')}
             className="w-16 h-16 rounded-full items-center justify-center"
             style={{
               backgroundColor: '#006A6A',

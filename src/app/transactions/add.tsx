@@ -543,7 +543,7 @@ export default function AddTransactionScreen() {
                 </Pressable>
                 {errors.accountId && <Text className="text-xs text-red-500 mt-2">{errors.accountId}</Text>}
                 <Pressable
-                  onPress={() => router.push('/accounts/add')}
+                  onPress={() => router.push('/wallets/add')}
                   className="mt-2 flex-row items-center gap-1"
                 >
                   <Text className="text-xs font-semibold text-teal-600">Don't have a wallet?</Text>
@@ -731,7 +731,7 @@ export default function AddTransactionScreen() {
                       You need a wallet first
                     </Text>
                     <Pressable
-                      onPress={() => router.push('/accounts/add')}
+                      onPress={() => router.push('/wallets/add')}
                       className="bg-teal-600 py-2 px-4 rounded-lg"
                     >
                       <Text className="text-white text-center font-semibold text-sm">
@@ -763,7 +763,7 @@ export default function AddTransactionScreen() {
 
                 {/* Link to add another wallet if accounts exist */}
                 {accountsQuery.data && accountsQuery.data.length > 0 && (
-                  <Pressable onPress={() => router.push('/accounts/add')} className="py-2">
+                  <Pressable onPress={() => router.push('/wallets/add')} className="py-2">
                     <Text className="text-teal-600 text-sm text-center font-medium">
                       Need to add another wallet?
                     </Text>

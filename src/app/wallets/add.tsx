@@ -29,7 +29,7 @@ import {
 import { db } from '@/lib/db';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { InstitutionPicker } from '@/components/InstitutionPicker';
-import { AccountTypePicker } from '@/components/AccountTypePicker';
+import { WalletTypePicker } from '@/components/AccountTypePicker';
 
 interface FormData {
   name: string;
@@ -106,7 +106,7 @@ export default function AddWalletScreen() {
     },
     onSuccess: (response) => {
       if (response.success) {
-        router.replace('/accounts');
+        router.replace('/wallets');
       } else {
         setErrors({ name: response.error });
       }
@@ -536,7 +536,7 @@ export default function AddWalletScreen() {
                   <ActivityIndicator color="white" />
                 ) : (
                   <Text className="text-base font-semibold" style={{ color: isValid ? 'white' : '#9CA3AF' }}>
-                    Add Account
+                    Add Wallet
                   </Text>
                 )}
               </Pressable>
@@ -558,11 +558,11 @@ export default function AddWalletScreen() {
         onClose={() => setShowInstitutionPicker(false)}
       />
 
-      <AccountTypePicker
+      <WalletTypePicker
         visible={showAccountTypePicker}
         selectedAccountType={formData.accountType}
         accountTypes={ACCOUNT_TYPES}
-        onSelect={(accountType) => {
+        onSelect={(accountType: AccountType) => {
           setFormData({ ...formData, accountType });
           setErrors({ ...errors, accountType: undefined });
         }}

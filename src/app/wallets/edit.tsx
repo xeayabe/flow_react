@@ -30,7 +30,7 @@ import {
 } from '@/lib/accounts-api';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { InstitutionPicker } from '@/components/InstitutionPicker';
-import { AccountTypePicker } from '@/components/AccountTypePicker';
+import { WalletTypePicker } from '@/components/AccountTypePicker';
 
 interface FormData {
   name: string;
@@ -123,7 +123,7 @@ export default function EditWalletScreen() {
     onSuccess: (response) => {
       if (response.success) {
         queryClient.invalidateQueries({ queryKey: ['wallets'] });
-        router.replace('/accounts');
+        router.replace('/wallets');
       } else {
         Alert.alert('Error', response.error || 'Failed to delete account');
       }
@@ -653,11 +653,11 @@ export default function EditWalletScreen() {
         onClose={() => setShowInstitutionPicker(false)}
       />
 
-      <AccountTypePicker
+      <WalletTypePicker
         visible={showAccountTypePicker}
         selectedAccountType={formData.accountType}
         accountTypes={ACCOUNT_TYPES}
-        onSelect={(accountType) => {
+        onSelect={(accountType: AccountType) => {
           setFormData({ ...formData, accountType });
         }}
         onClose={() => setShowAccountTypePicker(false)}

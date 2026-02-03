@@ -18,7 +18,7 @@ const ACCOUNT_TYPE_ICONS: Record<string, string> = {
   'Investment': '📈',
 };
 
-interface AccountTypePickerProps {
+interface WalletTypePickerProps {
   visible: boolean;
   selectedAccountType: AccountType | '';
   accountTypes: readonly AccountType[];
@@ -26,13 +26,13 @@ interface AccountTypePickerProps {
   onClose: () => void;
 }
 
-export function AccountTypePicker({
+export function WalletTypePicker({
   visible,
   selectedAccountType,
   accountTypes,
   onSelect,
   onClose,
-}: AccountTypePickerProps) {
+}: WalletTypePickerProps) {
   const translateY = useSharedValue(600);
 
   React.useEffect(() => {
@@ -115,7 +115,7 @@ export function AccountTypePicker({
               className="text-2xl font-bold text-center"
               style={{ color: '#006A6A' }}
             >
-              Select Account Type
+              Select Wallet Type
             </Text>
           </View>
 
@@ -125,7 +125,7 @@ export function AccountTypePicker({
             contentContainerStyle={{ paddingVertical: 8 }}
             showsVerticalScrollIndicator={false}
           >
-            {accountTypes.map((accountType) => {
+            {accountTypes.map((accountType: AccountType) => {
               const isSelected = selectedAccountType === accountType;
               const icon = ACCOUNT_TYPE_ICONS[accountType] || '💼';
 
@@ -186,3 +186,6 @@ export function AccountTypePicker({
     </Modal>
   );
 }
+
+// Backward compatibility export
+export { WalletTypePicker as AccountTypePicker };

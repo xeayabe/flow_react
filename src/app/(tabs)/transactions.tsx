@@ -36,7 +36,7 @@ export default function TransactionsTabScreen() {
   const [dateRange, setDateRange] = useState<DateRange>('all_time');
   const [transactionType, setTransactionType] = useState<TransactionType>('all');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
   const [customDateStart, setCustomDateStart] = useState<string | null>(null);
   const [customDateEnd, setCustomDateEnd] = useState<string | null>(null);
   const [monthFilterLabel, setMonthFilterLabel] = useState<string | null>(null);
@@ -248,11 +248,11 @@ export default function TransactionsTabScreen() {
         if (selectedCategories.length > 0 && !selectedCategories.includes(tx.categoryId)) return false;
 
         // Account filter
-        if (selectedAccounts.length > 0 && !selectedAccounts.includes(tx.accountId)) return false;
+        if (selectedWallets.length > 0 && !selectedWallets.includes(tx.accountId)) return false;
 
         return true;
       });
-  }, [transactionsQuery.data, dateRange, transactionType, selectedCategories, selectedAccounts, customDateStart, customDateEnd]);
+  }, [transactionsQuery.data, dateRange, transactionType, selectedCategories, selectedWallets, customDateStart, customDateEnd]);
 
   // Enrich transactions with category and account names
   const enrichedTransactions: TransactionWithDetails[] = filteredTransactions.map((tx) => {
@@ -308,13 +308,13 @@ export default function TransactionsTabScreen() {
   const isLoading =
     householdQuery.isLoading || transactionsQuery.isLoading || categoriesQuery.isLoading || accountsQuery.isLoading;
 
-  const hasActiveFilters = monthFilterLabel !== null || dateRange !== 'all_time' || transactionType !== 'all' || selectedCategories.length > 0 || selectedAccounts.length > 0;
+  const hasActiveFilters = monthFilterLabel !== null || dateRange !== 'all_time' || transactionType !== 'all' || selectedCategories.length > 0 || selectedWallets.length > 0;
 
   const clearAllFilters = () => {
     setDateRange('all_time');
     setTransactionType('all');
     setSelectedCategories([]);
-    setSelectedAccounts([]);
+    setSelectedWallets([]);
     setCustomDateStart(null);
     setCustomDateEnd(null);
     setMonthFilterLabel(null);
@@ -499,7 +499,7 @@ export default function TransactionsTabScreen() {
               </View>
 
               <View className={cn('flex-row items-center rounded-full',
-                selectedAccounts.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
+                selectedWallets.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
               )}>
                 <Pressable
                   onPress={() => setShowAccountModal(true)}
@@ -507,14 +507,14 @@ export default function TransactionsTabScreen() {
                 >
                   <Text className="text-xs font-medium text-gray-700">💳</Text>
                   <Text className={cn('text-xs font-medium',
-                    selectedAccounts.length === 0 ? 'text-gray-700' : 'text-teal-700'
+                    selectedWallets.length === 0 ? 'text-gray-700' : 'text-teal-700'
                   )}>
-                    {selectedAccounts.length === 0 ? 'All Accounts' : `${selectedAccounts.length} selected`}
+                    {selectedWallets.length === 0 ? 'All Wallets' : `${selectedWallets.length} selected`}
                   </Text>
                 </Pressable>
-                {selectedAccounts.length > 0 && (
+                {selectedWallets.length > 0 && (
                   <Pressable
-                    onPress={() => setSelectedAccounts([])}
+                    onPress={() => setSelectedWallets([])}
                     className="pr-3 py-2"
                     hitSlop={{ top: 10, bottom: 10, left: 5, right: 10 }}
                   >
@@ -796,10 +796,10 @@ export default function TransactionsTabScreen() {
           </View>
           <ScrollView className="flex-1 px-6 py-4">
             <Pressable
-              onPress={() => setSelectedAccounts([])}
-              className={cn('p-4 rounded-lg mb-2 border-2', selectedAccounts.length === 0 ? 'border-teal-600 bg-teal-50' : 'border-gray-200')}
+              onPress={() => setSelectedWallets([])}
+              className={cn('p-4 rounded-lg mb-2 border-2', selectedWallets.length === 0 ? 'border-teal-600 bg-teal-50' : 'border-gray-200')}
             >
-              <Text className={cn('font-semibold text-base', selectedAccounts.length === 0 ? 'text-teal-600' : 'text-gray-900')}>
+              <Text className={cn('font-semibold text-base', selectedWallets.length === 0 ? 'text-teal-600' : 'text-gray-900')}>
                 All Wallets
               </Text>
             </Pressable>
@@ -809,22 +809,22 @@ export default function TransactionsTabScreen() {
                 <Pressable
                   key={accId}
                   onPress={() => {
-                    setSelectedAccounts((prev) =>
+                    setSelectedWallets((prev) =>
                       prev.includes(accId) ? prev.filter((id) => id !== accId) : [...prev, accId]
                     );
                   }}
                   className={cn(
                     'p-4 rounded-lg mb-2 border-2 flex-row items-center',
-                    selectedAccounts.includes(accId) ? 'border-teal-600 bg-teal-50' : 'border-gray-200'
+                    selectedWallets.includes(accId) ? 'border-teal-600 bg-teal-50' : 'border-gray-200'
                   )}
                 >
                   <View className="flex-1">
-                    <Text className={cn('font-semibold text-base', selectedAccounts.includes(accId) ? 'text-teal-600' : 'text-gray-900')}>
+                    <Text className={cn('font-semibold text-base', selectedWallets.includes(accId) ? 'text-teal-600' : 'text-gray-900')}>
                       {account.name}
                     </Text>
                     <Text className="text-xs text-gray-600">{formatCurrency(account.balance)}</Text>
                   </View>
-                  {selectedAccounts.includes(accId) && <Text className="text-teal-600">✓</Text>}
+                  {selectedWallets.includes(accId) && <Text className="text-teal-600">✓</Text>}
                 </Pressable>
               );
             })}
