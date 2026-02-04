@@ -178,12 +178,7 @@ export function BudgetGroupItem({
             return (
               <View
                 key={category.id}
-                className="mt-3"
-                style={{
-                  paddingLeft: 8,
-                  borderLeftWidth: 2,
-                  borderLeftColor: 'rgba(255, 255, 255, 0.1)',
-                }}
+                className="mt-3 ml-4"
               >
                 {/* Nested Category Card */}
                 <View
