@@ -31,10 +31,10 @@ interface BudgetStatusCardProps {
 export function BudgetStatusCard({ budgets }: BudgetStatusCardProps) {
   const [isOpen, setIsOpen] = useState(true);
 
-  // Calculate totals
-  const totalAllocated = budgets.reduce((sum, b) => sum + b.allocatedAmount, 0);
-  const totalSpent = budgets.reduce((sum, b) => sum + b.spentAmount, 0);
-  const totalRemaining = totalAllocated - totalSpent;
+  // Calculate totals (round to 2 decimal places to match Budget screen)
+  const totalAllocated = Math.round(budgets.reduce((sum, b) => sum + b.allocatedAmount, 0) * 100) / 100;
+  const totalSpent = Math.round(budgets.reduce((sum, b) => sum + b.spentAmount, 0) * 100) / 100;
+  const totalRemaining = Math.round((totalAllocated - totalSpent) * 100) / 100;
 
   // Group budgets by category group
   const groupedBudgets = budgets.reduce((groups, budget) => {
