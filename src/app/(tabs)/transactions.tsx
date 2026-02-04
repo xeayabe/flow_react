@@ -357,7 +357,7 @@ export default function TransactionsTabScreen() {
         {formattedRecurring.length > 0 && (
           <RecurringSection
             recurringTransactions={formattedRecurring}
-            onEdit={(id) => router.push(`/transactions/${id}`)}
+            onEdit={(id) => router.push(`/transactions/add?recurringId=${id}`)}
           />
         )}
 
@@ -379,7 +379,7 @@ export default function TransactionsTabScreen() {
                 <TransactionListItem
                   key={transaction.id}
                   transaction={transaction}
-                  onClick={() => router.push(`/transactions/${transaction.id}`)}
+                  onClick={() => router.push(`/transactions/add?id=${transaction.id}`)}
                 />
               ))}
             </View>

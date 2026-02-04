@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Modal, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Check, Calendar, ChevronRight, Sparkles, ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -47,6 +47,8 @@ export default function AddTransactionScreen() {
   const { user } = db.useAuth();
   const amountInputRef = useRef<TextInput>(null);
   const scrollY = useSharedValue(0);
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const isEditing = !!id;
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -85,6 +87,45 @@ export default function AddTransactionScreen() {
     },
     enabled: !!user?.email,
   });
+
+  // Load transaction data when editing
+  const transactionQuery = useQuery({
+    queryKey: ['transaction-edit', id],
+    queryFn: async () => {
+      if (!id) return null;
+      // @ts-ignore
+      const result = await db.queryOnce({
+        // @ts-ignore
+        transactions: {
+          $: {
+            where: { id },
+          },
+          category: {},
+          account: {},
+        },
+      });
+      return result?.data?.transactions?.[0] || null;
+    },
+    enabled: !!id && isEditing,
+  });
+
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (transactionQuery.data && isEditing) {
+      const t = transactionQuery.data;
+      setFormData({
+        type: (t.type === 'income' ? 'income' : 'expense') as TransactionType,
+        amount: t.amount?.toString() || '',
+        categoryId: t.categoryId || '',
+        accountId: t.accountId || '',
+        date: t.date || new Date().toISOString().split('T')[0],
+        note: t.note || '',
+        payee: t.payee || '',
+        isRecurring: false,
+        recurringDay: 1,
+      });
+    }
+  }, [transactionQuery.data, isEditing]);
 
   // Load household members for shared expenses
   const householdMembersQuery = useQuery({
@@ -330,7 +371,7 @@ export default function AddTransactionScreen() {
               <ArrowLeft size={20} color="rgba(255,255,255,0.9)" strokeWidth={2} />
             </Pressable>
             <Text className="text-2xl font-bold flex-1" style={{ color: 'rgba(255,255,255,0.9)' }}>
-              Add {formData.type === 'expense' ? 'Expense' : 'Income'}
+              {isEditing ? 'Edit' : 'Add'} {formData.type === 'expense' ? 'Expense' : 'Income'}
             </Text>
           </Animated.View>
 
