@@ -24,8 +24,11 @@ export function TruePositionHero({
       colors={['#2C5F5D', '#1e4442']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      className="rounded-3xl p-8 border border-white/10"
       style={{
+        borderRadius: 24,
+        padding: 32,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 20 },
         shadowOpacity: 0.3,
@@ -69,7 +72,13 @@ export function TruePositionHero({
       </View>
 
       {/* Assets/Liabilities Breakdown */}
-      <View className="mt-6 pt-6 border-t border-white/10">
+      <View
+        className="mt-6 pt-6"
+        style={{
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(255, 255, 255, 0.1)',
+        }}
+      >
         <View className="flex-row justify-center">
           {/* Assets */}
           <View className="flex-1 items-center">
@@ -96,7 +105,14 @@ export function TruePositionHero({
           </View>
 
           {/* Divider */}
-          <View className="w-px bg-white/10 mx-4" style={{ height: 40 }} />
+          <View
+            style={{
+              width: 1,
+              height: 40,
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              marginHorizontal: 16,
+            }}
+          />
 
           {/* Liabilities */}
           <View className="flex-1 items-center">
