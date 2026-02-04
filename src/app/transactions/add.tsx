@@ -18,6 +18,7 @@ import { createRecurringTemplate } from '@/lib/recurring-api';
 import { formatCurrency } from '@/lib/formatCurrency';
 import PayeePickerModal from '@/components/PayeePickerModal';
 import CategoryPickerModal from '@/components/CategoryPickerModal';
+import QuickCategoryButtons from '@/components/transactions/QuickCategoryButtons';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -380,6 +381,16 @@ export default function AddTransactionScreen() {
                 {selectedCategory?.name || 'Select category...'}
               </Text>
             </Pressable>
+
+            {/* Quick Category Buttons */}
+            <View className="px-5 pb-4">
+              <QuickCategoryButtons
+                categories={categories}
+                selectedCategoryId={formData.categoryId}
+                onSelectCategory={(categoryId) => setFormData({ ...formData, categoryId })}
+                type={formData.type}
+              />
+            </View>
           </Animated.View>
 
           {/* Wallet Glass Card */}
