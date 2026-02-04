@@ -43,11 +43,11 @@ export default function StickyStatusBar({ scrollY }: StickyStatusBarProps) {
       pointerEvents="none"
     >
       <LinearGradient
-        colors={['rgba(26,28,30,0.95)', 'rgba(26,28,30,0.85)']}
+        colors={['rgba(26,28,30,0.65)', 'rgba(26,28,30,0.55)']}
         style={{
           flex: 1,
-          borderBottomWidth: 1,
-          borderBottomColor: 'rgba(255,255,255,0.08)',
+          borderBottomWidth: 0.5,
+          borderBottomColor: 'rgba(255,255,255,0.06)',
         }}
       />
     </Animated.View>
