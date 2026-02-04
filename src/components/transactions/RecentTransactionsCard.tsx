@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Receipt, ChevronDown, Plus } from 'lucide-react-native';
 import { GlassCard } from '@/components/ui/Glass';
 import { TransactionItem } from './TransactionItem';
+import { formatTransactionDate } from '@/lib/formatTransactionDate';
 import { colors } from '@/lib/design-tokens';
 
 // Enable LayoutAnimation on Android
@@ -24,32 +25,6 @@ interface Transaction {
 interface RecentTransactionsCardProps {
   transactions: Transaction[];
   maxItems?: number;
-}
-
-/**
- * Format date for display
- * Returns "Today", "Yesterday", or formatted date like "Jan 15"
- */
-function formatDisplayDate(dateString: string): string {
-  const date = new Date(dateString);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  // Reset times for comparison
-  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
-
-  if (dateOnly.getTime() === todayOnly.getTime()) {
-    return 'Today';
-  }
-  if (dateOnly.getTime() === yesterdayOnly.getTime()) {
-    return 'Yesterday';
-  }
-
-  // Format as "Jan 15"
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 /**
@@ -148,7 +123,7 @@ export function RecentTransactionsCard({
                   emoji={transaction.emoji}
                   name={transaction.name}
                   category={transaction.category}
-                  date={formatDisplayDate(transaction.date)}
+                  date={formatTransactionDate(transaction.date)}
                   amount={transaction.amount}
                   isShared={transaction.isShared}
                   onPress={() => handleTransactionPress(transaction.id)}
