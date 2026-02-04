@@ -19,6 +19,7 @@ import { formatCurrency } from '@/lib/formatCurrency';
 import PayeePickerModal from '@/components/PayeePickerModal';
 import CategoryPickerModal from '@/components/CategoryPickerModal';
 import QuickCategoryButtons from '@/components/transactions/QuickCategoryButtons';
+import ExpandableCalendar from '@/components/transactions/ExpandableCalendar';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -46,8 +47,6 @@ export default function AddTransactionScreen() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showPayeePicker, setShowPayeePicker] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [suggestedCategoryId, setSuggestedCategoryId] = useState<string | null>(null);
 
   // Form state
@@ -411,21 +410,15 @@ export default function AddTransactionScreen() {
           </Animated.View>
 
           {/* Date Glass Card */}
-          <Animated.View entering={FadeInDown.delay(600).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
-            <Pressable onPress={() => setShowDatePicker(true)} className="p-5">
-              <Text className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>Date</Text>
-              <View className="flex-row items-center">
-                <Calendar size={18} color="rgba(168,181,161,0.8)" style={{ marginRight: 10 }} />
-                <Text className="text-base" style={{ color: 'rgba(255,255,255,0.9)' }}>
-                  {new Date(formData.date + 'T00:00:00').toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })}
-                </Text>
-              </View>
-            </Pressable>
+          <Animated.View entering={FadeInDown.delay(600).duration(400)} className="mb-6">
+            <Text className="text-sm font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>Date</Text>
+            <ExpandableCalendar
+              value={new Date(formData.date + 'T00:00:00')}
+              onChange={(date) => {
+                const dateStr = date.toISOString().split('T')[0];
+                setFormData({ ...formData, date: dateStr });
+              }}
+            />
           </Animated.View>
 
           {/* Shared Expense Toggle - Only for expenses with 2+ members */}
@@ -609,115 +602,6 @@ export default function AddTransactionScreen() {
             </ScrollView>
           </View>
         </LinearGradient>
-      </Modal>
-
-      {/* Date Picker Modal */}
-      <Modal visible={showDatePicker} transparent animationType="slide">
-        <Pressable className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={() => setShowDatePicker(false)}>
-          <Pressable onPress={(e) => e.stopPropagation()}>
-            <LinearGradient colors={['#2C5F5D', '#1A1C1E']} style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: insets.bottom }}>
-              <View className="p-6">
-                <View className="flex-row items-center justify-between mb-6">
-                  <Text className="text-xl font-bold" style={{ color: 'rgba(255,255,255,0.9)' }}>Select Date</Text>
-                  <Pressable onPress={() => setShowDatePicker(false)}>
-                    <Text className="text-lg" style={{ color: 'rgba(255,255,255,0.7)' }}>✕</Text>
-                  </Pressable>
-                </View>
-
-                {/* Month Navigation */}
-                <View className="flex-row items-center justify-between mb-4">
-                  <Pressable
-                    onPress={() => {
-                      const prev = new Date(calendarMonth);
-                      prev.setMonth(prev.getMonth() - 1);
-                      setCalendarMonth(prev);
-                    }}
-                    className="p-2"
-                  >
-                    <ChevronLeft size={24} color="rgba(255,255,255,0.7)" />
-                  </Pressable>
-                  <Text className="text-lg font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>
-                    {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                  </Text>
-                  <Pressable
-                    onPress={() => {
-                      const next = new Date(calendarMonth);
-                      next.setMonth(next.getMonth() + 1);
-                      setCalendarMonth(next);
-                    }}
-                    className="p-2"
-                  >
-                    <ChevronRight size={24} color="rgba(255,255,255,0.7)" />
-                  </Pressable>
-                </View>
-
-                {/* Calendar Grid */}
-                <View className="flex-row mb-2">
-                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-                    <Text key={i} className="flex-1 text-center text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                      {day}
-                    </Text>
-                  ))}
-                </View>
-
-                <View className="flex-row flex-wrap">
-                  {(() => {
-                    const year = calendarMonth.getFullYear();
-                    const month = calendarMonth.getMonth();
-                    const firstDay = new Date(year, month, 1).getDay();
-                    const daysInMonth = new Date(year, month + 1, 0).getDate();
-                    const days = [];
-
-                    for (let i = 0; i < firstDay; i++) {
-                      days.push(null);
-                    }
-
-                    for (let i = 1; i <= daysInMonth; i++) {
-                      days.push(i);
-                    }
-
-                    return days.map((day, index) => {
-                      const dateStr = day === null ? null : `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                      const isSelected = dateStr === formData.date;
-                      const isToday = dateStr === new Date().toISOString().split('T')[0];
-
-                      return (
-                        <Pressable
-                          key={index}
-                          onPress={() => {
-                            if (dateStr) {
-                              setFormData({ ...formData, date: dateStr });
-                              setShowDatePicker(false);
-                            }
-                          }}
-                          disabled={!day}
-                          style={{ width: '14.28%' }}
-                          className="aspect-square items-center justify-center rounded-lg mb-2"
-                        >
-                          {day && (
-                            <View
-                              className="w-10 h-10 rounded-lg items-center justify-center"
-                              style={{
-                                backgroundColor: isSelected ? '#2C5F5D' : isToday ? 'rgba(168,181,161,0.2)' : 'transparent',
-                              }}
-                            >
-                              <Text
-                                className="text-base font-semibold"
-                                style={{ color: isSelected ? '#fff' : 'rgba(255,255,255,0.9)' }}
-                              >
-                                {day}
-                              </Text>
-                            </View>
-                          )}
-                        </Pressable>
-                      );
-                    });
-                  })()}
-                </View>
-              </View>
-            </LinearGradient>
-          </Pressable>
-        </Pressable>
       </Modal>
     </LinearGradient>
   );
