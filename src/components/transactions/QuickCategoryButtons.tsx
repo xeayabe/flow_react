@@ -18,6 +18,24 @@ interface QuickCategoryButtonsProps {
   type: 'income' | 'expense';
 }
 
+// Helper function to extract emoji from category name
+function extractEmoji(categoryName: string): { emoji: string | null; text: string } {
+  const emojiRegex = /^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s*/u;
+  const match = categoryName.match(emojiRegex);
+
+  if (match) {
+    return {
+      emoji: match[1],
+      text: categoryName.replace(emojiRegex, '').trim()
+    };
+  }
+
+  return {
+    emoji: null,
+    text: categoryName
+  };
+}
+
 export default function QuickCategoryButtons({
   categories,
   selectedCategoryId,
@@ -42,7 +60,7 @@ export default function QuickCategoryButtons({
       <View className="flex-row flex-wrap" style={{ gap: 8 }}>
         {topCategories.map((category) => {
           const isSelected = category.id === selectedCategoryId;
-          const displayEmoji = category.emoji || category.icon || '📝';
+          const { emoji, text } = extractEmoji(category.name);
 
           return (
             <Pressable
@@ -59,14 +77,26 @@ export default function QuickCategoryButtons({
                 paddingHorizontal: 6,
               }}
             >
-              <Text className="text-xl mb-1">{displayEmoji}</Text>
-              <Text
-                className="text-xs text-center font-medium"
-                numberOfLines={1}
-                style={{ color: isSelected ? 'rgba(168,181,161,0.95)' : 'rgba(255,255,255,0.7)' }}
-              >
-                {category.name}
-              </Text>
+              {emoji ? (
+                <>
+                  <Text className="text-xl mb-1">{emoji}</Text>
+                  <Text
+                    className="text-xs text-center font-medium"
+                    numberOfLines={2}
+                    style={{ color: isSelected ? 'rgba(168,181,161,0.95)' : 'rgba(255,255,255,0.7)' }}
+                  >
+                    {text}
+                  </Text>
+                </>
+              ) : (
+                <Text
+                  className="text-xs text-center font-semibold"
+                  numberOfLines={2}
+                  style={{ color: isSelected ? 'rgba(168,181,161,0.95)' : 'rgba(255,255,255,0.7)' }}
+                >
+                  {text}
+                </Text>
+              )}
             </Pressable>
           );
         })}
