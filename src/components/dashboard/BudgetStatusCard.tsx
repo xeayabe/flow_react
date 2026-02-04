@@ -169,19 +169,16 @@ export function BudgetStatusCard({ budgets, summaryTotals }: BudgetStatusCardPro
             >
               {/* Group Header */}
               <View className="flex-row items-center justify-between mb-3">
-                <View className="flex-row items-center">
-                  <Text className="text-xl mr-2">{group.emoji}</Text>
-                  <Text
-                    className="text-white/70 font-semibold"
-                    style={{
-                      fontSize: 11,
-                      textTransform: 'uppercase',
-                      letterSpacing: 1.5,
-                    }}
-                  >
-                    {group.groupName}
-                  </Text>
-                </View>
+                <Text
+                  className="text-white/70 font-semibold"
+                  style={{
+                    fontSize: 11,
+                    textTransform: 'uppercase',
+                    letterSpacing: 1.5,
+                  }}
+                >
+                  {group.groupName}
+                </Text>
                 <Text
                   className="text-white/50"
                   style={{
