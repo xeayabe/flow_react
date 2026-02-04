@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, Pressable, LayoutAnimation, Platform, UIManager } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronDown } from 'lucide-react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -36,7 +36,7 @@ interface BudgetGroupItemProps {
 
 /**
  * Budget Group Item - Collapsible card showing category group totals
- * Expands to reveal nested individual categories
+ * Two-row layout to handle long category group names gracefully
  */
 export function BudgetGroupItem({
   groupName,
@@ -110,44 +110,50 @@ export function BudgetGroupItem({
           backgroundColor: pressed ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
         })}
       >
-        {/* Top row: Chevron, Name, Count, Amounts */}
-        <View className="flex-row justify-between items-center mb-3">
-          <View className="flex-row items-center">
-            <ChevronRight
-              size={16}
-              color="rgba(255, 255, 255, 0.6)"
+        {/* Two-row layout for better space management */}
+        <View className="mb-3">
+          {/* Row 1: Title, Count, and Chevron */}
+          <View className="flex-row justify-between items-start mb-2">
+            <View className="flex-row items-center flex-1 mr-3">
+              <Text
+                className="text-white font-semibold flex-1"
+                style={{
+                  fontSize: 14,
+                  letterSpacing: 0.3,
+                }}
+                numberOfLines={1}
+              >
+                {groupName}
+              </Text>
+              <Text
+                className="text-white/40 ml-2"
+                style={{ fontSize: 12 }}
+              >
+                ({categories.length})
+              </Text>
+            </View>
+            <ChevronDown
+              size={14}
+              color="rgba(255, 255, 255, 0.5)"
               strokeWidth={2}
               style={{
-                transform: [{ rotate: isOpen ? '90deg' : '0deg' }],
-                marginRight: 10,
+                transform: [{ rotate: isOpen ? '180deg' : '0deg' }],
               }}
             />
-            <Text
-              className="text-white font-semibold"
-              style={{
-                fontSize: 14,
-                letterSpacing: 0.3,
-              }}
-            >
-              {groupName}
-            </Text>
-            <Text
-              className="text-white/40 ml-2"
-              style={{ fontSize: 12 }}
-            >
-              ({categories.length})
-            </Text>
           </View>
 
-          <Text
-            className="text-white/70"
-            style={{
-              fontSize: 12,
-              fontVariant: ['tabular-nums'],
-            }}
-          >
-            {formatCurrency(totalSpent, { showCurrency: false })} / {formatCurrency(totalAllocated, { showCurrency: false })}
-          </Text>
+          {/* Row 2: Amounts - Always visible on separate line */}
+          <View className="flex-row justify-end">
+            <Text
+              className="text-white/70"
+              style={{
+                fontSize: 11,
+                fontVariant: ['tabular-nums'],
+              }}
+            >
+              {formatCurrency(totalSpent, { showCurrency: false })} / {formatCurrency(totalAllocated, { showCurrency: false })}
+            </Text>
+          </View>
         </View>
 
         {/* Context Line for group totals */}
@@ -163,7 +169,7 @@ export function BudgetGroupItem({
             borderTopColor: 'rgba(255, 255, 255, 0.05)',
           }}
         >
-          {categories.map((category, index) => {
+          {categories.map((category) => {
             const catPercentUsed = category.allocatedAmount > 0
               ? (category.spentAmount / category.allocatedAmount) * 100
               : 0;
@@ -183,29 +189,33 @@ export function BudgetGroupItem({
                 <View
                   className="bg-white/[0.03] border border-white/5 rounded-lg p-3"
                 >
-                  {/* Category Header */}
-                  <View className="flex-row justify-between items-center mb-2">
-                    <View className="flex-row items-center">
+                  {/* Category Header - Two rows for long names */}
+                  <View className="mb-2">
+                    {/* Row 1: Emoji and Name */}
+                    <View className="flex-row items-center mb-1">
                       <Text className="text-base mr-2">
                         {category.categoryEmoji || '📊'}
                       </Text>
                       <Text
-                        className="text-white/90 font-medium"
+                        className="text-white/90 font-medium flex-1"
                         style={{ fontSize: 12 }}
+                        numberOfLines={1}
                       >
                         {category.categoryName}
                       </Text>
                     </View>
-
-                    <Text
-                      className="text-white/60"
-                      style={{
-                        fontSize: 10,
-                        fontVariant: ['tabular-nums'],
-                      }}
-                    >
-                      {formatCurrency(category.spentAmount, { showCurrency: false })} / {formatCurrency(category.allocatedAmount, { showCurrency: false })}
-                    </Text>
+                    {/* Row 2: Amounts */}
+                    <View className="flex-row justify-end">
+                      <Text
+                        className="text-white/60"
+                        style={{
+                          fontSize: 10,
+                          fontVariant: ['tabular-nums'],
+                        }}
+                      >
+                        {formatCurrency(category.spentAmount, { showCurrency: false })} / {formatCurrency(category.allocatedAmount, { showCurrency: false })}
+                      </Text>
+                    </View>
                   </View>
 
                   {/* Category Context Line */}
