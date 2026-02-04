@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, LayoutAnimation, Platform, UIManager } from 'react-native';
-import { TrendingUp, ChevronDown } from 'lucide-react-native';
+import { TrendingUp, ChevronDown, ChevronRight } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { GlassCard } from '@/components/ui/Glass';
 import { BudgetItem } from '@/components/budget/BudgetItem';
@@ -33,27 +33,27 @@ interface BudgetStatusCardProps {
   summaryTotals?: SummaryTotals;
 }
 
-// Default group configuration with emojis and sort order (fallback for standard groups)
-const DEFAULT_GROUP_CONFIG: Record<string, { emoji: string; order: number }> = {
-  'Needs': { emoji: '🏠', order: 1 },
-  'needs': { emoji: '🏠', order: 1 },
-  'Wants': { emoji: '🎯', order: 2 },
-  'wants': { emoji: '🎯', order: 2 },
-  'Savings': { emoji: '💰', order: 3 },
-  'savings': { emoji: '💰', order: 3 },
-  'Other': { emoji: '📊', order: 99 },
-  'other': { emoji: '📊', order: 99 },
+// Default group configuration with sort order (fallback for standard groups)
+const DEFAULT_GROUP_CONFIG: Record<string, { order: number }> = {
+  'Needs': { order: 1 },
+  'needs': { order: 1 },
+  'Wants': { order: 2 },
+  'wants': { order: 2 },
+  'Savings': { order: 3 },
+  'savings': { order: 3 },
+  'Other': { order: 99 },
+  'other': { order: 99 },
 };
 
 /**
  * Budget Status Card - Collapsible card showing all budget categories
- * Groups budgets by Needs/Wants/Savings and shows total remaining amount
+ * Groups budgets by Needs/Wants/Savings with individually collapsible groups
  */
 export function BudgetStatusCard({ budgets, summaryTotals }: BudgetStatusCardProps) {
   const [isOpen, setIsOpen] = useState(true);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   // Use summary totals if provided (from budgetSummary table), otherwise calculate from budgets
-  // This ensures the remaining amount matches the Budget screen exactly
   const totalAllocated = summaryTotals
     ? Math.round(summaryTotals.totalAllocated * 100) / 100
     : Math.round(budgets.reduce((sum, b) => sum + b.allocatedAmount, 0) * 100) / 100;
@@ -68,7 +68,7 @@ export function BudgetStatusCard({ budgets, summaryTotals }: BudgetStatusCardPro
     if (!groups[group]) {
       groups[group] = {
         items: [],
-        icon: budget.categoryGroupIcon, // Use icon from first item in group
+        icon: budget.categoryGroupIcon,
       };
     }
     groups[group].items.push(budget);
@@ -81,8 +81,7 @@ export function BudgetStatusCard({ budgets, summaryTotals }: BudgetStatusCardPro
       const defaultConfig = DEFAULT_GROUP_CONFIG[groupName];
       return {
         groupName,
-        emoji: data.icon || defaultConfig?.emoji || '📊',
-        order: defaultConfig?.order || 50, // Custom groups get middle order
+        order: defaultConfig?.order || 50,
         totalSpent: data.items.reduce((sum, b) => sum + b.spentAmount, 0),
         totalAllocated: data.items.reduce((sum, b) => sum + b.allocatedAmount, 0),
         items: data.items,
@@ -91,7 +90,6 @@ export function BudgetStatusCard({ budgets, summaryTotals }: BudgetStatusCardPro
     .sort((a, b) => a.order - b.order || a.groupName.localeCompare(b.groupName));
 
   const toggleOpen = () => {
-    // Animate the layout change
     LayoutAnimation.configureNext(
       LayoutAnimation.create(
         300,
@@ -101,6 +99,23 @@ export function BudgetStatusCard({ budgets, summaryTotals }: BudgetStatusCardPro
     );
     setIsOpen(!isOpen);
   };
+
+  const toggleGroup = (groupName: string) => {
+    LayoutAnimation.configureNext(
+      LayoutAnimation.create(
+        200,
+        LayoutAnimation.Types.easeInEaseOut,
+        LayoutAnimation.Properties.opacity
+      )
+    );
+    setOpenGroups(prev => ({
+      ...prev,
+      [groupName]: prev[groupName] === undefined ? false : !prev[groupName],
+    }));
+  };
+
+  // Check if a group is open (default to true)
+  const isGroupOpen = (groupName: string) => openGroups[groupName] !== false;
 
   return (
     <GlassCard hover={false}>
@@ -160,49 +175,82 @@ export function BudgetStatusCard({ budgets, summaryTotals }: BudgetStatusCardPro
             borderTopColor: 'rgba(255, 255, 255, 0.05)',
           }}
         >
-          {sortedGroups.map((group, groupIndex) => (
-            <Animated.View
-              key={group.groupName}
-              entering={FadeInDown.delay(groupIndex * 100).duration(300)}
-              className="mb-5"
-              style={{ marginBottom: groupIndex === sortedGroups.length - 1 ? 0 : 20 }}
-            >
-              {/* Group Header */}
-              <View className="flex-row items-center justify-between mb-3">
-                <Text
-                  className="text-white/70 font-semibold"
-                  style={{
-                    fontSize: 11,
-                    textTransform: 'uppercase',
-                    letterSpacing: 1.5,
-                  }}
-                >
-                  {group.groupName}
-                </Text>
-                <Text
-                  className="text-white/50"
-                  style={{
-                    fontSize: 11,
-                    fontVariant: ['tabular-nums'],
-                  }}
-                >
-                  {formatCurrency(group.totalSpent, { showCurrency: false })} / {formatCurrency(group.totalAllocated, { showCurrency: false })}
-                </Text>
-              </View>
+          {sortedGroups.map((group, groupIndex) => {
+            const groupOpen = isGroupOpen(group.groupName);
 
-              {/* Individual budget items in this group */}
-              {group.items.map((budget, itemIndex) => (
-                <BudgetItem
-                  key={budget.id}
-                  emoji={budget.categoryEmoji || '📊'}
-                  label={budget.categoryName}
-                  spent={budget.spentAmount}
-                  allocated={budget.allocatedAmount}
-                  animationDelay={groupIndex * 100 + itemIndex * 50}
-                />
-              ))}
-            </Animated.View>
-          ))}
+            return (
+              <Animated.View
+                key={group.groupName}
+                entering={FadeInDown.delay(groupIndex * 100).duration(300)}
+                style={{ marginBottom: groupIndex === sortedGroups.length - 1 ? 0 : 16 }}
+              >
+                {/* Group Header - Clickable */}
+                <Pressable
+                  onPress={() => toggleGroup(group.groupName)}
+                  className="flex-row items-center justify-between py-2"
+                  style={({ pressed }) => ({
+                    backgroundColor: pressed ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+                    marginHorizontal: -8,
+                    paddingHorizontal: 8,
+                    borderRadius: 8,
+                  })}
+                >
+                  <View className="flex-row items-center">
+                    <ChevronRight
+                      size={14}
+                      color="rgba(255, 255, 255, 0.5)"
+                      strokeWidth={2}
+                      style={{
+                        transform: [{ rotate: groupOpen ? '90deg' : '0deg' }],
+                        marginRight: 8,
+                      }}
+                    />
+                    <Text
+                      className="text-white/70 font-semibold"
+                      style={{
+                        fontSize: 11,
+                        textTransform: 'uppercase',
+                        letterSpacing: 1.5,
+                      }}
+                    >
+                      {group.groupName}
+                    </Text>
+                    <Text
+                      className="text-white/40 ml-2"
+                      style={{ fontSize: 10 }}
+                    >
+                      ({group.items.length})
+                    </Text>
+                  </View>
+                  <Text
+                    className="text-white/50"
+                    style={{
+                      fontSize: 11,
+                      fontVariant: ['tabular-nums'],
+                    }}
+                  >
+                    {formatCurrency(group.totalSpent, { showCurrency: false })} / {formatCurrency(group.totalAllocated, { showCurrency: false })}
+                  </Text>
+                </Pressable>
+
+                {/* Collapsible Group Items */}
+                {groupOpen && (
+                  <View className="mt-2">
+                    {group.items.map((budget, itemIndex) => (
+                      <BudgetItem
+                        key={budget.id}
+                        emoji={budget.categoryEmoji || '📊'}
+                        label={budget.categoryName}
+                        spent={budget.spentAmount}
+                        allocated={budget.allocatedAmount}
+                        animationDelay={itemIndex * 50}
+                      />
+                    ))}
+                  </View>
+                )}
+              </Animated.View>
+            );
+          })}
 
           {/* Empty state */}
           {budgets.length === 0 && (
