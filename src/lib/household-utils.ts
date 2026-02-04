@@ -35,6 +35,7 @@ export async function getUserHouseholdIdByEmail(email: string): Promise<string |
  */
 export async function getUserProfileAndHousehold(email: string): Promise<{
   userRecord: any;
+  userId: string;
   householdId: string;
 } | null> {
   const { data: userData } = await db.queryOnce({
@@ -55,6 +56,7 @@ export async function getUserProfileAndHousehold(email: string): Promise<{
 
   return {
     userRecord,
+    userId: userRecord.id,
     householdId: member.householdId,
   };
 }
