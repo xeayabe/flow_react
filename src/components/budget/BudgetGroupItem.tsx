@@ -178,7 +178,7 @@ export function BudgetGroupItem({
             return (
               <View
                 key={category.id}
-                className="mt-3 ml-2"
+                className="mt-3"
               >
                 {/* Nested Category Card */}
                 <View
