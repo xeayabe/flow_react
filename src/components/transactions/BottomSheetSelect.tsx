@@ -143,26 +143,21 @@ export default function BottomSheetSelect({
                       padding: 14,
                     }}
                   >
-                    <View className="flex-row items-center flex-1">
-                      {option.icon && (
-                        <Text className="text-xl mr-3">{option.icon}</Text>
-                      )}
-                      <View className="flex-1">
+                    <View className="flex-1">
+                      <Text
+                        className="text-sm font-medium"
+                        style={{ color: 'rgba(255,255,255,0.9)' }}
+                      >
+                        {option.name}
+                      </Text>
+                      {option.meta && (
                         <Text
-                          className="text-sm font-medium"
-                          style={{ color: 'rgba(255,255,255,0.9)' }}
+                          className="text-xs mt-0.5"
+                          style={{ color: 'rgba(255,255,255,0.5)' }}
                         >
-                          {option.name}
+                          {option.meta}
                         </Text>
-                        {option.meta && (
-                          <Text
-                            className="text-xs mt-0.5"
-                            style={{ color: 'rgba(255,255,255,0.5)' }}
-                          >
-                            {option.meta}
-                          </Text>
-                        )}
-                      </View>
+                      )}
                     </View>
 
                     {isSelected && (
