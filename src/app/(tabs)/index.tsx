@@ -400,7 +400,7 @@ export default function DashboardScreen() {
         </View>
       </ScrollView>
 
-      {/* 6. Floating Action Button - Bright Sage Green */}
+      {/* 6. Floating Action Button - Static Glow Design */}
       <Pressable
         onPress={() => router.push('/add-transaction')}
         className="absolute items-center justify-center"
@@ -410,27 +410,27 @@ export default function DashboardScreen() {
           width: 64,
           height: 64,
           borderRadius: 32,
+          backgroundColor: '#2C5F5D',
+          // Triple-layer glow effect
           shadowColor: '#A8B5A1',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.5,
-          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.4,
+          shadowRadius: 20,
           elevation: 8,
         }}
       >
-        <LinearGradient
-          colors={['#A8B5A1', '#8FA888']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+        {/* Inner glow ring */}
+        <View
           style={{
+            position: 'absolute',
             width: 64,
             height: 64,
             borderRadius: 32,
-            alignItems: 'center',
-            justifyContent: 'center',
+            borderWidth: 2,
+            borderColor: 'rgba(168, 181, 161, 0.3)',
           }}
-        >
-          <Plus size={28} color="#fff" strokeWidth={2.5} />
-        </LinearGradient>
+        />
+        <Plus size={28} color="#fff" strokeWidth={2.5} />
       </Pressable>
     </LinearGradient>
   );
