@@ -403,8 +403,8 @@ export default function DashboardScreen() {
         onPress={() => router.push('/add-transaction')}
         className="absolute items-center justify-center"
         style={{
-          bottom: insets.bottom + 56,
-          right: 16,
+          bottom: insets.bottom + 20,
+          right: 20,
           width: 64,
           height: 64,
           borderRadius: 32,
