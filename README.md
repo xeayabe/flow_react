@@ -167,17 +167,22 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - **Design**: Deep Teal (#2C5F5D) gradient background, frosted glass cards (rgba(255,255,255,0.03))
   - **Type Toggle**: Income/Expense with dynamic category filtering and smooth transitions
   - **Amount Input**: Large 4xl font with Sage Green (#A8B5A1) accent, auto-focus on entry
+  - **Shared Expenses Section**: Glassmorphism card with iOS-style toggle, "Who Paid?" selector, and split preview
+    * Toggle: "Shared with [Partner]" with iOS Switch component
+    * Who Paid: Two-button selector (You / Partner) with teal selection state
+    * Split Preview: Sage Green background showing percentages, individual shares, and who owes whom
+    * Only visible for expenses (not income) with 2+ household members
+    * Real-time calculations based on household split ratios
   - **Payee Selector**: Smart auto-categorization based on transaction history
   - **Category Selection**: Bottom sheet dropdown with glassmorphism design, emoji extraction from category names
   - **Quick Category Buttons**: 6 most-used categories displayed below dropdown with emoji + text layout
   - **Wallet Selection**: Bottom sheet dropdown showing balance as metadata
-  - **Date Picker**: Inline expandable calendar with smooth slide-in animation
-  - **Shared Expenses**: Toggle for household split with real-time preview
-  - **Recurring Templates**: Monthly repeating expenses with day-of-month selector
+  - **Date Picker**: Inline expandable calendar with quick fade-in, instant close (no slide-up animation)
+  - **Recurring Templates**: iOS-style toggle switch (matches Shared toggle) with day-of-month selector
   - **Animations**: Staggered FadeInDown with 100ms delays for smooth reveals
   - **FAB Save Button**: Floating action button with scale animations (hover: 1.1x, press: 0.95x)
+  - **Back Button**: 40×40px glassmorphism container with centered arrow icon
   - Optional Note: Max 200 characters with character counter
-  - Recurring Option: Monthly recurring with day selector
 - ✅ **Edit Transaction Page (US-020)** - Edit existing transactions with smart balance adjustment
   - Pre-filled form with all existing transaction data
   - Complex balance calculations:

@@ -21,6 +21,7 @@ import QuickCategoryButtons from '@/components/transactions/QuickCategoryButtons
 import ExpandableCalendar from '@/components/transactions/ExpandableCalendar';
 import SaveFAB from '@/components/transactions/SaveFAB';
 import BottomSheetSelect from '@/components/transactions/BottomSheetSelect';
+import SharedExpenseSection from '@/components/transactions/SharedExpenseSection';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -372,44 +373,29 @@ export default function AddTransactionScreen() {
             </View>
           </Animated.View>
 
-          {/* Shared Expense Toggle - Only for expenses with 2+ members */}
+          {/* Shared Expense Section - Only for expenses with 2+ members */}
           {householdMembersQuery.data && householdMembersQuery.data.length >= 2 && formData.type === 'expense' && !formData.isRecurring && (
-            <Animated.View entering={FadeInDown.delay(250).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: isShared ? 'rgba(168,181,161,0.15)' : 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: isShared ? 'rgba(168,181,161,0.3)' : 'rgba(255,255,255,0.1)' }}>
-              <View className="p-5">
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>
-                      👥 Shared with {partnerName}
-                    </Text>
-                    <Text className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                      Split this expense
-                    </Text>
-                  </View>
-                  <Switch
-                    value={isShared}
-                    onValueChange={setIsShared}
-                    trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#2C5F5D' }}
-                    thumbColor="#fff"
-                  />
-                </View>
-
-                {/* Split Preview */}
-                {isShared && formData.amount && parseFloat(formData.amount) > 0 && (
-                  <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' }}>
-                    <Text className="text-xs font-semibold mb-2" style={{ color: 'rgba(168,181,161,0.9)' }}>Split Preview:</Text>
-                    {householdMembersQuery.data?.map((member: any) => {
-                      const ratio = splitRatiosQuery.data?.find((r: any) => r.userId === member.userId);
-                      const percentage = ratio?.percentage || 50;
-                      const splitAmount = (parseFloat(formData.amount) * percentage) / 100;
-                      return (
-                        <Text key={member.userId} className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                          {member.userName}: {formatCurrency(splitAmount)} ({percentage.toFixed(0)}%)
-                        </Text>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
+            <Animated.View
+              entering={FadeInDown.delay(250).duration(400)}
+              className="mb-6 rounded-2xl overflow-hidden"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.03)',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.05)',
+                padding: 20,
+              }}
+            >
+              <SharedExpenseSection
+                partnerName={partnerName}
+                amount={formData.amount}
+                isShared={isShared}
+                setIsShared={setIsShared}
+                paidByUserId={paidByUserId}
+                setPaidByUserId={setPaidByUserId}
+                currentUserId={householdQuery.data?.userRecord?.id || ''}
+                partnerUserId={householdMembersQuery.data?.find((m: any) => m.userId !== householdQuery.data?.userRecord?.id)?.userId || ''}
+                splitRatios={splitRatiosQuery.data || []}
+              />
             </Animated.View>
           )}
 
