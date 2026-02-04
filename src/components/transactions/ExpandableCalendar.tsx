@@ -1,7 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutUp } from 'react-native-reanimated';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, Pressable, LayoutAnimation, Platform, UIManager } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface ExpandableCalendarProps {
   value: Date;
@@ -19,8 +24,21 @@ export default function ExpandableCalendar({
   const [isExpanded, setIsExpanded] = useState(false);
   const [displayMonth, setDisplayMonth] = useState(new Date(value));
 
+  const handleToggle = () => {
+    // Animate layout changes smoothly
+    LayoutAnimation.configureNext(
+      LayoutAnimation.create(
+        200,
+        LayoutAnimation.Types.easeInEaseOut,
+        LayoutAnimation.Properties.opacity
+      )
+    );
+    setIsExpanded(!isExpanded);
+  };
+
   const handleDateSelect = (date: Date) => {
     onChange(date);
+    // Close instantly without animation
     setIsExpanded(false);
   };
 
@@ -96,7 +114,7 @@ export default function ExpandableCalendar({
     <View>
       {/* Date Field */}
       <Pressable
-        onPress={() => setIsExpanded(!isExpanded)}
+        onPress={handleToggle}
         className="flex-row items-center justify-between rounded-xl"
         style={{
           backgroundColor: 'rgba(255,255,255,0.05)',
@@ -125,8 +143,8 @@ export default function ExpandableCalendar({
       {/* Expandable Calendar */}
       {isExpanded && (
         <Animated.View
-          entering={SlideInDown.duration(300).springify()}
-          exiting={SlideOutUp.duration(200)}
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(0)}
           className="mt-3 rounded-xl overflow-hidden"
           style={{
             backgroundColor: 'rgba(255,255,255,0.03)',
