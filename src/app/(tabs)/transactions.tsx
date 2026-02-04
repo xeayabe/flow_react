@@ -165,13 +165,28 @@ export default function TransactionsTabScreen() {
 
     console.log('📊 Raw transactions data:', transactionsQuery.data.length);
     console.log('📊 Sample transaction:', transactionsQuery.data[0]);
+    console.log('📊 Categories available:', categoriesQuery.data?.length);
+
+    // Build a category lookup map
+    const categoryMap = new Map();
+    if (categoriesQuery.data) {
+      categoriesQuery.data.forEach((cat: any) => {
+        categoryMap.set(cat.id, cat);
+      });
+    }
+
+    // Build an account lookup map
+    const accountMap = new Map();
+    if (accountsQuery.data) {
+      accountsQuery.data.forEach((acc: any) => {
+        accountMap.set(acc.id, acc);
+      });
+    }
 
     return transactionsQuery.data.map((t: any) => {
-      const category = t.category?.[0];
-      const account = t.account?.[0];
-      // expenseSplits relation may not be available, handle gracefully
-      const splits = t.expenseSplits || [];
-      const isShared = false; // Temporarily disable shared expense display
+      // Look up category and account by ID
+      const category = categoryMap.get(t.categoryId);
+      const account = accountMap.get(t.accountId);
 
       return {
         id: t.id,
@@ -191,7 +206,7 @@ export default function TransactionsTabScreen() {
         youOwe: 0,
       };
     });
-  }, [transactionsQuery.data, householdQuery.data?.userId]);
+  }, [transactionsQuery.data, categoriesQuery.data, accountsQuery.data, householdQuery.data?.userId]);
 
   // Format recurring transactions
   const formattedRecurring = React.useMemo(() => {
