@@ -402,7 +402,7 @@ export default function DashboardScreen() {
 
       {/* 6. Floating Action Button - Static Glow Design */}
       <Pressable
-        onPress={() => router.push('/add-transaction')}
+        onPress={() => router.push('/transactions/add')}
         className="absolute items-center justify-center"
         style={{
           bottom: 20,
