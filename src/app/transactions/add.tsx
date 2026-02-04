@@ -20,6 +20,7 @@ import PayeePickerModal from '@/components/PayeePickerModal';
 import CategoryPickerModal from '@/components/CategoryPickerModal';
 import QuickCategoryButtons from '@/components/transactions/QuickCategoryButtons';
 import ExpandableCalendar from '@/components/transactions/ExpandableCalendar';
+import SaveFAB from '@/components/transactions/SaveFAB';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -268,6 +269,15 @@ export default function AddTransactionScreen() {
     createMutation.mutate();
   };
 
+  const isFormValid = () => {
+    return (
+      formData.amount !== '' &&
+      parseFloat(formData.amount) > 0 &&
+      formData.categoryId !== '' &&
+      formData.accountId !== ''
+    );
+  };
+
   const categories = (categoriesQuery.data as any[]) || [];
   const selectedCategory = categories.find((cat) => cat.id === formData.categoryId);
   const selectedAccount = accountsQuery.data?.find((acc) => acc.id === formData.accountId);
@@ -509,34 +519,14 @@ export default function AddTransactionScreen() {
               )}
             </View>
           </Animated.View>
-
-          {/* Save FAB */}
-          <Animated.View entering={FadeInDown.delay(550).duration(400)}>
-            <Pressable
-              onPress={validateAndSubmit}
-              disabled={createMutation.isPending}
-              className="rounded-2xl overflow-hidden"
-              style={{
-                backgroundColor: '#2C5F5D',
-                shadowColor: '#A8B5A1',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 12,
-                elevation: 8,
-              }}
-            >
-              <View className="py-5 items-center justify-center">
-                {createMutation.isPending ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text className="text-lg font-bold" style={{ color: 'rgba(255,255,255,0.95)' }}>
-                    Save Transaction
-                  </Text>
-                )}
-              </View>
-            </Pressable>
-          </Animated.View>
         </ScrollView>
+
+        {/* Floating Action Button */}
+        <SaveFAB
+          onSave={validateAndSubmit}
+          disabled={!isFormValid()}
+          isLoading={createMutation.isPending}
+        />
       </KeyboardAvoidingView>
 
       {/* Modals */}
