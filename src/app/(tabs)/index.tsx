@@ -38,6 +38,7 @@ import RecurringExpensesWidget from '@/components/RecurringExpensesWidget';
 import { BudgetStatusCard } from '@/components/dashboard/BudgetStatusCard';
 import { HouseholdBalanceWidget } from '@/components/dashboard/HouseholdBalanceWidget';
 import { WalletsCard } from '@/components/dashboard/WalletsCard';
+import { RecentTransactionsCard } from '@/components/transactions/RecentTransactionsCard';
 import { useHouseholdData } from '@/hooks/useHouseholdData';
 
 interface BudgetSummaryData {
@@ -307,6 +308,17 @@ export default function DashboardScreen() {
     isDefault: account.isDefault || false,
   }));
 
+  // Format transactions for RecentTransactionsCard
+  const formattedTransactions = enrichedTransactions.map((tx: any) => ({
+    id: tx.id,
+    name: tx.description || tx.payee || 'Unknown',
+    emoji: tx.categoryIcon || '💰',
+    category: tx.categoryName || 'Uncategorized',
+    amount: tx.type === 'expense' ? -Math.abs(tx.amount) : Math.abs(tx.amount),
+    date: tx.date,
+    isShared: tx.isShared || false,
+  }));
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       {/* Budget Reset Notification */}
@@ -470,8 +482,8 @@ export default function DashboardScreen() {
             <BudgetBreakdownWidget groups={budgetGroups} />
           )}
 
-          {/* Recent Transactions Widget */}
-          <RecentTransactionsWidget transactions={enrichedTransactions} />
+          {/* Recent Transactions Card - Swiss Design */}
+          <RecentTransactionsCard transactions={formattedTransactions} />
 
           {/* Accounts List Widget */}
           <AccountsListWidget accounts={accounts} />
@@ -499,6 +511,14 @@ export default function DashboardScreen() {
           >
             <Text className="text-white text-center font-semibold">
               🧪 Test Wallets Card
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/test-transactions-card')}
+            className="bg-amber-600 rounded-xl p-4 mb-3"
+          >
+            <Text className="text-white text-center font-semibold">
+              🧪 Test Recent Transactions
             </Text>
           </Pressable>
 
