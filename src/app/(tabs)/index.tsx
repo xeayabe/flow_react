@@ -19,6 +19,7 @@ import {
   getRecentTransactionsWithCategories,
   formatCurrency,
 } from '@/lib/dashboard-helpers';
+import { extractEmoji } from '@/lib/extractEmoji';
 import {
   DashboardLoadingSkeleton,
 } from '@/components/SkeletonLoaders';
@@ -288,10 +289,14 @@ export default function DashboardScreen() {
   // Transform budget details for BudgetStatusCard
   const enrichedBudgets = budgetDetails.map((budget: any) => {
     const category = categories.find((c: any) => c.id === budget.categoryId);
+    // Extract emoji from category name
+    const { emoji, name } = category
+      ? extractEmoji(category.name)
+      : { emoji: '📊', name: 'Unknown' };
     return {
       id: budget.id,
-      categoryName: category?.name || 'Unknown',
-      categoryEmoji: category?.icon || '📊',
+      categoryName: name,
+      categoryEmoji: emoji,
       categoryGroup: budget.categoryGroup || 'Other',
       allocatedAmount: budget.allocatedAmount || 0,
       spentAmount: budget.spentAmount || 0,
@@ -309,15 +314,21 @@ export default function DashboardScreen() {
   }));
 
   // Format transactions for RecentTransactionsCard
-  const formattedTransactions = enrichedTransactions.map((tx: any) => ({
-    id: tx.id,
-    name: tx.description || tx.payee || 'Unknown',
-    emoji: tx.categoryIcon || '💰',
-    category: tx.categoryName || 'Uncategorized',
-    amount: tx.type === 'expense' ? -Math.abs(tx.amount) : Math.abs(tx.amount),
-    date: tx.date,
-    isShared: tx.isShared || false,
-  }));
+  const formattedTransactions = enrichedTransactions.map((tx: any) => {
+    // Extract emoji from category name if present
+    const { emoji, name: categoryName } = tx.categoryName
+      ? extractEmoji(tx.categoryName)
+      : { emoji: '💰', name: 'Uncategorized' };
+    return {
+      id: tx.id,
+      name: tx.description || tx.payee || 'Unknown',
+      emoji: emoji,
+      category: categoryName,
+      amount: tx.type === 'expense' ? -Math.abs(tx.amount) : Math.abs(tx.amount),
+      date: tx.date,
+      isShared: tx.isShared || false,
+    };
+  });
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>

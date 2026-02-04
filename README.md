@@ -975,6 +975,21 @@ getBudgetStatus(95)  // "NEARLY THERE"
 getBudgetStatus(105) // "FLOW ADJUSTED" (not "Over Budget"!)
 ```
 
+#### Emoji Extraction Helper (`src/lib/extractEmoji.ts`)
+
+Extract emoji from category names that include emoji prefix:
+
+```typescript
+import { extractEmoji } from '@/lib/extractEmoji';
+
+// Extract emoji from start of string
+extractEmoji("🛒 Groceries")    // { emoji: "🛒", name: "Groceries" }
+extractEmoji("🏠 Rent")         // { emoji: "🏠", name: "Rent" }
+extractEmoji("No Emoji Here")   // { emoji: "📊", name: "No Emoji Here" }
+```
+
+Used by dashboard to properly display category emoji and name separately in BudgetItem and TransactionItem components.
+
 #### Glassmorphism Components (`src/components/ui/Glass.tsx`)
 
 Ready-to-use React Native components with Swiss glass aesthetics:
