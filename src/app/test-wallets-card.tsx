@@ -120,6 +120,33 @@ export default function TestWalletsCard() {
               <WalletsCard wallets={[mockWallets[0]]} />
             </View>
 
+            {/* Color Reference */}
+            <View className="mt-8 p-4 bg-white/5 rounded-xl">
+              <Text className="text-white/90 font-semibold mb-3">
+                CRITICAL: Color Usage
+              </Text>
+              <View className="gap-2">
+                <View className="flex-row items-center gap-3">
+                  <View className="w-4 h-4 rounded bg-white" />
+                  <Text className="text-white/60 text-xs">
+                    Positive balances: White (#fff)
+                  </Text>
+                </View>
+                <View className="flex-row items-center gap-3">
+                  <View className="w-4 h-4 rounded" style={{ backgroundColor: '#64748B' }} />
+                  <Text className="text-white/60 text-xs">
+                    Negative balances: Neutral Gray (#64748B) - NO RED!
+                  </Text>
+                </View>
+                <View className="flex-row items-center gap-3">
+                  <View className="w-4 h-4 rounded" style={{ backgroundColor: '#2C5F5D' }} />
+                  <Text className="text-white/60 text-xs">
+                    Default badge: Deep Teal (#2C5F5D)
+                  </Text>
+                </View>
+              </View>
+            </View>
+
             {/* Bottom padding */}
             <View className="h-10" />
           </ScrollView>
