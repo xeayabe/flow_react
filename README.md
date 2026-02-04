@@ -1174,6 +1174,55 @@ Fetches and calculates household debt data:
 - Subtle scale variation (2%)
 - Repeats 3 times (~9 seconds)
 - Auto-stops after 10 seconds
+
+#### Wallets Card (`src/components/wallets/WalletsCard.tsx`)
+
+Collapsible glass card displaying all user wallets with totals and individual account details:
+
+```typescript
+import { WalletsCard } from '@/components/wallets';
+import type { Account } from '@/lib/accounts-api';
+
+const accounts: Account[] = [...]; // From getUserAccounts()
+
+<WalletsCard
+  accounts={accounts}
+  onAccountPress={(account) => console.log('Tapped:', account.name)}
+/>
+```
+
+**WalletItem Component** (`src/components/wallets/WalletItem.tsx`):
+Individual wallet row component with icon, name, institution, and balance:
+
+```typescript
+import { WalletItem } from '@/components/wallets';
+
+<WalletItem
+  name="Main Checking"
+  institution="UBS"
+  type="Checking"
+  balance={8547.32}
+  isDefault={true}
+  onPress={() => {}}
+  animationDelay={0}
+/>
+```
+
+**Features:**
+- Collapsible with smooth Reanimated animations (300ms)
+- ChevronDown icon rotates 180° when expanded
+- Header shows total balance across all wallets
+- Assets vs Liabilities summary row
+- Sorted list: default account first, then by balance descending
+- Type-specific icons (Wallet, CreditCard, PiggyBank, Banknote, TrendingUp)
+- "Add Wallet" button at bottom
+- Staggered FadeInDown animations for wallet items
+- **CRITICAL: Uses neutral gray (#4B5563) for negative balances, NOT red!**
+- "Amount Owed" label for credit cards and negative balances
+- Default account badge with teal background
+
+**Design Philosophy:**
+Follows the Swiss precision aesthetic with empathetic design - negative balances (credit card debt) are shown in neutral gray rather than anxiety-inducing red. This aligns with Flow's calm financial control approach.
 - Manual stop on button press
 
 **Conditional Rendering:**
