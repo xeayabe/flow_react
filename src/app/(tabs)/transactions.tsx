@@ -1,117 +1,51 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, SectionList, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useFocusEffect } from '@react-navigation/native';
-import { Trash2, ArrowDownLeft, ArrowUpRight, AlertCircle, Plus, X } from 'lucide-react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import React, { useState } from 'react';
+import { View, Text, Pressable, TextInput } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
+import { Settings, Search, Plus } from 'lucide-react-native';
+import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { db } from '@/lib/db';
-import { getUserTransactions, deleteTransaction, formatCurrency, formatDateSwiss, Transaction, getHouseholdTransactionsWithCreators, TransactionWithCreator } from '@/lib/transactions-api';
-import { getCategories } from '@/lib/categories-api';
-import { getUserAccounts } from '@/lib/accounts-api';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
-import { cn } from '@/lib/cn';
-import UpcomingRecurringSection from '@/components/UpcomingRecurringSection';
+import { formatCurrency } from '@/lib/formatCurrency';
+import TransactionListItem from '@/components/transactions/TransactionListItem';
+import RecurringSection from '@/components/transactions/RecurringSection';
+import TransactionFilters from '@/components/transactions/TransactionFilters';
+import StickyStatusBar from '@/components/layout/StickyStatusBar';
+import { useTransactionFilters } from '@/hooks/useTransactionFilters';
 
-interface TransactionWithDetails extends TransactionWithCreator {
-  categoryName?: string;
-  accountName?: string;
+function formatDateHeader(dateStr: string): string {
+  try {
+    const date = parseISO(dateStr);
+    if (isToday(date)) {
+      return `Today • ${format(date, 'MMM d')}`;
+    } else if (isYesterday(date)) {
+      return `Yesterday • ${format(date, 'MMM d')}`;
+    } else {
+      return format(date, 'MMM d, yyyy');
+    }
+  } catch {
+    return dateStr;
+  }
 }
-
-interface SectionData {
-  title: string;
-  data: TransactionWithDetails[];
-}
-
-type DateRange = 'this_week' | 'this_month' | 'last_month' | 'last_3_months' | 'this_year' | 'all_time';
-type TransactionType = 'all' | 'income' | 'expense';
 
 export default function TransactionsTabScreen() {
-  const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const { user } = db.useAuth();
-  const { category: categoryParam, month: monthParam, start: startParam, end: endParam } = useLocalSearchParams<{ category?: string; month?: string; start?: string; end?: string }>();
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const scrollY = useSharedValue(0);
 
-  // Filter states
-  const [dateRange, setDateRange] = useState<DateRange>('all_time');
-  const [transactionType, setTransactionType] = useState<TransactionType>('all');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
-  const [customDateStart, setCustomDateStart] = useState<string | null>(null);
-  const [customDateEnd, setCustomDateEnd] = useState<string | null>(null);
-  const [monthFilterLabel, setMonthFilterLabel] = useState<string | null>(null);
-  const [showDateRangeModal, setShowDateRangeModal] = useState(false);
-  const [showTypeModal, setShowTypeModal] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Apply filters from URL parameters when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      // Apply category filter
-      if (categoryParam) {
-        setSelectedCategories([categoryParam]);
-        // Clear month filter when category is set
-        setCustomDateStart(null);
-        setCustomDateEnd(null);
-        setMonthFilterLabel(null);
-      }
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
-      // Apply budget period date range filter (from trends drill-down)
-      if (startParam && endParam) {
-        setCustomDateStart(startParam);
-        setCustomDateEnd(endParam);
-
-        // Format period label (e.g., "25/12/2025 - 24/01/2026")
-        const startDate = new Date(startParam);
-        const endDate = new Date(endParam);
-        const formatDate = (date: Date) => {
-          const day = String(date.getDate()).padStart(2, '0');
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const year = date.getFullYear();
-          return `${day}/${month}/${year}`;
-        };
-        setMonthFilterLabel(`${formatDate(startDate)} - ${formatDate(endDate)}`);
-
-        // Clear category filter when date range is set
-        setSelectedCategories([]);
-        setDateRange('all_time');
-      }
-
-      // Apply month filter (calendar month)
-      if (monthParam && !startParam && !endParam) {
-        const [year, month] = monthParam.split('-');
-        const monthNumber = parseInt(month);
-
-        // Calculate first and last day of month
-        const firstDay = new Date(parseInt(year), monthNumber - 1, 1);
-        const lastDay = new Date(parseInt(year), monthNumber, 0);
-
-        const y1 = firstDay.getFullYear();
-        const m1 = String(firstDay.getMonth() + 1).padStart(2, '0');
-        const d1 = String(firstDay.getDate()).padStart(2, '0');
-        const startStr = `${y1}-${m1}-${d1}`;
-
-        const y2 = lastDay.getFullYear();
-        const m2 = String(lastDay.getMonth() + 1).padStart(2, '0');
-        const d2 = String(lastDay.getDate()).padStart(2, '0');
-        const endStr = `${y2}-${m2}-${d2}`;
-
-        setCustomDateStart(startStr);
-        setCustomDateEnd(endStr);
-
-        // Format month label (e.g., "January 2025")
-        const monthName = firstDay.toLocaleString('en-US', { month: 'long' });
-        setMonthFilterLabel(`${monthName} ${year}`);
-
-        // Clear category filter when month is set
-        setSelectedCategories([]);
-        setDateRange('all_time');
-      }
-    }, [categoryParam, monthParam, startParam, endParam])
-  );
-
-  // Get user and household info (works for both admin and members)
+  // Get user and household info
   const householdQuery = useQuery({
     queryKey: ['user-household', user?.email],
     queryFn: async () => {
@@ -123,714 +57,325 @@ export default function TransactionsTabScreen() {
     enabled: !!user?.email,
   });
 
-  // Get transactions using the household ID from householdQuery
-  const transactionsQuery = useQuery({
-    queryKey: ['transactions-household', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id],
+  // Load categories
+  const categoriesQuery = useQuery({
+    queryKey: ['categories', householdQuery.data?.householdId],
     queryFn: async () => {
       if (!householdQuery.data?.householdId) return [];
-      // Pass current user ID to filter: own transactions + shared transactions
-      return getHouseholdTransactionsWithCreators(householdQuery.data.householdId, householdQuery.data.userRecord?.id);
+      // @ts-ignore - InstantDB types
+      const result = await db.queryOnce({
+        categories: {
+          $: {
+            where: { householdId: householdQuery.data.householdId },
+          },
+        },
+      });
+      return (result?.data?.categories || []) as any[];
     },
     enabled: !!householdQuery.data?.householdId,
   });
 
-  // Get categories
-  const categoriesQuery = useQuery({
-    queryKey: ['categories', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id],
-    queryFn: async () => {
-      if (!householdQuery.data?.householdId || !householdQuery.data?.userRecord?.id) return [];
-      return getCategories(householdQuery.data.householdId, householdQuery.data.userRecord.id);
-    },
-    enabled: !!householdQuery.data?.householdId && !!householdQuery.data?.userRecord?.id,
-  });
-
-  // Get accounts
+  // Load wallets/accounts
   const accountsQuery = useQuery({
-    queryKey: ['accounts', user?.email],
+    queryKey: ['accounts', householdQuery.data?.householdId],
     queryFn: async () => {
-      if (!user?.email) return [];
-      return getUserAccounts(user.email);
+      if (!householdQuery.data?.householdId) return [];
+      // @ts-ignore - InstantDB types
+      const result = await db.queryOnce({
+        accounts: {
+          // @ts-ignore
+          $: {
+            // @ts-ignore
+            where: { householdId: householdQuery.data.householdId },
+          },
+        },
+      });
+      return (result?.data?.accounts || []) as any[];
     },
-    enabled: !!user?.email,
+    enabled: !!householdQuery.data?.householdId,
   });
 
-  // Refetch transactions when tab comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      queryClient.invalidateQueries({ queryKey: ['transactions-household', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id] });
-      queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
-      queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
-    }, [householdQuery.data?.householdId, householdQuery.data?.userRecord?.id, user?.email, queryClient])
-  );
-
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: deleteTransaction,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions-household', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id] });
-      queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
-      queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
-      setDeleteConfirmId(null);
+  // Load transactions
+  const transactionsQuery = useQuery({
+    queryKey: ['transactions', householdQuery.data?.householdId],
+    queryFn: async () => {
+      if (!householdQuery.data?.householdId) return [];
+      // @ts-ignore - InstantDB types
+      const result = await db.queryOnce({
+        // @ts-ignore
+        transactions: {
+          $: {
+            where: { householdId: householdQuery.data.householdId },
+          },
+          category: {},
+          account: {},
+          expenseSplits: {
+            paidByUser: {},
+            beneficiaryUser: {},
+          },
+        },
+      });
+      return (result?.data?.transactions || []) as any[];
     },
+    enabled: !!householdQuery.data?.householdId,
   });
 
-  // Helper function to get date range
-  const getDateRangeFilter = (range: DateRange): [string, string] => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    let startDate = new Date(today);
+  // Load recurring templates
+  const recurringQuery = useQuery({
+    queryKey: ['recurring-templates', householdQuery.data?.householdId],
+    queryFn: async () => {
+      if (!householdQuery.data?.householdId) return [];
+      // @ts-ignore - InstantDB types
+      const result = await db.queryOnce({
+        // @ts-ignore
+        recurringTemplates: {
+          $: {
+            where: { householdId: householdQuery.data.householdId, isActive: true },
+          },
+          category: {},
+        },
+      });
+      return (result?.data?.recurringTemplates || []) as any[];
+    },
+    enabled: !!householdQuery.data?.householdId,
+  });
 
-    switch (range) {
-      case 'this_week': {
-        const day = today.getDay();
-        startDate.setDate(today.getDate() - day);
-        return [startDate.toISOString().split('T')[0], '2099-12-31'];
-      }
-      case 'this_month': {
-        startDate.setDate(1);
-        return [startDate.toISOString().split('T')[0], '2099-12-31'];
-      }
-      case 'last_month': {
-        startDate.setMonth(today.getMonth() - 1);
-        startDate.setDate(1);
-        const endDate = new Date(today.getFullYear(), today.getMonth(), 0);
-        return [startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]];
-      }
-      case 'last_3_months': {
-        startDate.setMonth(today.getMonth() - 3);
-        return [startDate.toISOString().split('T')[0], '2099-12-31'];
-      }
-      case 'this_year': {
-        startDate.setMonth(0);
-        startDate.setDate(1);
-        return [startDate.toISOString().split('T')[0], '2099-12-31'];
-      }
-      case 'all_time': {
-        return ['1900-01-01', '2099-12-31'];
-      }
-    }
-
-    return [startDate.toISOString().split('T')[0], '2099-12-31'];
-  };
-
-  // Filter transactions
-  const filteredTransactions = useMemo(() => {
+  // Format transactions for display
+  const formattedTransactions = React.useMemo(() => {
     if (!transactionsQuery.data) return [];
 
-    let startDate: string;
-    let endDate: string;
+    return transactionsQuery.data.map((t: any) => {
+      const category = t.category?.[0];
+      const account = t.account?.[0];
+      const splits = t.expenseSplits || [];
+      const isShared = splits.length > 0;
 
-    // Use custom date range if month filter is applied
-    if (customDateStart && customDateEnd) {
-      startDate = customDateStart;
-      endDate = customDateEnd;
-    } else {
-      [startDate, endDate] = getDateRangeFilter(dateRange);
-    }
+      let paidByYou = false;
+      let partnerName = '';
+      let partnerOwes = 0;
+      let youOwe = 0;
 
-    // Get today's date for future filtering
-    const today = new Date();
-    today.setHours(23, 59, 59, 999); // End of today
-    const todayStr = today.toISOString().split('T')[0];
-
-    return (transactionsQuery.data ?? [])
-      .filter((tx) => {
-        // Date range filter
-        if (tx.date < startDate || tx.date > endDate) return false;
-
-        // Exclude future transactions (they show in "Upcoming" section)
-        if (tx.date > todayStr) return false;
-
-        // Type filter
-        if (transactionType !== 'all' && tx.type !== transactionType) return false;
-
-        // Category filter
-        if (selectedCategories.length > 0 && !selectedCategories.includes(tx.categoryId)) return false;
-
-        // Account filter
-        if (selectedWallets.length > 0 && !selectedWallets.includes(tx.accountId)) return false;
-
-        return true;
-      });
-  }, [transactionsQuery.data, dateRange, transactionType, selectedCategories, selectedWallets, customDateStart, customDateEnd]);
-
-  // Enrich transactions with category and account names
-  const enrichedTransactions: TransactionWithDetails[] = filteredTransactions.map((tx) => {
-    const category = categoriesQuery.data?.find((c) => c.id === tx.categoryId);
-    const account = accountsQuery.data?.find((a) => a.id === tx.accountId);
-    return {
-      ...tx,
-      categoryName: category?.name,
-      accountName: account?.name,
-    };
-  });
-
-  // Group transactions by date
-  const groupedTransactions: SectionData[] = useMemo(() => {
-    const dateMap = new Map<string, TransactionWithDetails[]>();
-
-    enrichedTransactions.forEach((tx) => {
-      const dateKey = tx.date;
-      if (!dateMap.has(dateKey)) {
-        dateMap.set(dateKey, []);
+      if (isShared && splits.length > 0) {
+        const split = splits[0];
+        paidByYou = split.paidByUserId === householdQuery.data?.userId;
+        const partner = paidByYou ? split.beneficiaryUser?.[0] : split.paidByUser?.[0];
+        partnerName = partner?.name || 'Partner';
+        partnerOwes = paidByYou ? split.amount : 0;
+        youOwe = !paidByYou ? split.amount : 0;
       }
-      dateMap.get(dateKey)!.push(tx);
+
+      return {
+        id: t.id,
+        type: t.type,
+        amount: t.amount,
+        payee: t.payee || 'Unknown',
+        categoryName: category?.name || 'Uncategorized',
+        categoryId: t.categoryId,
+        walletName: account?.name || 'Cash',
+        emoji: category?.emoji || '📝',
+        date: t.date,
+        note: t.note,
+        isShared,
+        paidByYou,
+        partnerName,
+        partnerOwes,
+        youOwe,
+      };
     });
+  }, [transactionsQuery.data, householdQuery.data?.userId]);
 
-    return Array.from(dateMap.entries())
-      .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime())
-      .map(([date, txs]) => ({
-        title: formatDateSwiss(date),
-        data: txs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)), // Sort by creation time, newest first
-      }));
-  }, [enrichedTransactions]);
+  // Format recurring transactions
+  const formattedRecurring = React.useMemo(() => {
+    if (!recurringQuery.data) return [];
 
-  // Calculate summary stats
-  const stats = useMemo(() => {
-    let totalIncome = 0;
-    let totalExpense = 0;
+    return recurringQuery.data.map((r: any) => {
+      const category = r.category?.[0];
+      return {
+        id: r.id,
+        type: r.type,
+        amount: r.amount,
+        payee: r.payee || 'Unknown',
+        emoji: category?.emoji || '📝',
+        dayOfMonth: r.dayOfMonth,
+        isActive: r.isActive,
+        isShared: r.isShared || false,
+        partnerName: 'Partner',
+      };
+    });
+  }, [recurringQuery.data]);
 
-    enrichedTransactions.forEach((tx) => {
-      if (tx.type === 'income') {
-        totalIncome += tx.amount;
-      } else {
-        totalExpense += tx.amount;
+  // Use filter hook with search
+  const { filters, setFilters, filteredTransactions, groupedByDate } = useTransactionFilters(
+    formattedTransactions
+  );
+
+  // Apply search query separately
+  const searchFilteredTransactions = React.useMemo(() => {
+    if (!searchQuery.trim()) return filteredTransactions;
+
+    const query = searchQuery.toLowerCase();
+    return filteredTransactions.filter((t: any) => {
+      const payee = (t.payee || '').toLowerCase();
+      const note = (t.note || '').toLowerCase();
+      const categoryName = (t.categoryName || '').toLowerCase();
+      return payee.includes(query) || note.includes(query) || categoryName.includes(query);
+    });
+  }, [filteredTransactions, searchQuery]);
+
+  // Regroup by date after search
+  const searchGroupedByDate = React.useMemo(() => {
+    const grouped: Record<string, any[]> = {};
+    searchFilteredTransactions.forEach((transaction: any) => {
+      const date = transaction.date.split('T')[0];
+      if (!grouped[date]) {
+        grouped[date] = [];
       }
+      grouped[date].push(transaction);
     });
+    return grouped;
+  }, [searchFilteredTransactions]);
 
-    return {
-      income: totalIncome,
-      expense: totalExpense,
-      net: totalIncome - totalExpense,
-    };
-  }, [enrichedTransactions]);
-
-  const isLoading =
-    householdQuery.isLoading || transactionsQuery.isLoading || categoriesQuery.isLoading || accountsQuery.isLoading;
-
-  const hasActiveFilters = monthFilterLabel !== null || dateRange !== 'all_time' || transactionType !== 'all' || selectedCategories.length > 0 || selectedWallets.length > 0;
-
-  const clearAllFilters = () => {
-    setDateRange('all_time');
-    setTransactionType('all');
-    setSelectedCategories([]);
-    setSelectedWallets([]);
-    setCustomDateStart(null);
-    setCustomDateEnd(null);
-    setMonthFilterLabel(null);
-  };
+  const categories = (categoriesQuery.data || []).map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    emoji: c.emoji || '📝',
+  }));
+  const isLoading = householdQuery.isLoading || transactionsQuery.isLoading;
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-      {/* Header */}
-      <View className="px-6 pt-4 pb-3">
-        <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-3xl font-bold" style={{ color: '#006A6A' }}>
+    <LinearGradient colors={['#1A1C1E', '#2C5F5D']} style={{ flex: 1 }}>
+      <StickyStatusBar scrollY={scrollY} />
+
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        contentContainerStyle={{
+          paddingTop: (insets.top || 44) + 16,
+          paddingHorizontal: 20,
+          paddingBottom: 100,
+        }}
+      >
+        {/* Header */}
+        <View className="flex-row items-center justify-between mb-6">
+          <Text
+            className="text-[28px] font-bold"
+            style={{ color: 'rgba(255,255,255,0.95)' }}
+          >
             Transactions
           </Text>
+
           <Pressable
-            onPress={() => router.push('/transactions/add')}
-            className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: '#006A6A' }}
+            onPress={() => setIsFilterOpen(true)}
+            className="items-center justify-center rounded-xl"
+            style={{
+              width: 40,
+              height: 40,
+              backgroundColor: 'rgba(255,255,255,0.03)',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.05)',
+            }}
           >
-            <Plus size={20} color="white" />
+            <Settings size={20} color="rgba(255,255,255,0.9)" strokeWidth={2} />
           </Pressable>
         </View>
-      </View>
 
-      {isLoading ? (
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#006A6A" />
-        </View>
-      ) : enrichedTransactions.length === 0 ? (
-        <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24 }}>
-          {/* Filters even when no transactions */}
-          <View className="mb-6">
-            <Text className="text-sm font-semibold text-gray-700 mb-3">Filters</Text>
-            <View className="flex-row gap-2 flex-wrap">
-              <Pressable
-                onPress={() => setShowDateRangeModal(true)}
-                className="px-3 py-2 rounded-full border border-gray-300"
-              >
-                <Text className="text-xs font-medium text-gray-700">📅 {dateRange.replace(/_/g, ' ')}</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setShowTypeModal(true)}
-                className="px-3 py-2 rounded-full border border-gray-300"
-              >
-                <Text className="text-xs font-medium text-gray-700">💰 {transactionType === 'all' ? 'All Types' : transactionType}</Text>
-              </Pressable>
-              <View className={cn('flex-row items-center rounded-full',
-                selectedCategories.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
-              )}>
-                <Pressable
-                  onPress={() => setShowCategoryModal(true)}
-                  className="px-3 py-2"
-                >
-                  <Text className={cn('text-xs font-medium',
-                    selectedCategories.length === 0 ? 'text-gray-700' : 'text-teal-700'
-                  )}>
-                    🏷️ {selectedCategories.length === 0
-                      ? 'All Categories'
-                      : selectedCategories.length === 1
-                        ? (() => {
-                            const cat = categoriesQuery.data?.find((c: any) => c.id === selectedCategories[0]);
-                            return cat ? cat.name : '1 selected';
-                          })()
-                        : `${selectedCategories.length} selected`}
-                  </Text>
-                </Pressable>
-                {selectedCategories.length > 0 && (
-                  <Pressable
-                    onPress={() => setSelectedCategories([])}
-                    className="pr-3 py-2"
-                    hitSlop={{ top: 10, bottom: 10, left: 5, right: 10 }}
-                  >
-                    <Text className="text-xs font-medium text-teal-700">×</Text>
-                  </Pressable>
-                )}
-              </View>
-              {monthFilterLabel && (
-                <Pressable
-                  onPress={clearAllFilters}
-                  className="px-3 py-2 rounded-full bg-teal-100 flex-row items-center gap-1"
-                >
-                  <Text className="text-xs font-medium text-teal-700">{monthFilterLabel}</Text>
-                  <Text className="text-xs font-medium text-teal-700">×</Text>
-                </Pressable>
-              )}
-              {hasActiveFilters && (
-                <Pressable
-                  onPress={clearAllFilters}
-                  className="px-3 py-2 rounded-full bg-gray-100"
-                >
-                  <Text className="text-xs font-medium text-gray-700">Clear</Text>
-                </Pressable>
-              )}
-            </View>
-          </View>
-
-          {/* Empty State */}
-          <View className="flex-1 justify-center items-center">
-            <View
-              className="w-20 h-20 rounded-full items-center justify-center mb-4"
-              style={{ backgroundColor: 'rgba(0, 106, 106, 0.1)' }}
-            >
-              <AlertCircle size={40} color="#006A6A" />
-            </View>
-            <Text className="text-xl font-bold mb-2 text-center" style={{ color: '#1F2937' }}>
-              {hasActiveFilters ? 'No transactions found' : 'No transactions yet'}
-            </Text>
-            <Text className="text-sm text-center mb-6" style={{ color: '#6B7280' }}>
-              {hasActiveFilters ? 'Try adjusting your filters' : 'Start tracking your finances by adding your first transaction'}
-            </Text>
-            {hasActiveFilters ? (
-              <Pressable
-                onPress={clearAllFilters}
-                className="rounded-full px-6 py-3"
-                style={{ backgroundColor: '#006A6A' }}
-              >
-                <Text className="text-white font-bold text-sm">Clear Filters</Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={() => router.push('/transactions/add')}
-                className="rounded-full px-6 py-3"
-                style={{ backgroundColor: '#006A6A' }}
-              >
-                <Text className="text-white font-bold text-sm">Add Your First Transaction</Text>
-              </Pressable>
-            )}
-          </View>
-        </ScrollView>
-      ) : (
-        <View className="flex-1">
-          {/* Filter Bar */}
-          <View className="px-6 pb-4 border-b border-gray-200">
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
-              <Pressable
-                onPress={() => setShowDateRangeModal(true)}
-                className="px-3 py-2 rounded-full border border-gray-300 flex-row items-center gap-1"
-              >
-                <Text className="text-xs font-medium text-gray-700">📅</Text>
-                <Text className="text-xs font-medium text-gray-700">{dateRange.replace(/_/g, ' ')}</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => setShowTypeModal(true)}
-                className="px-3 py-2 rounded-full border border-gray-300 flex-row items-center gap-1"
-              >
-                <Text className="text-xs font-medium text-gray-700">💰</Text>
-                <Text className="text-xs font-medium text-gray-700">
-                  {transactionType === 'all' ? 'All Types' : transactionType.charAt(0).toUpperCase() + transactionType.slice(1)}
-                </Text>
-              </Pressable>
-
-              <View className={cn('flex-row items-center rounded-full',
-                selectedCategories.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
-              )}>
-                <Pressable
-                  onPress={() => setShowCategoryModal(true)}
-                  className="px-3 py-2 flex-row items-center gap-1"
-                >
-                  <Text className="text-xs font-medium text-gray-700">🏷️</Text>
-                  <Text className={cn('text-xs font-medium',
-                    selectedCategories.length === 0 ? 'text-gray-700' : 'text-teal-700'
-                  )}>
-                    {selectedCategories.length === 0
-                      ? 'All Categories'
-                      : selectedCategories.length === 1
-                        ? (() => {
-                            const cat = categoriesQuery.data?.find((c: any) => c.id === selectedCategories[0]);
-                            return cat ? cat.name : '1 selected';
-                          })()
-                        : `${selectedCategories.length} selected`}
-                  </Text>
-                </Pressable>
-                {selectedCategories.length > 0 && (
-                  <Pressable
-                    onPress={() => setSelectedCategories([])}
-                    className="pr-3 py-2"
-                    hitSlop={{ top: 10, bottom: 10, left: 5, right: 10 }}
-                  >
-                    <Text className="text-xs font-medium text-teal-700">×</Text>
-                  </Pressable>
-                )}
-              </View>
-
-              <View className={cn('flex-row items-center rounded-full',
-                selectedWallets.length === 0 ? 'border border-gray-300' : 'bg-teal-100'
-              )}>
-                <Pressable
-                  onPress={() => setShowAccountModal(true)}
-                  className="px-3 py-2 flex-row items-center gap-1"
-                >
-                  <Text className="text-xs font-medium text-gray-700">💳</Text>
-                  <Text className={cn('text-xs font-medium',
-                    selectedWallets.length === 0 ? 'text-gray-700' : 'text-teal-700'
-                  )}>
-                    {selectedWallets.length === 0 ? 'All Wallets' : `${selectedWallets.length} selected`}
-                  </Text>
-                </Pressable>
-                {selectedWallets.length > 0 && (
-                  <Pressable
-                    onPress={() => setSelectedWallets([])}
-                    className="pr-3 py-2"
-                    hitSlop={{ top: 10, bottom: 10, left: 5, right: 10 }}
-                  >
-                    <Text className="text-xs font-medium text-teal-700">×</Text>
-                  </Pressable>
-                )}
-              </View>
-
-              {monthFilterLabel && (
-                <Pressable
-                  onPress={clearAllFilters}
-                  className="px-3 py-2 rounded-full bg-teal-100 flex-row items-center gap-1"
-                >
-                  <Text className="text-xs font-medium text-teal-700">{monthFilterLabel}</Text>
-                  <Text className="text-xs font-medium text-teal-700">×</Text>
-                </Pressable>
-              )}
-
-              {hasActiveFilters && !monthFilterLabel && (
-                <Pressable
-                  onPress={clearAllFilters}
-                  className="px-3 py-2 rounded-full bg-red-100"
-                >
-                  <Text className="text-xs font-medium text-red-700">✕ Clear</Text>
-                </Pressable>
-              )}
-            </ScrollView>
-          </View>
-
-          {/* Upcoming Recurring Section */}
-          {householdQuery.data?.userRecord?.id && householdQuery.data?.householdId && (
-            <UpcomingRecurringSection
-              userId={householdQuery.data.userRecord.id}
-              householdId={householdQuery.data.householdId}
-            />
-          )}
-
-          {/* Transaction List */}
-          <SectionList
-            sections={groupedTransactions}
-            keyExtractor={(item) => item.id || ''}
-            renderItem={({ item: tx }) => {
-              const isIncome = tx.type === 'income';
-              const isDeleting = deleteMutation.isPending && deleteConfirmId === tx.id;
-              const isOtherUser = tx.userId !== householdQuery.data?.userRecord?.id;
-
-              return (
-                <View>
-                  {deleteConfirmId === tx.id ? (
-                    <View className="mx-4 mb-3 p-4 rounded-2xl" style={{ backgroundColor: '#FEF2F2' }}>
-                      <Text className="text-sm font-semibold mb-3" style={{ color: '#DC2626' }}>
-                        Delete this transaction?
-                      </Text>
-                      <View className="flex-row gap-2">
-                        <Pressable
-                          onPress={() => setDeleteConfirmId(null)}
-                          className="flex-1 rounded-lg py-2"
-                          style={{ backgroundColor: '#E5E7EB' }}
-                        >
-                          <Text className="text-center text-sm font-semibold" style={{ color: '#374151' }}>
-                            Cancel
-                          </Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => tx.id && deleteMutation.mutate(tx.id)}
-                          disabled={isDeleting}
-                          className="flex-1 rounded-lg py-2"
-                          style={{ backgroundColor: '#DC2626' }}
-                        >
-                          {isDeleting ? (
-                            <ActivityIndicator size="small" color="white" />
-                          ) : (
-                            <Text className="text-center text-sm font-semibold text-white">Delete</Text>
-                          )}
-                        </Pressable>
-                      </View>
-                    </View>
-                  ) : (
-                    <Pressable
-                      onPress={() => tx.id && router.push(`/transactions/${tx.id}/edit`)}
-                      onLongPress={() => setDeleteConfirmId(tx.id || null)}
-                      className="mx-4 mb-3 p-4 rounded-2xl flex-row justify-between items-center"
-                      style={{ backgroundColor: '#F9FAFB' }}
-                    >
-                      <View className="flex-1 flex-row items-center">
-                        <View
-                          className="w-12 h-12 rounded-full items-center justify-center mr-3"
-                          style={{
-                            backgroundColor: isIncome ? 'rgba(139, 157, 139, 0.15)' : 'rgba(220, 38, 38, 0.15)',
-                          }}
-                        >
-                          {isIncome ? (
-                            <ArrowUpRight size={20} color="#8B9D8B" />
-                          ) : (
-                            <ArrowDownLeft size={20} color="#DC2626" />
-                          )}
-                        </View>
-                        <View className="flex-1">
-                          {/* Payee (if present) - prominent display */}
-                          {tx.payee && (
-                            <Text className="text-base font-semibold text-gray-900 mb-1">
-                              {tx.payee}
-                            </Text>
-                          )}
-                          <View className="flex-row items-center gap-2">
-                            <Text className="font-semibold text-sm" style={{ color: '#1F2937' }}>
-                              {tx.categoryName || 'Unknown'}
-                            </Text>
-                            {isOtherUser && (
-                              <Text className="text-xs" style={{ color: '#9CA3AF' }}>
-                                ({tx.creatorName})
-                              </Text>
-                            )}
-                          </View>
-                          <Text className="text-xs" style={{ color: '#9CA3AF' }}>
-                            {tx.accountName || 'Unknown Account'}
-                          </Text>
-                          {/* Note (if present and no payee) */}
-                          {!tx.payee && tx.note && (
-                            <Text className="text-xs text-gray-500 mt-1">
-                              {tx.note}
-                            </Text>
-                          )}
-                        </View>
-                      </View>
-
-                      <View className="flex-row items-center gap-2">
-                        <View className="items-end">
-                          <Text
-                            className="font-bold text-sm"
-                            style={{
-                              color: isIncome ? '#8B9D8B' : '#DC2626',
-                            }}
-                          >
-                            {isIncome ? '+' : '-'}
-                            {formatCurrency(tx.amount)}
-                          </Text>
-                        </View>
-                        {/* Shared badge */}
-                        {tx.isShared && (
-                          <View className="bg-purple-100 px-2 py-1 rounded-full">
-                            <Text className="text-xs text-purple-700 font-semibold">Shared</Text>
-                          </View>
-                        )}
-                      </View>
-                    </Pressable>
-                  )}
-                </View>
-              );
-            }}
-            renderSectionHeader={({ section: { title } }) => (
-              <View className="px-6 py-3 bg-white">
-                <Text className="font-semibold text-sm" style={{ color: '#6B7280' }}>
-                  {title}
-                </Text>
-              </View>
-            )}
-            scrollEnabled={true}
-            contentContainerStyle={{ paddingBottom: 100 }}
+        {/* Search Bar */}
+        <View
+          className="flex-row items-center rounded-2xl mb-4"
+          style={{
+            backgroundColor: 'rgba(255,255,255,0.03)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.05)',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+          }}
+        >
+          <Search size={16} color="rgba(255,255,255,0.5)" />
+          <TextInput
+            className="flex-1 ml-2 text-sm"
+            placeholder="Search transactions..."
+            placeholderTextColor="rgba(255,255,255,0.3)"
+            style={{ color: 'rgba(255,255,255,0.9)' }}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
         </View>
-      )}
 
-      {/* Filter Modals */}
-      {/* Date Range Modal */}
-      <Modal visible={showDateRangeModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowDateRangeModal(false)}>
-        <View className="flex-1 bg-white">
-          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
-            <Text className="text-lg font-bold">Select Date Range</Text>
-            <Pressable onPress={() => setShowDateRangeModal(false)}>
-              <X size={24} color="#006A6A" />
-            </Pressable>
+        {/* Recurring Section */}
+        {formattedRecurring.length > 0 && (
+          <RecurringSection
+            recurringTransactions={formattedRecurring}
+            onEdit={(id) => router.push(`/transactions/${id}`)}
+          />
+        )}
+
+        {/* Transaction List (Grouped by Date) */}
+        {isLoading ? (
+          <View className="items-center justify-center py-20">
+            <Text style={{ color: 'rgba(255,255,255,0.5)' }}>Loading transactions...</Text>
           </View>
-          <ScrollView className="flex-1 px-6 py-4">
-            {(['this_week', 'this_month', 'last_month', 'last_3_months', 'this_year', 'all_time'] as DateRange[]).map((range) => (
-              <Pressable
-                key={range}
-                onPress={() => {
-                  setDateRange(range);
-                  setShowDateRangeModal(false);
-                }}
-                className={cn(
-                  'p-4 rounded-lg mb-2 border-2',
-                  dateRange === range ? 'border-teal-600 bg-teal-50' : 'border-gray-200'
-                )}
+        ) : Object.keys(searchGroupedByDate).length > 0 ? (
+          Object.entries(searchGroupedByDate).map(([date, transactions]) => (
+            <View key={date} className="mb-4">
+              <Text
+                className="text-sm font-semibold mb-2 ml-1"
+                style={{ color: 'rgba(255,255,255,0.7)' }}
               >
-                <Text className={cn('font-semibold text-base', dateRange === range ? 'text-teal-600' : 'text-gray-900')}>
-                  {range.replace(/_/g, ' ').charAt(0).toUpperCase() + range.replace(/_/g, ' ').slice(1)}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      </Modal>
-
-      {/* Type Modal */}
-      <Modal visible={showTypeModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowTypeModal(false)}>
-        <View className="flex-1 bg-white">
-          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
-            <Text className="text-lg font-bold">Select Type</Text>
-            <Pressable onPress={() => setShowTypeModal(false)}>
-              <X size={24} color="#006A6A" />
-            </Pressable>
-          </View>
-          <ScrollView className="flex-1 px-6 py-4">
-            {(['all', 'income', 'expense'] as TransactionType[]).map((type) => (
-              <Pressable
-                key={type}
-                onPress={() => {
-                  setTransactionType(type);
-                  setShowTypeModal(false);
-                }}
-                className={cn(
-                  'p-4 rounded-lg mb-2 border-2',
-                  transactionType === type ? 'border-teal-600 bg-teal-50' : 'border-gray-200'
-                )}
-              >
-                <Text className={cn('font-semibold text-base', transactionType === type ? 'text-teal-600' : 'text-gray-900')}>
-                  {type === 'all' ? 'All Types' : type.charAt(0).toUpperCase() + type.slice(1)}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      </Modal>
-
-      {/* Category Modal */}
-      <Modal visible={showCategoryModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCategoryModal(false)}>
-        <View className="flex-1 bg-white">
-          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
-            <Text className="text-lg font-bold">Select Categories</Text>
-            <Pressable onPress={() => setShowCategoryModal(false)}>
-              <X size={24} color="#006A6A" />
-            </Pressable>
-          </View>
-          <ScrollView className="flex-1 px-6 py-4">
-            <Pressable
-              onPress={() => setSelectedCategories([])}
-              className={cn('p-4 rounded-lg mb-2 border-2', selectedCategories.length === 0 ? 'border-teal-600 bg-teal-50' : 'border-gray-200')}
-            >
-              <Text className={cn('font-semibold text-base', selectedCategories.length === 0 ? 'text-teal-600' : 'text-gray-900')}>
-                All Categories
+                {formatDateHeader(date)}
               </Text>
-            </Pressable>
-            {categoriesQuery.data?.map((category) => {
-              const catId = category.id || '';
-              return (
-                <Pressable
-                  key={catId}
-                  onPress={() => {
-                    setSelectedCategories((prev) =>
-                      prev.includes(catId) ? prev.filter((id) => id !== catId) : [...prev, catId]
-                    );
-                  }}
-                  className={cn(
-                    'p-4 rounded-lg mb-2 border-2 flex-row items-center',
-                    selectedCategories.includes(catId) ? 'border-teal-600 bg-teal-50' : 'border-gray-200'
-                  )}
-                >
-                  <Text className={cn('font-semibold text-base flex-1', selectedCategories.includes(catId) ? 'text-teal-600' : 'text-gray-900')}>
-                    {category.name}
-                  </Text>
-                  {selectedCategories.includes(catId) && <Text className="text-teal-600">✓</Text>}
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </Modal>
-
-      {/* Wallet Modal */}
-      <Modal visible={showAccountModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAccountModal(false)}>
-        <View className="flex-1 bg-white">
-          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
-            <Text className="text-lg font-bold">Select Wallets</Text>
-            <Pressable onPress={() => setShowAccountModal(false)}>
-              <X size={24} color="#006A6A" />
-            </Pressable>
-          </View>
-          <ScrollView className="flex-1 px-6 py-4">
-            <Pressable
-              onPress={() => setSelectedWallets([])}
-              className={cn('p-4 rounded-lg mb-2 border-2', selectedWallets.length === 0 ? 'border-teal-600 bg-teal-50' : 'border-gray-200')}
+              {(transactions as any[]).map((transaction) => (
+                <TransactionListItem
+                  key={transaction.id}
+                  transaction={transaction}
+                  onClick={() => router.push(`/transactions/${transaction.id}`)}
+                />
+              ))}
+            </View>
+          ))
+        ) : (
+          <View className="items-center justify-center py-20">
+            <Text className="text-5xl mb-4">📊</Text>
+            <Text
+              className="text-center text-sm"
+              style={{ color: 'rgba(255,255,255,0.5)', lineHeight: 20 }}
             >
-              <Text className={cn('font-semibold text-base', selectedWallets.length === 0 ? 'text-teal-600' : 'text-gray-900')}>
-                All Wallets
-              </Text>
-            </Pressable>
-            {accountsQuery.data?.map((account) => {
-              const accId = account.id || '';
-              return (
-                <Pressable
-                  key={accId}
-                  onPress={() => {
-                    setSelectedWallets((prev) =>
-                      prev.includes(accId) ? prev.filter((id) => id !== accId) : [...prev, accId]
-                    );
-                  }}
-                  className={cn(
-                    'p-4 rounded-lg mb-2 border-2 flex-row items-center',
-                    selectedWallets.includes(accId) ? 'border-teal-600 bg-teal-50' : 'border-gray-200'
-                  )}
-                >
-                  <View className="flex-1">
-                    <Text className={cn('font-semibold text-base', selectedWallets.includes(accId) ? 'text-teal-600' : 'text-gray-900')}>
-                      {account.name}
-                    </Text>
-                    <Text className="text-xs text-gray-600">{formatCurrency(account.balance)}</Text>
-                  </View>
-                  {selectedWallets.includes(accId) && <Text className="text-teal-600">✓</Text>}
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </Modal>
-    </SafeAreaView>
+              No transactions found.{'\n'}
+              Tap + to add your first transaction.
+            </Text>
+          </View>
+        )}
+      </Animated.ScrollView>
+
+      {/* FAB */}
+      <Pressable
+        onPress={() => router.push('/transactions/add')}
+        className="absolute items-center justify-center rounded-full"
+        style={{
+          bottom: (insets.bottom || 20) + 24,
+          right: 24,
+          width: 64,
+          height: 64,
+          backgroundColor: 'rgba(255,255,255,0.9)',
+          borderWidth: 2,
+          borderColor: '#2C5F5D',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.3,
+          shadowRadius: 24,
+          elevation: 8,
+        }}
+      >
+        <Plus size={28} color="#2C5F5D" strokeWidth={2.5} />
+      </Pressable>
+
+      {/* Filter Modal */}
+      <TransactionFilters
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        filters={filters}
+        onApplyFilters={setFilters}
+        categories={categories}
+      />
+    </LinearGradient>
   );
 }
