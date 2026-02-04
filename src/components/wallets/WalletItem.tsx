@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { CreditCard, Wallet, PiggyBank, Banknote, TrendingUp } from 'lucide-react-native';
 import { formatCurrency } from '@/lib/formatCurrency';
 import { colors } from '@/lib/design-tokens';
 
@@ -16,25 +15,7 @@ interface WalletItemProps {
 }
 
 /**
- * Get the appropriate icon for a wallet type
- */
-function getWalletIcon(type: string) {
-  switch (type.toLowerCase()) {
-    case 'credit card':
-      return CreditCard;
-    case 'savings':
-      return PiggyBank;
-    case 'cash':
-      return Banknote;
-    case 'investment':
-      return TrendingUp;
-    default:
-      return Wallet;
-  }
-}
-
-/**
- * WalletItem - Individual wallet/account row in the Wallets Card
+ * WalletItem - Individual wallet/account row
  * Uses neutral colors for negative balances (NO RED!)
  */
 export function WalletItem({
@@ -47,7 +28,6 @@ export function WalletItem({
   animationDelay = 0,
 }: WalletItemProps) {
   const isNegative = balance < 0;
-  const Icon = getWalletIcon(type);
 
   return (
     <Animated.View
@@ -55,33 +35,28 @@ export function WalletItem({
     >
       <Pressable
         onPress={onPress}
-        className="bg-white/[0.03] border border-white/5 rounded-xl p-4 mt-3 active:bg-white/[0.06]"
+        className="bg-white/[0.03] border border-white/5 rounded-xl p-4 mt-3"
+        style={({ pressed }) => ({
+          backgroundColor: pressed ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.03)',
+        })}
       >
-        <View className="flex-row items-center">
-          {/* Icon */}
-          <View
-            className="w-10 h-10 rounded-xl items-center justify-center mr-3"
-            style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}
-          >
-            <Icon
-              size={20}
-              color={isNegative ? colors.neutral600 : 'rgba(255, 255, 255, 0.7)'}
-            />
-          </View>
-
+        <View className="flex-row justify-between items-start">
           {/* Left: Name and details */}
-          <View className="flex-1">
-            <View className="flex-row items-center gap-2 mb-1">
+          <View>
+            <View className="flex-row items-center mb-1">
               <Text
-                className="text-white/90 font-medium"
+                className="text-white font-medium"
                 style={{ fontSize: 15 }}
               >
                 {name}
               </Text>
               {isDefault && (
                 <View
-                  className="px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: colors.contextTeal }}
+                  className="ml-2 px-2 rounded-full"
+                  style={{
+                    backgroundColor: colors.contextTeal,
+                    paddingVertical: 2,
+                  }}
                 >
                   <Text
                     className="text-white"
@@ -89,7 +64,6 @@ export function WalletItem({
                       fontSize: 8,
                       textTransform: 'uppercase',
                       letterSpacing: 0.5,
-                      fontWeight: '600',
                     }}
                   >
                     Default
@@ -97,7 +71,10 @@ export function WalletItem({
                 </View>
               )}
             </View>
-            <Text className="text-white/50" style={{ fontSize: 12 }}>
+            <Text
+              className="text-white/50"
+              style={{ fontSize: 12 }}
+            >
               {institution} • {type}
             </Text>
           </View>
@@ -107,15 +84,18 @@ export function WalletItem({
             <Text
               className="font-medium"
               style={{
-                fontSize: 15,
+                fontSize: 14,
                 fontVariant: ['tabular-nums'],
                 // CRITICAL: Use neutral gray for negative, NOT red!
-                color: isNegative ? colors.neutral600 : 'rgba(255, 255, 255, 0.95)',
+                color: isNegative ? '#64748B' : '#fff',
               }}
             >
               {formatCurrency(balance)}
             </Text>
-            <Text className="text-white/40 mt-0.5" style={{ fontSize: 10 }}>
+            <Text
+              className="text-white/50 mt-0.5"
+              style={{ fontSize: 10 }}
+            >
               {isNegative ? 'Amount Owed' : 'Balance'}
             </Text>
           </View>
