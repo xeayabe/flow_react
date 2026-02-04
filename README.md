@@ -165,6 +165,7 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
 ### Transaction System (US-014, US-018, US-020, & US-025)
 - ✅ **Add Transaction Page** - Glassmorphism dark theme with Flow design system
   - **Design**: Deep Teal (#2C5F5D) gradient background, frosted glass cards (rgba(255,255,255,0.03))
+  - **Sticky Status Bar**: Glassmorphism blur background (rgba(26,28,30,0.7)) appears when scrolling, white status bar text
   - **Type Toggle**: Income/Expense with dynamic category filtering and smooth transitions
   - **Amount Input**: Large 4xl font with Sage Green (#A8B5A1) accent, auto-focus on entry
   - **Shared Expenses Section**: Glassmorphism card with iOS-style toggle, "Who Paid?" selector, and split preview

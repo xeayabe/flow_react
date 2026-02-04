@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Check, Calendar, ChevronRight, Sparkles, ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { db } from '@/lib/db';
 import { createTransaction } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
@@ -22,6 +22,7 @@ import ExpandableCalendar from '@/components/transactions/ExpandableCalendar';
 import SaveFAB from '@/components/transactions/SaveFAB';
 import BottomSheetSelect from '@/components/transactions/BottomSheetSelect';
 import SharedExpenseSection from '@/components/transactions/SharedExpenseSection';
+import StickyStatusBar from '@/components/layout/StickyStatusBar';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -45,6 +46,13 @@ export default function AddTransactionScreen() {
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
   const amountInputRef = useRef<TextInput>(null);
+  const scrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
   const [showPayeePicker, setShowPayeePicker] = useState(false);
   const [suggestedCategoryId, setSuggestedCategoryId] = useState<string | null>(null);
@@ -294,8 +302,11 @@ export default function AddTransactionScreen() {
 
   return (
     <LinearGradient colors={['#1A1C1E', '#2C5F5D']} style={{ flex: 1 }}>
+      <StickyStatusBar scrollY={scrollY} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView
+        <Animated.ScrollView
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingTop: insets.top + 16,
@@ -525,7 +536,7 @@ export default function AddTransactionScreen() {
               )}
             </View>
           </Animated.View>
-        </ScrollView>
+        </Animated.ScrollView>
 
         {/* Floating Action Button */}
         <SaveFAB
