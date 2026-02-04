@@ -39,24 +39,25 @@ export function ContextLine({ percentUsed, remaining }: ContextLineProps) {
         />
       </View>
 
-      {/* Status labels */}
+      {/* Status labels - IMPROVED VISIBILITY */}
       <View className="flex-row justify-between items-center">
         <Text
-          className="font-medium"
+          className="font-semibold"
           style={{
-            fontSize: 9,
+            fontSize: 10,
             textTransform: 'uppercase',
-            letterSpacing: 1.5,
+            letterSpacing: 0.5,
             color: color,
           }}
         >
           {status}
         </Text>
         <Text
+          className="font-medium"
           style={{
-            fontSize: 9,
+            fontSize: 10,
             textTransform: 'uppercase',
-            letterSpacing: 1.5,
+            letterSpacing: 0.5,
             fontVariant: ['tabular-nums'],
             color: 'rgba(255, 255, 255, 0.85)',
           }}

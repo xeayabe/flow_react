@@ -7,11 +7,11 @@ export const colors = {
   contextLavender: '#B4A7D6',
   contextDark: '#1A1C1E',
 
-  // Budget Status (4-tier system - NO RED!)
-  budgetOnTrack: '#A8B5A1',      // 0-70%: Sage Green
-  budgetProgressing: '#D4A574',   // 70-90%: Soft Amber
-  budgetNearlyThere: '#2C5F5D',   // 90-100%: Deep Teal
-  budgetFlowAdjusted: '#B4A7D6',  // >100%: Soft Lavender
+  // Budget Status (4-tier system - BRIGHTENED for visibility on dark bg)
+  budgetOnTrack: '#C5D4BE',      // 0-70%: Brighter Sage Green
+  budgetProgressing: '#E5C399',   // 70-90%: Brighter Amber
+  budgetNearlyThere: '#4A8D89',   // 90-100%: Brighter Teal
+  budgetFlowAdjusted: '#D4C4ED',  // >100%: Brighter Lavender
 
   // Neutral (replaces harsh reds)
   neutral600: '#4B5563',
