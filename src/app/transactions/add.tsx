@@ -304,8 +304,18 @@ export default function AddTransactionScreen() {
         >
           {/* Header */}
           <Animated.View entering={FadeIn.duration(400)} className="flex-row items-center justify-between mb-6">
-            <Pressable onPress={() => router.back()} className="mr-4">
-              <ArrowLeft size={28} color="rgba(255,255,255,0.9)" strokeWidth={2} />
+            <Pressable
+              onPress={() => router.back()}
+              className="items-center justify-center rounded-xl mr-4"
+              style={{
+                width: 40,
+                height: 40,
+                backgroundColor: 'rgba(255,255,255,0.03)',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.05)',
+              }}
+            >
+              <ArrowLeft size={20} color="rgba(255,255,255,0.9)" strokeWidth={2} />
             </Pressable>
             <Text className="text-2xl font-bold flex-1" style={{ color: 'rgba(255,255,255,0.9)' }}>
               Add {formData.type === 'expense' ? 'Expense' : 'Income'}
