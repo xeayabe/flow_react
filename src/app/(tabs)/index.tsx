@@ -11,7 +11,7 @@ import { db } from '@/lib/db';
 import { getUserAccounts } from '@/lib/accounts-api';
 import { getRecentTransactions } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
-import { getBudgetDetails, recalculateBudgetSpentAmounts, checkAndResetBudgetIfNeeded, getMemberBudgetPeriod } from '@/lib/budget-api';
+import { getBudgetDetails, getBudgetSummary, recalculateBudgetSpentAmounts, checkAndResetBudgetIfNeeded, getMemberBudgetPeriod } from '@/lib/budget-api';
 import { getCurrentBudgetPeriod } from '@/lib/budget-period-utils';
 import { getRecentTransactionsWithCategories } from '@/lib/dashboard-helpers';
 import { extractEmoji } from '@/lib/extractEmoji';
@@ -135,11 +135,22 @@ export default function DashboardScreen() {
     enabled: !!userId,
   });
 
+  // Get budget summary (for accurate totals matching Budget screen)
+  const budgetSummaryQuery = useQuery({
+    queryKey: ['budget-summary', userId, householdId, budgetPeriod.start],
+    queryFn: async () => {
+      if (!userId || !householdId) return null;
+      return getBudgetSummary(userId, householdId, budgetPeriod.start);
+    },
+    enabled: !!userId && !!householdId,
+  });
+
   // Refetch when focused
   const { refetch: refetchBalance } = balanceQuery;
   const { refetch: refetchAccounts } = accountsQuery;
   const { refetch: refetchRecentTransactions } = recentTransactionsQuery;
   const { refetch: refetchBudgetDetails } = budgetDetailsQuery;
+  const { refetch: refetchBudgetSummary } = budgetSummaryQuery;
 
   useFocusEffect(
     useCallback(() => {
@@ -147,7 +158,8 @@ export default function DashboardScreen() {
       refetchAccounts();
       refetchRecentTransactions();
       refetchBudgetDetails();
-    }, [refetchBalance, refetchAccounts, refetchRecentTransactions, refetchBudgetDetails])
+      refetchBudgetSummary();
+    }, [refetchBalance, refetchAccounts, refetchRecentTransactions, refetchBudgetDetails, refetchBudgetSummary])
   );
 
   // Recalculate spent amounts when user/period data is available
@@ -163,11 +175,12 @@ export default function DashboardScreen() {
         budgetPeriod.end
       ).then(() => {
         refetchBudgetDetails();
+        refetchBudgetSummary();
       }).catch((error) => {
         console.warn('Failed to recalculate budget spent amounts:', error);
       });
     }
-  }, [userId, householdId, budgetDetailsQuery.isLoading, budgetDetailsQuery.data, budgetPeriod.start, budgetPeriod.end, hasRecalculated, refetchBudgetDetails]);
+  }, [userId, householdId, budgetDetailsQuery.isLoading, budgetDetailsQuery.data, budgetPeriod.start, budgetPeriod.end, hasRecalculated, refetchBudgetDetails, refetchBudgetSummary]);
 
   // Check if budget reset is needed on component mount
   React.useEffect(() => {
@@ -180,6 +193,7 @@ export default function DashboardScreen() {
             refetchAccounts();
             refetchRecentTransactions();
             refetchBudgetDetails();
+            refetchBudgetSummary();
           }, 500);
         }
       }).catch((error) => {
@@ -195,7 +209,8 @@ export default function DashboardScreen() {
     accountsQuery.isLoading ||
     recentTransactionsQuery.isLoading ||
     categoriesQuery.isLoading ||
-    budgetDetailsQuery.isLoading;
+    budgetDetailsQuery.isLoading ||
+    budgetSummaryQuery.isLoading;
 
   // Dark-themed loading state
   if (isLoading) {
@@ -221,6 +236,7 @@ export default function DashboardScreen() {
   const recentTransactions = recentTransactionsQuery.data || [];
   const categories = categoriesQuery.data || [];
   const budgetDetails = budgetDetailsQuery.data || [];
+  const budgetSummary = budgetSummaryQuery.data || { totalAllocated: 0, totalSpent: 0 };
 
   // Enrich recent transactions with category info
   const enrichedTransactions = getRecentTransactionsWithCategories(recentTransactions, categories, 10);
@@ -334,7 +350,10 @@ export default function DashboardScreen() {
           {/* 3. Budget Status Card */}
           {enrichedBudgets.length > 0 && (
             <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-              <BudgetStatusCard budgets={enrichedBudgets} />
+              <BudgetStatusCard
+                budgets={enrichedBudgets}
+                summaryTotals={budgetSummary}
+              />
             </Animated.View>
           )}
 

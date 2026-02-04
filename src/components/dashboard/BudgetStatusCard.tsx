@@ -20,20 +20,32 @@ interface Budget {
   spentAmount: number;
 }
 
+interface SummaryTotals {
+  totalAllocated: number;
+  totalSpent: number;
+}
+
 interface BudgetStatusCardProps {
   budgets: Budget[];
+  /** Optional summary totals from budgetSummary table (more accurate than calculating from budgets) */
+  summaryTotals?: SummaryTotals;
 }
 
 /**
  * Budget Status Card - Collapsible card showing all budget categories
  * Groups budgets and shows total remaining amount
  */
-export function BudgetStatusCard({ budgets }: BudgetStatusCardProps) {
+export function BudgetStatusCard({ budgets, summaryTotals }: BudgetStatusCardProps) {
   const [isOpen, setIsOpen] = useState(true);
 
-  // Calculate totals (round to 2 decimal places to match Budget screen)
-  const totalAllocated = Math.round(budgets.reduce((sum, b) => sum + b.allocatedAmount, 0) * 100) / 100;
-  const totalSpent = Math.round(budgets.reduce((sum, b) => sum + b.spentAmount, 0) * 100) / 100;
+  // Use summary totals if provided (from budgetSummary table), otherwise calculate from budgets
+  // This ensures the remaining amount matches the Budget screen exactly
+  const totalAllocated = summaryTotals
+    ? Math.round(summaryTotals.totalAllocated * 100) / 100
+    : Math.round(budgets.reduce((sum, b) => sum + b.allocatedAmount, 0) * 100) / 100;
+  const totalSpent = summaryTotals
+    ? Math.round(summaryTotals.totalSpent * 100) / 100
+    : Math.round(budgets.reduce((sum, b) => sum + b.spentAmount, 0) * 100) / 100;
   const totalRemaining = Math.round((totalAllocated - totalSpent) * 100) / 100;
 
   // Group budgets by category group
