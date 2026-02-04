@@ -4188,3 +4188,101 @@ After:
 - Transactions automatically included when date arrives
 - Consistent date filtering across all calculations
 
+### FEATURE: Redesigned Settlement Screen with Glassmorphism (2026-02-04)
+
+**Feature**: Complete redesign of the Settlement screen with modern glassmorphism UI, payer/receiver views, expense selection, and professional UX.
+
+**Problem**:
+The previous settlement flow was basic and didn't match the app's "Calm Financial Control" design philosophy. Users needed a more intuitive, visually appealing way to settle debts with household members.
+
+**Solution**:
+Implemented a comprehensive Settlement screen with two distinct views (Payer and Receiver), expense selection, category picker, wallet selector, and settlement summary.
+
+**Implementation**:
+
+**1. New Hook (`src/hooks/useSettlementData.ts`):**
+- Fetches all settlement-related data in one place
+- Returns: totalOwed, unsettledExpenses, partnerName, splitRatio, wallets, categories
+- Handles positive (you owe) and negative (you're owed) debt amounts
+- Automatic refetch every 10 seconds for real-time updates
+
+**2. New Components (`src/components/settlement/`):**
+
+**DebtSummaryCard.tsx**:
+- Displays "Amount Due" (payer) or "Amount Receivable" (receiver)
+- Shows partner name, large amount display (48px), split ratio explanation
+- Center-aligned glassmorphism card
+
+**ExpenseSelectionList.tsx (Payer)**:
+- Interactive expense selection with checkboxes
+- Each item shows: description, date, paid by, total amount, your share
+- Selection styling: teal background + teal border when selected
+- Checkbox: teal background with white checkmark when selected
+
+**ExpenseStatusList.tsx (Receiver)**:
+- Read-only display of outstanding payments
+- Same layout as SelectionList but without checkboxes
+- Subtle sage green border for visual distinction
+
+**CategorySelector.tsx**:
+- Modal picker for budget category selection
+- Categories grouped by: Needs, Wants, Savings, Other
+- Shows emoji + name for each category
+- Helper text: "How should this appear in your budget?"
+
+**WalletSelector.tsx**:
+- Radio button style wallet selection
+- Shows: wallet icon, name, institution/type, balance
+- White radio buttons when selected (per design spec)
+
+**SettlementSummary.tsx**:
+- Sage green info box showing selected count and total
+- Appears only when expenses are selected
+
+**3. Main Screen (`src/app/settlement/index.tsx`):**
+- **Payer View** (totalOwed > 0):
+  - Interactive expense selection (all unselected by default)
+  - Category dropdown (required, defaults to empty)
+  - Wallet selector (defaults to first wallet)
+  - Settlement summary with selected total
+  - Settle button with validation states
+- **Receiver View** (totalOwed < 0):
+  - Read-only expense list ("Outstanding" header)
+  - No settle button or selections
+
+**4. Settle Button States:**
+- **No expenses selected**: "Select expenses to continue" (disabled, teal bg)
+- **No category selected**: "Select a category to continue" (disabled, teal bg)
+- **Ready**: "Settle {amount} CHF" (enabled, white bg + teal text)
+- No external shadows (per design spec)
+
+**5. Design System:**
+- Deep Teal: #2C5F5D (primary action, borders)
+- Sage Green: #A8B5A1 (accents, status colors)
+- Glassmorphism: rgba(255,255,255,0.03) background, border rgba(255,255,255,0.05)
+- Selection: rgba(44,95,93,0.2) background + #2C5F5D border
+- Swiss currency formatting: 13'648.51 CHF
+
+**Files Created/Modified:**
+- `src/hooks/useSettlementData.ts` (NEW)
+- `src/components/settlement/DebtSummaryCard.tsx` (NEW)
+- `src/components/settlement/ExpenseSelectionList.tsx` (NEW)
+- `src/components/settlement/ExpenseStatusList.tsx` (NEW)
+- `src/components/settlement/CategorySelector.tsx` (NEW)
+- `src/components/settlement/WalletSelector.tsx` (NEW)
+- `src/components/settlement/SettlementSummary.tsx` (NEW)
+- `src/app/settlement/index.tsx` (NEW)
+- `src/app/settlement/_layout.tsx` (NEW)
+
+**Result:**
+- ✅ Payer view shows interactive settlement interface
+- ✅ Receiver view shows read-only status
+- ✅ All expenses unselected by default
+- ✅ Category dropdown defaults to empty (required)
+- ✅ Settle button uses white bg + teal text when enabled
+- ✅ Radio buttons are white when selected
+- ✅ Professional labels throughout
+- ✅ Settlement creates transactions and marks splits as settled
+- ✅ Validation prevents settlement without selections
+- ✅ Glassmorphism design matches dashboard aesthetic
+
