@@ -300,11 +300,16 @@ export default function TransactionsTabScreen() {
   const handleDelete = async (transactionId: string) => {
     try {
       console.log('🗑️ Deleting transaction:', transactionId);
-      // @ts-ignore - InstantDB types
-      await db.transact([
-        // @ts-ignore
-        db.tx.transactions[transactionId].delete()
-      ]);
+
+      // Use the proper delete API that handles account balance updates
+      const { deleteTransaction } = await import('@/lib/transactions-api');
+      const result = await deleteTransaction(transactionId);
+
+      if (!result.success) {
+        console.error('❌ Delete failed:', result.error);
+        return;
+      }
+
       console.log('✅ Transaction deleted successfully');
       // Invalidate queries to refresh all data
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
