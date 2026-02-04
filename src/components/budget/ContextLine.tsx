@@ -53,12 +53,12 @@ export function ContextLine({ percentUsed, remaining }: ContextLineProps) {
           {status}
         </Text>
         <Text
-          className="opacity-50"
           style={{
             fontSize: 9,
             textTransform: 'uppercase',
             letterSpacing: 1.5,
             fontVariant: ['tabular-nums'],
+            color: 'rgba(255, 255, 255, 0.85)',
           }}
         >
           {formatCurrency(remaining, { showCurrency: false })} left
