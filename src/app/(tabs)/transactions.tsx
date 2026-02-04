@@ -401,23 +401,34 @@ export default function TransactionsTabScreen() {
       {/* FAB */}
       <Pressable
         onPress={() => router.push('/transactions/add')}
-        className="absolute items-center justify-center rounded-full"
+        className="absolute items-center justify-center"
         style={{
-          bottom: (insets.bottom || 20) + 24,
-          right: 24,
+          bottom: 20,
+          right: 20,
           width: 64,
           height: 64,
-          backgroundColor: 'rgba(255,255,255,0.9)',
-          borderWidth: 2,
-          borderColor: '#2C5F5D',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.3,
-          shadowRadius: 24,
+          borderRadius: 32,
+          backgroundColor: '#2C5F5D',
+          // Triple-layer glow effect
+          shadowColor: '#A8B5A1',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.4,
+          shadowRadius: 20,
           elevation: 8,
         }}
       >
-        <Plus size={28} color="#2C5F5D" strokeWidth={2.5} />
+        {/* Inner glow ring */}
+        <View
+          style={{
+            position: 'absolute',
+            width: 64,
+            height: 64,
+            borderRadius: 32,
+            borderWidth: 2,
+            borderColor: 'rgba(168, 181, 161, 0.3)',
+          }}
+        />
+        <Plus size={28} color="#fff" strokeWidth={2.5} />
       </Pressable>
 
       {/* Filter Modal */}
