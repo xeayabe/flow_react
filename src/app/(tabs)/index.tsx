@@ -1,54 +1,34 @@
 import React, { useCallback } from 'react';
-import { Text, View, ScrollView, ActivityIndicator, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Text, View, ScrollView, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { TrendingUp } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { db } from '@/lib/db';
 import { getUserAccounts } from '@/lib/accounts-api';
-import { getRecentTransactions, Transaction } from '@/lib/transactions-api';
+import { getRecentTransactions } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
-import { getCategoryGroups } from '@/lib/category-groups-api';
-import { getBudgetSummary, getBudgetDetails, recalculateBudgetSpentAmounts, checkAndResetBudgetIfNeeded, getMemberBudgetPeriod } from '@/lib/budget-api';
-import { formatDateSwiss } from '@/lib/payday-utils';
+import { getBudgetDetails, recalculateBudgetSpentAmounts, checkAndResetBudgetIfNeeded, getMemberBudgetPeriod } from '@/lib/budget-api';
 import { getCurrentBudgetPeriod } from '@/lib/budget-period-utils';
-import {
-  calculateTotalBalance,
-  calculatePeriodSpending,
-  getRecentTransactionsWithCategories,
-  formatCurrency,
-} from '@/lib/dashboard-helpers';
+import { getRecentTransactionsWithCategories } from '@/lib/dashboard-helpers';
 import { extractEmoji } from '@/lib/extractEmoji';
-import {
-  DashboardLoadingSkeleton,
-} from '@/components/SkeletonLoaders';
-import {
-  WelcomeHeader,
-  TotalBalanceCard,
-  ThisMonthSpendingCard,
-  RecentTransactionsWidget,
-  AccountsListWidget,
-  BudgetBreakdownWidget,
-  BudgetGroupData,
-  FloatingActionButton,
-} from '@/components/DashboardWidgets';
-import DebtBalanceWidget from '@/components/DebtBalanceWidget';
-import TrueBalanceWidget from '@/components/TrueBalanceWidget';
-import RecurringExpensesWidget from '@/components/RecurringExpensesWidget';
-import { BudgetStatusCard } from '@/components/dashboard/BudgetStatusCard';
+import { calculateTrueBalance } from '@/lib/balance-api';
+import { TruePositionHero } from '@/components/TruePositionHero';
 import { HouseholdBalanceWidget } from '@/components/dashboard/HouseholdBalanceWidget';
+import { BudgetStatusCard } from '@/components/dashboard/BudgetStatusCard';
 import { WalletsCard } from '@/components/dashboard/WalletsCard';
 import { RecentTransactionsCard } from '@/components/dashboard/RecentTransactionsCard';
 import { useHouseholdData } from '@/hooks/useHouseholdData';
 
-interface BudgetSummaryData {
-  totalIncome: number;
-  totalAllocated: number;
-  totalSpent: number;
-}
-
+/**
+ * Dashboard Screen - Swiss Design Dark Theme
+ * Main financial overview with glassmorphism cards
+ */
 export default function DashboardScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = db.useAuth();
   const [showResetNotification, setShowResetNotification] = React.useState(false);
 
@@ -85,7 +65,6 @@ export default function DashboardScreen() {
 
   const userId = userProfileQuery.data?.userRecord?.id;
   const householdId = userProfileQuery.data?.member?.householdId;
-  const member = userProfileQuery.data?.member;
 
   // Get personal budget period from member (or fallback to household)
   const budgetPeriodQuery = useQuery({
@@ -105,6 +84,17 @@ export default function DashboardScreen() {
     daysRemaining: getCurrentBudgetPeriod(25).daysRemaining,
   };
 
+  // Get balance data (net worth, assets, liabilities)
+  const balanceQuery = useQuery({
+    queryKey: ['true-balance', userId],
+    queryFn: async () => {
+      if (!userId) throw new Error('No user ID');
+      return calculateTrueBalance(userId);
+    },
+    enabled: !!userId,
+    refetchInterval: 5000,
+  });
+
   // Get all accounts
   const accountsQuery = useQuery({
     queryKey: ['user-accounts', user?.email],
@@ -115,23 +105,12 @@ export default function DashboardScreen() {
     enabled: !!user?.email,
   });
 
-  // Get budget summary
-  const summaryQuery = useQuery({
-    queryKey: ['budget-summary', userId, householdId, budgetPeriod.start],
-    queryFn: async () => {
-      if (!userId || !householdId) return null;
-      return getBudgetSummary(userId, householdId, budgetPeriod.start);
-    },
-    enabled: !!userId && !!householdId,
-  });
-
   // Get recent transactions (without budget period filter - show all recent)
   const recentTransactionsQuery = useQuery({
     queryKey: ['recent-transactions', userId],
     queryFn: async () => {
       if (!userId) return [];
-      // Don't filter by budget period - show 5 most recent transactions overall
-      return getRecentTransactions(userId, 5);
+      return getRecentTransactions(userId, 10);
     },
     enabled: !!userId,
   });
@@ -142,16 +121,6 @@ export default function DashboardScreen() {
     queryFn: async () => {
       if (!householdId || !userId) return [];
       return getCategories(householdId, userId);
-    },
-    enabled: !!householdId && !!userId,
-  });
-
-  // Get category groups
-  const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdId, userId],
-    queryFn: async () => {
-      if (!householdId || !userId) return [];
-      return getCategoryGroups(householdId, userId);
     },
     enabled: !!householdId && !!userId,
   });
@@ -167,45 +136,38 @@ export default function DashboardScreen() {
   });
 
   // Refetch when focused
-  const { refetch: refetchBudgetSummary } = summaryQuery;
+  const { refetch: refetchBalance } = balanceQuery;
   const { refetch: refetchAccounts } = accountsQuery;
   const { refetch: refetchRecentTransactions } = recentTransactionsQuery;
   const { refetch: refetchBudgetDetails } = budgetDetailsQuery;
 
   useFocusEffect(
     useCallback(() => {
-      refetchBudgetSummary();
+      refetchBalance();
       refetchAccounts();
       refetchRecentTransactions();
       refetchBudgetDetails();
-    }, [refetchBudgetSummary, refetchAccounts, refetchRecentTransactions, refetchBudgetDetails])
+    }, [refetchBalance, refetchAccounts, refetchRecentTransactions, refetchBudgetDetails])
   );
 
   // Recalculate spent amounts when user/period data is available
   const [hasRecalculated, setHasRecalculated] = React.useState(false);
 
   React.useEffect(() => {
-    if (userId && householdId && !summaryQuery.isLoading && summaryQuery.data && !hasRecalculated) {
+    if (userId && householdId && !budgetDetailsQuery.isLoading && budgetDetailsQuery.data && !hasRecalculated) {
       setHasRecalculated(true);
-
-      console.log('🔄 Dashboard: Recalculating spent amounts for period:', {
-        periodStart: budgetPeriod.start,
-        periodEnd: budgetPeriod.end,
-        paydayDay: budgetPeriod.paydayDay,
-      });
 
       recalculateBudgetSpentAmounts(
         userId,
         budgetPeriod.start,
         budgetPeriod.end
       ).then(() => {
-        console.log('✅ Dashboard: Spent amounts recalculated, refetching summary');
-        refetchBudgetSummary();
+        refetchBudgetDetails();
       }).catch((error) => {
         console.warn('Failed to recalculate budget spent amounts:', error);
       });
     }
-  }, [userId, householdId, summaryQuery.isLoading, summaryQuery.data, budgetPeriod.start, budgetPeriod.end, hasRecalculated, refetchBudgetSummary]);
+  }, [userId, householdId, budgetDetailsQuery.isLoading, budgetDetailsQuery.data, budgetPeriod.start, budgetPeriod.end, hasRecalculated, refetchBudgetDetails]);
 
   // Check if budget reset is needed on component mount
   React.useEffect(() => {
@@ -213,11 +175,11 @@ export default function DashboardScreen() {
       checkAndResetBudgetIfNeeded(householdId, userId).then((resetHappened) => {
         if (resetHappened) {
           setShowResetNotification(true);
-          // Refetch data after reset
           setTimeout(() => {
-            refetchBudgetSummary();
+            refetchBalance();
             refetchAccounts();
             refetchRecentTransactions();
+            refetchBudgetDetails();
           }, 500);
         }
       }).catch((error) => {
@@ -229,62 +191,39 @@ export default function DashboardScreen() {
   const isLoading =
     userProfileQuery.isLoading ||
     budgetPeriodQuery.isLoading ||
+    balanceQuery.isLoading ||
     accountsQuery.isLoading ||
-    summaryQuery.isLoading ||
     recentTransactionsQuery.isLoading ||
     categoriesQuery.isLoading ||
-    categoryGroupsQuery.isLoading ||
     budgetDetailsQuery.isLoading;
 
+  // Dark-themed loading state
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-        <DashboardLoadingSkeleton />
-      </SafeAreaView>
+      <LinearGradient
+        colors={['#1A1C1E', '#2C5F5D']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ flex: 1, paddingTop: insets.top }}
+      >
+        <View className="flex-1 items-center justify-center">
+          <Animated.View entering={FadeIn.duration(500)}>
+            <Text className="text-4xl mb-4">💎</Text>
+          </Animated.View>
+          <Text className="text-white/70 text-sm">Loading your financial overview...</Text>
+        </View>
+      </LinearGradient>
     );
   }
 
   const accounts = accountsQuery.data || [];
-  const summary = (summaryQuery.data as BudgetSummaryData) || null;
+  const balance = balanceQuery.data || { netWorth: 0, assets: { total: 0 }, liabilities: { total: 0 } };
   const recentTransactions = recentTransactionsQuery.data || [];
   const categories = categoriesQuery.data || [];
   const budgetDetails = budgetDetailsQuery.data || [];
-  const categoryGroups = categoryGroupsQuery.data || [];
-  const userName = userProfileQuery.data?.userRecord?.name || 'User';
-  const totalBalance = calculateTotalBalance(accounts);
-  // Use budget summary's totalSpent if available, otherwise calculate from transactions
-  const monthSpending = summary?.totalSpent ?? calculatePeriodSpending(recentTransactions, budgetPeriod.start, budgetPeriod.end, 'expense');
 
   // Enrich recent transactions with category info
-  const enrichedTransactions = getRecentTransactionsWithCategories(recentTransactions, categories, 5);
-
-  // Build dynamic budget groups from category groups and budget details
-  // First, aggregate budget details by category group
-  const groupTotals: Record<string, { allocated: number; spent: number }> = {};
-  budgetDetails.forEach((budget: any) => {
-    const groupKey = budget.categoryGroup || 'other';
-    if (!groupTotals[groupKey]) {
-      groupTotals[groupKey] = { allocated: 0, spent: 0 };
-    }
-    groupTotals[groupKey].allocated += budget.allocatedAmount || 0;
-    groupTotals[groupKey].spent += budget.spentAmount || 0;
-  });
-
-  const budgetGroups: BudgetGroupData[] = categoryGroups
-    .filter((g: any) => g.type === 'expense')
-    .sort((a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0))
-    .map((group: any) => {
-      // Get allocated and spent amounts from aggregated budget details
-      const totals = groupTotals[group.key] || { allocated: 0, spent: 0 };
-
-      return {
-        key: group.key,
-        name: group.name,
-        icon: group.icon,
-        allocated: Math.round(totals.allocated * 100) / 100,
-        spent: Math.round(totals.spent * 100) / 100,
-      };
-    });
+  const enrichedTransactions = getRecentTransactionsWithCategories(recentTransactions, categories, 10);
 
   // Transform budget details for BudgetStatusCard
   const enrichedBudgets = budgetDetails.map((budget: any) => {
@@ -331,215 +270,108 @@ export default function DashboardScreen() {
   });
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <LinearGradient
+      colors={['#1A1C1E', '#2C5F5D']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
       {/* Budget Reset Notification */}
       {showResetNotification && (
-        <View className="bg-green-50 border-b border-green-200 px-6 py-4">
-          <View className="flex-row items-center justify-between">
+        <Animated.View
+          entering={FadeInDown.duration(300)}
+          className="mx-5 mt-2 rounded-xl overflow-hidden"
+          style={{
+            marginTop: insets.top + 8,
+            backgroundColor: 'rgba(44, 95, 93, 0.3)',
+            borderWidth: 1,
+            borderColor: 'rgba(168, 181, 161, 0.3)',
+          }}
+        >
+          <View className="px-4 py-3 flex-row items-center justify-between">
             <View className="flex-1">
-              <Text className="text-sm font-bold text-green-900">🎉 New Budget Period Started!</Text>
-              <Text className="text-xs text-green-700 mt-1">Your budget has been reset to zero</Text>
+              <Text className="text-sm font-semibold text-white">New Budget Period Started</Text>
+              <Text className="text-xs text-white/60 mt-0.5">Your budget has been reset</Text>
             </View>
             <Pressable onPress={() => setShowResetNotification(false)}>
-              <Text className="text-lg font-bold text-green-600">×</Text>
+              <Text className="text-lg font-bold text-white/60">×</Text>
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View className="px-6 py-6 gap-6">
-          {/* Welcome Header */}
-          <WelcomeHeader
-            userName={userName}
-            budgetPeriodStart={budgetPeriod.start}
-            budgetPeriodEnd={budgetPeriod.end}
-          />
-
-          {/* Recurring Expenses Widget - Shows reminders for recurring expenses that are due */}
-          <RecurringExpensesWidget />
-
-          {/* Debt Balance Widget */}
-          <DebtBalanceWidget />
-
-          {/* True Balance Widget */}
-          <TrueBalanceWidget />
-
-          {/* Household Balance Widget - Swiss Design */}
-          {householdData.partner && !householdData.isLoading && (
-            <HouseholdBalanceWidget
-              debtAmount={householdData.debtAmount}
-              partnerName={householdData.partner.name}
-              yourSplitRatio={householdData.yourSplitRatio}
-              partnerSplitRatio={householdData.partnerSplitRatio}
-              hasUnsettledExpenses={householdData.hasUnsettledExpenses}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingTop: showResetNotification ? 16 : insets.top + 16,
+          paddingBottom: insets.bottom + 100,
+          paddingHorizontal: 20,
+        }}
+      >
+        <View className="gap-4">
+          {/* 1. True Position Hero */}
+          <Animated.View entering={FadeInDown.delay(0).duration(400)}>
+            <TruePositionHero
+              netWorth={balance.netWorth}
+              assets={balance.assets.total}
+              liabilities={balance.liabilities.total}
             />
+          </Animated.View>
+
+          {/* 2. Household Balance Widget (conditional) */}
+          {householdData.partner && !householdData.isLoading && householdData.hasUnsettledExpenses && (
+            <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+              <HouseholdBalanceWidget
+                debtAmount={householdData.debtAmount}
+                partnerName={householdData.partner.name}
+                yourSplitRatio={householdData.yourSplitRatio}
+                partnerSplitRatio={householdData.partnerSplitRatio}
+                hasUnsettledExpenses={householdData.hasUnsettledExpenses}
+              />
+            </Animated.View>
           )}
 
-          {/* Budget Status Card - Swiss Design */}
+          {/* 3. Budget Status Card */}
           {enrichedBudgets.length > 0 && (
-            <BudgetStatusCard budgets={enrichedBudgets} />
+            <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+              <BudgetStatusCard budgets={enrichedBudgets} />
+            </Animated.View>
           )}
 
-          {/* Wallets Card - Swiss Design */}
+          {/* 4. Wallets Card */}
           {formattedWallets.length > 0 && (
-            <WalletsCard wallets={formattedWallets} />
+            <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+              <WalletsCard wallets={formattedWallets} />
+            </Animated.View>
           )}
 
-          {/* Budget Status Widget */}
-          {summary ? (
-            <View className="rounded-2xl overflow-hidden bg-slate-50">
-              {/* Card Header */}
-              <View className="px-6 py-5 border-b border-gray-200">
-                <View className="flex-row items-center gap-3">
-                  <View className="w-10 h-10 rounded-lg bg-teal-100 items-center justify-center">
-                    <TrendingUp size={20} color="#0D9488" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm font-semibold text-gray-700">Budget Status</Text>
-                    <Text className="text-xs text-gray-500 mt-0.5">
-                      {formatDateSwiss(budgetPeriod.start)} - {formatDateSwiss(budgetPeriod.end)} • {(() => {
-                        const endDate = new Date(budgetPeriod.end + 'T00:00:00');
-                        const todayForCalc = new Date();
-                        todayForCalc.setHours(0, 0, 0, 0);
-                        const daysRemaining = Math.ceil((endDate.getTime() - todayForCalc.getTime()) / (1000 * 60 * 60 * 24));
-                        return daysRemaining > 0 ? daysRemaining : 0;
-                      })()} days left
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Card Content */}
-              <View className="px-6 py-5">
-                {/* Spending Summary */}
-                <View className="mb-5">
-                  <View className="flex-row justify-between items-baseline mb-2">
-                    <Text className="text-sm text-gray-600">Spent</Text>
-                    <Text className="text-2xl font-bold text-gray-900">
-                      {formatCurrency(summary.totalSpent)}
-                    </Text>
-                  </View>
-                  <Text className="text-xs text-gray-500">
-                    of {formatCurrency(summary.totalAllocated)} allocated
-                  </Text>
-                </View>
-
-                {/* Progress Bar */}
-                <View className="mb-4">
-                  <View className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                    <View
-                      className="h-full"
-                      style={{
-                        width: `${Math.min(100, (summary.totalSpent / summary.totalAllocated) * 100)}%`,
-                        backgroundColor:
-                          (summary.totalSpent / summary.totalAllocated) * 100 >= 100
-                            ? '#EF4444'
-                            : (summary.totalSpent / summary.totalAllocated) * 100 >= 90
-                              ? '#F59E0B'
-                              : '#10B981',
-                      }}
-                    />
-                  </View>
-                </View>
-
-                {/* Status and Remaining */}
-                <View className="flex-row justify-between items-center">
-                  <View>
-                    <Text className="text-xs text-gray-600 mb-0.5">Status</Text>
-                    <Text className="text-sm font-semibold text-gray-900">
-                      {(summary.totalSpent / summary.totalAllocated) * 100 >= 100
-                        ? 'Over Budget'
-                        : (summary.totalSpent / summary.totalAllocated) * 100 >= 90
-                          ? 'Approaching Limit'
-                          : (summary.totalSpent / summary.totalAllocated) * 100 >= 70
-                            ? 'Watch Spending'
-                            : 'On Track'}
-                    </Text>
-                  </View>
-                  <View className="items-end">
-                    <Text className="text-xs text-gray-600 mb-0.5">Remaining</Text>
-                    <Text
-                      className="text-sm font-semibold"
-                      style={{
-                        color:
-                          summary.totalIncome - summary.totalSpent > 0 ? '#10B981' : '#EF4444',
-                      }}
-                    >
-                      {summary.totalIncome - summary.totalSpent > 0 ? '+' : ''}
-                      {formatCurrency(summary.totalIncome - summary.totalSpent)}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          ) : (
-            /* Empty State */
-            <View className="rounded-2xl p-6 bg-blue-50 border border-blue-100">
-              <View className="items-center">
-                <View className="w-12 h-12 rounded-full bg-teal-100 items-center justify-center mb-3">
-                  <TrendingUp size={24} color="#0D9488" />
-                </View>
-                <Text className="text-base font-semibold text-gray-900 mb-2">No Budget Yet</Text>
-                <Text className="text-sm text-gray-600 text-center mb-4">
-                  Create your first budget to track spending and see your financial overview here.
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Budget Breakdown Widget - Dynamic */}
-          {summary && budgetGroups.length > 0 && (
-            <BudgetBreakdownWidget groups={budgetGroups} />
-          )}
-
-          {/* Recent Transactions Card - Swiss Design */}
-          <RecentTransactionsCard transactions={formattedTransactions} />
-
-          {/* Accounts List Widget */}
-          <AccountsListWidget accounts={accounts} />
-
-          {/* Debug: Test Pages Links */}
-          <Pressable
-            onPress={() => router.push('/test-budget-status')}
-            className="bg-purple-600 rounded-xl p-4 mb-3"
-          >
-            <Text className="text-white text-center font-semibold">
-              🧪 Test Budget Status Card
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/test-household-balance')}
-            className="bg-indigo-600 rounded-xl p-4 mb-3"
-          >
-            <Text className="text-white text-center font-semibold">
-              🧪 Test Household Balance
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/test-wallets-card')}
-            className="bg-teal-600 rounded-xl p-4 mb-3"
-          >
-            <Text className="text-white text-center font-semibold">
-              🧪 Test Wallets Card
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/test-transactions-card')}
-            className="bg-amber-600 rounded-xl p-4 mb-3"
-          >
-            <Text className="text-white text-center font-semibold">
-              🧪 Test Recent Transactions
-            </Text>
-          </Pressable>
-
-          {/* Bottom Padding */}
-          <View className="h-4" />
+          {/* 5. Recent Transactions Card */}
+          <Animated.View entering={FadeInDown.delay(400).duration(400)}>
+            <RecentTransactionsCard transactions={formattedTransactions} />
+          </Animated.View>
         </View>
       </ScrollView>
 
-      {/* Floating Action Button */}
-      <FloatingActionButton />
-    </SafeAreaView>
+      {/* 6. Floating Action Button */}
+      <Pressable
+        onPress={() => router.push('/add-transaction')}
+        className="absolute items-center justify-center"
+        style={{
+          bottom: insets.bottom + 24,
+          right: 24,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: '#2C5F5D',
+          shadowColor: '#2C5F5D',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.4,
+          shadowRadius: 16,
+          elevation: 8,
+        }}
+      >
+        <Plus size={24} color="#fff" strokeWidth={2} />
+      </Pressable>
+    </LinearGradient>
   );
 }
