@@ -47,8 +47,19 @@ export default function AddTransactionScreen() {
   const { user } = db.useAuth();
   const amountInputRef = useRef<TextInput>(null);
   const scrollY = useSharedValue(0);
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, duplicate, type: duplicateType, amount: duplicateAmount, payee: duplicatePayee, categoryId: duplicateCategoryId, accountId: duplicateAccountId, note: duplicateNote, date: duplicateDate } = useLocalSearchParams<{
+    id?: string;
+    duplicate?: string;
+    type?: string;
+    amount?: string;
+    payee?: string;
+    categoryId?: string;
+    accountId?: string;
+    note?: string;
+    date?: string;
+  }>();
   const isEditing = !!id;
+  const isDuplicating = duplicate === 'true';
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -126,6 +137,24 @@ export default function AddTransactionScreen() {
       });
     }
   }, [transactionQuery.data, isEditing]);
+
+  // Pre-fill form when duplicating
+  useEffect(() => {
+    if (isDuplicating && !isEditing) {
+      console.log('📋 Pre-filling form with duplicate data');
+      setFormData({
+        type: (duplicateType === 'income' ? 'income' : 'expense') as TransactionType,
+        amount: duplicateAmount || '',
+        categoryId: duplicateCategoryId || '',
+        accountId: duplicateAccountId || '',
+        date: duplicateDate || new Date().toISOString().split('T')[0],
+        note: duplicateNote || '',
+        payee: duplicatePayee || '',
+        isRecurring: false,
+        recurringDay: 1,
+      });
+    }
+  }, [isDuplicating, isEditing, duplicateType, duplicateAmount, duplicatePayee, duplicateCategoryId, duplicateAccountId, duplicateNote, duplicateDate]);
 
   // Load household members for shared expenses
   const householdMembersQuery = useQuery({

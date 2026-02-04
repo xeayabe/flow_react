@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { Settings, Search, Plus } from 'lucide-react-native';
@@ -34,6 +34,7 @@ function formatDateHeader(dateStr: string): string {
 export default function TransactionsTabScreen() {
   const insets = useSafeAreaInsets();
   const { user } = db.useAuth();
+  const queryClient = useQueryClient();
   const scrollY = useSharedValue(0);
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -212,6 +213,7 @@ export default function TransactionsTabScreen() {
         payee: t.payee || 'Unknown',
         categoryName: categoryNameClean,
         categoryId: t.categoryId,
+        accountId: t.accountId,
         walletName: account?.name || 'Cash',
         emoji: categoryEmoji,
         date: t.date,
@@ -293,6 +295,52 @@ export default function TransactionsTabScreen() {
     transactionsCount: formattedTransactions.length,
     groupedDates: Object.keys(searchGroupedByDate).length,
   });
+
+  // Delete handler
+  const handleDelete = async (transactionId: string) => {
+    try {
+      console.log('🗑️ Deleting transaction:', transactionId);
+      // @ts-ignore - InstantDB types
+      await db.transact([
+        // @ts-ignore
+        db.tx.transactions[transactionId].delete()
+      ]);
+      console.log('✅ Transaction deleted successfully');
+      // Invalidate queries to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    } catch (error) {
+      console.error('❌ Error deleting transaction:', error);
+    }
+  };
+
+  // Duplicate handler
+  const handleDuplicate = (transactionId: string) => {
+    const transaction = formattedTransactions.find((t: any) => t.id === transactionId);
+    if (!transaction) {
+      console.error('❌ Transaction not found for duplication:', transactionId);
+      return;
+    }
+
+    console.log('📋 Duplicating transaction:', transactionId);
+
+    // Navigate to add screen with pre-filled data
+    // Note: We use today's date, not the original transaction date
+    const today = new Date().toISOString().split('T')[0];
+
+    router.push({
+      pathname: '/transactions/add',
+      params: {
+        duplicate: 'true',
+        type: transaction.type,
+        amount: transaction.amount.toString(),
+        payee: transaction.payee,
+        categoryId: transaction.categoryId,
+        accountId: transaction.accountId || '',
+        note: transaction.note || '',
+        date: today,
+      }
+    });
+  };
 
   return (
     <LinearGradient colors={['#1A1C1E', '#2C5F5D']} style={{ flex: 1 }}>
@@ -380,6 +428,8 @@ export default function TransactionsTabScreen() {
                   key={transaction.id}
                   transaction={transaction}
                   onClick={() => router.push(`/transactions/add?id=${transaction.id}`)}
+                  onDelete={handleDelete}
+                  onDuplicate={handleDuplicate}
                 />
               ))}
             </View>
