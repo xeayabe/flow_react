@@ -168,16 +168,14 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - **Type Toggle**: Income/Expense with dynamic category filtering and smooth transitions
   - **Amount Input**: Large 4xl font with Sage Green (#A8B5A1) accent, auto-focus on entry
   - **Payee Selector**: Smart auto-categorization based on transaction history
-  - **Category Selection**: Grouped by type with quick access modal
-  - **Wallet Selection**: Pre-selected default with balance display
-  - **Date Picker**: Inline glassmorphic calendar with month navigation
+  - **Category Selection**: Bottom sheet dropdown with glassmorphism design, emoji extraction from category names
+  - **Quick Category Buttons**: 6 most-used categories displayed below dropdown with emoji + text layout
+  - **Wallet Selection**: Bottom sheet dropdown showing balance as metadata
+  - **Date Picker**: Inline expandable calendar with smooth slide-in animation
   - **Shared Expenses**: Toggle for household split with real-time preview
   - **Recurring Templates**: Monthly repeating expenses with day-of-month selector
   - **Animations**: Staggered FadeInDown with 100ms delays for smooth reveals
-  - **FAB Save Button**: Glowing Deep Teal button with Sage Green shadow
-  - Date Input: Custom calendar chip picker with month navigation
-    * Calendar auto-scrolls to view when opened
-    * Single tap on date closes picker and updates form
+  - **FAB Save Button**: Floating action button with scale animations (hover: 1.1x, press: 0.95x)
   - Optional Note: Max 200 characters with character counter
   - Recurring Option: Monthly recurring with day selector
 - ✅ **Edit Transaction Page (US-020)** - Edit existing transactions with smart balance adjustment

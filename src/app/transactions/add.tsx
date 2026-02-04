@@ -17,10 +17,10 @@ import { getCategorySuggestion, savePayeeMapping } from '@/lib/payee-mappings-ap
 import { createRecurringTemplate } from '@/lib/recurring-api';
 import { formatCurrency } from '@/lib/formatCurrency';
 import PayeePickerModal from '@/components/PayeePickerModal';
-import CategoryPickerModal from '@/components/CategoryPickerModal';
 import QuickCategoryButtons from '@/components/transactions/QuickCategoryButtons';
 import ExpandableCalendar from '@/components/transactions/ExpandableCalendar';
 import SaveFAB from '@/components/transactions/SaveFAB';
+import BottomSheetSelect from '@/components/transactions/BottomSheetSelect';
 import { cn } from '@/lib/cn';
 
 type TransactionType = 'income' | 'expense';
@@ -45,8 +45,6 @@ export default function AddTransactionScreen() {
   const { user } = db.useAuth();
   const amountInputRef = useRef<TextInput>(null);
 
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [showAccountModal, setShowAccountModal] = useState(false);
   const [showPayeePicker, setShowPayeePicker] = useState(false);
   const [suggestedCategoryId, setSuggestedCategoryId] = useState<string | null>(null);
 
@@ -424,16 +422,33 @@ export default function AddTransactionScreen() {
           </Animated.View>
 
           {/* Category Glass Card */}
-          <Animated.View entering={FadeInDown.delay(350).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
-            <Pressable onPress={() => setShowCategoryModal(true)} className="p-5">
-              <Text className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>Category</Text>
-              <Text className="text-base" style={{ color: selectedCategory ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)' }}>
-                {selectedCategory?.name || 'Select category...'}
-              </Text>
-            </Pressable>
+          <Animated.View entering={FadeInDown.delay(350).duration(400)} className="mb-6">
+            <Text className="text-sm font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>Category</Text>
+
+            <BottomSheetSelect
+              label="Select Category"
+              options={categories.map((cat: any) => ({
+                id: cat.id,
+                name: cat.name,
+                icon: cat.icon || cat.emoji || '📝',
+              }))}
+              value={formData.categoryId}
+              onChange={(categoryId) => setFormData({ ...formData, categoryId })}
+              placeholder="-- Select Category --"
+            />
+
+            {/* AI Suggestion Indicator */}
+            {suggestedCategoryId === formData.categoryId && formData.categoryId && formData.payee.trim() && (
+              <View className="flex-row items-center mt-2 px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(168,181,161,0.1)' }}>
+                <Sparkles size={14} color="#A8B5A1" style={{ marginRight: 6 }} />
+                <Text className="text-xs flex-1" style={{ color: 'rgba(168,181,161,0.9)' }}>
+                  Category auto-filled from history
+                </Text>
+              </View>
+            )}
 
             {/* Quick Category Buttons */}
-            <View className="px-5 pb-4">
+            <View className="mt-3">
               <QuickCategoryButtons
                 categories={categories}
                 selectedCategoryId={formData.categoryId}
@@ -444,20 +459,21 @@ export default function AddTransactionScreen() {
           </Animated.View>
 
           {/* Wallet Glass Card */}
-          <Animated.View entering={FadeInDown.delay(400).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
-            <Pressable onPress={() => setShowAccountModal(true)} className="p-5">
-              <Text className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>Wallet</Text>
-              <View>
-                <Text className="text-base" style={{ color: selectedAccount ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)' }}>
-                  {selectedAccount?.name || 'Select wallet...'}
-                </Text>
-                {selectedAccount && (
-                  <Text className="text-xs mt-1" style={{ color: 'rgba(168,181,161,0.7)' }}>
-                    {formatCurrency(selectedAccount.balance)}
-                  </Text>
-                )}
-              </View>
-            </Pressable>
+          <Animated.View entering={FadeInDown.delay(400).duration(400)} className="mb-6">
+            <Text className="text-sm font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>Wallet</Text>
+
+            <BottomSheetSelect
+              label="Select Wallet"
+              options={(accountsQuery.data || []).map((account) => ({
+                id: account.id,
+                name: account.name,
+                icon: '💳',
+                meta: formatCurrency(account.balance),
+              }))}
+              value={formData.accountId}
+              onChange={(accountId) => setFormData({ ...formData, accountId })}
+              placeholder="-- Select Wallet --"
+            />
           </Animated.View>
 
           {/* Date Glass Card */}
@@ -537,62 +553,6 @@ export default function AddTransactionScreen() {
         userId={householdQuery.data?.userRecord?.id || ''}
         currentPayee={formData.payee}
       />
-
-      {householdQuery.data?.householdId && householdQuery.data?.userRecord?.id && (
-        <CategoryPickerModal
-          visible={showCategoryModal}
-          onClose={() => setShowCategoryModal(false)}
-          onSelectCategory={(categoryId) => setFormData({ ...formData, categoryId })}
-          userId={householdQuery.data.userRecord.id}
-          householdId={householdQuery.data.householdId}
-          currentCategoryId={formData.categoryId}
-          transactionType={formData.type}
-        />
-      )}
-
-      {/* Wallet Modal */}
-      <Modal visible={showAccountModal} animationType="slide" presentationStyle="pageSheet">
-        <LinearGradient colors={['#1A1C1E', '#2C5F5D']} style={{ flex: 1 }}>
-          <View style={{ paddingTop: insets.top + 20, paddingHorizontal: 20, flex: 1 }}>
-            <View className="flex-row items-center justify-between mb-6">
-              <Text className="text-2xl font-bold" style={{ color: 'rgba(255,255,255,0.9)' }}>Select Wallet</Text>
-              <Pressable onPress={() => setShowAccountModal(false)}>
-                <Text className="text-lg" style={{ color: 'rgba(255,255,255,0.7)' }}>✕</Text>
-              </Pressable>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {accountsQuery.data?.map((account) => (
-                <Pressable
-                  key={account.id}
-                  onPress={() => {
-                    setFormData({ ...formData, accountId: account.id });
-                    setShowAccountModal(false);
-                  }}
-                  className="mb-3 rounded-2xl overflow-hidden"
-                  style={{
-                    backgroundColor: formData.accountId === account.id ? 'rgba(44,95,93,0.3)' : 'rgba(255,255,255,0.03)',
-                    borderWidth: 2,
-                    borderColor: formData.accountId === account.id ? '#2C5F5D' : 'rgba(255,255,255,0.1)',
-                  }}
-                >
-                  <View className="p-5 flex-row items-center justify-between">
-                    <View className="flex-1">
-                      <Text className="text-base font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>
-                        {account.name}
-                      </Text>
-                      <Text className="text-sm mt-1" style={{ color: 'rgba(168,181,161,0.8)' }}>
-                        {formatCurrency(account.balance)}
-                      </Text>
-                    </View>
-                    {formData.accountId === account.id && <Check size={20} color="#A8B5A1" />}
-                  </View>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        </LinearGradient>
-      </Modal>
     </LinearGradient>
   );
 }
