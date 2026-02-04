@@ -6,8 +6,7 @@ export default function TransactionsLayout() {
       <Stack.Screen
         name="add"
         options={{
-          headerShown: true,
-          title: 'Add Transaction',
+          headerShown: false,
         }}
       />
       <Stack.Screen
