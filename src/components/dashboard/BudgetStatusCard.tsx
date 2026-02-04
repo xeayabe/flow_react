@@ -17,6 +17,7 @@ interface Budget {
   categoryName: string;
   categoryEmoji?: string;
   categoryGroup: string;
+  categoryGroupIcon?: string;
   allocatedAmount: number;
   spentAmount: number;
 }
@@ -32,12 +33,16 @@ interface BudgetStatusCardProps {
   summaryTotals?: SummaryTotals;
 }
 
-// Group configuration with emojis and sort order
-const GROUP_CONFIG: Record<string, { emoji: string; order: number }> = {
+// Default group configuration with emojis and sort order (fallback for standard groups)
+const DEFAULT_GROUP_CONFIG: Record<string, { emoji: string; order: number }> = {
   'Needs': { emoji: '🏠', order: 1 },
+  'needs': { emoji: '🏠', order: 1 },
   'Wants': { emoji: '🎯', order: 2 },
+  'wants': { emoji: '🎯', order: 2 },
   'Savings': { emoji: '💰', order: 3 },
-  'Other': { emoji: '📊', order: 4 },
+  'savings': { emoji: '💰', order: 3 },
+  'Other': { emoji: '📊', order: 99 },
+  'other': { emoji: '📊', order: 99 },
 };
 
 /**
@@ -57,25 +62,33 @@ export function BudgetStatusCard({ budgets, summaryTotals }: BudgetStatusCardPro
     : Math.round(budgets.reduce((sum, b) => sum + b.spentAmount, 0) * 100) / 100;
   const totalRemaining = Math.round((totalAllocated - totalSpent) * 100) / 100;
 
-  // Group budgets by category group (Needs, Wants, Savings)
+  // Group budgets by category group (display name from database)
   const groupedBudgets = budgets.reduce((groups, budget) => {
     const group = budget.categoryGroup || 'Other';
-    if (!groups[group]) groups[group] = [];
-    groups[group].push(budget);
+    if (!groups[group]) {
+      groups[group] = {
+        items: [],
+        icon: budget.categoryGroupIcon, // Use icon from first item in group
+      };
+    }
+    groups[group].items.push(budget);
     return groups;
-  }, {} as Record<string, Budget[]>);
+  }, {} as Record<string, { items: Budget[]; icon?: string }>);
 
-  // Sort groups by defined order
+  // Sort groups by defined order (standard groups first, then custom by name)
   const sortedGroups = Object.entries(groupedBudgets)
-    .map(([groupName, items]) => ({
-      groupName,
-      emoji: GROUP_CONFIG[groupName]?.emoji || '📊',
-      order: GROUP_CONFIG[groupName]?.order || 999,
-      totalSpent: items.reduce((sum, b) => sum + b.spentAmount, 0),
-      totalAllocated: items.reduce((sum, b) => sum + b.allocatedAmount, 0),
-      items,
-    }))
-    .sort((a, b) => a.order - b.order);
+    .map(([groupName, data]) => {
+      const defaultConfig = DEFAULT_GROUP_CONFIG[groupName];
+      return {
+        groupName,
+        emoji: data.icon || defaultConfig?.emoji || '📊',
+        order: defaultConfig?.order || 50, // Custom groups get middle order
+        totalSpent: data.items.reduce((sum, b) => sum + b.spentAmount, 0),
+        totalAllocated: data.items.reduce((sum, b) => sum + b.allocatedAmount, 0),
+        items: data.items,
+      };
+    })
+    .sort((a, b) => a.order - b.order || a.groupName.localeCompare(b.groupName));
 
   const toggleOpen = () => {
     // Animate the layout change

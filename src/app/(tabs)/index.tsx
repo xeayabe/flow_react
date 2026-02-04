@@ -11,6 +11,7 @@ import { db } from '@/lib/db';
 import { getUserAccounts } from '@/lib/accounts-api';
 import { getRecentTransactions } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
+import { getCategoryGroups } from '@/lib/category-groups-api';
 import { getBudgetDetails, getBudgetSummary, recalculateBudgetSpentAmounts, checkAndResetBudgetIfNeeded, getMemberBudgetPeriod } from '@/lib/budget-api';
 import { getCurrentBudgetPeriod } from '@/lib/budget-period-utils';
 import { getRecentTransactionsWithCategories } from '@/lib/dashboard-helpers';
@@ -125,6 +126,16 @@ export default function DashboardScreen() {
     enabled: !!householdId && !!userId,
   });
 
+  // Get category groups (for mapping group keys to display names)
+  const categoryGroupsQuery = useQuery({
+    queryKey: ['categoryGroups', householdId, userId],
+    queryFn: async () => {
+      if (!householdId || !userId) return [];
+      return getCategoryGroups(householdId, userId);
+    },
+    enabled: !!householdId && !!userId,
+  });
+
   // Get budget details (per-category allocations and spent amounts)
   const budgetDetailsQuery = useQuery({
     queryKey: ['budget-details', userId, budgetPeriod.start],
@@ -209,6 +220,7 @@ export default function DashboardScreen() {
     accountsQuery.isLoading ||
     recentTransactionsQuery.isLoading ||
     categoriesQuery.isLoading ||
+    categoryGroupsQuery.isLoading ||
     budgetDetailsQuery.isLoading ||
     budgetSummaryQuery.isLoading;
 
@@ -235,8 +247,15 @@ export default function DashboardScreen() {
   const balance = balanceQuery.data || { netWorth: 0, assets: { total: 0 }, liabilities: { total: 0 } };
   const recentTransactions = recentTransactionsQuery.data || [];
   const categories = categoriesQuery.data || [];
+  const categoryGroups = categoryGroupsQuery.data || [];
   const budgetDetails = budgetDetailsQuery.data || [];
   const budgetSummary = budgetSummaryQuery.data || { totalAllocated: 0, totalSpent: 0 };
+
+  // Create a map of group key -> group name/icon for display
+  const groupKeyToDisplay = categoryGroups.reduce((map, group: any) => {
+    map[group.key] = { name: group.name, icon: group.icon };
+    return map;
+  }, {} as Record<string, { name: string; icon?: string }>);
 
   // Enrich recent transactions with category info
   const enrichedTransactions = getRecentTransactionsWithCategories(recentTransactions, categories, 10);
@@ -248,11 +267,19 @@ export default function DashboardScreen() {
     const { emoji, name } = category
       ? extractEmoji(category.name)
       : { emoji: '📊', name: 'Unknown' };
+
+    // Look up group display name from categoryGroups (key -> name)
+    const groupKey = budget.categoryGroup || 'other';
+    const groupDisplay = groupKeyToDisplay[groupKey];
+    const groupName = groupDisplay?.name || groupKey;
+    const groupIcon = groupDisplay?.icon;
+
     return {
       id: budget.id,
       categoryName: name,
       categoryEmoji: emoji,
-      categoryGroup: budget.categoryGroup || 'Other',
+      categoryGroup: groupName,
+      categoryGroupIcon: groupIcon,
       allocatedAmount: budget.allocatedAmount || 0,
       spentAmount: budget.spentAmount || 0,
     };
