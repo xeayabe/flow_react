@@ -50,8 +50,10 @@ export default function TransactionsTabScreen() {
     queryKey: ['user-household', user?.email],
     queryFn: async () => {
       if (!user?.email) throw new Error('No user email');
+      console.log('🔍 Fetching household for user:', user.email);
       const result = await getUserProfileAndHousehold(user.email);
       if (!result) throw new Error('No household found');
+      console.log('✅ Household data:', { userId: result.userId, householdId: result.householdId });
       return result;
     },
     enabled: !!user?.email,
@@ -99,23 +101,33 @@ export default function TransactionsTabScreen() {
   const transactionsQuery = useQuery({
     queryKey: ['transactions', householdQuery.data?.userId],
     queryFn: async () => {
-      if (!householdQuery.data?.userId) return [];
-      // @ts-ignore - InstantDB types
-      const result = await db.queryOnce({
-        // @ts-ignore
-        transactions: {
-          $: {
-            where: { userId: householdQuery.data.userId },
+      if (!householdQuery.data?.userId) {
+        console.log('❌ No userId available for transactions query');
+        return [];
+      }
+      console.log('🔍 Fetching transactions for userId:', householdQuery.data.userId);
+
+      try {
+        // @ts-ignore - InstantDB types
+        const result = await db.queryOnce({
+          // @ts-ignore
+          transactions: {
+            $: {
+              where: { userId: householdQuery.data.userId },
+            },
+            category: {},
+            account: {},
           },
-          category: {},
-          account: {},
-          expenseSplits: {
-            paidByUser: {},
-            beneficiaryUser: {},
-          },
-        },
-      });
-      return (result?.data?.transactions || []) as any[];
+        });
+        console.log('✅ Transactions fetched:', result?.data?.transactions?.length || 0);
+        if (result?.data?.transactions?.length > 0) {
+          console.log('Sample transaction keys:', Object.keys(result.data.transactions[0]));
+        }
+        return (result?.data?.transactions || []) as any[];
+      } catch (error) {
+        console.error('❌ Error fetching transactions:', error);
+        return [];
+      }
     },
     enabled: !!householdQuery.data?.userId,
   });
@@ -146,29 +158,20 @@ export default function TransactionsTabScreen() {
 
   // Format transactions for display
   const formattedTransactions = React.useMemo(() => {
-    if (!transactionsQuery.data) return [];
+    if (!transactionsQuery.data) {
+      console.log('⚠️ No transaction data available');
+      return [];
+    }
 
     console.log('📊 Raw transactions data:', transactionsQuery.data.length);
+    console.log('📊 Sample transaction:', transactionsQuery.data[0]);
 
     return transactionsQuery.data.map((t: any) => {
       const category = t.category?.[0];
       const account = t.account?.[0];
+      // expenseSplits relation may not be available, handle gracefully
       const splits = t.expenseSplits || [];
-      const isShared = splits.length > 0;
-
-      let paidByYou = false;
-      let partnerName = '';
-      let partnerOwes = 0;
-      let youOwe = 0;
-
-      if (isShared && splits.length > 0) {
-        const split = splits[0];
-        paidByYou = split.paidByUserId === householdQuery.data?.userId;
-        const partner = paidByYou ? split.beneficiaryUser?.[0] : split.paidByUser?.[0];
-        partnerName = partner?.name || 'Partner';
-        partnerOwes = paidByYou ? split.amount : 0;
-        youOwe = !paidByYou ? split.amount : 0;
-      }
+      const isShared = false; // Temporarily disable shared expense display
 
       return {
         id: t.id,
@@ -181,11 +184,11 @@ export default function TransactionsTabScreen() {
         emoji: category?.emoji || '📝',
         date: t.date,
         note: t.note,
-        isShared,
-        paidByYou,
-        partnerName,
-        partnerOwes,
-        youOwe,
+        isShared: false,
+        paidByYou: false,
+        partnerName: '',
+        partnerOwes: 0,
+        youOwe: 0,
       };
     });
   }, [transactionsQuery.data, householdQuery.data?.userId]);
@@ -238,6 +241,8 @@ export default function TransactionsTabScreen() {
       }
       grouped[date].push(transaction);
     });
+    console.log('📅 Grouped by date:', Object.keys(grouped).length, 'dates');
+    console.log('📅 First date group:', Object.keys(grouped)[0], grouped[Object.keys(grouped)[0]]?.length || 0, 'transactions');
     return grouped;
   }, [searchFilteredTransactions]);
 
@@ -247,6 +252,15 @@ export default function TransactionsTabScreen() {
     emoji: c.emoji || '📝',
   }));
   const isLoading = householdQuery.isLoading || transactionsQuery.isLoading;
+
+  console.log('🎨 Render state:', {
+    isLoading,
+    householdLoading: householdQuery.isLoading,
+    transactionsLoading: transactionsQuery.isLoading,
+    hasUserId: !!householdQuery.data?.userId,
+    transactionsCount: formattedTransactions.length,
+    groupedDates: Object.keys(searchGroupedByDate).length,
+  });
 
   return (
     <LinearGradient colors={['#1A1C1E', '#2C5F5D']} style={{ flex: 1 }}>
