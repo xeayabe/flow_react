@@ -37,6 +37,7 @@ import TrueBalanceWidget from '@/components/TrueBalanceWidget';
 import RecurringExpensesWidget from '@/components/RecurringExpensesWidget';
 import { BudgetStatusCard } from '@/components/dashboard/BudgetStatusCard';
 import { HouseholdBalanceWidget } from '@/components/dashboard/HouseholdBalanceWidget';
+import { WalletsCard } from '@/components/dashboard/WalletsCard';
 import { useHouseholdData } from '@/hooks/useHouseholdData';
 
 interface BudgetSummaryData {
@@ -296,6 +297,16 @@ export default function DashboardScreen() {
     };
   });
 
+  // Format accounts for WalletsCard
+  const formattedWallets = accounts.map((account: any) => ({
+    id: account.id,
+    name: account.name,
+    institution: account.institution || 'Other',
+    type: account.accountType || 'Checking',
+    balance: account.balance || 0,
+    isDefault: account.isDefault || false,
+  }));
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       {/* Budget Reset Notification */}
@@ -345,6 +356,11 @@ export default function DashboardScreen() {
           {/* Budget Status Card - Swiss Design */}
           {enrichedBudgets.length > 0 && (
             <BudgetStatusCard budgets={enrichedBudgets} />
+          )}
+
+          {/* Wallets Card - Swiss Design */}
+          {formattedWallets.length > 0 && (
+            <WalletsCard wallets={formattedWallets} />
           )}
 
           {/* Budget Status Widget */}
@@ -475,6 +491,14 @@ export default function DashboardScreen() {
           >
             <Text className="text-white text-center font-semibold">
               🧪 Test Household Balance
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/test-wallets-card')}
+            className="bg-teal-600 rounded-xl p-4 mb-3"
+          >
+            <Text className="text-white text-center font-semibold">
+              🧪 Test Wallets Card
             </Text>
           </Pressable>
 
