@@ -24,6 +24,13 @@ export default function WalletsLayout() {
           presentation: 'modal',
         }}
       />
+      <Stack.Screen
+        name="[id]/index"
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
     </Stack>
   );
 }
