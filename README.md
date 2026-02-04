@@ -173,10 +173,14 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
     * Split Preview: Sage Green background showing percentages, individual shares, and who owes whom
     * Only visible for expenses (not income) with 2+ household members
     * Real-time calculations based on household split ratios
-  - **Payee Selector**: Smart auto-categorization based on transaction history
-  - **Category Selection**: Bottom sheet dropdown with glassmorphism design, emoji extraction from category names
+  - **Bottom Sheet Selectors** - Unified Flow glassmorphism design across all modals:
+    * **Payee Selector**: Search-enabled bottom sheet with Store icon, usage count metadata, "Add New" option
+    * **Category Selector**: Bottom sheet with emoji icons, grouped by category type
+    * **Wallet Selector**: Bottom sheet with balance metadata display
+    * **Unified Styling**: Dark background (#1A1C1E), 24px rounded top corners, rgba(255,255,255,0.03) glass items
+    * **Selection State**: Teal background (rgba(44,95,93,0.2)), teal border (#2C5F5D), checkmark icon
+    * **Animations**: Slide-up entrance with spring physics, smooth fade backdrop
   - **Quick Category Buttons**: 6 most-used categories displayed below dropdown with emoji + text layout
-  - **Wallet Selection**: Bottom sheet dropdown showing balance as metadata
   - **Date Picker**: Inline expandable calendar with quick fade-in, instant close (no slide-up animation)
   - **Recurring Templates**: iOS-style toggle switch (matches Shared toggle) with day-of-month selector
   - **Animations**: Staggered FadeInDown with 100ms delays for smooth reveals

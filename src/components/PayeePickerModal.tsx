@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, Modal, TextInput, ScrollView } from 'react-native';
-import { X, Search, Plus, Store } from 'lucide-react-native';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { X, Search, Plus, Store, Check } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 
@@ -111,103 +112,201 @@ export default function PayeePickerModal({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      transparent
+      animationType="none"
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-white">
-        {/* Header */}
-        <View className="flex-row items-center justify-between p-4 border-b border-gray-200">
-          <Text className="text-xl font-bold">Choose Payee</Text>
-          <Pressable onPress={onClose} className="p-2">
-            <X size={24} color="#374151" />
-          </Pressable>
-        </View>
+      {/* Backdrop */}
+      <Animated.View
+        entering={FadeIn.duration(300)}
+        exiting={FadeOut.duration(200)}
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+        }}
+      >
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={onClose}
+        />
 
-        {/* Search Bar */}
-        <View className="p-4 border-b border-gray-200">
-          <View className="flex-row items-center bg-gray-100 rounded-xl px-3 py-2">
-            <Search size={20} color="#6B7280" />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search or create payee..."
-              autoFocus
-              autoCapitalize="words"
-              className="flex-1 ml-2 text-base"
+        {/* Bottom Sheet */}
+        <Animated.View
+          entering={SlideInDown.duration(300).springify()}
+          exiting={SlideOutDown.duration(200)}
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            maxHeight: '70%',
+            backgroundColor: '#1A1C1E',
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingBottom: 40,
+          }}
+        >
+          {/* Handle */}
+          <View className="items-center pt-3 pb-2">
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                backgroundColor: 'rgba(255,255,255,0.3)',
+                borderRadius: 2,
+              }}
             />
-            {searchQuery.length > 0 && (
-              <Pressable onPress={() => setSearchQuery('')}>
-                <X size={20} color="#6B7280" />
-              </Pressable>
-            )}
           </View>
-        </View>
 
-        {/* Payee List */}
-        <ScrollView className="flex-1">
-          {filteredPayees.length > 0 && (
-            <View className="p-4">
-              <Text className="text-xs text-gray-500 font-semibold mb-2 uppercase">
-                {searchQuery ? 'Matches' : 'All Payees (A-Z)'}
-              </Text>
+          {/* Header */}
+          <View className="px-5 pb-3">
+            <Text
+              className="text-lg font-bold"
+              style={{ color: 'rgba(255,255,255,0.95)' }}
+            >
+              Select Payee
+            </Text>
+          </View>
 
-              {filteredPayees.map((payee) => (
-                <Pressable
-                  key={payee.payee}
-                  onPress={() => handleSelectPayee(payee.payee)}
-                  className={`flex-row items-center justify-between p-4 rounded-xl mb-2 ${
-                    currentPayee?.toLowerCase() === payee.payee.toLowerCase()
-                      ? 'bg-teal-50 border-2 border-teal-600'
-                      : 'bg-gray-50'
-                  }`}
+          {/* Search Bar */}
+          <View className="px-4 pb-3">
+            <View
+              className="flex-row items-center rounded-xl px-3 py-3"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.1)',
+              }}
+            >
+              <Search size={18} color="rgba(255,255,255,0.5)" />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search or add new payee..."
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                autoFocus
+                autoCapitalize="words"
+                className="flex-1 ml-2 text-sm"
+                style={{ color: 'rgba(255,255,255,0.9)' }}
+              />
+              {searchQuery.length > 0 && (
+                <Pressable onPress={() => setSearchQuery('')}>
+                  <X size={18} color="rgba(255,255,255,0.5)" />
+                </Pressable>
+              )}
+            </View>
+          </View>
+
+          {/* Payee List */}
+          <ScrollView
+            style={{ maxHeight: '100%' }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {filteredPayees.length > 0 && (
+              <>
+                <Text
+                  className="text-xs font-semibold mb-2 px-1"
+                  style={{
+                    color: 'rgba(255,255,255,0.5)',
+                    textTransform: 'uppercase',
+                    letterSpacing: 1,
+                  }}
                 >
-                  <View className="flex-row items-center gap-3 flex-1">
-                    <Store size={20} color="#006A6A" />
-                    <Text className="text-base font-medium text-gray-900">
-                      {payee.payee}
-                    </Text>
-                  </View>
-                  <Text className="text-xs text-gray-500">
-                    {payee.usageCount} {payee.usageCount === 1 ? 'use' : 'uses'}
+                  {searchQuery ? 'Matches' : 'All Payees (A-Z)'}
+                </Text>
+
+                {filteredPayees.map((payee) => {
+                  const isSelected = currentPayee?.toLowerCase() === payee.payee.toLowerCase();
+
+                  return (
+                    <Pressable
+                      key={payee.payee}
+                      onPress={() => handleSelectPayee(payee.payee)}
+                      className="flex-row items-center justify-between rounded-xl mb-2"
+                      style={{
+                        backgroundColor: isSelected
+                          ? 'rgba(44,95,93,0.2)'
+                          : 'rgba(255,255,255,0.03)',
+                        borderWidth: 1,
+                        borderColor: isSelected ? '#2C5F5D' : 'rgba(255,255,255,0.05)',
+                        padding: 14,
+                      }}
+                    >
+                      <View className="flex-row items-center flex-1">
+                        <Store size={20} color="rgba(168,181,161,0.8)" style={{ marginRight: 12 }} />
+                        <View className="flex-1">
+                          <Text
+                            className="text-sm font-medium"
+                            style={{ color: 'rgba(255,255,255,0.9)' }}
+                          >
+                            {payee.payee}
+                          </Text>
+                          <Text className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                            {payee.usageCount} {payee.usageCount === 1 ? 'use' : 'uses'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {isSelected && (
+                        <Check size={20} color="#2C5F5D" strokeWidth={3} />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Create New Option */}
+            {searchQuery.trim() && !exactMatch && (
+              <>
+                <Text
+                  className="text-xs font-semibold mb-2 px-1 mt-3"
+                  style={{
+                    color: 'rgba(255,255,255,0.5)',
+                    textTransform: 'uppercase',
+                    letterSpacing: 1,
+                  }}
+                >
+                  Create New
+                </Text>
+                <Pressable
+                  onPress={handleCreateNew}
+                  className="flex-row items-center rounded-xl"
+                  style={{
+                    backgroundColor: 'rgba(44,95,93,0.15)',
+                    borderWidth: 2,
+                    borderStyle: 'dashed',
+                    borderColor: '#2C5F5D',
+                    padding: 14,
+                  }}
+                >
+                  <Plus size={20} color="#A8B5A1" style={{ marginRight: 12 }} />
+                  <Text
+                    className="text-sm font-semibold"
+                    style={{ color: 'rgba(168,181,161,0.95)' }}
+                  >
+                    Add "{searchQuery.trim()}"
                   </Text>
                 </Pressable>
-              ))}
-            </View>
-          )}
+              </>
+            )}
 
-          {/* Create New Option */}
-          {searchQuery.trim() && !exactMatch && (
-            <View className="p-4">
-              <Text className="text-xs text-gray-500 font-semibold mb-2 uppercase">
-                Create New
-              </Text>
-              <Pressable
-                onPress={handleCreateNew}
-                className="flex-row items-center gap-3 p-4 rounded-xl bg-teal-50 border-2 border-dashed border-teal-600"
-              >
-                <Plus size={20} color="#006A6A" />
-                <Text className="text-base font-semibold text-teal-900">
-                  Create "{searchQuery.trim()}"
+            {/* Empty State */}
+            {!searchQuery && filteredPayees.length === 0 && (
+              <View className="items-center py-8">
+                <Store size={48} color="rgba(255,255,255,0.2)" />
+                <Text className="text-center mt-4" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                  No payees yet
                 </Text>
-              </Pressable>
-            </View>
-          )}
-
-          {/* Empty State */}
-          {!searchQuery && filteredPayees.length === 0 && (
-            <View className="p-8 items-center">
-              <Store size={48} color="#D1D5DB" />
-              <Text className="text-gray-500 text-center mt-4">
-                No payees yet
-              </Text>
-              <Text className="text-gray-400 text-center text-sm mt-1">
-                Start typing to create your first payee
-              </Text>
-            </View>
-          )}
-        </ScrollView>
-      </View>
+                <Text className="text-center text-xs mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  Start typing to create your first payee
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }
