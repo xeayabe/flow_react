@@ -97,15 +97,15 @@ export default function TransactionsTabScreen() {
 
   // Load transactions
   const transactionsQuery = useQuery({
-    queryKey: ['transactions', householdQuery.data?.householdId],
+    queryKey: ['transactions', householdQuery.data?.userId],
     queryFn: async () => {
-      if (!householdQuery.data?.householdId) return [];
+      if (!householdQuery.data?.userId) return [];
       // @ts-ignore - InstantDB types
       const result = await db.queryOnce({
         // @ts-ignore
         transactions: {
           $: {
-            where: { householdId: householdQuery.data.householdId },
+            where: { userId: householdQuery.data.userId },
           },
           category: {},
           account: {},
@@ -117,32 +117,38 @@ export default function TransactionsTabScreen() {
       });
       return (result?.data?.transactions || []) as any[];
     },
-    enabled: !!householdQuery.data?.householdId,
+    enabled: !!householdQuery.data?.userId,
   });
 
   // Load recurring templates
   const recurringQuery = useQuery({
-    queryKey: ['recurring-templates', householdQuery.data?.householdId],
+    queryKey: ['recurring-templates', householdQuery.data?.userId, householdQuery.data?.householdId],
     queryFn: async () => {
-      if (!householdQuery.data?.householdId) return [];
+      if (!householdQuery.data?.userId || !householdQuery.data?.householdId) return [];
       // @ts-ignore - InstantDB types
       const result = await db.queryOnce({
         // @ts-ignore
         recurringTemplates: {
           $: {
-            where: { householdId: householdQuery.data.householdId, isActive: true },
+            where: {
+              userId: householdQuery.data.userId,
+              householdId: householdQuery.data.householdId,
+              isActive: true
+            },
           },
           category: {},
         },
       });
       return (result?.data?.recurringTemplates || []) as any[];
     },
-    enabled: !!householdQuery.data?.householdId,
+    enabled: !!householdQuery.data?.userId && !!householdQuery.data?.householdId,
   });
 
   // Format transactions for display
   const formattedTransactions = React.useMemo(() => {
     if (!transactionsQuery.data) return [];
+
+    console.log('📊 Raw transactions data:', transactionsQuery.data.length);
 
     return transactionsQuery.data.map((t: any) => {
       const category = t.category?.[0];
@@ -196,7 +202,7 @@ export default function TransactionsTabScreen() {
         amount: r.amount,
         payee: r.payee || 'Unknown',
         emoji: category?.emoji || '📝',
-        dayOfMonth: r.dayOfMonth,
+        dayOfMonth: r.recurringDay || 1,
         isActive: r.isActive,
         isShared: r.isShared || false,
         partnerName: 'Partner',
