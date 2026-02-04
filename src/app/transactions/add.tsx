@@ -500,21 +500,15 @@ export default function AddTransactionScreen() {
                     Create recurring template
                   </Text>
                 </View>
-                <Pressable
-                  onPress={() => {
-                    const newValue = !formData.isRecurring;
+                <Switch
+                  value={formData.isRecurring}
+                  onValueChange={(newValue) => {
                     setFormData({ ...formData, isRecurring: newValue });
                     if (newValue) setIsShared(false);
                   }}
-                  className="w-6 h-6 rounded items-center justify-center"
-                  style={{
-                    backgroundColor: formData.isRecurring ? '#2C5F5D' : 'rgba(255,255,255,0.1)',
-                    borderWidth: 2,
-                    borderColor: formData.isRecurring ? '#2C5F5D' : 'rgba(255,255,255,0.2)',
-                  }}
-                >
-                  {formData.isRecurring && <Check size={14} color="#fff" strokeWidth={3} />}
-                </Pressable>
+                  trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#2C5F5D' }}
+                  thumbColor="#fff"
+                />
               </View>
 
               {formData.isRecurring && (
