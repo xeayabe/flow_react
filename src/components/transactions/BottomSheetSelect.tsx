@@ -45,23 +45,18 @@ export default function BottomSheetSelect({
           padding: 12,
         }}
       >
-        <View className="flex-row items-center flex-1">
-          {selectedOption?.icon && (
-            <Text className="text-lg mr-2">{selectedOption.icon}</Text>
-          )}
-          <View className="flex-1">
-            <Text
-              className="text-sm"
-              style={{ color: selectedOption ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)' }}
-            >
-              {selectedOption ? selectedOption.name : placeholder}
+        <View className="flex-1">
+          <Text
+            className="text-sm"
+            style={{ color: selectedOption ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)' }}
+          >
+            {selectedOption ? selectedOption.name : placeholder}
+          </Text>
+          {selectedOption?.meta && (
+            <Text className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+              {selectedOption.meta}
             </Text>
-            {selectedOption?.meta && (
-              <Text className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                {selectedOption.meta}
-              </Text>
-            )}
-          </View>
+          )}
         </View>
         <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
       </Pressable>
