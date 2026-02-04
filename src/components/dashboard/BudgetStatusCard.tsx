@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, LayoutAnimation, Platform, UIManager } from 'react-native';
-import { TrendingUp, ChevronDown, ChevronRight } from 'lucide-react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { TrendingUp, ChevronDown } from 'lucide-react-native';
 import { GlassCard } from '@/components/ui/Glass';
-import { BudgetItem } from '@/components/budget/BudgetItem';
+import { BudgetGroupItem } from '@/components/budget/BudgetGroupItem';
 import { formatCurrency } from '@/lib/formatCurrency';
 import { colors } from '@/lib/design-tokens';
 
@@ -47,7 +46,7 @@ const DEFAULT_GROUP_CONFIG: Record<string, { order: number }> = {
 
 /**
  * Budget Status Card - Collapsible card showing all budget categories
- * Groups budgets by Needs/Wants/Savings with individually collapsible groups
+ * Groups budgets by Needs/Wants/Savings with individually collapsible group cards
  */
 export function BudgetStatusCard({ budgets, summaryTotals }: BudgetStatusCardProps) {
   const [isOpen, setIsOpen] = useState(true);
@@ -101,21 +100,14 @@ export function BudgetStatusCard({ budgets, summaryTotals }: BudgetStatusCardPro
   };
 
   const toggleGroup = (groupName: string) => {
-    LayoutAnimation.configureNext(
-      LayoutAnimation.create(
-        200,
-        LayoutAnimation.Types.easeInEaseOut,
-        LayoutAnimation.Properties.opacity
-      )
-    );
     setOpenGroups(prev => ({
       ...prev,
       [groupName]: prev[groupName] === undefined ? false : !prev[groupName],
     }));
   };
 
-  // Check if a group is open (default to true)
-  const isGroupOpen = (groupName: string) => openGroups[groupName] !== false;
+  // Check if a group is open (default to false - collapsed by default)
+  const isGroupOpen = (groupName: string) => openGroups[groupName] === true;
 
   return (
     <GlassCard hover={false}>
@@ -169,88 +161,32 @@ export function BudgetStatusCard({ budgets, summaryTotals }: BudgetStatusCardPro
       {/* Collapsible Content */}
       {isOpen && (
         <View
-          className="px-5 pb-5 pt-4"
+          className="px-5 pb-5 pt-2"
           style={{
             borderTopWidth: 1,
             borderTopColor: 'rgba(255, 255, 255, 0.05)',
           }}
         >
-          {sortedGroups.map((group, groupIndex) => {
-            const groupOpen = isGroupOpen(group.groupName);
-
-            return (
-              <Animated.View
+          <View className="gap-3">
+            {sortedGroups.map((group, groupIndex) => (
+              <BudgetGroupItem
                 key={group.groupName}
-                entering={FadeInDown.delay(groupIndex * 100).duration(300)}
-                style={{ marginBottom: groupIndex === sortedGroups.length - 1 ? 0 : 16 }}
-              >
-                {/* Group Header - Clickable */}
-                <Pressable
-                  onPress={() => toggleGroup(group.groupName)}
-                  className="flex-row items-center justify-between py-2"
-                  style={({ pressed }) => ({
-                    backgroundColor: pressed ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
-                    marginHorizontal: -8,
-                    paddingHorizontal: 8,
-                    borderRadius: 8,
-                  })}
-                >
-                  <View className="flex-row items-center">
-                    <ChevronRight
-                      size={14}
-                      color="rgba(255, 255, 255, 0.5)"
-                      strokeWidth={2}
-                      style={{
-                        transform: [{ rotate: groupOpen ? '90deg' : '0deg' }],
-                        marginRight: 8,
-                      }}
-                    />
-                    <Text
-                      className="text-white/70 font-semibold"
-                      style={{
-                        fontSize: 11,
-                        textTransform: 'uppercase',
-                        letterSpacing: 1.5,
-                      }}
-                    >
-                      {group.groupName}
-                    </Text>
-                    <Text
-                      className="text-white/40 ml-2"
-                      style={{ fontSize: 10 }}
-                    >
-                      ({group.items.length})
-                    </Text>
-                  </View>
-                  <Text
-                    className="text-white/50"
-                    style={{
-                      fontSize: 11,
-                      fontVariant: ['tabular-nums'],
-                    }}
-                  >
-                    {formatCurrency(group.totalSpent, { showCurrency: false })} / {formatCurrency(group.totalAllocated, { showCurrency: false })}
-                  </Text>
-                </Pressable>
-
-                {/* Collapsible Group Items */}
-                {groupOpen && (
-                  <View className="mt-2">
-                    {group.items.map((budget, itemIndex) => (
-                      <BudgetItem
-                        key={budget.id}
-                        emoji={budget.categoryEmoji || '📊'}
-                        label={budget.categoryName}
-                        spent={budget.spentAmount}
-                        allocated={budget.allocatedAmount}
-                        animationDelay={itemIndex * 50}
-                      />
-                    ))}
-                  </View>
-                )}
-              </Animated.View>
-            );
-          })}
+                groupName={group.groupName}
+                categories={group.items.map(item => ({
+                  id: item.id,
+                  categoryName: item.categoryName,
+                  categoryEmoji: item.categoryEmoji,
+                  allocatedAmount: item.allocatedAmount,
+                  spentAmount: item.spentAmount,
+                }))}
+                totalSpent={group.totalSpent}
+                totalAllocated={group.totalAllocated}
+                isOpen={isGroupOpen(group.groupName)}
+                onToggle={() => toggleGroup(group.groupName)}
+                animationDelay={groupIndex * 100}
+              />
+            ))}
+          </View>
 
           {/* Empty state */}
           {budgets.length === 0 && (
