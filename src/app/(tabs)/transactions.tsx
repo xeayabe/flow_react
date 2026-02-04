@@ -188,15 +188,32 @@ export default function TransactionsTabScreen() {
       const category = categoryMap.get(t.categoryId);
       const account = accountMap.get(t.accountId);
 
+      // Extract emoji from category name if it exists
+      let categoryEmoji = '📝';
+      let categoryNameClean = category?.name || 'Uncategorized';
+
+      if (category?.emoji) {
+        categoryEmoji = category.emoji;
+      } else if (category?.name) {
+        // Try to extract emoji from the beginning of the name
+        // Simple emoji detection - emojis are typically 1-2 chars at the start
+        const emojiRegex = /([\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])\s*/u;
+        const emojiMatch = category.name.match(emojiRegex);
+        if (emojiMatch) {
+          categoryEmoji = emojiMatch[1];
+          categoryNameClean = category.name.replace(emojiRegex, '').trim();
+        }
+      }
+
       return {
         id: t.id,
         type: t.type,
         amount: t.amount,
         payee: t.payee || 'Unknown',
-        categoryName: category?.name || 'Uncategorized',
+        categoryName: categoryNameClean,
         categoryId: t.categoryId,
         walletName: account?.name || 'Cash',
-        emoji: category?.emoji || '📝',
+        emoji: categoryEmoji,
         date: t.date,
         note: t.note,
         isShared: false,
