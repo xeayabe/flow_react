@@ -169,16 +169,16 @@ export default function TestTransactionsCard() {
                     style={{ backgroundColor: 'rgba(255, 255, 255, 0.85)' }}
                   />
                   <Text className="text-white/60 text-xs">
-                    Expenses: Neutral white (rgba 0.85) - NO RED!
+                    ALL amounts: Neutral white (rgba 0.85) - NO RED, NO GREEN!
                   </Text>
                 </View>
                 <View className="flex-row items-center gap-3">
                   <View
                     className="w-4 h-4 rounded"
-                    style={{ backgroundColor: colors.contextSage }}
+                    style={{ backgroundColor: colors.contextLavender }}
                   />
                   <Text className="text-white/60 text-xs">
-                    Income: Sage Green (#A8B5A1)
+                    Calendar icon: Soft Lavender (#B4A7D6)
                   </Text>
                 </View>
                 <View className="flex-row items-center gap-3">

@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { formatCurrency } from '@/lib/formatCurrency';
-import { colors } from '@/lib/design-tokens';
 
 interface TransactionItemProps {
   emoji: string;
@@ -15,9 +14,14 @@ interface TransactionItemProps {
   animationDelay?: number;
 }
 
+// Shared badge teal color
+const SHARED_BADGE_BG = 'rgba(44, 95, 93, 0.2)';
+const SHARED_BADGE_BORDER = 'rgba(44, 95, 93, 0.4)';
+const SHARED_BADGE_TEXT = '#A8B5A1';
+
 /**
  * TransactionItem - Individual transaction row
- * Uses neutral colors for amounts (NO RED for expenses!)
+ * Uses neutral colors for ALL amounts (NO RED, NO GREEN!)
  */
 export function TransactionItem({
   emoji,
@@ -29,7 +33,6 @@ export function TransactionItem({
   onPress,
   animationDelay = 0,
 }: TransactionItemProps) {
-  const isExpense = amount < 0;
 
   return (
     <Animated.View
@@ -71,7 +74,7 @@ export function TransactionItem({
                         fontSize: 8,
                         textTransform: 'uppercase',
                         letterSpacing: 0.5,
-                        color: colors.contextSage,
+                        color: SHARED_BADGE_TEXT,
                       }}
                     >
                       Shared
@@ -99,12 +102,11 @@ export function TransactionItem({
             style={{
               fontSize: 15,
               fontVariant: ['tabular-nums'],
-              // CRITICAL: Use neutral white/gray, NO RED!
-              // Expenses show in slightly dimmer white, income in sage green
-              color: isExpense ? 'rgba(255, 255, 255, 0.85)' : colors.contextSage,
+              // CRITICAL: ALL amounts use neutral white/gray - NO RED, NO GREEN!
+              color: 'rgba(255, 255, 255, 0.85)',
             }}
           >
-            {isExpense ? '' : '+'}{formatCurrency(Math.abs(amount))}
+            {formatCurrency(amount)}
           </Text>
         </View>
       </Pressable>

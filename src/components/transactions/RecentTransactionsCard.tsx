@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Receipt, ChevronDown, Plus } from 'lucide-react-native';
+import { Calendar, ChevronDown, Plus } from 'lucide-react-native';
 import { GlassCard } from '@/components/ui/Glass';
 import { TransactionItem } from './TransactionItem';
 import { formatTransactionDate } from '@/lib/formatTransactionDate';
@@ -77,9 +77,9 @@ export function RecentTransactionsCard({
         })}
       >
         <View className="flex-row items-center">
-          <Receipt
+          <Calendar
             size={20}
-            color={colors.contextSage}
+            color={colors.contextLavender}
             strokeWidth={1.5}
           />
           <Text
