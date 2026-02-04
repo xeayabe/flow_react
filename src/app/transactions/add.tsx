@@ -354,76 +354,9 @@ export default function AddTransactionScreen() {
             </View>
           </Animated.View>
 
-          {/* Payee Glass Card */}
-          <Animated.View entering={FadeInDown.delay(300).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
-            <Pressable onPress={() => setShowPayeePicker(true)} className="p-5">
-              <Text className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>Payee</Text>
-              <Text className="text-base" style={{ color: formData.payee ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)' }}>
-                {formData.payee || 'Select payee...'}
-              </Text>
-            </Pressable>
-            {suggestedCategoryId === formData.categoryId && formData.categoryId && formData.payee.trim() && (
-              <View className="flex-row items-center px-5 pb-4" style={{ backgroundColor: 'rgba(168,181,161,0.1)' }}>
-                <Sparkles size={14} color="#A8B5A1" style={{ marginRight: 6 }} />
-                <Text className="text-xs flex-1" style={{ color: 'rgba(168,181,161,0.9)' }}>
-                  Category auto-filled from history
-                </Text>
-              </View>
-            )}
-          </Animated.View>
-
-          {/* Category Glass Card */}
-          <Animated.View entering={FadeInDown.delay(400).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
-            <Pressable onPress={() => setShowCategoryModal(true)} className="p-5">
-              <Text className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>Category</Text>
-              <Text className="text-base" style={{ color: selectedCategory ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)' }}>
-                {selectedCategory?.name || 'Select category...'}
-              </Text>
-            </Pressable>
-
-            {/* Quick Category Buttons */}
-            <View className="px-5 pb-4">
-              <QuickCategoryButtons
-                categories={categories}
-                selectedCategoryId={formData.categoryId}
-                onSelectCategory={(categoryId) => setFormData({ ...formData, categoryId })}
-                type={formData.type}
-              />
-            </View>
-          </Animated.View>
-
-          {/* Wallet Glass Card */}
-          <Animated.View entering={FadeInDown.delay(500).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
-            <Pressable onPress={() => setShowAccountModal(true)} className="p-5">
-              <Text className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>Wallet</Text>
-              <View>
-                <Text className="text-base" style={{ color: selectedAccount ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)' }}>
-                  {selectedAccount?.name || 'Select wallet...'}
-                </Text>
-                {selectedAccount && (
-                  <Text className="text-xs mt-1" style={{ color: 'rgba(168,181,161,0.7)' }}>
-                    {formatCurrency(selectedAccount.balance)}
-                  </Text>
-                )}
-              </View>
-            </Pressable>
-          </Animated.View>
-
-          {/* Date Glass Card */}
-          <Animated.View entering={FadeInDown.delay(600).duration(400)} className="mb-6">
-            <Text className="text-sm font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>Date</Text>
-            <ExpandableCalendar
-              value={new Date(formData.date + 'T00:00:00')}
-              onChange={(date) => {
-                const dateStr = date.toISOString().split('T')[0];
-                setFormData({ ...formData, date: dateStr });
-              }}
-            />
-          </Animated.View>
-
           {/* Shared Expense Toggle - Only for expenses with 2+ members */}
           {householdMembersQuery.data && householdMembersQuery.data.length >= 2 && formData.type === 'expense' && !formData.isRecurring && (
-            <Animated.View entering={FadeInDown.delay(700).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: isShared ? 'rgba(168,181,161,0.15)' : 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: isShared ? 'rgba(168,181,161,0.3)' : 'rgba(255,255,255,0.1)' }}>
+            <Animated.View entering={FadeInDown.delay(250).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: isShared ? 'rgba(168,181,161,0.15)' : 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: isShared ? 'rgba(168,181,161,0.3)' : 'rgba(255,255,255,0.1)' }}>
               <View className="p-5">
                 <View className="flex-row items-center justify-between">
                   <View className="flex-1">
@@ -462,8 +395,75 @@ export default function AddTransactionScreen() {
             </Animated.View>
           )}
 
+          {/* Payee Glass Card */}
+          <Animated.View entering={FadeInDown.delay(300).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+            <Pressable onPress={() => setShowPayeePicker(true)} className="p-5">
+              <Text className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>Payee</Text>
+              <Text className="text-base" style={{ color: formData.payee ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)' }}>
+                {formData.payee || 'Select payee...'}
+              </Text>
+            </Pressable>
+            {suggestedCategoryId === formData.categoryId && formData.categoryId && formData.payee.trim() && (
+              <View className="flex-row items-center px-5 pb-4" style={{ backgroundColor: 'rgba(168,181,161,0.1)' }}>
+                <Sparkles size={14} color="#A8B5A1" style={{ marginRight: 6 }} />
+                <Text className="text-xs flex-1" style={{ color: 'rgba(168,181,161,0.9)' }}>
+                  Category auto-filled from history
+                </Text>
+              </View>
+            )}
+          </Animated.View>
+
+          {/* Category Glass Card */}
+          <Animated.View entering={FadeInDown.delay(350).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+            <Pressable onPress={() => setShowCategoryModal(true)} className="p-5">
+              <Text className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>Category</Text>
+              <Text className="text-base" style={{ color: selectedCategory ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)' }}>
+                {selectedCategory?.name || 'Select category...'}
+              </Text>
+            </Pressable>
+
+            {/* Quick Category Buttons */}
+            <View className="px-5 pb-4">
+              <QuickCategoryButtons
+                categories={categories}
+                selectedCategoryId={formData.categoryId}
+                onSelectCategory={(categoryId) => setFormData({ ...formData, categoryId })}
+                type={formData.type}
+              />
+            </View>
+          </Animated.View>
+
+          {/* Wallet Glass Card */}
+          <Animated.View entering={FadeInDown.delay(400).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+            <Pressable onPress={() => setShowAccountModal(true)} className="p-5">
+              <Text className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>Wallet</Text>
+              <View>
+                <Text className="text-base" style={{ color: selectedAccount ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)' }}>
+                  {selectedAccount?.name || 'Select wallet...'}
+                </Text>
+                {selectedAccount && (
+                  <Text className="text-xs mt-1" style={{ color: 'rgba(168,181,161,0.7)' }}>
+                    {formatCurrency(selectedAccount.balance)}
+                  </Text>
+                )}
+              </View>
+            </Pressable>
+          </Animated.View>
+
+          {/* Date Glass Card */}
+          <Animated.View entering={FadeInDown.delay(450).duration(400)} className="mb-6">
+            <Text className="text-sm font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>Date</Text>
+            <ExpandableCalendar
+              value={new Date(formData.date + 'T00:00:00')}
+              onChange={(date) => {
+                const dateStr = date.toISOString().split('T')[0];
+                setFormData({ ...formData, date: dateStr });
+              }}
+            />
+          </Animated.View>
+
           {/* Recurring Toggle */}
-          <Animated.View entering={FadeInDown.delay(800).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+          <Animated.View entering={FadeInDown.delay(500).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
             <View className="p-5">
               <View className="flex-row items-center justify-between">
                 <View className="flex-1">
@@ -511,7 +511,7 @@ export default function AddTransactionScreen() {
           </Animated.View>
 
           {/* Save FAB */}
-          <Animated.View entering={FadeInDown.delay(900).duration(400)}>
+          <Animated.View entering={FadeInDown.delay(550).duration(400)}>
             <Pressable
               onPress={validateAndSubmit}
               disabled={createMutation.isPending}
