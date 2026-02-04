@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { Plus } from 'lucide-react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { db } from '@/lib/db';
 import { getUserAccounts } from '@/lib/accounts-api';
 import { getRecentTransactions } from '@/lib/transactions-api';
@@ -23,6 +23,7 @@ import { BudgetStatusCard } from '@/components/dashboard/BudgetStatusCard';
 import { WalletsCard } from '@/components/dashboard/WalletsCard';
 import { RecentTransactionsCard } from '@/components/dashboard/RecentTransactionsCard';
 import { useHouseholdData } from '@/hooks/useHouseholdData';
+import StickyStatusBar from '@/components/layout/StickyStatusBar';
 
 /**
  * Dashboard Screen - Swiss Design Dark Theme
@@ -32,6 +33,13 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { user } = db.useAuth();
   const [showResetNotification, setShowResetNotification] = React.useState(false);
+  const scrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
   // Fetch household data for the Household Balance Widget
   const householdData = useHouseholdData();
@@ -321,6 +329,8 @@ export default function DashboardScreen() {
       end={{ x: 0, y: 1 }}
       style={{ flex: 1 }}
     >
+      <StickyStatusBar scrollY={scrollY} />
+
       {/* Budget Reset Notification */}
       {showResetNotification && (
         <Animated.View
@@ -345,7 +355,9 @@ export default function DashboardScreen() {
         </Animated.View>
       )}
 
-      <ScrollView
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingTop: showResetNotification ? 16 : insets.top + 16,
@@ -398,7 +410,7 @@ export default function DashboardScreen() {
             <RecentTransactionsCard transactions={formattedTransactions} />
           </Animated.View>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* 6. Floating Action Button - Static Glow Design */}
       <Pressable
