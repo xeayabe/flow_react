@@ -253,6 +253,48 @@ export default function AddTransactionScreen() {
     }
   };
 
+  // Update transaction mutation
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error('No transaction ID for update');
+
+      const { updateTransaction } = await import('@/lib/transactions-api');
+
+      const result = await updateTransaction({
+        id,
+        userId: householdQuery.data!.userRecord.id,
+        householdId: householdQuery.data!.householdId,
+        accountId: formData.accountId,
+        categoryId: formData.categoryId,
+        type: formData.type,
+        amount: parseFloat(formData.amount),
+        date: formData.date,
+        note: formData.note || undefined,
+        payee: formData.payee || undefined,
+        isRecurring: false,
+        recurringDay: undefined,
+        isShared: isShared,
+        paidByUserId: isShared ? paidByUserId : undefined,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update transaction');
+      }
+
+      return result;
+    },
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-details'] });
+      router.back();
+    },
+    onError: (error) => {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update transaction');
+    },
+  });
+
   // Create transaction mutation
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -343,7 +385,13 @@ export default function AddTransactionScreen() {
       Alert.alert('Error', 'Please select a wallet');
       return;
     }
-    createMutation.mutate();
+
+    // Use update mutation if editing, create if new
+    if (isEditing) {
+      updateMutation.mutate();
+    } else {
+      createMutation.mutate();
+    }
   };
 
   const isFormValid = () => {
@@ -612,7 +660,7 @@ export default function AddTransactionScreen() {
         <SaveFAB
           onSave={validateAndSubmit}
           disabled={!isFormValid()}
-          isLoading={createMutation.isPending}
+          isLoading={createMutation.isPending || updateMutation.isPending}
         />
       </KeyboardAvoidingView>
 

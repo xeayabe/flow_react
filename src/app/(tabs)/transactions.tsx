@@ -306,8 +306,11 @@ export default function TransactionsTabScreen() {
         db.tx.transactions[transactionId].delete()
       ]);
       console.log('✅ Transaction deleted successfully');
-      // Invalidate queries to refresh the list
+      // Invalidate queries to refresh all data
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-details'] });
     } catch (error) {
       console.error('❌ Error deleting transaction:', error);
     }
