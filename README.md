@@ -162,12 +162,19 @@ A beautiful iOS mobile app for calm financial control. Track expenses with your 
   - No shared expense functionality yet
   - Customizable category groups for flexible budget allocation
 
-### Transaction System (US-014, US-018, & US-020)
-- ✅ **Add Transaction Page** - Full form to track income and expenses
-  - Type Toggle: Income/Expense with dynamic category filtering
-  - Amount Input: Auto-formatting with currency symbol (CHF)
-  - Category Dropdown: Grouped by Income/Needs/Wants/Savings/Other
-  - Account Selection: Pre-selected default account with balance display
+### Transaction System (US-014, US-018, US-020, & US-025)
+- ✅ **Add Transaction Page** - Glassmorphism dark theme with Flow design system
+  - **Design**: Deep Teal (#2C5F5D) gradient background, frosted glass cards (rgba(255,255,255,0.03))
+  - **Type Toggle**: Income/Expense with dynamic category filtering and smooth transitions
+  - **Amount Input**: Large 4xl font with Sage Green (#A8B5A1) accent, auto-focus on entry
+  - **Payee Selector**: Smart auto-categorization based on transaction history
+  - **Category Selection**: Grouped by type with quick access modal
+  - **Wallet Selection**: Pre-selected default with balance display
+  - **Date Picker**: Inline glassmorphic calendar with month navigation
+  - **Shared Expenses**: Toggle for household split with real-time preview
+  - **Recurring Templates**: Monthly repeating expenses with day-of-month selector
+  - **Animations**: Staggered FadeInDown with 100ms delays for smooth reveals
+  - **FAB Save Button**: Glowing Deep Teal button with Sage Green shadow
   - Date Input: Custom calendar chip picker with month navigation
     * Calendar auto-scrolls to view when opened
     * Single tap on date closes picker and updates form

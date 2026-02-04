@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Modal, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Switch } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Plus, X, Check, Calendar, ChevronRight, Check as CheckIcon, Sparkles } from 'lucide-react-native';
+import { ChevronLeft, Check, Calendar, ChevronRight, Sparkles, ArrowLeft } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { db } from '@/lib/db';
-import { createTransaction, formatCurrency, formatDateSwiss, parseSwissDate } from '@/lib/transactions-api';
+import { createTransaction } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
-import { getUserAccounts, formatBalance } from '@/lib/accounts-api';
+import { getUserAccounts } from '@/lib/accounts-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
-import { migrateCategoryGroups } from '@/lib/migrate-categories';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { createExpenseSplits, calculateSplitRatio } from '@/lib/shared-expenses-api';
 import { getCategorySuggestion, savePayeeMapping } from '@/lib/payee-mappings-api';
 import { createRecurringTemplate } from '@/lib/recurring-api';
+import { formatCurrency } from '@/lib/formatCurrency';
 import PayeePickerModal from '@/components/PayeePickerModal';
 import CategoryPickerModal from '@/components/CategoryPickerModal';
 import { cn } from '@/lib/cn';
@@ -27,31 +29,25 @@ interface FormData {
   accountId: string;
   date: string;
   note: string;
-  payee: string; // Merchant/vendor name
+  payee: string;
   isRecurring: boolean;
   recurringDay: number;
   isShared?: boolean;
   paidByUserId?: string;
 }
 
-interface FormErrors {
-  amount?: string;
-  categoryId?: string;
-  accountId?: string;
-  date?: string;
-}
-
 export default function AddTransactionScreen() {
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
   const amountInputRef = useRef<TextInput>(null);
-  const mainScrollRef = useRef<ScrollView>(null);
+
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
-  const [showAddAnotherModal, setShowAddAnotherModal] = useState(false);
+  const [showPayeePicker, setShowPayeePicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [tempDate, setTempDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [suggestedCategoryId, setSuggestedCategoryId] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<FormData>({
@@ -66,26 +62,11 @@ export default function AddTransactionScreen() {
     recurringDay: 1,
   });
 
-  const [errors, setErrors] = useState<FormErrors>({});
-
   // Shared expense state
   const [isShared, setIsShared] = useState(false);
   const [paidByUserId, setPaidByUserId] = useState<string>('');
 
-  // Smart payee-category learning state
-  const [suggestedCategoryId, setSuggestedCategoryId] = useState<string | null>(null);
-  const [showPayeePicker, setShowPayeePicker] = useState(false);
-
-  // Auto-scroll to date picker when it opens
-  useEffect(() => {
-    if (showDatePicker) {
-      setTimeout(() => {
-        mainScrollRef.current?.scrollToEnd({ animated: true });
-      }, 150);
-    }
-  }, [showDatePicker]);
-
-  // Get user and household info (works for both admin and members)
+  // Get user and household info
   const householdQuery = useQuery({
     queryKey: ['user-household', user?.email],
     queryFn: async () => {
@@ -127,7 +108,7 @@ export default function AddTransactionScreen() {
     enabled: !!householdQuery.data?.householdId,
   });
 
-  // Get split ratios for showing percentages
+  // Get split ratios
   const splitRatiosQuery = useQuery({
     queryKey: ['split-ratios', householdQuery.data?.householdId],
     queryFn: async () => {
@@ -135,14 +116,13 @@ export default function AddTransactionScreen() {
       try {
         return await calculateSplitRatio(householdQuery.data.householdId);
       } catch (error) {
-        console.error('Error calculating split ratios:', error);
         return [];
       }
     },
     enabled: !!householdQuery.data?.householdId && isShared,
   });
 
-  // Auto-select current user as payer when members load
+  // Auto-select current user as payer
   useEffect(() => {
     if (householdMembersQuery.data && householdMembersQuery.data.length > 0 && !paidByUserId) {
       const currentMember = householdMembersQuery.data.find(
@@ -168,35 +148,13 @@ export default function AddTransactionScreen() {
   const categoriesQuery = useQuery({
     queryKey: ['categories', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id],
     queryFn: async () => {
-      if (!householdQuery.data?.householdId || !householdQuery.data?.userRecord?.id) {
-        console.warn('Household ID or User ID not available for categories query');
-        return [];
-      }
-
-      // Run migration first to fix any categories with old hardcoded group values
-      await migrateCategoryGroups(householdQuery.data.householdId);
-
-      const cats = await getCategories(householdQuery.data.householdId, householdQuery.data.userRecord.id);
-      console.log('Categories loaded:', { count: cats.length, categories: cats.map(c => ({ id: c.id, name: c.name, type: c.type, group: c.categoryGroup })) });
-      return cats;
+      if (!householdQuery.data?.householdId || !householdQuery.data?.userRecord?.id) return [];
+      return getCategories(householdQuery.data.householdId, householdQuery.data.userRecord.id);
     },
     enabled: !!householdQuery.data?.householdId && !!householdQuery.data?.userRecord?.id,
   });
 
-  // Get category groups
-  const categoryGroupsQuery = useQuery({
-    queryKey: ['categoryGroups', householdQuery.data?.householdId, householdQuery.data?.userRecord?.id],
-    queryFn: async () => {
-      if (!householdQuery.data?.householdId || !householdQuery.data?.userRecord?.id) {
-        return [];
-      }
-
-      return getCategoryGroups(householdQuery.data.householdId, householdQuery.data.userRecord.id);
-    },
-    enabled: !!householdQuery.data?.householdId && !!householdQuery.data?.userRecord?.id,
-  });
-
-  // Set default account on first load
+  // Set default account
   useEffect(() => {
     if (accountsQuery.data && accountsQuery.data.length > 0 && !formData.accountId) {
       const defaultAccount = accountsQuery.data.find((acc) => acc.isDefault) || accountsQuery.data[0];
@@ -204,35 +162,23 @@ export default function AddTransactionScreen() {
     }
   }, [accountsQuery.data]);
 
-  // Handle payee selection from modal
+  // Handle payee selection
   const handleSelectPayee = async (selectedPayee: string) => {
-    console.log('✅ Payee selected:', selectedPayee);
     setFormData((prev) => ({ ...prev, payee: selectedPayee }));
 
-    // Auto-fill category if mapping exists
     if (householdQuery.data?.userRecord?.id) {
       const suggested = await getCategorySuggestion(householdQuery.data.userRecord.id, selectedPayee);
-
       if (suggested) {
-        console.log('💡 Auto-filling category:', suggested);
         setFormData((prev) => ({ ...prev, categoryId: suggested }));
         setSuggestedCategoryId(suggested);
       }
     }
   };
 
-  // Handle clearing payee
-  const handleClearPayee = () => {
-    setFormData((prev) => ({ ...prev, payee: '' }));
-    setSuggestedCategoryId(null);
-  };
-
   // Create transaction mutation
   const createMutation = useMutation({
     mutationFn: async () => {
-      // Check if this is a recurring expense - create template instead of transaction
       if (formData.isRecurring) {
-        console.log('📅 Creating recurring template (not transaction)');
         const templateId = await createRecurringTemplate({
           userId: householdQuery.data!.userRecord.id,
           householdId: householdQuery.data!.householdId,
@@ -243,11 +189,9 @@ export default function AddTransactionScreen() {
           payee: formData.payee || undefined,
           note: formData.note || undefined,
         });
-        console.log('✅ Recurring template created:', templateId);
         return { success: true, templateId, isTemplate: true };
       }
 
-      // Regular transaction (not recurring)
       const result = await createTransaction({
         userId: householdQuery.data!.userRecord.id,
         householdId: householdQuery.data!.householdId,
@@ -258,33 +202,28 @@ export default function AddTransactionScreen() {
         date: formData.date,
         note: formData.note || undefined,
         payee: formData.payee || undefined,
-        isRecurring: false, // Always false since we handle recurring separately
+        isRecurring: false,
         recurringDay: undefined,
         isShared: isShared,
         paidByUserId: isShared ? paidByUserId : undefined,
       });
 
-      // Check if the transaction creation was successful
       if (!result.success) {
         throw new Error(result.error || 'Failed to create transaction');
       }
 
-      // If shared, create expense splits
       if (isShared && result.transactionId) {
-        console.log('Creating expense splits for transaction:', result.transactionId);
         await createExpenseSplits(
           result.transactionId,
           parseFloat(formData.amount),
           householdQuery.data!.householdId,
           paidByUserId
         );
-        console.log('Expense splits created successfully');
       }
 
       return { ...result, isTemplate: false };
     },
     onSuccess: async (result: any) => {
-      // Save payee-category mapping for smart learning
       if (formData.payee.trim() && formData.categoryId && householdQuery.data?.userRecord?.id) {
         await savePayeeMapping(
           householdQuery.data.userRecord.id,
@@ -293,497 +232,323 @@ export default function AddTransactionScreen() {
         );
       }
 
-      // Invalidate all relevant queries to refresh the UI
-      queryClient.invalidateQueries({ queryKey: ['transactions'] }); // Catch all transactions queries
-      queryClient.invalidateQueries({ queryKey: ['transactions-household'] }); // Specifically for the household transactions
-      queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
-      queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      queryClient.invalidateQueries({ queryKey: ['all-payees', householdQuery.data?.userRecord?.id] });
-      queryClient.invalidateQueries({ queryKey: ['recurring-templates'] });
-      queryClient.invalidateQueries({ queryKey: ['budget-summary'] }); // Refresh budget totals
-      queryClient.invalidateQueries({ queryKey: ['budget-details'] }); // Refresh budget spent amounts
-      queryClient.invalidateQueries({ queryKey: ['household-data'] }); // Refresh shared expense balances
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-details'] });
 
-      // Show appropriate message based on whether it's a template or transaction
       if (result.isTemplate) {
         Alert.alert(
           'Recurring Expense Set Up!',
-          `Your recurring expense will appear on day ${formData.recurringDay} of each month. You can add it from the dashboard when it's due.`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                router.back();
-              },
-            },
-          ]
+          `Your recurring expense will appear on day ${formData.recurringDay} of each month.`,
+          [{ text: 'OK', onPress: () => router.back() }]
         );
       } else {
-        // Show the "add another" modal immediately for regular transactions
-        setShowAddAnotherModal(true);
+        router.back();
       }
     },
     onError: (error) => {
-      console.error('Transaction creation failed:', error);
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to create transaction. Please try again.');
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to create transaction');
     },
   });
 
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
-
+  const validateAndSubmit = () => {
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      newErrors.amount = 'Amount must be greater than 0';
+      Alert.alert('Error', 'Please enter a valid amount');
+      return;
     }
-
     if (!formData.categoryId) {
-      newErrors.categoryId = 'Please select a category';
+      Alert.alert('Error', 'Please select a category');
+      return;
     }
-
     if (!formData.accountId) {
-      newErrors.accountId = 'Please select an account';
+      Alert.alert('Error', 'Please select a wallet');
+      return;
     }
-
-    if (!formData.date) {
-      newErrors.date = 'Please select a date';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = () => {
-    if (!validateForm()) return;
     createMutation.mutate();
   };
 
-  // Filter categories by type
   const categories = (categoriesQuery.data as any[]) || [];
-  const filteredCategories = categories.filter((cat) => cat.type === formData.type);
-
   const selectedCategory = categories.find((cat) => cat.id === formData.categoryId);
   const selectedAccount = accountsQuery.data?.find((acc) => acc.id === formData.accountId);
+  const partnerName = householdMembersQuery.data?.find((m: any) => m.userId !== householdQuery.data?.userRecord?.id)?.userName || 'Partner';
 
-  // Get category groups
-  const categoryGroups = categoryGroupsQuery.data || [];
-
-  // Create a map of group keys to group info
-  const groupKeyToInfo: Record<string, { name: string; icon?: string; type: string }> = {};
-  categoryGroups.forEach((group) => {
-    groupKeyToInfo[group.key] = { name: group.name, icon: group.icon, type: group.type };
-  });
-
-  // Group categories by their categoryGroup field (which stores the group key)
-  const groupedCategories = filteredCategories.reduce((acc, cat) => {
-    const groupKey = cat.categoryGroup;
-    if (!acc[groupKey]) acc[groupKey] = [];
-    acc[groupKey].push(cat);
-    return acc;
-  }, {} as Record<string, any[]>);
-
-  // Get the order of groups - sorted by displayOrder from the database
-  const groupOrder = categoryGroups
-    .filter((g) => g.type === formData.type)
-    .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-    .map((g) => g.key);
-
-  if (householdQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading || categoryGroupsQuery.isLoading || householdMembersQuery.isLoading) {
+  if (householdQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading) {
     return (
-      <View className="flex-1 bg-white items-center justify-center">
-        <ActivityIndicator size="large" color="#006A6A" />
-      </View>
+      <LinearGradient colors={['#1A1C1E', '#2C5F5D']} style={{ flex: 1 }}>
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#A8B5A1" />
+        </View>
+      </LinearGradient>
     );
   }
 
   return (
-    <View className="flex-1 bg-white">
-      <Stack.Screen
-        options={{
-          title: 'Add Transaction',
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()} className="pl-4">
-              <ChevronLeft size={24} color="#006A6A" />
+    <LinearGradient colors={['#1A1C1E', '#2C5F5D']} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingTop: insets.top + 16,
+            paddingBottom: insets.bottom + 100,
+            paddingHorizontal: 20,
+          }}
+        >
+          {/* Header */}
+          <Animated.View entering={FadeIn.duration(400)} className="flex-row items-center justify-between mb-6">
+            <Pressable onPress={() => router.back()} className="mr-4">
+              <ArrowLeft size={28} color="rgba(255,255,255,0.9)" strokeWidth={2} />
             </Pressable>
-          ),
-        }}
-      />
+            <Text className="text-2xl font-bold flex-1" style={{ color: 'rgba(255,255,255,0.9)' }}>
+              Add {formData.type === 'expense' ? 'Expense' : 'Income'}
+            </Text>
+          </Animated.View>
 
-      <SafeAreaView edges={['bottom']} className="flex-1">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-          <ScrollView ref={mainScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-            <View className="px-6 py-8">
-              {/* Type Toggle */}
-              <View className="mb-8">
-                <Text className="text-sm font-semibold text-gray-700 mb-3">Type</Text>
-                <View className="flex-row gap-3">
-                  {(['expense', 'income'] as const).map((type) => (
-                    <Pressable
-                      key={type}
-                      onPress={() => setFormData({ ...formData, type, categoryId: '' })}
-                      className={cn(
-                        'flex-1 py-3 rounded-lg border-2 items-center',
-                        formData.type === type ? 'bg-teal-50 border-teal-600' : 'border-gray-200'
-                      )}
-                    >
-                      <Text
-                        className={cn('font-semibold capitalize', formData.type === type ? 'text-teal-600' : 'text-gray-700')}
-                      >
-                        {type}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              {/* Amount Input */}
-              <View className="mb-8">
-                <Text className="text-sm font-semibold text-gray-700 mb-3">Amount (CHF)</Text>
-                <View className="relative">
-                  <Text className="absolute left-4 top-4 text-lg font-semibold text-gray-700">CHF</Text>
-                  <TextInput
-                    ref={amountInputRef}
-                    className={cn(
-                      'pl-14 pr-4 py-3 rounded-lg border-2 text-lg font-semibold',
-                      errors.amount ? 'border-red-500' : 'border-gray-200'
-                    )}
-                    style={{ color: '#006A6A' }}
-                    placeholder="0.00"
-                    placeholderTextColor="#D1D5DB"
-                    keyboardType="decimal-pad"
-                    value={formData.amount}
-                    onChangeText={(text) => {
-                      // Replace comma with dot for European locales, then clean
-                      const normalized = text.replace(',', '.');
-                      const cleaned = normalized.replace(/[^0-9.]/g, '');
-                      // Ensure only one decimal point
-                      const parts = cleaned.split('.');
-                      const finalValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
-                      setFormData({ ...formData, amount: finalValue });
-                      if (errors.amount) setErrors({ ...errors, amount: undefined });
-                    }}
-                  />
-                </View>
-                {errors.amount && <Text className="text-xs text-red-500 mt-2">{errors.amount}</Text>}
-              </View>
-
-              {/* Payee Picker Button */}
-              <View className="mb-8">
-                <Text className="text-sm font-semibold text-gray-700 mb-3">Payee (Optional)</Text>
+          {/* Type Toggle */}
+          <Animated.View entering={FadeInDown.delay(100).duration(400)} className="mb-6">
+            <View className="flex-row rounded-xl p-1" style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}>
+              {(['expense', 'income'] as const).map((type) => (
                 <Pressable
-                  onPress={() => setShowPayeePicker(true)}
-                  className={cn(
-                    'p-3 rounded-lg border-2 flex-row items-center justify-between',
-                    'border-gray-200'
-                  )}
-                >
-                  <Text className={cn('font-medium', formData.payee ? 'text-gray-900' : 'text-gray-500')}>
-                    {formData.payee || 'Choose payee...'}
-                  </Text>
-                  <Text className="text-gray-400">›</Text>
-                </Pressable>
-
-                {/* Show hint if category was auto-filled */}
-                {suggestedCategoryId === formData.categoryId && formData.categoryId && formData.payee.trim() && (
-                  <View className="flex-row items-center mt-2 bg-blue-50 p-2 rounded-lg">
-                    <Sparkles size={14} color="#3B82F6" style={{ marginRight: 6 }} />
-                    <Text className="text-xs text-blue-700 flex-1">
-                      Category auto-filled based on previous usage
-                    </Text>
-                  </View>
-                )}
-
-                {/* Clear button if payee selected */}
-                {formData.payee && (
-                  <Pressable
-                    onPress={handleClearPayee}
-                    className="mt-2"
-                  >
-                    <Text className="text-sm text-red-600">Clear payee</Text>
-                  </Pressable>
-                )}
-              </View>
-
-              {/* Category Dropdown */}
-              <View className="mb-8">
-                <Text className="text-sm font-semibold text-gray-700 mb-3">Category</Text>
-                <Pressable
-                  onPress={() => setShowCategoryModal(true)}
-                  className={cn(
-                    'p-3 rounded-lg border-2 flex-row items-center justify-between',
-                    errors.categoryId ? 'border-red-500' : 'border-gray-200'
-                  )}
-                >
-                  <Text className={cn('font-medium', selectedCategory ? 'text-gray-900' : 'text-gray-500')}>
-                    {selectedCategory?.name || 'Select category'}
-                  </Text>
-                  <Text className="text-gray-400">›</Text>
-                </Pressable>
-                {errors.categoryId && <Text className="text-xs text-red-500 mt-2">{errors.categoryId}</Text>}
-              </View>
-
-              {/* Wallet Dropdown */}
-              <View className="mb-8">
-                <Text className="text-sm font-semibold text-gray-700 mb-3">Wallet</Text>
-                <Pressable
-                  onPress={() => setShowAccountModal(true)}
-                  className={cn(
-                    'p-3 rounded-lg border-2 flex-row items-center justify-between',
-                    errors.accountId ? 'border-red-500' : 'border-gray-200'
-                  )}
-                >
-                  <View className="flex-1">
-                    <Text className={cn('font-medium', selectedAccount ? 'text-gray-900' : 'text-gray-500')}>
-                      {selectedAccount?.name || 'Select wallet'}
-                    </Text>
-                    {selectedAccount && (
-                      <Text className="text-xs text-gray-500 mt-1">{formatBalance(selectedAccount.balance, selectedAccount.currency)}</Text>
-                    )}
-                  </View>
-                  <Text className="text-gray-400">›</Text>
-                </Pressable>
-                {errors.accountId && <Text className="text-xs text-red-500 mt-2">{errors.accountId}</Text>}
-                <Pressable
-                  onPress={() => router.push('/wallets/add')}
-                  className="mt-2 flex-row items-center gap-1"
-                >
-                  <Text className="text-xs font-semibold text-teal-600">Don't have a wallet?</Text>
-                  <Text className="text-xs font-semibold text-teal-600">Add one</Text>
-                </Pressable>
-              </View>
-
-              {/* Date Input */}
-              <View className="mb-8">
-                <Text className="text-sm font-semibold text-gray-700 mb-3">Date</Text>
-                <Pressable
-                  onPress={() => {
-                    setTempDate(formData.date);
-                    setShowDatePicker(true);
+                  key={type}
+                  onPress={() => setFormData({ ...formData, type, categoryId: '' })}
+                  className="flex-1 py-3 rounded-lg items-center"
+                  style={{
+                    backgroundColor: formData.type === type ? 'rgba(44,95,93,0.8)' : 'transparent',
                   }}
-                  className={cn(
-                    'p-3 rounded-lg border-2 flex-row items-center justify-between',
-                    errors.date ? 'border-red-500' : 'border-gray-200'
-                  )}
                 >
-                  <View className="flex-row items-center">
-                    <Calendar size={20} color="#006A6A" style={{ marginRight: 12 }} />
-                    <Text className="text-base font-medium" style={{ color: '#1F2937' }}>
-                      {formatDateSwiss(formData.date)}
-                    </Text>
-                  </View>
-                  <Text className="text-gray-400">›</Text>
-                </Pressable>
-                {errors.date && <Text className="text-xs text-red-500 mt-2">{errors.date}</Text>}
-              </View>
-
-
-              {/* Note */}
-              <View className="mb-8">
-                <View className="flex-row items-center justify-between mb-3">
-                  <Text className="text-sm font-semibold text-gray-700">Note (Optional)</Text>
-                  <Text className="text-xs text-gray-500">{formData.note.length}/200</Text>
-                </View>
-                <TextInput
-                  className="p-3 rounded-lg border-2 border-gray-200 text-base"
-                  style={{ color: '#1F2937', minHeight: 100 }}
-                  placeholder="Add a note..."
-                  placeholderTextColor="#D1D5DB"
-                  multiline
-                  value={formData.note}
-                  onChangeText={(text) => setFormData({ ...formData, note: text.slice(0, 200) })}
-                />
-              </View>
-
-              {/* Recurring Checkbox */}
-              <View className="mb-4 p-4 rounded-lg border border-gray-200">
-                <View className="flex-row items-center justify-between">
-                  <Text className="font-medium text-gray-900">This repeats monthly</Text>
-                  <Pressable
-                    onPress={() => {
-                      const newValue = !formData.isRecurring;
-                      setFormData({ ...formData, isRecurring: newValue });
-                      // If enabling recurring, disable shared
-                      if (newValue) {
-                        setIsShared(false);
-                      }
-                    }}
-                    className={cn(
-                      'w-6 h-6 rounded border-2 items-center justify-center',
-                      formData.isRecurring ? 'bg-teal-600 border-teal-600' : 'border-gray-300'
-                    )}
+                  <Text
+                    className="font-semibold capitalize text-base"
+                    style={{ color: formData.type === type ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.5)' }}
                   >
-                    {formData.isRecurring && <Check size={16} color="white" />}
-                  </Pressable>
-                </View>
-                {formData.isRecurring && (
-                  <Text className="text-xs text-gray-600 mt-2">
-                    This will create a recurring template. You can add it each month from the dashboard.
+                    {type}
                   </Text>
-                )}
-              </View>
-
-              {/* Recurring Day Selector */}
-              {formData.isRecurring && (
-                <View className="mb-8">
-                  <Text className="text-sm font-semibold text-gray-700 mb-3">On day of each month</Text>
-                  <View className="flex-row items-center gap-2">
-                    <TextInput
-                      className="flex-1 p-3 rounded-lg border-2 border-gray-200 text-base text-center font-semibold"
-                      style={{ color: '#006A6A' }}
-                      keyboardType="number-pad"
-                      value={formData.recurringDay.toString()}
-                      onChangeText={(text) => {
-                        const day = Math.min(31, Math.max(1, parseInt(text) || 1));
-                        setFormData({ ...formData, recurringDay: day });
-                      }}
-                      maxLength={2}
-                    />
-                    <Text className="font-medium text-gray-900">of each month</Text>
-                  </View>
-                </View>
-              )}
-
-              {/* SHARED EXPENSE CONTROLS - Only show if household has 2+ members, transaction type is expense, and NOT recurring */}
-              {householdMembersQuery.data && householdMembersQuery.data.length >= 2 && formData.type === 'expense' && !formData.isRecurring && (
-                <>
-                  {/* Shared expense toggle */}
-                  <View className={cn(
-                    "flex-row items-center justify-between p-4 rounded-xl border-2 mb-4",
-                    isShared ? "border-teal-600 bg-teal-50" : "border-gray-300 bg-white"
-                  )}>
-                    <View className="flex-1">
-                      <Text className={cn("text-base font-semibold", isShared ? "text-teal-700" : "text-gray-900")}>Shared Expense</Text>
-                      <Text className={cn("text-sm", isShared ? "text-teal-600" : "text-gray-600")}>Split with household members</Text>
-                    </View>
-                    <Switch
-                      value={isShared}
-                      onValueChange={setIsShared}
-                      trackColor={{ false: '#9CA3AF', true: '#0D9488' }}
-                      thumbColor={isShared ? '#FFFFFF' : '#F3F4F6'}
-                      ios_backgroundColor="#9CA3AF"
-                    />
-                  </View>
-
-                  {/* Who paid selector - only show when shared */}
-                  {isShared && (
-                    <View className="px-0 pb-4 mb-4">
-                      {/* Split Preview */}
-                      {formData.amount && parseFloat(formData.amount) > 0 && (
-                        <View className="bg-blue-50 p-3 rounded-xl mb-4 border border-blue-200">
-                          <Text className="text-xs text-blue-900 font-semibold mb-2">Split Preview:</Text>
-                          {householdMembersQuery.data?.map((member: any) => {
-                            const ratio = splitRatiosQuery.data?.find((r: any) => r.userId === member.userId);
-                            const percentage = ratio?.percentage || 50;
-                            const splitAmount = (parseFloat(formData.amount) * percentage) / 100;
-                            return (
-                              <Text key={member.userId} className="text-xs text-blue-700 mb-1">
-                                {member.userName}: {splitAmount.toFixed(2)} CHF ({percentage.toFixed(0)}%)
-                              </Text>
-                            );
-                          })}
-                        </View>
-                      )}
-
-                      <Text className="text-sm font-semibold text-gray-700 mb-3">Who paid?</Text>
-                      {householdMembersQuery.data.map((member: any) => (
-                        <Pressable
-                          key={member.userId}
-                          onPress={() => setPaidByUserId(member.userId)}
-                          className={`flex-row items-center p-3 rounded-xl mb-2 ${
-                            paidByUserId === member.userId
-                              ? 'bg-teal-50 border-2 border-teal-600'
-                              : 'bg-gray-50 border-2 border-gray-200'
-                          }`}
-                        >
-                          <View
-                            className={`w-6 h-6 rounded-full border-2 mr-3 items-center justify-center ${
-                              paidByUserId === member.userId
-                                ? 'border-teal-600 bg-teal-600'
-                                : 'border-gray-300'
-                            }`}
-                          >
-                            {paidByUserId === member.userId && (
-                              <Text className="text-white text-xs font-bold">✓</Text>
-                            )}
-                          </View>
-                          <View>
-                            <Text
-                              className={`text-base ${
-                                paidByUserId === member.userId ? 'font-semibold text-gray-900' : 'text-gray-700'
-                              }`}
-                            >
-                              {member.userName}
-                            </Text>
-                            <Text className="text-xs text-gray-500">{member.userEmail}</Text>
-                          </View>
-                        </Pressable>
-                      ))}
-                    </View>
-                  )}
-                </>
-              )}
-
-              {/* Submit Button */}
-              <View className="gap-3">
-                {/* Helper message if no accounts */}
-                {accountsQuery.data?.length === 0 && (
-                  <View className="p-4 bg-amber-50 rounded-xl border border-amber-200">
-                    <Text className="text-amber-900 text-center font-semibold mb-2">
-                      You need a wallet first
-                    </Text>
-                    <Pressable
-                      onPress={() => router.push('/wallets/add')}
-                      className="bg-teal-600 py-2 px-4 rounded-lg"
-                    >
-                      <Text className="text-white text-center font-semibold text-sm">
-                        Add Your First Wallet
-                      </Text>
-                    </Pressable>
-                  </View>
-                )}
-
-                <Pressable
-                  onPress={handleSubmit}
-                  disabled={createMutation.isPending || accountsQuery.data?.length === 0}
-                  className="py-4 rounded-lg bg-teal-600 items-center justify-center"
-                >
-                  {createMutation.isPending ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text className="text-base font-semibold text-white">Add Transaction</Text>
-                  )}
                 </Pressable>
+              ))}
+            </View>
+          </Animated.View>
 
-                <Pressable
-                  onPress={() => router.back()}
-                  disabled={createMutation.isPending}
-                  className="py-4 rounded-lg border-2 border-gray-200 items-center justify-center"
-                >
-                  <Text className="text-base font-semibold text-gray-700">Cancel</Text>
-                </Pressable>
-
-                {/* Link to add another wallet if accounts exist */}
-                {accountsQuery.data && accountsQuery.data.length > 0 && (
-                  <Pressable onPress={() => router.push('/wallets/add')} className="py-2">
-                    <Text className="text-teal-600 text-sm text-center font-medium">
-                      Need to add another wallet?
-                    </Text>
-                  </Pressable>
-                )}
+          {/* Amount Glass Card */}
+          <Animated.View entering={FadeInDown.delay(200).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+            <View className="p-5">
+              <Text className="text-sm font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>Amount</Text>
+              <View className="flex-row items-center">
+                <TextInput
+                  ref={amountInputRef}
+                  className="flex-1 text-4xl font-bold"
+                  style={{ color: '#A8B5A1' }}
+                  placeholder="0.00"
+                  placeholderTextColor="rgba(168,181,161,0.3)"
+                  keyboardType="decimal-pad"
+                  value={formData.amount}
+                  onChangeText={(text) => {
+                    const normalized = text.replace(',', '.');
+                    const cleaned = normalized.replace(/[^0-9.]/g, '');
+                    const parts = cleaned.split('.');
+                    const finalValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+                    setFormData({ ...formData, amount: finalValue });
+                  }}
+                  autoFocus
+                />
+                <Text className="text-xl font-semibold ml-2" style={{ color: 'rgba(255,255,255,0.6)' }}>CHF</Text>
               </View>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+          </Animated.View>
 
-      {/* Category Picker Modal (NEW) */}
+          {/* Payee Glass Card */}
+          <Animated.View entering={FadeInDown.delay(300).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+            <Pressable onPress={() => setShowPayeePicker(true)} className="p-5">
+              <Text className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>Payee</Text>
+              <Text className="text-base" style={{ color: formData.payee ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)' }}>
+                {formData.payee || 'Select payee...'}
+              </Text>
+            </Pressable>
+            {suggestedCategoryId === formData.categoryId && formData.categoryId && formData.payee.trim() && (
+              <View className="flex-row items-center px-5 pb-4" style={{ backgroundColor: 'rgba(168,181,161,0.1)' }}>
+                <Sparkles size={14} color="#A8B5A1" style={{ marginRight: 6 }} />
+                <Text className="text-xs flex-1" style={{ color: 'rgba(168,181,161,0.9)' }}>
+                  Category auto-filled from history
+                </Text>
+              </View>
+            )}
+          </Animated.View>
+
+          {/* Category Glass Card */}
+          <Animated.View entering={FadeInDown.delay(400).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+            <Pressable onPress={() => setShowCategoryModal(true)} className="p-5">
+              <Text className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>Category</Text>
+              <Text className="text-base" style={{ color: selectedCategory ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)' }}>
+                {selectedCategory?.name || 'Select category...'}
+              </Text>
+            </Pressable>
+          </Animated.View>
+
+          {/* Wallet Glass Card */}
+          <Animated.View entering={FadeInDown.delay(500).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+            <Pressable onPress={() => setShowAccountModal(true)} className="p-5">
+              <Text className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>Wallet</Text>
+              <View>
+                <Text className="text-base" style={{ color: selectedAccount ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)' }}>
+                  {selectedAccount?.name || 'Select wallet...'}
+                </Text>
+                {selectedAccount && (
+                  <Text className="text-xs mt-1" style={{ color: 'rgba(168,181,161,0.7)' }}>
+                    {formatCurrency(selectedAccount.balance)}
+                  </Text>
+                )}
+              </View>
+            </Pressable>
+          </Animated.View>
+
+          {/* Date Glass Card */}
+          <Animated.View entering={FadeInDown.delay(600).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+            <Pressable onPress={() => setShowDatePicker(true)} className="p-5">
+              <Text className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>Date</Text>
+              <View className="flex-row items-center">
+                <Calendar size={18} color="rgba(168,181,161,0.8)" style={{ marginRight: 10 }} />
+                <Text className="text-base" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                  {new Date(formData.date + 'T00:00:00').toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </Text>
+              </View>
+            </Pressable>
+          </Animated.View>
+
+          {/* Shared Expense Toggle - Only for expenses with 2+ members */}
+          {householdMembersQuery.data && householdMembersQuery.data.length >= 2 && formData.type === 'expense' && !formData.isRecurring && (
+            <Animated.View entering={FadeInDown.delay(700).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: isShared ? 'rgba(168,181,161,0.15)' : 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: isShared ? 'rgba(168,181,161,0.3)' : 'rgba(255,255,255,0.1)' }}>
+              <View className="p-5">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1">
+                    <Text className="text-base font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                      👥 Shared with {partnerName}
+                    </Text>
+                    <Text className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                      Split this expense
+                    </Text>
+                  </View>
+                  <Switch
+                    value={isShared}
+                    onValueChange={setIsShared}
+                    trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#2C5F5D' }}
+                    thumbColor="#fff"
+                  />
+                </View>
+
+                {/* Split Preview */}
+                {isShared && formData.amount && parseFloat(formData.amount) > 0 && (
+                  <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' }}>
+                    <Text className="text-xs font-semibold mb-2" style={{ color: 'rgba(168,181,161,0.9)' }}>Split Preview:</Text>
+                    {householdMembersQuery.data?.map((member: any) => {
+                      const ratio = splitRatiosQuery.data?.find((r: any) => r.userId === member.userId);
+                      const percentage = ratio?.percentage || 50;
+                      const splitAmount = (parseFloat(formData.amount) * percentage) / 100;
+                      return (
+                        <Text key={member.userId} className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                          {member.userName}: {formatCurrency(splitAmount)} ({percentage.toFixed(0)}%)
+                        </Text>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            </Animated.View>
+          )}
+
+          {/* Recurring Toggle */}
+          <Animated.View entering={FadeInDown.delay(800).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+            <View className="p-5">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1">
+                  <Text className="text-base font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                    🔁 Repeats Monthly
+                  </Text>
+                  <Text className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                    Create recurring template
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    const newValue = !formData.isRecurring;
+                    setFormData({ ...formData, isRecurring: newValue });
+                    if (newValue) setIsShared(false);
+                  }}
+                  className="w-6 h-6 rounded items-center justify-center"
+                  style={{
+                    backgroundColor: formData.isRecurring ? '#2C5F5D' : 'rgba(255,255,255,0.1)',
+                    borderWidth: 2,
+                    borderColor: formData.isRecurring ? '#2C5F5D' : 'rgba(255,255,255,0.2)',
+                  }}
+                >
+                  {formData.isRecurring && <Check size={14} color="#fff" strokeWidth={3} />}
+                </Pressable>
+              </View>
+
+              {formData.isRecurring && (
+                <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' }}>
+                  <Text className="text-sm font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>Day of month</Text>
+                  <TextInput
+                    className="text-center py-3 px-4 rounded-xl text-xl font-bold"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: '#A8B5A1' }}
+                    keyboardType="number-pad"
+                    value={formData.recurringDay.toString()}
+                    onChangeText={(text) => {
+                      const day = Math.min(31, Math.max(1, parseInt(text) || 1));
+                      setFormData({ ...formData, recurringDay: day });
+                    }}
+                    maxLength={2}
+                  />
+                </View>
+              )}
+            </View>
+          </Animated.View>
+
+          {/* Save FAB */}
+          <Animated.View entering={FadeInDown.delay(900).duration(400)}>
+            <Pressable
+              onPress={validateAndSubmit}
+              disabled={createMutation.isPending}
+              className="rounded-2xl overflow-hidden"
+              style={{
+                backgroundColor: '#2C5F5D',
+                shadowColor: '#A8B5A1',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 12,
+                elevation: 8,
+              }}
+            >
+              <View className="py-5 items-center justify-center">
+                {createMutation.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="text-lg font-bold" style={{ color: 'rgba(255,255,255,0.95)' }}>
+                    Save Transaction
+                  </Text>
+                )}
+              </View>
+            </Pressable>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Modals */}
+      <PayeePickerModal
+        visible={showPayeePicker}
+        onClose={() => setShowPayeePicker(false)}
+        onSelectPayee={handleSelectPayee}
+        userId={householdQuery.data?.userRecord?.id || ''}
+        currentPayee={formData.payee}
+      />
+
       {householdQuery.data?.householdId && householdQuery.data?.userRecord?.id && (
         <CategoryPickerModal
           visible={showCategoryModal}
           onClose={() => setShowCategoryModal(false)}
-          onSelectCategory={(categoryId, categoryName) => {
-            setFormData({ ...formData, categoryId });
-          }}
+          onSelectCategory={(categoryId) => setFormData({ ...formData, categoryId })}
           userId={householdQuery.data.userRecord.id}
           householdId={householdQuery.data.householdId}
           currentCategoryId={formData.categoryId}
@@ -791,18 +556,18 @@ export default function AddTransactionScreen() {
         />
       )}
 
-      {/* Account Dropdown Modal */}
-      <Modal visible={showAccountModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAccountModal(false)}>
-        <View className="flex-1 bg-white">
-          <SafeAreaView edges={['top']} className="bg-white flex-1">
-            <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
-              <Text className="text-xl font-semibold text-gray-900">Select Wallet</Text>
+      {/* Wallet Modal */}
+      <Modal visible={showAccountModal} animationType="slide" presentationStyle="pageSheet">
+        <LinearGradient colors={['#1A1C1E', '#2C5F5D']} style={{ flex: 1 }}>
+          <View style={{ paddingTop: insets.top + 20, paddingHorizontal: 20, flex: 1 }}>
+            <View className="flex-row items-center justify-between mb-6">
+              <Text className="text-2xl font-bold" style={{ color: 'rgba(255,255,255,0.9)' }}>Select Wallet</Text>
               <Pressable onPress={() => setShowAccountModal(false)}>
-                <X size={24} color="#6B7280" />
+                <Text className="text-lg" style={{ color: 'rgba(255,255,255,0.7)' }}>✕</Text>
               </Pressable>
             </View>
 
-            <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 40, paddingTop: 16 }}>
+            <ScrollView showsVerticalScrollIndicator={false}>
               {accountsQuery.data?.map((account) => (
                 <Pressable
                   key={account.id}
@@ -810,209 +575,139 @@ export default function AddTransactionScreen() {
                     setFormData({ ...formData, accountId: account.id });
                     setShowAccountModal(false);
                   }}
-                  className={cn(
-                    'p-4 rounded-lg mb-2 flex-row items-center justify-between',
-                    formData.accountId === account.id ? 'bg-teal-50' : 'bg-gray-50'
-                  )}
+                  className="mb-3 rounded-2xl overflow-hidden"
+                  style={{
+                    backgroundColor: formData.accountId === account.id ? 'rgba(44,95,93,0.3)' : 'rgba(255,255,255,0.03)',
+                    borderWidth: 2,
+                    borderColor: formData.accountId === account.id ? '#2C5F5D' : 'rgba(255,255,255,0.1)',
+                  }}
                 >
-                  <View className="flex-1">
-                    <Text className={cn('font-semibold', formData.accountId === account.id ? 'text-teal-600' : 'text-gray-900')}>
-                      {account.name}
-                    </Text>
-                    <Text className="text-sm text-gray-500 mt-1">{formatBalance(account.balance, account.currency)}</Text>
+                  <View className="p-5 flex-row items-center justify-between">
+                    <View className="flex-1">
+                      <Text className="text-base font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                        {account.name}
+                      </Text>
+                      <Text className="text-sm mt-1" style={{ color: 'rgba(168,181,161,0.8)' }}>
+                        {formatCurrency(account.balance)}
+                      </Text>
+                    </View>
+                    {formData.accountId === account.id && <Check size={20} color="#A8B5A1" />}
                   </View>
-                  {formData.accountId === account.id && <Check size={20} color="#006A6A" />}
                 </Pressable>
               ))}
             </ScrollView>
-          </SafeAreaView>
-        </View>
+          </View>
+        </LinearGradient>
       </Modal>
 
       {/* Date Picker Modal */}
-      <Modal visible={showDatePicker} animationType="slide" transparent onRequestClose={() => setShowDatePicker(false)}>
-        <Pressable className="flex-1 bg-black/50 justify-end" onPress={() => setShowDatePicker(false)}>
+      <Modal visible={showDatePicker} transparent animationType="slide">
+        <Pressable className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={() => setShowDatePicker(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
-            <View className="bg-white rounded-t-3xl">
-              <SafeAreaView edges={['bottom']} className="bg-white">
-                <View className="flex-row items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
-                  <Text className="text-xl font-semibold text-gray-900">Select Date</Text>
+            <LinearGradient colors={['#2C5F5D', '#1A1C1E']} style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: insets.bottom }}>
+              <View className="p-6">
+                <View className="flex-row items-center justify-between mb-6">
+                  <Text className="text-xl font-bold" style={{ color: 'rgba(255,255,255,0.9)' }}>Select Date</Text>
                   <Pressable onPress={() => setShowDatePicker(false)}>
-                    <X size={24} color="#6B7280" />
+                    <Text className="text-lg" style={{ color: 'rgba(255,255,255,0.7)' }}>✕</Text>
                   </Pressable>
                 </View>
 
-                <View className="px-6 pt-4 pb-6">
-                  {/* Month/Year Navigation */}
-                  <View className="flex-row items-center justify-between mb-4">
-                    <Pressable
-                      onPress={() => {
-                        const prev = new Date(calendarMonth);
-                        prev.setMonth(prev.getMonth() - 1);
-                        setCalendarMonth(prev);
-                      }}
-                      className="p-2"
-                    >
-                      <ChevronLeft size={24} color="#006A6A" />
-                    </Pressable>
-                    <Text className="text-lg font-semibold text-gray-900">
-                      {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                {/* Month Navigation */}
+                <View className="flex-row items-center justify-between mb-4">
+                  <Pressable
+                    onPress={() => {
+                      const prev = new Date(calendarMonth);
+                      prev.setMonth(prev.getMonth() - 1);
+                      setCalendarMonth(prev);
+                    }}
+                    className="p-2"
+                  >
+                    <ChevronLeft size={24} color="rgba(255,255,255,0.7)" />
+                  </Pressable>
+                  <Text className="text-lg font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                    {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      const next = new Date(calendarMonth);
+                      next.setMonth(next.getMonth() + 1);
+                      setCalendarMonth(next);
+                    }}
+                    className="p-2"
+                  >
+                    <ChevronRight size={24} color="rgba(255,255,255,0.7)" />
+                  </Pressable>
+                </View>
+
+                {/* Calendar Grid */}
+                <View className="flex-row mb-2">
+                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+                    <Text key={i} className="flex-1 text-center text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      {day}
                     </Text>
-                    <Pressable
-                      onPress={() => {
-                        const next = new Date(calendarMonth);
-                        next.setMonth(next.getMonth() + 1);
-                        setCalendarMonth(next);
-                      }}
-                      className="p-2"
-                    >
-                      <ChevronRight size={24} color="#006A6A" />
-                    </Pressable>
-                  </View>
+                  ))}
+                </View>
 
-                  {/* Day Labels */}
-                  <View className="flex-row mb-2">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                      <Text key={day} className="flex-1 text-center font-semibold text-gray-700 text-sm">
-                        {day}
-                      </Text>
-                    ))}
-                  </View>
+                <View className="flex-row flex-wrap">
+                  {(() => {
+                    const year = calendarMonth.getFullYear();
+                    const month = calendarMonth.getMonth();
+                    const firstDay = new Date(year, month, 1).getDay();
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    const days = [];
 
-                  {/* Calendar Grid */}
-                  <View className="flex-row flex-wrap">
-                    {(() => {
-                      const year = calendarMonth.getFullYear();
-                      const month = calendarMonth.getMonth();
-                      const firstDay = new Date(year, month, 1).getDay();
-                      const daysInMonth = new Date(year, month + 1, 0).getDate();
-                      const days = [];
+                    for (let i = 0; i < firstDay; i++) {
+                      days.push(null);
+                    }
 
-                      // Empty cells for days before month starts
-                      for (let i = 0; i < firstDay; i++) {
-                        days.push(null);
-                      }
+                    for (let i = 1; i <= daysInMonth; i++) {
+                      days.push(i);
+                    }
 
-                      // Days in month
-                      for (let i = 1; i <= daysInMonth; i++) {
-                        days.push(i);
-                      }
+                    return days.map((day, index) => {
+                      const dateStr = day === null ? null : `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const isSelected = dateStr === formData.date;
+                      const isToday = dateStr === new Date().toISOString().split('T')[0];
 
-                      return days.map((day, index) => {
-                        const dateStr =
-                          day === null
-                            ? null
-                            : `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                        const isSelected = dateStr === tempDate;
-                        const isToday = dateStr === new Date().toISOString().split('T')[0];
-
-                        return (
-                          <Pressable
-                            key={index}
-                            onPress={() => {
-                              if (dateStr) {
-                                setTempDate(dateStr);
-                                setFormData({ ...formData, date: dateStr });
-                                if (errors.date) setErrors({ ...errors, date: undefined });
-                                setShowDatePicker(false);
-                              }
-                            }}
-                            disabled={!day}
-                            style={{ width: '14.28%' }}
-                            className={cn(
-                              'aspect-square items-center justify-center rounded-lg mb-2',
-                              isSelected && 'bg-teal-600',
-                              isToday && !isSelected && 'bg-teal-100 border-2 border-teal-600',
-                              !day && 'bg-transparent'
-                            )}
-                          >
-                            {day && (
+                      return (
+                        <Pressable
+                          key={index}
+                          onPress={() => {
+                            if (dateStr) {
+                              setFormData({ ...formData, date: dateStr });
+                              setShowDatePicker(false);
+                            }
+                          }}
+                          disabled={!day}
+                          style={{ width: '14.28%' }}
+                          className="aspect-square items-center justify-center rounded-lg mb-2"
+                        >
+                          {day && (
+                            <View
+                              className="w-10 h-10 rounded-lg items-center justify-center"
+                              style={{
+                                backgroundColor: isSelected ? '#2C5F5D' : isToday ? 'rgba(168,181,161,0.2)' : 'transparent',
+                              }}
+                            >
                               <Text
-                                className={cn(
-                                  'text-base font-semibold',
-                                  isSelected && 'text-white',
-                                  !isSelected && 'text-gray-900'
-                                )}
+                                className="text-base font-semibold"
+                                style={{ color: isSelected ? '#fff' : 'rgba(255,255,255,0.9)' }}
                               >
                                 {day}
                               </Text>
-                            )}
-                          </Pressable>
-                        );
-                      });
-                    })()}
-                  </View>
+                            </View>
+                          )}
+                        </Pressable>
+                      );
+                    });
+                  })()}
                 </View>
-              </SafeAreaView>
-            </View>
+              </View>
+            </LinearGradient>
           </Pressable>
         </Pressable>
       </Modal>
-
-      {/* Add Another Modal */}
-      <Modal visible={showAddAnotherModal} animationType="fade" transparent>
-        <View className="flex-1 bg-black/50 items-center justify-center">
-          <View className="bg-white rounded-2xl mx-6 p-6 gap-4">
-            <View className="items-center gap-3">
-              <View className="w-12 h-12 rounded-full bg-green-100 items-center justify-center">
-                <CheckIcon size={24} color="#059669" />
-              </View>
-              <Text className="text-lg font-semibold text-gray-900 text-center">
-                {formData.type === 'income' ? 'Income' : 'Expense'} Added!
-              </Text>
-              <Text className="text-sm text-gray-600 text-center">
-                Would you like to add another transaction?
-              </Text>
-            </View>
-
-            <View className="gap-3 mt-2">
-              <Pressable
-                onPress={() => {
-                  setShowAddAnotherModal(false);
-                  // Reset form for new transaction
-                  setFormData({
-                    type: formData.type,
-                    amount: '',
-                    categoryId: '',
-                    accountId: accountsQuery.data?.[0]?.id || '',
-                    date: new Date().toISOString().split('T')[0],
-                    note: '',
-                    payee: '',
-                    isRecurring: false,
-                    recurringDay: 1,
-                  });
-                  setSuggestedCategoryId(null);
-                  amountInputRef.current?.focus();
-                }}
-                className="py-3 rounded-lg bg-teal-600 items-center justify-center"
-              >
-                <Text className="text-base font-semibold text-white">Add Another</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => {
-                  setShowAddAnotherModal(false);
-                  router.back();
-                }}
-                className="py-3 rounded-lg border-2 border-gray-200 items-center justify-center"
-              >
-                <Text className="text-base font-semibold text-gray-700">Done</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Payee Picker Modal */}
-      {householdQuery.data?.userRecord?.id && (
-        <PayeePickerModal
-          visible={showPayeePicker}
-          onClose={() => setShowPayeePicker(false)}
-          onSelectPayee={handleSelectPayee}
-          userId={householdQuery.data.userRecord.id}
-          currentPayee={formData.payee}
-        />
-      )}
-    </View>
+    </LinearGradient>
   );
 }
