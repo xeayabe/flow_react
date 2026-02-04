@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Platform, StatusBar as RNStatusBar } from 'react-native';
 import Animated, { useAnimatedStyle, withTiming, interpolate } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface StickyStatusBarProps {
   scrollY: Animated.SharedValue<number>;
@@ -35,13 +36,20 @@ export default function StickyStatusBar({ scrollY }: StickyStatusBarProps) {
           right: 0,
           height: insets.top || STATUS_BAR_HEIGHT,
           zIndex: 9999,
-          backgroundColor: 'rgba(26,28,30,0.7)',
-          borderBottomWidth: 1,
-          borderBottomColor: 'rgba(255,255,255,0.05)',
+          overflow: 'hidden',
         },
         animatedStyle,
       ]}
       pointerEvents="none"
-    />
+    >
+      <LinearGradient
+        colors={['rgba(26,28,30,0.95)', 'rgba(26,28,30,0.85)']}
+        style={{
+          flex: 1,
+          borderBottomWidth: 1,
+          borderBottomColor: 'rgba(255,255,255,0.08)',
+        }}
+      />
+    </Animated.View>
   );
 }
