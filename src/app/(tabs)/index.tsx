@@ -38,7 +38,7 @@ import RecurringExpensesWidget from '@/components/RecurringExpensesWidget';
 import { BudgetStatusCard } from '@/components/dashboard/BudgetStatusCard';
 import { HouseholdBalanceWidget } from '@/components/dashboard/HouseholdBalanceWidget';
 import { WalletsCard } from '@/components/dashboard/WalletsCard';
-import { RecentTransactionsCard } from '@/components/transactions/RecentTransactionsCard';
+import { RecentTransactionsCard } from '@/components/dashboard/RecentTransactionsCard';
 import { useHouseholdData } from '@/hooks/useHouseholdData';
 
 interface BudgetSummaryData {
