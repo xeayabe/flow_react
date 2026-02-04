@@ -15,6 +15,7 @@ interface HouseholdData {
   partnerSplitRatio: number;
   hasUnsettledExpenses: boolean;
   isLoading: boolean;
+  refetch: () => void;
 }
 
 /**
@@ -24,7 +25,7 @@ interface HouseholdData {
 export function useHouseholdData(): HouseholdData {
   const { user } = db.useAuth();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['household-data', user?.email],
     queryFn: async () => {
       if (!user?.email) {
@@ -136,7 +137,8 @@ export function useHouseholdData(): HouseholdData {
       };
     },
     enabled: !!user?.email,
-    staleTime: 30000, // 30 seconds
+    staleTime: 5000, // 5 seconds - refresh more frequently for real-time updates
+    refetchInterval: 10000, // Refetch every 10 seconds for partner updates
   });
 
   return {
@@ -146,5 +148,6 @@ export function useHouseholdData(): HouseholdData {
     partnerSplitRatio: data?.partnerSplitRatio || 50,
     hasUnsettledExpenses: data?.hasUnsettledExpenses || false,
     isLoading,
+    refetch,
   };
 }

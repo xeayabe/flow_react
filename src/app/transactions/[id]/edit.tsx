@@ -275,6 +275,7 @@ export default function EditTransactionScreen() {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['transaction', id] });
       queryClient.invalidateQueries({ queryKey: ['all-payees', householdQuery.data?.userRecord?.id] });
+      queryClient.invalidateQueries({ queryKey: ['household-data'] }); // Refresh shared expense balances
 
       setSuccessMessage('✓ Transaction updated!');
       setShowSuccess(true);
@@ -297,6 +298,7 @@ export default function EditTransactionScreen() {
       queryClient.invalidateQueries({ queryKey: ['transactions', householdQuery.data?.userRecord?.id] });
       queryClient.invalidateQueries({ queryKey: ['accounts', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['wallets', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['household-data'] }); // Refresh shared expense balances
       router.back();
     },
     onError: () => {

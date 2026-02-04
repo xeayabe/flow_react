@@ -162,6 +162,7 @@ export default function DashboardScreen() {
   const { refetch: refetchRecentTransactions } = recentTransactionsQuery;
   const { refetch: refetchBudgetDetails } = budgetDetailsQuery;
   const { refetch: refetchBudgetSummary } = budgetSummaryQuery;
+  const { refetch: refetchHouseholdData } = householdData;
 
   useFocusEffect(
     useCallback(() => {
@@ -170,7 +171,8 @@ export default function DashboardScreen() {
       refetchRecentTransactions();
       refetchBudgetDetails();
       refetchBudgetSummary();
-    }, [refetchBalance, refetchAccounts, refetchRecentTransactions, refetchBudgetDetails, refetchBudgetSummary])
+      refetchHouseholdData();
+    }, [refetchBalance, refetchAccounts, refetchRecentTransactions, refetchBudgetDetails, refetchBudgetSummary, refetchHouseholdData])
   );
 
   // Recalculate spent amounts when user/period data is available

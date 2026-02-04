@@ -219,6 +219,7 @@ export default function SettlementScreen() {
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['unsettled-expenses'] });
       queryClient.invalidateQueries({ queryKey: ['household-debt'] });
+      queryClient.invalidateQueries({ queryKey: ['household-data'] }); // Refresh dashboard widget
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });

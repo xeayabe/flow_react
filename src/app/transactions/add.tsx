@@ -303,6 +303,7 @@ export default function AddTransactionScreen() {
       queryClient.invalidateQueries({ queryKey: ['recurring-templates'] });
       queryClient.invalidateQueries({ queryKey: ['budget-summary'] }); // Refresh budget totals
       queryClient.invalidateQueries({ queryKey: ['budget-details'] }); // Refresh budget spent amounts
+      queryClient.invalidateQueries({ queryKey: ['household-data'] }); // Refresh shared expense balances
 
       // Show appropriate message based on whether it's a template or transaction
       if (result.isTemplate) {
