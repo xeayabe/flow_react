@@ -151,6 +151,7 @@ export default function TransactionsTabScreen() {
             },
           },
           category: {},
+          account: {},
         },
       });
       return (result?.data?.recurringTemplates || []) as any[];
@@ -234,6 +235,7 @@ export default function TransactionsTabScreen() {
 
     return recurringQuery.data.map((r: any) => {
       const category = r.category?.[0];
+      const account = r.account?.[0];
       return {
         id: r.id,
         type: r.type,
@@ -244,6 +246,7 @@ export default function TransactionsTabScreen() {
         isActive: r.isActive,
         isShared: r.isShared || false,
         partnerName: 'Partner',
+        walletName: account?.name || 'Unknown Account',
       };
     });
   }, [recurringQuery.data]);

@@ -14,6 +14,7 @@ interface RecurringTransaction {
   isActive: boolean;
   isShared?: boolean;
   partnerName?: string;
+  walletName?: string;
 }
 
 interface RecurringSectionProps {
@@ -57,14 +58,14 @@ export default function RecurringSection({ recurringTransactions, onEdit }: Recu
         <View className="flex-row items-center">
           <Text className="text-lg mr-2.5">🔁</Text>
           <Text
-            className="text-[15px] font-semibold mr-2"
+            className="text-[15px] font-semibold"
             style={{ color: 'rgba(255,255,255,0.9)' }}
           >
             Recurring
           </Text>
           <Text
-            className="text-xs"
-            style={{ color: 'rgba(255,255,255,0.6)' }}
+            className="text-xs ml-1.5"
+            style={{ color: 'rgba(168,181,161,1)' }}
           >
             {activeCount} active
           </Text>
@@ -118,7 +119,10 @@ export default function RecurringSection({ recurringTransactions, onEdit }: Recu
                       style={{ color: 'rgba(255,255,255,0.5)' }}
                     >
                       Every {transaction.dayOfMonth}{getDaySuffix(transaction.dayOfMonth)}
-                      {transaction.isShared && ` • Shared with ${transaction.partnerName}`}
+                      {transaction.isShared
+                        ? ` • Shared with ${transaction.partnerName}`
+                        : transaction.walletName ? ` • ${transaction.walletName}` : ''
+                      }
                     </Text>
                   </View>
                 </View>
