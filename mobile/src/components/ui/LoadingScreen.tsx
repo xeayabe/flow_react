@@ -1,4 +1,4 @@
- import React from 'react';
+import React from 'react';
 import { View, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +13,7 @@ interface LoadingScreenProps {
  * Consistent loading screen matching Flow's design system
  * Dark gradient with animated diamond icon and message
  */
-export function LoadingScreen({ message = 'Loading your financial overview...' }: LoadingScreenProps) {
+export function LoadingScreen({ message = 'Loading...' }: LoadingScreenProps) {
   const insets = useSafeAreaInsets();
 
   return (
