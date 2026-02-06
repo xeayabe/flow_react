@@ -104,83 +104,97 @@ export default function TransactionListItem({
         style={{
           position: 'relative',
           marginBottom: 8,
-          height: 76,
+          overflow: 'visible',
         }}
       >
-        {/* Left Action (Delete) - visible when swiped left */}
+        {/* Action buttons container - Behind transaction item */}
         <View
           style={{
             position: 'absolute',
-            right: 0,
             top: 0,
-            bottom: 0,
-            width: 80,
-            justifyContent: 'center',
-            alignItems: 'center',
-            borderTopRightRadius: 16,
-            borderBottomRightRadius: 16,
-          }}
-        >
-          <Pressable
-            onPress={handleDelete}
-            style={{
-              flex: 1,
-              width: '100%',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <Trash2 size={20} color="rgba(227,160,93,1)" />
-            <Text
-              className="text-[11px] font-semibold mt-1"
-              style={{ color: 'rgba(227,160,93,1)' }}
-            >
-              Delete
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* Right Action (Duplicate) - visible when swiped right */}
-        <View
-          style={{
-            position: 'absolute',
             left: 0,
-            top: 0,
-            bottom: 0,
-            width: 80,
-            justifyContent: 'center',
-            alignItems: 'center',
-            borderTopLeftRadius: 16,
-            borderBottomLeftRadius: 16,
+            right: 0,
+            height: 76,
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            zIndex: 1,
           }}
         >
-          <Pressable
-            onPress={handleDuplicate}
+          {/* Right Action (Duplicate) - revealed when swiping right */}
+          <View
             style={{
-              flex: 1,
-              width: '100%',
+              width: 80,
               justifyContent: 'center',
               alignItems: 'center',
+              borderTopLeftRadius: 16,
+              borderBottomLeftRadius: 16,
             }}
           >
-            <Copy size={20} color="rgba(44,95,93,1)" />
-            <Text
-              className="text-[11px] font-semibold mt-1"
-              style={{ color: 'rgba(44,95,93,1)' }}
+            <Pressable
+              onPress={handleDuplicate}
+              style={{
+                width: '100%',
+                height: '100%',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
             >
-              Duplicate
-            </Text>
-          </Pressable>
+              <Copy size={20} color="rgba(44,95,93,1)" />
+              <Text
+                className="text-[11px] font-semibold mt-1"
+                style={{ color: 'rgba(44,95,93,1)' }}
+              >
+                Duplicate
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Left Action (Delete) - revealed when swiping left */}
+          <View
+            style={{
+              width: 80,
+              justifyContent: 'center',
+              alignItems: 'center',
+              borderTopRightRadius: 16,
+              borderBottomRightRadius: 16,
+            }}
+          >
+            <Pressable
+              onPress={handleDelete}
+              style={{
+                width: '100%',
+                height: '100%',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <Trash2 size={20} color="rgba(227,160,93,1)" />
+              <Text
+                className="text-[11px] font-semibold mt-1"
+                style={{ color: 'rgba(227,160,93,1)' }}
+              >
+                Delete
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
-        {/* Transaction Item (Swipeable) */}
+        {/* Transaction Item (Swipeable) - On top of action buttons */}
         <GestureDetector gesture={panGesture}>
-          <Animated.View style={animatedStyle}>
+          <Animated.View
+            style={[
+              {
+                zIndex: 10,
+                position: 'relative',
+              },
+              animatedStyle,
+            ]}
+          >
             <Pressable
               onPress={onClick}
               className="rounded-2xl"
               style={{
-                backgroundColor: 'rgba(255,255,255,0.03)',
+                backgroundColor: '#1A1C1E',
                 borderWidth: 1,
                 borderColor: 'rgba(255,255,255,0.05)',
                 padding: 16,
