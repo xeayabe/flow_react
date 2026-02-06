@@ -201,18 +201,6 @@ const schema = i.schema({
         label: 'accounts',
       },
     },
-    accountsByHousehold: {
-      forward: {
-        on: 'accounts',
-        has: 'one',
-        label: 'household',
-      },
-      reverse: {
-        on: 'households',
-        has: 'many',
-        label: 'accounts',
-      },
-    },
     categoriesByHousehold: {
       forward: {
         on: 'categories',
@@ -285,6 +273,42 @@ const schema = i.schema({
         label: 'transactions',
       },
     },
+    budgetsByUser: {
+      forward: {
+        on: 'budgets',
+        has: 'one',
+        label: 'user',
+      },
+      reverse: {
+        on: 'users',
+        has: 'many',
+        label: 'budgets',
+      },
+    },
+    budgetsByCategory: {
+      forward: {
+        on: 'budgets',
+        has: 'one',
+        label: 'category',
+      },
+      reverse: {
+        on: 'categories',
+        has: 'many',
+        label: 'budgets',
+      },
+    },
+    budgetSummaryByUser: {
+      forward: {
+        on: 'budgetSummary',
+        has: 'one',
+        label: 'user',
+      },
+      reverse: {
+        on: 'users',
+        has: 'many',
+        label: 'budgetSummary',
+      },
+    },
     categoryGroupsByHousehold: {
       forward: {
         on: 'categoryGroups',
@@ -319,6 +343,42 @@ const schema = i.schema({
         on: 'users',
         has: 'many',
         label: 'sentInvites',
+      },
+    },
+    sharedExpenseSplitsByTransaction: {
+      forward: {
+        on: 'shared_expense_splits',
+        has: 'one',
+        label: 'transaction',
+      },
+      reverse: {
+        on: 'transactions',
+        has: 'many',
+        label: 'splits',
+      },
+    },
+    sharedExpenseSplitsByOwer: {
+      forward: {
+        on: 'shared_expense_splits',
+        has: 'one',
+        label: 'ower',
+      },
+      reverse: {
+        on: 'users',
+        has: 'many',
+        label: 'owedSplits',
+      },
+    },
+    sharedExpenseSplitsByOwedTo: {
+      forward: {
+        on: 'shared_expense_splits',
+        has: 'one',
+        label: 'owedTo',
+      },
+      reverse: {
+        on: 'users',
+        has: 'many',
+        label: 'receivableSplits',
       },
     },
   },
