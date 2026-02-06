@@ -10,6 +10,7 @@ import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { db } from '@/lib/db';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { formatCurrency } from '@/lib/formatCurrency';
+import { deleteTransaction } from '@/lib/transactions-api';
 import TransactionListItem from '@/components/transactions/TransactionListItem';
 import RecurringSection from '@/components/transactions/RecurringSection';
 import TransactionFilters from '@/components/transactions/TransactionFilters';
@@ -302,7 +303,6 @@ export default function TransactionsTabScreen() {
       console.log('🗑️ Deleting transaction:', transactionId);
 
       // Use the proper delete API that handles account balance updates
-      const { deleteTransaction } = await import('@/lib/transactions-api');
       const result = await deleteTransaction(transactionId);
 
       if (!result.success) {
