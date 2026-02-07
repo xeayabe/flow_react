@@ -250,9 +250,9 @@ export default function TransactionsTabScreen() {
         emoji: categoryEmoji,
         date: t.date,
         note: t.note,
-        isShared: false,
-        paidByYou: false,
-        partnerName: '',
+        isShared: t.isShared || false,
+        paidByYou: t.paidByUserId === householdQuery.data?.userId,
+        partnerName: 'Partner',
         partnerOwes: 0,
         youOwe: 0,
       };
