@@ -577,6 +577,12 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
     let newAccountData = oldAccount;
     let needsSecondAccountUpdate = false;
 
+    // Check if original and new transactions are future-dated
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const wasOriginalFuture = originalTx.date > todayStr;
+    const isNewFuture = request.date > todayStr;
+
     // If account changed, get the new account
     if (originalTx.accountId !== request.accountId) {
       const newAccountResult = await db.queryOnce({
@@ -597,17 +603,22 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
     }
 
     // Calculate balance adjustments
-    // Step 1: Reverse the original transaction's impact
+    // Only adjust balances if transactions are not future-dated
+    // Step 1: Reverse the original transaction's impact (only if original was NOT future)
     let oldAccountNewBalance = oldAccount.balance;
-    if (originalTx.type === 'income') {
-      oldAccountNewBalance -= originalTx.amount;
-      console.log(`Reversing income: subtracting ${originalTx.amount} from old account`);
+    if (!wasOriginalFuture) {
+      if (originalTx.type === 'income') {
+        oldAccountNewBalance -= originalTx.amount;
+        console.log(`Reversing income: subtracting ${originalTx.amount} from old account`);
+      } else {
+        oldAccountNewBalance += originalTx.amount;
+        console.log(`Reversing expense: adding ${originalTx.amount} to old account`);
+      }
     } else {
-      oldAccountNewBalance += originalTx.amount;
-      console.log(`Reversing expense: adding ${originalTx.amount} to old account`);
+      console.log('Original transaction was future-dated, no balance reversal needed');
     }
 
-    // Step 2: Apply the new transaction's impact
+    // Step 2: Apply the new transaction's impact (only if new date is NOT future)
     let newAccountNewBalance = newAccountData.balance;
     if (needsSecondAccountUpdate) {
       // If account changed, we're working with the new account's balance
@@ -617,12 +628,16 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
       newAccountNewBalance = oldAccountNewBalance;
     }
 
-    if (request.type === 'income') {
-      newAccountNewBalance += request.amount;
-      console.log(`Applying income: adding ${request.amount} to new account`);
+    if (!isNewFuture) {
+      if (request.type === 'income') {
+        newAccountNewBalance += request.amount;
+        console.log(`Applying income: adding ${request.amount} to new account`);
+      } else {
+        newAccountNewBalance -= request.amount;
+        console.log(`Applying expense: subtracting ${request.amount} from new account`);
+      }
     } else {
-      newAccountNewBalance -= request.amount;
-      console.log(`Applying expense: subtracting ${request.amount} from new account`);
+      console.log('New transaction is future-dated, no balance update applied');
     }
 
     console.log('Balance adjustments:', {
@@ -651,33 +666,51 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
       paidByUserId: request.paidByUserId || undefined,
     });
 
-    // If account changed, update both old and new accounts separately
-    if (needsSecondAccountUpdate) {
-      await db.transact([
-        txUpdate,
-        // Update old account (with reversal only)
-        db.tx.accounts[originalTx.accountId].update({
+    // Determine if we need to update balances
+    // We need to update if: original was not future OR new is not future
+    const needsBalanceUpdate = !wasOriginalFuture || !isNewFuture;
+
+    // If both are future, just update the transaction without balance changes
+    if (!needsBalanceUpdate) {
+      console.log('Both original and new dates are in the future, skipping balance updates');
+      await db.transact([txUpdate]);
+    } else if (needsSecondAccountUpdate) {
+      // If account changed, update both old and new accounts separately
+      const updates: any[] = [txUpdate];
+
+      // Only update old account if original was not future
+      if (!wasOriginalFuture) {
+        updates.push(db.tx.accounts[originalTx.accountId].update({
           balance: oldAccountNewBalance,
-        }),
-        // Update new account (with new transaction applied)
-        db.tx.accounts[request.accountId].update({
+        }));
+      }
+
+      // Only update new account if new date is not future
+      if (!isNewFuture) {
+        updates.push(db.tx.accounts[request.accountId].update({
           balance: newAccountNewBalance,
-        }),
-      ]);
+        }));
+      }
+
+      await db.transact(updates);
     } else {
       // Same account - use the final calculated balance (newAccountNewBalance has both reversal and new transaction)
-      await db.transact([
-        txUpdate,
-        db.tx.accounts[originalTx.accountId].update({
+      const updates: any[] = [txUpdate];
+
+      // Only update balance if there's an actual change needed
+      if (!wasOriginalFuture || !isNewFuture) {
+        updates.push(db.tx.accounts[originalTx.accountId].update({
           balance: newAccountNewBalance,
-        }),
-      ]);
+        }));
+      }
+
+      await db.transact(updates);
     }
 
     console.log('Transaction updated successfully:', request.id);
 
-    // Update budget spent amounts if category or amount changed
-    if (request.type === 'expense' && originalTx.type === 'expense') {
+    // Update budget spent amounts if category or amount changed (skip for future transactions)
+    if (request.type === 'expense' && originalTx.type === 'expense' && !isNewFuture) {
       try {
         // Check if either account or transaction is excluded from budget
         const isOriginalAccountExcluded = oldAccount.isExcludedFromBudget;
@@ -691,6 +724,8 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
           isOriginalTxExcluded,
           isNewTxExcluded,
           accountChanged: needsSecondAccountUpdate,
+          wasOriginalFuture,
+          isNewFuture,
         });
 
         // Only update budget if BOTH the account and transaction are NOT excluded
@@ -706,8 +741,8 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
           if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
             // If category changed, update both old and new categories
             if (originalTx.categoryId !== request.categoryId) {
-              // Update old category - only if original account and transaction were not excluded
-              if (!isOriginalAccountExcluded && !isOriginalTxExcluded) {
+              // Update old category - only if original account/transaction were not excluded AND original was not future
+              if (!isOriginalAccountExcluded && !isOriginalTxExcluded && !wasOriginalFuture) {
                 const oldBudgetResult = await db.queryOnce({
                   budgets: {
                     $: {
@@ -749,23 +784,45 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
               }
             } else if (originalTx.amount !== request.amount) {
               // If amount changed but category didn't
-              const budgetResult = await db.queryOnce({
-                budgets: {
-                  $: {
-                    where: {
-                      userId: request.userId,
-                      categoryId: request.categoryId,
-                      isActive: true,
+              // Only update budget if the original was also not a future transaction
+              if (!wasOriginalFuture) {
+                const budgetResult = await db.queryOnce({
+                  budgets: {
+                    $: {
+                      where: {
+                        userId: request.userId,
+                        categoryId: request.categoryId,
+                        isActive: true,
+                      },
                     },
                   },
-                },
-              });
+                });
 
-              const budget = budgetResult.data.budgets?.[0];
-              if (budget) {
-                const amountDiff = request.amount - originalTx.amount;
-                const newSpentAmount = (budget.spentAmount || 0) + amountDiff;
-                await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
+                const budget = budgetResult.data.budgets?.[0];
+                if (budget) {
+                  const amountDiff = request.amount - originalTx.amount;
+                  const newSpentAmount = (budget.spentAmount || 0) + amountDiff;
+                  await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
+                }
+              } else {
+                // Original was future, now it's not future - add full new amount to budget
+                const budgetResult = await db.queryOnce({
+                  budgets: {
+                    $: {
+                      where: {
+                        userId: request.userId,
+                        categoryId: request.categoryId,
+                        isActive: true,
+                      },
+                    },
+                  },
+                });
+
+                const budget = budgetResult.data.budgets?.[0];
+                if (budget) {
+                  const newSpentAmount = (budget.spentAmount || 0) + request.amount;
+                  await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
+                }
               }
             }
           }
