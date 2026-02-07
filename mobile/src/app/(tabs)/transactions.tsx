@@ -138,7 +138,14 @@ export default function TransactionsTabScreen() {
   const recurringQuery = useQuery({
     queryKey: ['recurring-templates', householdQuery.data?.userId, householdQuery.data?.householdId],
     queryFn: async () => {
-      if (!householdQuery.data?.userId || !householdQuery.data?.householdId) return [];
+      if (!householdQuery.data?.userId || !householdQuery.data?.householdId) {
+        console.log('⚠️ No userId or householdId for recurring query');
+        return [];
+      }
+      console.log('🔄 Fetching recurring templates for:', {
+        userId: householdQuery.data.userId,
+        householdId: householdQuery.data.householdId
+      });
       // @ts-ignore - InstantDB types
       const result = await db.queryOnce({
         // @ts-ignore
@@ -154,6 +161,7 @@ export default function TransactionsTabScreen() {
           account: {},
         },
       });
+      console.log('✅ Recurring templates fetched:', result?.data?.recurringTemplates?.length || 0);
       return (result?.data?.recurringTemplates || []) as any[];
     },
     enabled: !!householdQuery.data?.userId && !!householdQuery.data?.householdId,
