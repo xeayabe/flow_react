@@ -110,8 +110,15 @@ export default function TransactionListItem({
   }, [onDelete, transaction.id]);
 
   const handlePress = useCallback(() => {
+    // If this item's swipe is open, close it
     if (isSwipeOpen.value) {
       closeSwipe();
+      return;
+    }
+    // If any other item's swipe is open, close it first — don't navigate
+    if (activeCloseCallback) {
+      activeCloseCallback();
+      activeCloseCallback = null;
       return;
     }
     onClick();
