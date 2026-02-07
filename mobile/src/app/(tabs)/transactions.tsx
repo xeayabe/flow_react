@@ -206,12 +206,20 @@ export default function TransactionsTabScreen() {
       accountsQuery.data.forEach((acc: any) => {
         accountMap.set(acc.id, acc);
       });
+      console.log('📊 Accounts available:', accountsQuery.data.length);
     }
 
     return transactionsQuery.data.map((t: any) => {
       // Look up category and account by ID
       const category = categoryMap.get(t.categoryId);
       const account = accountMap.get(t.accountId);
+
+      console.log('📊 Transaction mapping:', {
+        payee: t.payee,
+        accountId: t.accountId,
+        accountFound: !!account,
+        walletName: account?.name,
+      });
 
       // Extract emoji from category name if it exists
       let categoryEmoji = '📝';
