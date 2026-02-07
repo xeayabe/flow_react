@@ -79,9 +79,11 @@ export async function calculateTrueBalance(userId: string): Promise<BalanceBreak
   const liabilityTypes = ['credit card'];
 
   // Calculate corrected balances excluding future transactions
+  // Use startingBalance as the initial value (the balance when account was created)
   const accountBalances = await Promise.all(
-    accounts.map(async (acc) => {
-      const correctedBalance = await calculateAccountBalanceExcludingFuture(acc.id, 0);
+    accounts.map(async (acc: any) => {
+      const startingBalance = acc.startingBalance || 0;
+      const correctedBalance = await calculateAccountBalanceExcludingFuture(acc.id, startingBalance);
       return {
         ...acc,
         correctedBalance
