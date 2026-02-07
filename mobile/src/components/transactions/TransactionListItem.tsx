@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, Pressable, Modal } from 'react-native';
+import React, { useCallback, useRef, useEffect } from 'react';
+import { View, Text, Pressable } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -54,7 +54,6 @@ export default function TransactionListItem({
   const isShared = transaction.isShared;
   const translateX = useSharedValue(0);
   const isSwipeOpen = useSharedValue(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const closeSwipe = useCallback(() => {
     translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
@@ -99,15 +98,10 @@ export default function TransactionListItem({
   }, [translateX, isSwipeOpen, closeOtherSwipe]);
 
   const handleDelete = useCallback(() => {
-    setShowDeleteModal(true);
-    closeSwipe();
-  }, [closeSwipe]);
-
-  const confirmDelete = useCallback(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setShowDeleteModal(false);
+    closeSwipe();
     onDelete?.(transaction.id);
-  }, [onDelete, transaction.id]);
+  }, [closeSwipe, onDelete, transaction.id]);
 
   const handlePress = useCallback(() => {
     // If this item's swipe is open, close it
@@ -322,152 +316,6 @@ export default function TransactionListItem({
           </Animated.View>
         </GestureDetector>
       </View>
-
-      {/* Delete Confirmation Modal */}
-      <Modal
-        visible={showDeleteModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowDeleteModal(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: 20,
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: colors.bgDark,
-              borderRadius: 24,
-              padding: 24,
-              width: '100%',
-              maxWidth: 400,
-              borderWidth: 1,
-              borderColor: colors.glassBorder,
-            }}
-          >
-            <Text
-              className="text-xl font-bold mb-4"
-              style={{ color: colors.textWhite }}
-            >
-              Delete Transaction
-            </Text>
-
-            <View
-              className="flex-row items-center rounded-xl mb-4"
-              style={{
-                backgroundColor: 'rgba(227,160,93,0.1)',
-                borderWidth: 1,
-                borderColor: 'rgba(227,160,93,0.2)',
-                padding: 16,
-              }}
-            >
-              <Text className="text-2xl mr-3">&#x26A0;&#xFE0F;</Text>
-              <Text
-                className="flex-1 text-sm"
-                style={{ color: colors.textWhite }}
-              >
-                Are you sure you want to delete this transaction?
-              </Text>
-            </View>
-
-            <View
-              className="rounded-xl mb-6"
-              style={{
-                backgroundColor: colors.glassWhite,
-                borderWidth: 1,
-                borderColor: colors.glassBorder,
-                padding: 16,
-              }}
-            >
-              <View className="flex-row justify-between mb-2">
-                <Text className="text-sm" style={{ color: colors.textWhiteTertiary }}>
-                  Payee:
-                </Text>
-                <Text className="text-sm font-semibold" style={{ color: colors.textWhite }}>
-                  {transaction.payee}
-                </Text>
-              </View>
-              <View className="flex-row justify-between mb-2">
-                <Text className="text-sm" style={{ color: colors.textWhiteTertiary }}>
-                  Amount:
-                </Text>
-                <Text className="text-sm font-semibold" style={{ color: colors.textWhite }}>
-                  {formatCurrency(transaction.amount)} CHF
-                </Text>
-              </View>
-              {isShared && (
-                <View className="flex-row justify-between">
-                  <Text className="text-sm" style={{ color: colors.textWhiteTertiary }}>
-                    Type:
-                  </Text>
-                  <Text className="text-sm font-semibold" style={{ color: colors.sageGreen }}>
-                    Shared Expense
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {isShared && (
-              <View
-                className="rounded-xl mb-4"
-                style={{
-                  backgroundColor: 'rgba(168,181,161,0.1)',
-                  borderWidth: 1,
-                  borderColor: 'rgba(168, 181, 161, 0.2)',
-                  padding: 12,
-                }}
-              >
-                <Text className="text-xs" style={{ color: colors.textWhiteSecondary }}>
-                  This is a shared expense. Deleting it will also remove the debt from your partner.
-                </Text>
-              </View>
-            )}
-
-            <View className="flex-row" style={{ gap: 12 }}>
-              <Pressable
-                onPress={() => setShowDeleteModal(false)}
-                className="flex-1 rounded-xl items-center justify-center"
-                style={{
-                  backgroundColor: colors.glassBorder,
-                  borderWidth: 2,
-                  borderColor: 'rgba(255,255,255,0.1)',
-                  paddingVertical: 14,
-                }}
-              >
-                <Text
-                  className="text-sm font-semibold"
-                  style={{ color: colors.textWhite }}
-                >
-                  Cancel
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={confirmDelete}
-                className="flex-1 rounded-xl items-center justify-center"
-                style={{
-                  backgroundColor: colors.textWhite,
-                  borderWidth: 2,
-                  borderColor: 'rgba(227,160,93,0.5)',
-                  paddingVertical: 14,
-                }}
-              >
-                <Text
-                  className="text-sm font-semibold"
-                  style={{ color: colors.warning }}
-                >
-                  Delete
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </>
   );
 }
