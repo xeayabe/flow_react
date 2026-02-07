@@ -250,30 +250,6 @@ export default function TransactionListItem({
                       >
                         {transaction.payee}
                       </Text>
-                      {isShared && (
-                        <View
-                          style={{
-                            backgroundColor: 'rgba(168, 181, 161, 0.2)',
-                            borderWidth: 1,
-                            borderColor: 'rgba(168, 181, 161, 0.3)',
-                            borderRadius: 4,
-                            paddingVertical: 2,
-                            paddingHorizontal: 6,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: 'rgba(168, 181, 161, 1)',
-                              fontSize: 9,
-                              fontWeight: '700',
-                              textTransform: 'uppercase',
-                              letterSpacing: 0.45,
-                            }}
-                          >
-                            SHARED
-                          </Text>
-                        </View>
-                      )}
                     </View>
 
                     <View className="flex-row items-center">
@@ -306,14 +282,29 @@ export default function TransactionListItem({
                     {formatCurrency(transaction.amount)} CHF
                   </Text>
                   {isShared && (
-                    <Text
-                      className="text-[11px] mt-0.5"
-                      style={{ color: colors.textWhiteTertiary }}
+                    <View
+                      style={{
+                        backgroundColor: 'rgba(168, 181, 161, 0.2)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(168, 181, 161, 0.3)',
+                        borderRadius: 4,
+                        paddingVertical: 2,
+                        paddingHorizontal: 6,
+                        marginTop: 4,
+                      }}
                     >
-                      {transaction.paidByYou
-                        ? `${transaction.partnerName} owes: ${formatCurrency(transaction.partnerOwes || 0)}`
-                        : `You owe: ${formatCurrency(transaction.youOwe || 0)}`}
-                    </Text>
+                      <Text
+                        style={{
+                          color: 'rgba(168, 181, 161, 1)',
+                          fontSize: 9,
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.45,
+                        }}
+                      >
+                        SHARED
+                      </Text>
+                    </View>
                   )}
                 </View>
               </View>
