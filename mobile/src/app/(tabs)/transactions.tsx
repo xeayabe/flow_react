@@ -162,12 +162,15 @@ export default function TransactionsTabScreen() {
       });
       const allTemplates = (result?.data?.recurringTemplates || []) as any[];
       console.log('✅ All recurring templates (no filter):', allTemplates.length);
+      console.log('📦 Full result object:', JSON.stringify(result, null, 2));
       if (allTemplates.length > 0) {
         console.log('📋 Sample template:', {
           id: allTemplates[0].id,
           payee: allTemplates[0].payee,
           isActive: allTemplates[0].isActive,
           recurringDay: allTemplates[0].recurringDay,
+          amount: allTemplates[0].amount,
+          type: allTemplates[0].type,
         });
       }
 
