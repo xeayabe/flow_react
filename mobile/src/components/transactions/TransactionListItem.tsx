@@ -155,21 +155,30 @@ export default function TransactionListItem({
     transform: [{ translateX: translateX.value }],
   }));
 
+  // Delete button only visible when card has moved
+  const deleteButtonStyle = useAnimatedStyle(() => ({
+    opacity: translateX.value < -5 ? 1 : 0,
+    pointerEvents: (translateX.value < -5 ? 'auto' : 'none') as 'auto' | 'none',
+  }));
+
   return (
     <>
-      <View style={{ marginBottom: 8, position: 'relative', overflow: 'hidden', borderRadius: 16 }}>
-        {/* Delete Button - clipped by parent overflow:hidden */}
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            bottom: 0,
-            width: 80,
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1,
-          }}
+      <View style={{ marginBottom: 8, position: 'relative', borderRadius: 16 }}>
+        {/* Delete Button - hidden until card slides */}
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 80,
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1,
+            },
+            deleteButtonStyle,
+          ]}
         >
           <Pressable
             onPress={handleDelete}
@@ -194,7 +203,7 @@ export default function TransactionListItem({
               Delete
             </Text>
           </Pressable>
-        </View>
+        </Animated.View>
 
         {/* Swipeable transaction card */}
         <GestureDetector gesture={panGesture}>
