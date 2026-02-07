@@ -298,6 +298,8 @@ export default function TransactionsTabScreen() {
     hasUserId: !!householdQuery.data?.userId,
     transactionsCount: formattedTransactions.length,
     groupedDates: Object.keys(searchGroupedByDate).length,
+    recurringCount: formattedRecurring.length,
+    recurringData: formattedRecurring,
   });
 
   // Delete handler
