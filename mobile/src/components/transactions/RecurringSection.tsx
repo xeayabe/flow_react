@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { ChevronRight } from 'lucide-react-native';
-import { formatCurrency } from '@/lib/formatCurrency';
+import { colors, getAmountColor, formatCurrency } from '@/lib/design-tokens';
 
 interface RecurringTransaction {
   id: string;
@@ -45,9 +45,9 @@ export default function RecurringSection({ recurringTransactions, onEdit }: Recu
     <View
       className="rounded-2xl mb-4 overflow-hidden"
       style={{
-        backgroundColor: 'rgba(255,255,255,0.03)',
+        backgroundColor: colors.glassWhite,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
+        borderColor: colors.glassBorder,
       }}
     >
       {/* Header */}
@@ -59,20 +59,20 @@ export default function RecurringSection({ recurringTransactions, onEdit }: Recu
           <Text className="text-lg mr-2.5">🔁</Text>
           <Text
             className="text-[15px] font-semibold"
-            style={{ color: 'rgba(255,255,255,0.9)' }}
+            style={{ color: colors.textWhite }}
           >
             Recurring
           </Text>
           <Text
             className="text-xs ml-1.5"
-            style={{ color: 'rgba(168,181,161,1)' }}
+            style={{ color: colors.sageGreen }}
           >
             {activeCount} active
           </Text>
         </View>
         <ChevronRight
           size={18}
-          color="rgba(255,255,255,0.5)"
+          color={colors.textWhiteTertiary}
           style={{
             transform: [{ rotate: isExpanded ? '90deg' : '0deg' }],
           }}
@@ -88,7 +88,7 @@ export default function RecurringSection({ recurringTransactions, onEdit }: Recu
               onPress={() => onEdit(transaction.id)}
               style={{
                 borderTopWidth: 1,
-                borderTopColor: 'rgba(255,255,255,0.05)',
+                borderTopColor: colors.glassBorder,
                 padding: 14,
                 paddingHorizontal: 16,
               }}
@@ -101,7 +101,7 @@ export default function RecurringSection({ recurringTransactions, onEdit }: Recu
                     style={{
                       width: 40,
                       height: 40,
-                      backgroundColor: 'rgba(255,255,255,0.05)',
+                      backgroundColor: colors.glassBorder,
                     }}
                   >
                     <Text className="text-lg">{transaction.emoji}</Text>
@@ -110,13 +110,13 @@ export default function RecurringSection({ recurringTransactions, onEdit }: Recu
                   <View className="flex-1">
                     <Text
                       className="text-sm font-medium mb-1"
-                      style={{ color: 'rgba(255,255,255,0.9)' }}
+                      style={{ color: colors.textWhite }}
                     >
                       {transaction.payee}
                     </Text>
                     <Text
                       className="text-xs"
-                      style={{ color: 'rgba(255,255,255,0.5)' }}
+                      style={{ color: colors.textWhiteTertiary }}
                     >
                       Every {transaction.dayOfMonth}{getDaySuffix(transaction.dayOfMonth)}
                       {transaction.isShared
@@ -131,9 +131,7 @@ export default function RecurringSection({ recurringTransactions, onEdit }: Recu
                 <Text
                   className="text-base font-semibold"
                   style={{
-                    color: transaction.type === 'income'
-                      ? 'rgba(168,181,161,1)'
-                      : 'rgba(255,255,255,0.9)',
+                    color: getAmountColor(transaction.type),
                   }}
                 >
                   {transaction.type === 'income' ? '+' : '-'}

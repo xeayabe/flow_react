@@ -1,86 +1,171 @@
-// Flow Design System - Swiss Precision Aesthetic
+  /**
+ * Flow Design System - Centralized Design Tokens
+ *
+ * Single source of truth for colors, spacing, and design primitives.
+ * Use these tokens throughout the app instead of hardcoded values.
+ */
 
+/**
+ * Color palette for Flow app
+ *
+ * @example
+ * ```tsx
+ * import { colors } from '@/lib/design-tokens';
+ *
+ * <View style={{ backgroundColor: colors.bgDark }}>
+ *   <Text style={{ color: colors.textWhite }}>Hello</Text>
+ * </View>
+ * ```
+ */
 export const colors = {
-  // Primary Palette
-  contextTeal: '#2C5F5D',
-  contextSage: '#A8B5A1',
-  contextLavender: '#B4A7D6',
+  // Base colors
   contextDark: '#1A1C1E',
+  contextTeal: '#2C5F5D',
+  sageGreen: '#A8B5A1',
+  softLavender: '#B8A8C8',
 
-  // Budget Status (4-tier system - BRIGHTENED for visibility on dark bg)
+  // Backward compatibility aliases
+  contextSage: '#A8B5A1', // Alias for sageGreen
+  contextLavender: '#B4A7D6', // Alias for softLavender
+
+  // Semantic colors
+  success: '#A8B5A1',
+  warning: '#E8C5A8',
+  error: '#C8A8A8',
+
+  // Budget Status (4-tier system)
   budgetOnTrack: '#C5D4BE',      // 0-70%: Brighter Sage Green
   budgetProgressing: '#E5C399',   // 70-90%: Brighter Amber
   budgetNearlyThere: '#4A8D89',   // 90-100%: Brighter Teal
   budgetFlowAdjusted: '#D4C4ED',  // >100%: Brighter Lavender
 
-  // Neutral (replaces harsh reds)
-  neutral600: '#4B5563',
-  neutral700: '#374151',
-  neutral800: '#1F2937',
+  // Glassmorphism backgrounds
+  bgDark: 'rgba(26, 28, 30, 0.7)',
+  bgGlass: 'rgba(26, 28, 30, 0.5)',
 
-  // Glassmorphism
+  // Glassmorphism (legacy)
   glassWhite: 'rgba(255, 255, 255, 0.03)',
   glassBorder: 'rgba(255, 255, 255, 0.05)',
   glassHover: 'rgba(255, 255, 255, 0.05)',
 
-  // Destructive (ONLY for delete/sign out)
-  destructive: '#DC2626',
-};
+  // Borders
+  borderTeal: 'rgba(44, 95, 93, 0.3)',
+  borderTealLight: 'rgba(44, 95, 93, 0.2)',
+  borderSage: 'rgba(168, 181, 161, 0.5)',
 
-export const gradients = {
-  heroBg: 'linear-gradient(135deg, #2C5F5D 0%, #1e4442 100%)',
-  pageBg: 'linear-gradient(180deg, #1A1C1E 0%, #2C5F5D 100%)',
-};
-
-export const shadows = {
-  glass: '0 8px 32px rgba(0, 0, 0, 0.2)',
-  hero: '0 20px 40px rgba(0, 0, 0, 0.3)',
-  fab: '0 8px 24px rgba(44, 95, 93, 0.4)',
-};
+  // Text colors
+  textWhite: '#FFFFFF',
+  textWhiteSecondary: 'rgba(255, 255, 255, 0.7)',
+  textWhiteTertiary: 'rgba(255, 255, 255, 0.6)',
+  textWhiteDisabled: 'rgba(255, 255, 255, 0.4)',
+} as const;
 
 /**
- * Get budget status color based on spent percentage (0-100+)
- * Swiss precision - no red alerts, only mindful guidance
+ * Spacing scale based on 4px increments
+ *
+ * @example
+ * ```tsx
+ * import { spacing } from '@/lib/design-tokens';
+ *
+ * <View style={{ padding: spacing.md, gap: spacing.sm }}>
+ *   <Text>Content with consistent spacing</Text>
+ * </View>
+ * ```
  */
-export function getBudgetStatusColor(spentPercent: number): string {
-  if (spentPercent <= 70) return colors.budgetOnTrack;
-  if (spentPercent <= 90) return colors.budgetProgressing;
-  if (spentPercent <= 100) return colors.budgetNearlyThere;
-  return colors.budgetFlowAdjusted;
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+} as const;
+
+/**
+ * Border radius values for consistent rounded corners
+ *
+ * @example
+ * ```tsx
+ * import { borderRadius } from '@/lib/design-tokens';
+ *
+ * <View style={{ borderRadius: borderRadius.lg }}>
+ *   <Text>Rounded card</Text>
+ * </View>
+ * ```
+ */
+export const borderRadius = {
+  sm: 12,
+  md: 16,
+  lg: 20,
+  xl: 24,
+} as const;
+
+// TypeScript types for design tokens
+export type ColorKey = keyof typeof colors;
+export type SpacingKey = keyof typeof spacing;
+export type BorderRadiusKey = keyof typeof borderRadius;
+
+/**
+ * Get a color value from the design system
+ *
+ * @param key - The color key to retrieve
+ * @returns The color value
+ *
+ * @example
+ * ```tsx
+ * const tealColor = getColor('contextTeal'); // '#2C5F5D'
+ * ```
+ */
+export function getColor(key: ColorKey): string {
+  return colors[key];
 }
 
 /**
- * Format CHF currency with Swiss precision
- * Examples: CHF 1'234.50, CHF 0.00, CHF -150.00
+ * Get a spacing value from the design system
+ *
+ * @param key - The spacing key to retrieve
+ * @returns The spacing value in pixels
+ *
+ * @example
+ * ```tsx
+ * const padding = getSpacing('md'); // 16
+ * ```
  */
-export function formatCHF(amount: number): string {
-  const isNegative = amount < 0;
-  const absAmount = Math.abs(amount);
-
-  // Split into integer and decimal parts
-  const integerPart = Math.floor(absAmount);
-  const decimalPart = Math.round((absAmount - integerPart) * 100);
-
-  // Format integer with Swiss thousand separator (')
-  const formattedInteger = integerPart.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "'");
-
-  // Always show 2 decimal places
-  const formattedDecimal = decimalPart.toString().padStart(2, '0');
-
-  const sign = isNegative ? '-' : '';
-  return `${sign}CHF ${formattedInteger}.${formattedDecimal}`;
+export function getSpacing(key: SpacingKey): number {
+  return spacing[key];
 }
 
 /**
- * Glassmorphism utility classes for React Native
- * Use with inline styles or combine with className
+ * Get a border radius value from the design system
+ *
+ * @param key - The border radius key to retrieve
+ * @returns The border radius value in pixels
+ *
+ * @example
+ * ```tsx
+ * const radius = getBorderRadius('lg'); // 20
+ * ```
+ */
+export function getBorderRadius(key: BorderRadiusKey): number {
+  return borderRadius[key];
+}
+
+/**
+ * Glassmorphism utility styles for React Native
+ *
+ * @example
+ * ```tsx
+ * import { glassStyles } from '@/lib/design-tokens';
+ *
+ * <View style={glassStyles.card}>
+ *   <Text>Glass card content</Text>
+ * </View>
+ * ```
  */
 export const glassStyles = {
   base: {
     backgroundColor: colors.glassWhite,
     borderWidth: 1,
     borderColor: colors.glassBorder,
-    backdropFilter: 'blur(10px)',
   },
   hover: {
     backgroundColor: colors.glassHover,
@@ -89,93 +174,49 @@ export const glassStyles = {
     backgroundColor: colors.glassWhite,
     borderWidth: 1,
     borderColor: colors.glassBorder,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
   },
   header: {
     backgroundColor: colors.glassWhite,
     borderBottomWidth: 1,
     borderBottomColor: colors.glassBorder,
   },
-};
+} as const;
 
 /**
- * Generate glassmorphism style object with custom opacity
+ * Format currency with Swiss thousand separator
+ *
+ * @param amount - The amount to format
+ * @returns Formatted currency string (e.g., "1'234.50")
+ *
+ * @example
+ * ```tsx
+ * formatCurrency(1234.5); // "1'234.50"
+ * formatCurrency(-500); // "-500.00"
+ * ```
  */
-export function createGlassStyle(opacity: number = 0.03, blur: number = 10) {
-  return {
-    backgroundColor: `rgba(255, 255, 255, ${opacity})`,
-    borderWidth: 1,
-    borderColor: `rgba(255, 255, 255, ${opacity + 0.02})`,
-    backdropFilter: `blur(${blur}px)`,
-  };
+export function formatCurrency(amount: number): string {
+  const absAmount = Math.abs(amount);
+  const formatted = absAmount.toLocaleString('de-CH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return amount < 0 ? `-${formatted}` : formatted;
 }
 
 /**
- * Typography scale matching Swiss precision
+ * Get color for transaction amount based on type
+ *
+ * @param type - Transaction type ('income' or 'expense')
+ * @returns Color string
+ *
+ * @example
+ * ```tsx
+ * <Text style={{ color: getAmountColor('income') }}>+1'000.00</Text>
+ * <Text style={{ color: getAmountColor('expense') }}>-500.00</Text>
+ * ```
  */
-export const typography = {
-  hero: {
-    fontSize: 48,
-    fontWeight: '700' as const,
-    lineHeight: 56,
-    letterSpacing: -1,
-  },
-  h1: {
-    fontSize: 32,
-    fontWeight: '600' as const,
-    lineHeight: 40,
-    letterSpacing: -0.5,
-  },
-  h2: {
-    fontSize: 24,
-    fontWeight: '600' as const,
-    lineHeight: 32,
-    letterSpacing: -0.25,
-  },
-  h3: {
-    fontSize: 20,
-    fontWeight: '600' as const,
-    lineHeight: 28,
-  },
-  body: {
-    fontSize: 16,
-    fontWeight: '400' as const,
-    lineHeight: 24,
-  },
-  caption: {
-    fontSize: 14,
-    fontWeight: '400' as const,
-    lineHeight: 20,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '500' as const,
-    lineHeight: 16,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-  },
-};
-
-/**
- * Spacing scale (multiples of 4)
- */
-export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
-};
-
-/**
- * Border radius scale
- */
-export const borderRadius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  full: 9999,
-};
+export function getAmountColor(type: 'income' | 'expense'): string {
+  return type === 'income' ? colors.sageGreen : colors.textWhite;
+}

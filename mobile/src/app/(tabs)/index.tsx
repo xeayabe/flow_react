@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { db } from '@/lib/db';
+import { colors } from '@/lib/design-tokens';
 import { getUserAccounts } from '@/lib/accounts-api';
 import { getRecentTransactions } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
@@ -223,7 +224,7 @@ export default function DashboardScreen() {
   if (isInitialLoading) {
     return (
       <LinearGradient
-        colors={['#1A1C1E', '#2C5F5D']}
+        colors={[colors.contextDark, colors.contextTeal]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={{ flex: 1, paddingTop: insets.top }}
@@ -242,7 +243,7 @@ export default function DashboardScreen() {
   if (userProfileQuery.error) {
     return (
       <LinearGradient
-        colors={['#1A1C1E', '#2C5F5D']}
+        colors={[colors.contextDark, colors.contextTeal]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={{ flex: 1, paddingTop: insets.top }}
@@ -255,7 +256,8 @@ export default function DashboardScreen() {
           </Text>
           <Pressable
             onPress={() => userProfileQuery.refetch()}
-            className="bg-[#2C5F5D] px-6 py-3 rounded-xl"
+            style={{ backgroundColor: colors.contextTeal }}
+            className="px-6 py-3 rounded-xl"
           >
             <Text className="text-white font-semibold">Retry</Text>
           </Pressable>
@@ -414,8 +416,8 @@ export default function DashboardScreen() {
           width: 64,
           height: 64,
           borderRadius: 32,
-          backgroundColor: '#2C5F5D',
-          shadowColor: '#A8B5A1',
+          backgroundColor: colors.contextTeal,
+          shadowColor: colors.sageGreen,
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.4,
           shadowRadius: 20,
@@ -429,7 +431,7 @@ export default function DashboardScreen() {
             height: 64,
             borderRadius: 32,
             borderWidth: 2,
-            borderColor: 'rgba(168, 181, 161, 0.3)',
+            borderColor: colors.borderSage,
           }}
         />
         <Plus size={28} color="#fff" strokeWidth={2.5} />
