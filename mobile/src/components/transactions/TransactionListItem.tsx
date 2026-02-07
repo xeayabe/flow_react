@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, Pressable, Modal } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -10,6 +10,17 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { Trash2 } from 'lucide-react-native';
 import { colors, getAmountColor, formatCurrency } from '@/lib/design-tokens';
+
+// Shared close registry — only one item open at a time
+type CloseCallback = () => void;
+let activeCloseCallback: CloseCallback | null = null;
+
+export function closeActiveSwipe() {
+  if (activeCloseCallback) {
+    activeCloseCallback();
+    activeCloseCallback = null;
+  }
+}
 
 interface Transaction {
   id: string;
@@ -48,7 +59,44 @@ export default function TransactionListItem({
   const closeSwipe = useCallback(() => {
     translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
     isSwipeOpen.value = false;
+    // Clear from active if this was the active one
+    if (activeCloseCallback === closeSwipeRef.current) {
+      activeCloseCallback = null;
+    }
   }, [translateX, isSwipeOpen]);
+
+  // Stable ref so the module-level variable always points to the latest closure
+  const closeSwipeRef = useRef(closeSwipe);
+  closeSwipeRef.current = closeSwipe;
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (activeCloseCallback === closeSwipeRef.current) {
+        activeCloseCallback = null;
+      }
+    };
+  }, []);
+
+  const clearActive = useCallback(() => {
+    if (activeCloseCallback === closeSwipeRef.current) {
+      activeCloseCallback = null;
+    }
+  }, []);
+
+  const closeOtherSwipe = useCallback(() => {
+    if (activeCloseCallback && activeCloseCallback !== closeSwipeRef.current) {
+      activeCloseCallback();
+    }
+  }, []);
+
+  const openSwipe = useCallback(() => {
+    // Close any other open item first
+    closeOtherSwipe();
+    translateX.value = withSpring(-80, { damping: 20, stiffness: 200 });
+    isSwipeOpen.value = true;
+    activeCloseCallback = closeSwipeRef.current;
+  }, [translateX, isSwipeOpen, closeOtherSwipe]);
 
   const handleDelete = useCallback(() => {
     setShowDeleteModal(true);
@@ -70,17 +118,16 @@ export default function TransactionListItem({
   }, [isSwipeOpen, closeSwipe, onClick]);
 
   const panGesture = Gesture.Pan()
-    // Only activate when horizontal movement > 20px
-    // Fail (let scroll take over) if vertical movement > 15px first
     .activeOffsetX([-20, 20])
     .failOffsetY([-15, 15])
+    .onStart(() => {
+      runOnJS(closeOtherSwipe)();
+    })
     .onUpdate((event) => {
       if (isSwipeOpen.value) {
-        // When open: offset from -80
         const val = -80 + event.translationX;
         translateX.value = Math.max(Math.min(val, 0), -100);
       } else {
-        // Only allow LEFT swipe
         if (event.translationX < 0) {
           translateX.value = Math.max(event.translationX, -100);
         }
@@ -88,20 +135,17 @@ export default function TransactionListItem({
     })
     .onEnd((event) => {
       if (isSwipeOpen.value) {
-        // Already open: close if swiped right enough
         if (event.translationX > 30) {
           translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
           isSwipeOpen.value = false;
+          runOnJS(clearActive)();
         } else {
           translateX.value = withSpring(-80, { damping: 20, stiffness: 200 });
         }
       } else if (event.translationX < -50) {
-        // Snap open
-        translateX.value = withSpring(-80, { damping: 20, stiffness: 200 });
-        isSwipeOpen.value = true;
+        runOnJS(openSwipe)();
         runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
       } else {
-        // Snap back
         translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
         isSwipeOpen.value = false;
       }
@@ -113,9 +157,8 @@ export default function TransactionListItem({
 
   return (
     <>
-      {/* overflow:hidden clips the delete button so it's invisible until card slides */}
       <View style={{ marginBottom: 8, position: 'relative', overflow: 'hidden', borderRadius: 16 }}>
-        {/* Delete Button - positioned behind, clipped by parent overflow:hidden */}
+        {/* Delete Button - clipped by parent overflow:hidden */}
         <View
           style={{
             position: 'absolute',
@@ -153,7 +196,7 @@ export default function TransactionListItem({
           </Pressable>
         </View>
 
-        {/* Swipeable transaction card - on top */}
+        {/* Swipeable transaction card */}
         <GestureDetector gesture={panGesture}>
           <Animated.View
             style={[
@@ -177,7 +220,6 @@ export default function TransactionListItem({
               <View className="flex-row justify-between items-center">
                 {/* Left Side */}
                 <View className="flex-row items-center flex-1">
-                  {/* Icon */}
                   <View
                     className="rounded-xl mr-3 items-center justify-center"
                     style={{
@@ -189,7 +231,6 @@ export default function TransactionListItem({
                     <Text className="text-xl">{transaction.emoji}</Text>
                   </View>
 
-                  {/* Info */}
                   <View className="flex-1">
                     <View className="flex-row items-center mb-1">
                       <Text
