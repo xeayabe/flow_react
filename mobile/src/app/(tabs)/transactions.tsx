@@ -275,8 +275,25 @@ export default function TransactionsTabScreen() {
           recurringDay: r.recurringDay,
           isActive: r.isActive,
           categoryId: r.categoryId,
+          categoryFound: !!category,
+          categoryEmoji: category?.emoji,
           accountId: r.accountId,
         });
+
+        // Calculate next occurrence date
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth();
+        const recurringDay = r.recurringDay || 1;
+
+        // Start with this month
+        let nextDate = new Date(currentYear, currentMonth, recurringDay);
+
+        // If the date has already passed this month, use next month
+        if (nextDate < today) {
+          nextDate = new Date(currentYear, currentMonth + 1, recurringDay);
+        }
+
         items.push({
           id: r.id,
           type: r.type,
@@ -284,6 +301,7 @@ export default function TransactionsTabScreen() {
           payee: r.payee || 'Unknown',
           emoji: category?.emoji || '📝',
           dayOfMonth: r.recurringDay || 1,
+          date: nextDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
           isRecurring: true,
           isActive: r.isActive,
           isShared: r.isShared || false,

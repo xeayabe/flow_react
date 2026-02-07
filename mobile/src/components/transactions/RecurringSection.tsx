@@ -130,10 +130,10 @@ export default function RecurringSection({ recurringTransactions, onEdit }: Recu
                       className="text-xs"
                       style={{ color: colors.textWhiteTertiary }}
                     >
-                      {transaction.isRecurring && transaction.dayOfMonth
-                        ? `Every ${transaction.dayOfMonth}${getDaySuffix(transaction.dayOfMonth)}`
-                        : transaction.date
+                      {transaction.date
                         ? formatScheduledDate(transaction.date)
+                        : transaction.isRecurring && transaction.dayOfMonth
+                        ? `Every ${transaction.dayOfMonth}${getDaySuffix(transaction.dayOfMonth)}`
                         : 'Upcoming'}
                       {transaction.isShared && ` • Shared with ${transaction.partnerName}`}
                     </Text>
