@@ -206,7 +206,7 @@ export default function TransactionsTabScreen() {
       accountsQuery.data.forEach((acc: any) => {
         accountMap.set(acc.id, acc);
       });
-      console.log('📊 Accounts available:', accountsQuery.data.length);
+      console.log('📊 Accounts available:', accountsQuery.data.length, accountsQuery.data.map((a: any) => ({ id: a.id, name: a.name })));
     }
 
     return transactionsQuery.data.map((t: any) => {
@@ -246,7 +246,7 @@ export default function TransactionsTabScreen() {
         categoryName: categoryNameClean,
         categoryId: t.categoryId,
         accountId: t.accountId,
-        walletName: account?.name || 'Cash',
+        walletName: account?.name || '',
         emoji: categoryEmoji,
         date: t.date,
         note: t.note,
