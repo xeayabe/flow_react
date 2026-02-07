@@ -267,13 +267,18 @@ export default function DashboardScreen() {
   }
 
   // Get data with safe defaults
-  const balance = balanceQuery.data || { netWorth: 0, assets: { total: 0 }, liabilities: { total: 0 } };
+  const balance = balanceQuery.data || { netWorth: 0, assets: { total: 0, accounts: [] }, liabilities: { total: 0, accounts: [] } };
   const accounts = accountsQuery.data || [];
   const recentTransactions = recentTransactionsQuery.data || [];
   const categories = categoriesQuery.data || [];
   const categoryGroups = categoryGroupsQuery.data || [];
   const budgetDetails = budgetDetailsQuery.data || [];
   const budgetSummary = budgetSummaryQuery.data;
+
+  // Create a map of corrected balances from balance API (excludes future transactions)
+  const correctedBalanceMap = new Map<string, number>();
+  balance.assets.accounts.forEach((acc) => correctedBalanceMap.set(acc.id, acc.balance));
+  balance.liabilities.accounts.forEach((acc) => correctedBalanceMap.set(acc.id, -acc.balance)); // Liabilities are negative
 
   // Create a map of group key -> group name/icon for display
   const groupKeyToDisplay = categoryGroups.reduce((map, group) => {
@@ -304,13 +309,13 @@ export default function DashboardScreen() {
     };
   });
 
-  // Format accounts for WalletsCard
+  // Format accounts for WalletsCard - use corrected balances that exclude future transactions
   const formattedWallets = accounts.map((account) => ({
     id: account.id,
     name: account.name,
     institution: account.institution || 'Other',
     type: account.accountType || 'Checking',
-    balance: account.balance || 0,
+    balance: correctedBalanceMap.get(account.id) ?? account.balance ?? 0,
     isDefault: account.isDefault || false,
   }));
 
