@@ -156,8 +156,6 @@ export default function TransactionsTabScreen() {
               householdId: householdQuery.data.householdId,
             },
           },
-          category: {},
-          account: {},
         },
       });
       const allTemplates = (result?.data?.recurringTemplates || []) as any[];
@@ -267,13 +265,17 @@ export default function TransactionsTabScreen() {
     // Add recurring templates
     if (recurringQuery.data) {
       recurringQuery.data.forEach((r: any) => {
-        const category = r.category?.[0];
-        const account = r.account?.[0];
+        // Look up category and account by ID from the already loaded data
+        const category = categoriesQuery.data?.find((c: any) => c.id === r.categoryId);
+        const account = accountsQuery.data?.find((a: any) => a.id === r.accountId);
+
         console.log('➕ Adding recurring template:', {
           id: r.id,
           payee: r.payee,
           recurringDay: r.recurringDay,
-          isActive: r.isActive
+          isActive: r.isActive,
+          categoryId: r.categoryId,
+          accountId: r.accountId,
         });
         items.push({
           id: r.id,
