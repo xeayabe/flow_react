@@ -242,11 +242,24 @@ export default function TransactionsTabScreen() {
     const today = new Date().toISOString().split('T')[0];
     const items: any[] = [];
 
+    console.log('🔄 Building formattedRecurring:', {
+      recurringDataExists: !!recurringQuery.data,
+      recurringCount: recurringQuery.data?.length || 0,
+      formattedTransactionsCount: formattedTransactions?.length || 0,
+      today
+    });
+
     // Add recurring templates
     if (recurringQuery.data) {
       recurringQuery.data.forEach((r: any) => {
         const category = r.category?.[0];
         const account = r.account?.[0];
+        console.log('➕ Adding recurring template:', {
+          id: r.id,
+          payee: r.payee,
+          recurringDay: r.recurringDay,
+          isActive: r.isActive
+        });
         items.push({
           id: r.id,
           type: r.type,
@@ -267,6 +280,11 @@ export default function TransactionsTabScreen() {
     if (formattedTransactions) {
       formattedTransactions.forEach((t: any) => {
         if (t.date > today) {
+          console.log('➕ Adding future transaction:', {
+            id: t.id,
+            payee: t.payee,
+            date: t.date
+          });
           items.push({
             id: t.id,
             type: t.type,
@@ -283,6 +301,12 @@ export default function TransactionsTabScreen() {
         }
       });
     }
+
+    console.log('✅ formattedRecurring built:', {
+      totalItems: items.length,
+      recurring: items.filter(i => i.isRecurring).length,
+      future: items.filter(i => !i.isRecurring).length
+    });
 
     return items;
   }, [recurringQuery.data, formattedTransactions]);
