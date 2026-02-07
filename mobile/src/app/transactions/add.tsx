@@ -135,7 +135,24 @@ export default function AddTransactionScreen() {
           },
         },
       });
-      return result?.data?.recurringTemplates?.[0] || null;
+      const template = result?.data?.recurringTemplates?.[0] || null;
+
+      // Also fetch the category to determine type
+      if (template?.categoryId) {
+        // @ts-ignore
+        const categoryResult = await db.queryOnce({
+          // @ts-ignore
+          categories: {
+            $: {
+              where: { id: template.categoryId },
+            },
+          },
+        });
+        const category = categoryResult?.data?.categories?.[0];
+        return { ...template, category };
+      }
+
+      return template;
     },
     enabled: !!recurringId && isEditing,
   });
@@ -163,9 +180,13 @@ export default function AddTransactionScreen() {
     if (recurringQuery.data && isEditing && recurringId) {
       const r = recurringQuery.data;
       console.log('📋 Loading recurring template data:', r);
+      console.log('📋 Recurring template category:', (r as any).category);
 
-      // Determine type based on amount (negative = expense, positive = income)
-      const transactionType = (r.amount < 0 ? 'expense' : 'income') as TransactionType;
+      // Determine type from the category
+      const category = (r as any).category;
+      const transactionType: TransactionType = category?.type === 'income' ? 'income' : 'expense';
+
+      console.log('📋 Determined transaction type from category:', transactionType);
 
       setFormData({
         type: transactionType,
