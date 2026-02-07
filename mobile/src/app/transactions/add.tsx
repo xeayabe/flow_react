@@ -7,14 +7,14 @@ import { ChevronLeft, Check, Calendar, ChevronRight, Sparkles, ArrowLeft } from 
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { db } from '@/lib/db';
-import { createTransaction } from '@/lib/transactions-api';
+import { createTransaction, updateTransaction } from '@/lib/transactions-api';
 import { getCategories } from '@/lib/categories-api';
 import { getUserAccounts } from '@/lib/accounts-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { createExpenseSplits, calculateSplitRatio } from '@/lib/shared-expenses-api';
 import { getCategorySuggestion, savePayeeMapping } from '@/lib/payee-mappings-api';
-import { createRecurringTemplate } from '@/lib/recurring-api';
+import { createRecurringTemplate, updateRecurringTemplate } from '@/lib/recurring-api';
 import { formatCurrency } from '@/lib/formatCurrency';
 import PayeePickerModal from '@/components/PayeePickerModal';
 import QuickCategoryButtons from '@/components/transactions/QuickCategoryButtons';
@@ -320,9 +320,21 @@ export default function AddTransactionScreen() {
   // Update transaction mutation
   const updateMutation = useMutation({
     mutationFn: async () => {
-      if (!id) throw new Error('No transaction ID for update');
+      // If editing a recurring template
+      if (recurringId) {
+        await updateRecurringTemplate(recurringId, {
+          amount: parseFloat(formData.amount),
+          categoryId: formData.categoryId,
+          accountId: formData.accountId,
+          recurringDay: formData.recurringDay,
+          payee: formData.payee || undefined,
+          note: formData.note || undefined,
+        });
+        return { success: true, isTemplate: true };
+      }
 
-      const { updateTransaction } = await import('@/lib/transactions-api');
+      // If editing a regular transaction
+      if (!id) throw new Error('No transaction ID for update');
 
       const result = await updateTransaction({
         id,
@@ -349,6 +361,7 @@ export default function AddTransactionScreen() {
     },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['recurring-templates'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
       queryClient.invalidateQueries({ queryKey: ['budget-details'] });
