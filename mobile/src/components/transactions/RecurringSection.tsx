@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { ChevronRight } from 'lucide-react-native';
+import { format, parseISO } from 'date-fns';
 import { colors, getAmountColor, formatCurrency } from '@/lib/design-tokens';
 
 interface RecurringTransaction {
@@ -31,6 +32,15 @@ function getDaySuffix(day: number): string {
     case 2: return 'nd';
     case 3: return 'rd';
     default: return 'th';
+  }
+}
+
+function formatScheduledDate(dateString: string): string {
+  try {
+    const date = parseISO(dateString);
+    return format(date, 'MMM d, yyyy');
+  } catch {
+    return dateString;
   }
 }
 
@@ -123,7 +133,7 @@ export default function RecurringSection({ recurringTransactions, onEdit }: Recu
                       {transaction.isRecurring && transaction.dayOfMonth
                         ? `Every ${transaction.dayOfMonth}${getDaySuffix(transaction.dayOfMonth)}`
                         : transaction.date
-                        ? `Scheduled for ${transaction.date}`
+                        ? formatScheduledDate(transaction.date)
                         : 'Upcoming'}
                       {transaction.isShared
                         ? ` • Shared with ${transaction.partnerName}`
