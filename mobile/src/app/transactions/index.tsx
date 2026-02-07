@@ -197,6 +197,7 @@ export default function TransactionsListScreen() {
         payee: r.payee || 'Unknown',
         emoji: category?.emoji || '📝',
         dayOfMonth: r.dayOfMonth,
+        isRecurring: true,
         isActive: r.isActive,
         isShared: r.isShared || false,
         partnerName: 'Partner',

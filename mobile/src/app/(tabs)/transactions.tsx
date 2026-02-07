@@ -237,27 +237,55 @@ export default function TransactionsTabScreen() {
     });
   }, [transactionsQuery.data, categoriesQuery.data, accountsQuery.data, householdQuery.data?.userId]);
 
-  // Format recurring transactions
+  // Combine recurring templates + future transactions
   const formattedRecurring = React.useMemo(() => {
-    if (!recurringQuery.data) return [];
+    const today = new Date().toISOString().split('T')[0];
+    const items: any[] = [];
 
-    return recurringQuery.data.map((r: any) => {
-      const category = r.category?.[0];
-      const account = r.account?.[0];
-      return {
-        id: r.id,
-        type: r.type,
-        amount: r.amount,
-        payee: r.payee || 'Unknown',
-        emoji: category?.emoji || '📝',
-        dayOfMonth: r.recurringDay || 1,
-        isActive: r.isActive,
-        isShared: r.isShared || false,
-        partnerName: 'Partner',
-        walletName: account?.name || 'Unknown Account',
-      };
-    });
-  }, [recurringQuery.data]);
+    // Add recurring templates
+    if (recurringQuery.data) {
+      recurringQuery.data.forEach((r: any) => {
+        const category = r.category?.[0];
+        const account = r.account?.[0];
+        items.push({
+          id: r.id,
+          type: r.type,
+          amount: r.amount,
+          payee: r.payee || 'Unknown',
+          emoji: category?.emoji || '📝',
+          dayOfMonth: r.recurringDay || 1,
+          isRecurring: true,
+          isActive: r.isActive,
+          isShared: r.isShared || false,
+          partnerName: 'Partner',
+          walletName: account?.name || 'Unknown Account',
+        });
+      });
+    }
+
+    // Add future one-time transactions
+    if (formattedTransactions) {
+      formattedTransactions.forEach((t: any) => {
+        if (t.date > today) {
+          items.push({
+            id: t.id,
+            type: t.type,
+            amount: t.amount,
+            payee: t.payee,
+            emoji: t.emoji,
+            date: t.date,
+            isRecurring: false,
+            isActive: true,
+            isShared: t.isShared,
+            partnerName: t.partnerName,
+            walletName: t.walletName,
+          });
+        }
+      });
+    }
+
+    return items;
+  }, [recurringQuery.data, formattedTransactions]);
 
   // Use filter hook with search
   const { filters, setFilters, filteredTransactions, groupedByDate } = useTransactionFilters(

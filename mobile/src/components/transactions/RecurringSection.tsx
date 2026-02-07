@@ -10,7 +10,9 @@ interface RecurringTransaction {
   amount: number;
   payee: string;
   emoji: string;
-  dayOfMonth: number;
+  dayOfMonth?: number;
+  date?: string;
+  isRecurring: boolean;
   isActive: boolean;
   isShared?: boolean;
   partnerName?: string;
@@ -118,7 +120,11 @@ export default function RecurringSection({ recurringTransactions, onEdit }: Recu
                       className="text-xs"
                       style={{ color: colors.textWhiteTertiary }}
                     >
-                      Every {transaction.dayOfMonth}{getDaySuffix(transaction.dayOfMonth)}
+                      {transaction.isRecurring && transaction.dayOfMonth
+                        ? `Every ${transaction.dayOfMonth}${getDaySuffix(transaction.dayOfMonth)}`
+                        : transaction.date
+                        ? `Scheduled for ${transaction.date}`
+                        : 'Upcoming'}
                       {transaction.isShared
                         ? ` • Shared with ${transaction.partnerName}`
                         : transaction.walletName ? ` • ${transaction.walletName}` : ''
