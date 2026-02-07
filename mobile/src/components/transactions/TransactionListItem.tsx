@@ -252,16 +252,23 @@ export default function TransactionListItem({
                       </Text>
                       {isShared && (
                         <View
-                          className="rounded-full"
                           style={{
-                            backgroundColor: 'rgba(75, 85, 80, 0.9)',
-                            paddingHorizontal: 10,
-                            paddingVertical: 4,
+                            backgroundColor: 'rgba(168, 181, 161, 0.2)',
+                            borderWidth: 1,
+                            borderColor: 'rgba(168, 181, 161, 0.3)',
+                            borderRadius: 4,
+                            paddingVertical: 2,
+                            paddingHorizontal: 6,
                           }}
                         >
                           <Text
-                            className="text-[10px] font-semibold uppercase tracking-wider"
-                            style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                            style={{
+                              color: 'rgba(168, 181, 161, 1)',
+                              fontSize: 9,
+                              fontWeight: '700',
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.45,
+                            }}
                           >
                             SHARED
                           </Text>
