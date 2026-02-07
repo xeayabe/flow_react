@@ -529,10 +529,10 @@ export default function TransactionsTabScreen() {
               // Find the item to determine if it's recurring or a future transaction
               const item = formattedRecurring.find(r => r.id === id);
               if (item?.isRecurring) {
-                // It's a recurring template - open edit recurring screen
-                router.push(`/recurring/edit/${id}`);
+                // It's a recurring template - pass recurringId parameter
+                router.push(`/transactions/add?recurringId=${id}`);
               } else {
-                // It's a future transaction - open edit transaction screen
+                // It's a future transaction - pass regular id parameter
                 router.push(`/transactions/add?id=${id}`);
               }
             }}
