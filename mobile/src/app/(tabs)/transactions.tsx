@@ -282,17 +282,25 @@ export default function TransactionsTabScreen() {
 
         // Calculate next occurrence date
         const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset time to start of day
         const currentYear = today.getFullYear();
         const currentMonth = today.getMonth();
         const recurringDay = r.recurringDay || 1;
 
-        // Start with this month
-        let nextDate = new Date(currentYear, currentMonth, recurringDay);
+        // Start with this month at noon to avoid timezone issues
+        let nextDate = new Date(currentYear, currentMonth, recurringDay, 12, 0, 0);
 
         // If the date has already passed this month, use next month
-        if (nextDate < today) {
-          nextDate = new Date(currentYear, currentMonth + 1, recurringDay);
+        if (nextDate <= today) {
+          nextDate = new Date(currentYear, currentMonth + 1, recurringDay, 12, 0, 0);
         }
+
+        console.log('📅 Calculated next date:', {
+          recurringDay,
+          today: today.toISOString().split('T')[0],
+          nextDate: nextDate.toISOString().split('T')[0],
+          nextDateFull: nextDate.toISOString(),
+        });
 
         items.push({
           id: r.id,
