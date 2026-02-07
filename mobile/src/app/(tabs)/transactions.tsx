@@ -305,15 +305,19 @@ export default function TransactionsTabScreen() {
     });
   }, [filteredTransactions, searchQuery]);
 
-  // Regroup by date after search
+  // Regroup by date after search (exclude future transactions)
   const searchGroupedByDate = React.useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
     const grouped: Record<string, any[]> = {};
     searchFilteredTransactions.forEach((transaction: any) => {
-      const date = transaction.date.split('T')[0];
-      if (!grouped[date]) {
-        grouped[date] = [];
+      // Only include transactions that are today or in the past
+      if (transaction.date <= today) {
+        const date = transaction.date.split('T')[0];
+        if (!grouped[date]) {
+          grouped[date] = [];
+        }
+        grouped[date].push(transaction);
       }
-      grouped[date].push(transaction);
     });
     console.log('📅 Grouped by date:', Object.keys(grouped).length, 'dates');
     console.log('📅 First date group:', Object.keys(grouped)[0], grouped[Object.keys(grouped)[0]]?.length || 0, 'transactions');

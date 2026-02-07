@@ -58,12 +58,12 @@ export default function RecurringSection({ recurringTransactions, onEdit }: Recu
         className="p-4 flex-row justify-between items-center"
       >
         <View className="flex-row items-center">
-          <Text className="text-lg mr-2.5">🔁</Text>
+          <Text className="text-lg mr-2.5">📅</Text>
           <Text
             className="text-[15px] font-semibold"
             style={{ color: colors.textWhite }}
           >
-            Recurring
+            Upcoming
           </Text>
           <Text
             className="text-xs ml-1.5"
