@@ -11,6 +11,7 @@ import { db } from '@/lib/db';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { formatCurrency } from '@/lib/formatCurrency';
 import { deleteTransaction } from '@/lib/transactions-api';
+import { deactivateRecurringTemplate } from '@/lib/recurring-api';
 import TransactionListItem from '@/components/transactions/TransactionListItem';
 import RecurringSection from '@/components/transactions/RecurringSection';
 import TransactionFilters from '@/components/transactions/TransactionFilters';
@@ -570,6 +571,26 @@ export default function TransactionsTabScreen() {
               } else {
                 // It's a future transaction - pass regular id parameter
                 router.push(`/transactions/add?id=${id}`);
+              }
+            }}
+            onDelete={async (id, isRecurring) => {
+              try {
+                if (isRecurring) {
+                  // Deactivate recurring template
+                  await deactivateRecurringTemplate(id);
+                  console.log('✅ Recurring template deactivated');
+                } else {
+                  // Delete future transaction
+                  await deleteTransaction(id);
+                  console.log('✅ Future transaction deleted');
+                }
+
+                // Refresh data
+                queryClient.invalidateQueries({ queryKey: ['transactions'] });
+                queryClient.invalidateQueries({ queryKey: ['recurring-templates'] });
+                queryClient.invalidateQueries({ queryKey: ['accounts'] });
+              } catch (error) {
+                console.error('Error deleting:', error);
               }
             }}
           />
