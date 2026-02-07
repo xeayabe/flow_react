@@ -47,7 +47,7 @@ export default function AddTransactionScreen() {
   const { user } = db.useAuth();
   const amountInputRef = useRef<TextInput>(null);
   const scrollY = useSharedValue(0);
-  const { id, duplicate, type: duplicateType, amount: duplicateAmount, payee: duplicatePayee, categoryId: duplicateCategoryId, accountId: duplicateAccountId, note: duplicateNote, date: duplicateDate } = useLocalSearchParams<{
+  const { id, duplicate, type: duplicateType, amount: duplicateAmount, payee: duplicatePayee, categoryId: duplicateCategoryId, accountId: duplicateAccountId, note: duplicateNote, date: duplicateDate, recurringId } = useLocalSearchParams<{
     id?: string;
     duplicate?: string;
     type?: string;
@@ -57,8 +57,9 @@ export default function AddTransactionScreen() {
     accountId?: string;
     note?: string;
     date?: string;
+    recurringId?: string;
   }>();
-  const isEditing = !!id;
+  const isEditing = !!id || !!recurringId;
   const isDuplicating = duplicate === 'true';
 
   const scrollHandler = useAnimatedScrollHandler({
@@ -117,12 +118,31 @@ export default function AddTransactionScreen() {
       });
       return result?.data?.transactions?.[0] || null;
     },
-    enabled: !!id && isEditing,
+    enabled: !!id && isEditing && !recurringId,
   });
 
-  // Pre-fill form when editing
+  // Load recurring template data when editing a recurring transaction
+  const recurringQuery = useQuery({
+    queryKey: ['recurring-template-edit', recurringId],
+    queryFn: async () => {
+      if (!recurringId) return null;
+      // @ts-ignore
+      const result = await db.queryOnce({
+        // @ts-ignore
+        recurringTemplates: {
+          $: {
+            where: { id: recurringId },
+          },
+        },
+      });
+      return result?.data?.recurringTemplates?.[0] || null;
+    },
+    enabled: !!recurringId && isEditing,
+  });
+
+  // Pre-fill form when editing a regular transaction
   useEffect(() => {
-    if (transactionQuery.data && isEditing) {
+    if (transactionQuery.data && isEditing && !recurringId) {
       const t = transactionQuery.data;
       setFormData({
         type: (t.type === 'income' ? 'income' : 'expense') as TransactionType,
@@ -136,7 +156,30 @@ export default function AddTransactionScreen() {
         recurringDay: 1,
       });
     }
-  }, [transactionQuery.data, isEditing]);
+  }, [transactionQuery.data, isEditing, recurringId]);
+
+  // Pre-fill form when editing a recurring template
+  useEffect(() => {
+    if (recurringQuery.data && isEditing && recurringId) {
+      const r = recurringQuery.data;
+      console.log('📋 Loading recurring template data:', r);
+
+      // Determine type based on amount (negative = expense, positive = income)
+      const transactionType = (r.amount < 0 ? 'expense' : 'income') as TransactionType;
+
+      setFormData({
+        type: transactionType,
+        amount: Math.abs(r.amount)?.toString() || '',
+        categoryId: r.categoryId || '',
+        accountId: r.accountId || '',
+        date: new Date().toISOString().split('T')[0], // Use today's date as default
+        note: r.note || '',
+        payee: r.payee || '',
+        isRecurring: true,
+        recurringDay: r.recurringDay || 1,
+      });
+    }
+  }, [recurringQuery.data, isEditing, recurringId]);
 
   // Pre-fill form when duplicating
   useEffect(() => {

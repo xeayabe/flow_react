@@ -277,7 +277,9 @@ export default function TransactionsTabScreen() {
           categoryId: r.categoryId,
           categoryFound: !!category,
           categoryEmoji: category?.emoji,
+          categoryName: category?.name,
           accountId: r.accountId,
+          allCategories: categoriesQuery.data?.length || 0,
         });
 
         // Calculate next occurrence date
