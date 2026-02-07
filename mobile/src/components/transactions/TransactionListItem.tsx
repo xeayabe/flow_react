@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { View, Text, Pressable, Modal, Animated, PanResponder } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Trash2 } from 'lucide-react-native';
@@ -38,9 +38,7 @@ export default function TransactionListItem({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const isOpen = useRef(false);
 
-  const handleDelete = () => {
-    setShowDeleteModal(true);
-    // Close swipe
+  const closeSwipe = useCallback(() => {
     Animated.spring(translateX, {
       toValue: 0,
       useNativeDriver: true,
@@ -48,6 +46,11 @@ export default function TransactionListItem({
       friction: 8,
     }).start();
     isOpen.current = false;
+  }, [translateX]);
+
+  const handleDelete = () => {
+    setShowDeleteModal(true);
+    closeSwipe();
   };
 
   const confirmDelete = () => {
@@ -58,31 +61,47 @@ export default function TransactionListItem({
     }
   };
 
+  const handlePress = () => {
+    // If swipe is open, close it instead of navigating
+    if (isOpen.current) {
+      closeSwipe();
+      return;
+    }
+    onClick();
+  };
+
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_evt, gestureState) => {
-        // Only activate if horizontal movement > vertical movement
-        // and at least 10px horizontal — prevents scroll interference
         const { dx, dy } = gestureState;
         return Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10;
       },
-      onPanResponderGrant: () => {
-        // If already open, flatten to current offset
-        translateX.flattenOffset();
-      },
       onPanResponderMove: (_evt, gestureState) => {
-        // Only allow swiping LEFT (negative dx)
-        if (gestureState.dx < 0) {
+        if (isOpen.current) {
+          // When open, allow closing by swiping right
+          const base = -80 + gestureState.dx;
+          const clamped = Math.max(Math.min(base, 0), -100);
+          translateX.setValue(clamped);
+        } else if (gestureState.dx < 0) {
+          // Only allow swiping LEFT (negative dx)
           const newValue = Math.max(gestureState.dx, -100);
-          translateX.setValue(newValue);
-        } else if (isOpen.current) {
-          // Allow closing by swiping right when open
-          const newValue = Math.min(gestureState.dx - 80, 0);
           translateX.setValue(newValue);
         }
       },
       onPanResponderRelease: (_evt, gestureState) => {
-        if (gestureState.dx < -50) {
+        if (isOpen.current) {
+          // If already open: close if swiped right enough, otherwise stay open
+          if (gestureState.dx > 30) {
+            closeSwipe();
+          } else {
+            Animated.spring(translateX, {
+              toValue: -80,
+              useNativeDriver: true,
+              tension: 100,
+              friction: 8,
+            }).start();
+          }
+        } else if (gestureState.dx < -50) {
           // Snap open to show delete
           Animated.spring(translateX, {
             toValue: -80,
@@ -94,13 +113,7 @@ export default function TransactionListItem({
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         } else {
           // Return to center
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: true,
-            tension: 100,
-            friction: 8,
-          }).start();
-          isOpen.current = false;
+          closeSwipe();
         }
       },
     })
@@ -108,8 +121,9 @@ export default function TransactionListItem({
 
   return (
     <>
-      <View style={{ marginBottom: 8, position: 'relative' }}>
-        {/* Delete Button - Hidden behind transaction card */}
+      {/* Outer container clips the delete button so it doesn't show beyond card edges */}
+      <View style={{ marginBottom: 8, position: 'relative', overflow: 'hidden', borderRadius: 16 }}>
+        {/* Delete Button - Hidden behind the transaction card */}
         <View
           style={{
             position: 'absolute',
@@ -126,7 +140,7 @@ export default function TransactionListItem({
             onPress={handleDelete}
             style={{
               width: 70,
-              height: '90%',
+              height: '85%',
               backgroundColor: 'rgba(232, 197, 168, 0.15)',
               borderRadius: 12,
               justifyContent: 'center',
@@ -135,15 +149,19 @@ export default function TransactionListItem({
           >
             <Trash2 size={20} color={colors.warning} />
             <Text
-              className="text-[11px] font-semibold mt-1"
-              style={{ color: colors.warning }}
+              style={{
+                color: colors.warning,
+                fontSize: 11,
+                fontWeight: '600',
+                marginTop: 4,
+              }}
             >
               Delete
             </Text>
           </Pressable>
         </View>
 
-        {/* Transaction Item - Sits on top, swipeable */}
+        {/* Transaction Item - Sits on top with OPAQUE background to fully cover delete */}
         <Animated.View
           {...panResponder.panHandlers}
           style={{
@@ -153,12 +171,13 @@ export default function TransactionListItem({
           }}
         >
           <Pressable
-            onPress={onClick}
-            className="rounded-2xl"
+            onPress={handlePress}
             style={{
-              backgroundColor: colors.glassWhite,
+              borderRadius: 16,
+              // Opaque dark background so delete button is fully hidden
+              backgroundColor: '#222628',
               borderWidth: 1,
-              borderColor: colors.glassBorder,
+              borderColor: 'rgba(255, 255, 255, 0.08)',
               padding: 16,
             }}
           >
@@ -171,7 +190,7 @@ export default function TransactionListItem({
                   style={{
                     width: 44,
                     height: 44,
-                    backgroundColor: colors.glassBorder,
+                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
                   }}
                 >
                   <Text className="text-xl">{transaction.emoji}</Text>
@@ -183,6 +202,7 @@ export default function TransactionListItem({
                     <Text
                       className="text-base font-medium mr-2"
                       style={{ color: colors.textWhite }}
+                      numberOfLines={1}
                     >
                       {transaction.payee}
                     </Text>
