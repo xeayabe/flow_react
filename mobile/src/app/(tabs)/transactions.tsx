@@ -154,15 +154,27 @@ export default function TransactionsTabScreen() {
             where: {
               userId: householdQuery.data.userId,
               householdId: householdQuery.data.householdId,
-              isActive: true
             },
           },
           category: {},
           account: {},
         },
       });
-      console.log('✅ Recurring templates fetched:', result?.data?.recurringTemplates?.length || 0);
-      return (result?.data?.recurringTemplates || []) as any[];
+      const allTemplates = (result?.data?.recurringTemplates || []) as any[];
+      console.log('✅ All recurring templates (no filter):', allTemplates.length);
+      if (allTemplates.length > 0) {
+        console.log('📋 Sample template:', {
+          id: allTemplates[0].id,
+          payee: allTemplates[0].payee,
+          isActive: allTemplates[0].isActive,
+          recurringDay: allTemplates[0].recurringDay,
+        });
+      }
+
+      // Filter for active only
+      const activeTemplates = allTemplates.filter((t: any) => t.isActive === true);
+      console.log('✅ Active recurring templates:', activeTemplates.length);
+      return activeTemplates;
     },
     enabled: !!householdQuery.data?.userId && !!householdQuery.data?.householdId,
   });
