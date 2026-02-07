@@ -910,6 +910,7 @@ export function parseSwissDate(dateString: string): string | null {
 
 /**
  * Get recent transactions for dashboard (last N transactions for current period)
+ * Excludes future-dated transactions
  */
 export async function getRecentTransactions(
   userId: string,
@@ -929,6 +930,13 @@ export async function getRecentTransactions(
     });
 
     let transactions = (result.data.transactions || []) as Transaction[];
+
+    // Get today's date for filtering out future transactions
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    // Filter out future transactions
+    transactions = transactions.filter((tx) => tx.date <= todayStr);
 
     // Filter by period if provided
     if (periodStart && periodEnd) {
