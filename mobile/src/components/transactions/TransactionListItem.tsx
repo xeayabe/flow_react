@@ -1,5 +1,12 @@
-import React, { useRef, useState, useCallback } from 'react';
-import { View, Text, Pressable, Modal, Animated, PanResponder } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, Pressable, Modal } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Trash2 } from 'lucide-react-native';
 import { colors, getAmountColor, formatCurrency } from '@/lib/design-tokens';
@@ -34,96 +41,81 @@ export default function TransactionListItem({
 }: TransactionListItemProps) {
   const isIncome = transaction.type === 'income';
   const isShared = transaction.isShared;
-  const translateX = useRef(new Animated.Value(0)).current;
+  const translateX = useSharedValue(0);
+  const isSwipeOpen = useSharedValue(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const isOpen = useRef(false);
 
   const closeSwipe = useCallback(() => {
-    Animated.spring(translateX, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 8,
-    }).start();
-    isOpen.current = false;
-  }, [translateX]);
+    translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+    isSwipeOpen.value = false;
+  }, [translateX, isSwipeOpen]);
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     setShowDeleteModal(true);
     closeSwipe();
-  };
+  }, [closeSwipe]);
 
-  const confirmDelete = () => {
+  const confirmDelete = useCallback(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowDeleteModal(false);
-    if (onDelete) {
-      onDelete(transaction.id);
-    }
-  };
+    onDelete?.(transaction.id);
+  }, [onDelete, transaction.id]);
 
-  const handlePress = () => {
-    // If swipe is open, close it instead of navigating
-    if (isOpen.current) {
+  const handlePress = useCallback(() => {
+    if (isSwipeOpen.value) {
       closeSwipe();
       return;
     }
     onClick();
-  };
+  }, [isSwipeOpen, closeSwipe, onClick]);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_evt, gestureState) => {
-        const { dx, dy } = gestureState;
-        return Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10;
-      },
-      onPanResponderMove: (_evt, gestureState) => {
-        if (isOpen.current) {
-          // When open, allow closing by swiping right
-          const base = -80 + gestureState.dx;
-          const clamped = Math.max(Math.min(base, 0), -100);
-          translateX.setValue(clamped);
-        } else if (gestureState.dx < 0) {
-          // Only allow swiping LEFT (negative dx)
-          const newValue = Math.max(gestureState.dx, -100);
-          translateX.setValue(newValue);
+  const panGesture = Gesture.Pan()
+    // Only activate when horizontal movement > 20px
+    // Fail (let scroll take over) if vertical movement > 15px first
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-15, 15])
+    .onUpdate((event) => {
+      if (isSwipeOpen.value) {
+        // When open: offset from -80
+        const val = -80 + event.translationX;
+        translateX.value = Math.max(Math.min(val, 0), -100);
+      } else {
+        // Only allow LEFT swipe
+        if (event.translationX < 0) {
+          translateX.value = Math.max(event.translationX, -100);
         }
-      },
-      onPanResponderRelease: (_evt, gestureState) => {
-        if (isOpen.current) {
-          // If already open: close if swiped right enough, otherwise stay open
-          if (gestureState.dx > 30) {
-            closeSwipe();
-          } else {
-            Animated.spring(translateX, {
-              toValue: -80,
-              useNativeDriver: true,
-              tension: 100,
-              friction: 8,
-            }).start();
-          }
-        } else if (gestureState.dx < -50) {
-          // Snap open to show delete
-          Animated.spring(translateX, {
-            toValue: -80,
-            useNativeDriver: true,
-            tension: 100,
-            friction: 8,
-          }).start();
-          isOpen.current = true;
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        } else {
-          // Return to center
-          closeSwipe();
-        }
-      },
+      }
     })
-  ).current;
+    .onEnd((event) => {
+      if (isSwipeOpen.value) {
+        // Already open: close if swiped right enough
+        if (event.translationX > 30) {
+          translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+          isSwipeOpen.value = false;
+        } else {
+          translateX.value = withSpring(-80, { damping: 20, stiffness: 200 });
+        }
+      } else if (event.translationX < -50) {
+        // Snap open
+        translateX.value = withSpring(-80, { damping: 20, stiffness: 200 });
+        isSwipeOpen.value = true;
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+      } else {
+        // Snap back
+        translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+        isSwipeOpen.value = false;
+      }
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
 
   return (
     <>
-      {/* Outer container clips the delete button so it doesn't show beyond card edges */}
+      {/* overflow:hidden clips the delete button so it's invisible until card slides */}
       <View style={{ marginBottom: 8, position: 'relative', overflow: 'hidden', borderRadius: 16 }}>
-        {/* Delete Button - Hidden behind the transaction card */}
+        {/* Delete Button - positioned behind, clipped by parent overflow:hidden */}
         <View
           style={{
             position: 'absolute',
@@ -161,113 +153,115 @@ export default function TransactionListItem({
           </Pressable>
         </View>
 
-        {/* Transaction Item - Sits on top with OPAQUE background to fully cover delete */}
-        <Animated.View
-          {...panResponder.panHandlers}
-          style={{
-            transform: [{ translateX }],
-            zIndex: 10,
-            position: 'relative',
-          }}
-        >
-          <Pressable
-            onPress={handlePress}
-            style={{
-              borderRadius: 16,
-              // Opaque dark background so delete button is fully hidden
-              backgroundColor: '#222628',
-              borderWidth: 1,
-              borderColor: 'rgba(255, 255, 255, 0.08)',
-              padding: 16,
-            }}
+        {/* Swipeable transaction card - on top */}
+        <GestureDetector gesture={panGesture}>
+          <Animated.View
+            style={[
+              {
+                zIndex: 10,
+                position: 'relative',
+              },
+              animatedStyle,
+            ]}
           >
-            <View className="flex-row justify-between items-center">
-              {/* Left Side */}
-              <View className="flex-row items-center flex-1">
-                {/* Icon */}
-                <View
-                  className="rounded-xl mr-3 items-center justify-center"
-                  style={{
-                    width: 44,
-                    height: 44,
-                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  }}
-                >
-                  <Text className="text-xl">{transaction.emoji}</Text>
-                </View>
-
-                {/* Info */}
-                <View className="flex-1">
-                  <View className="flex-row items-center mb-1">
-                    <Text
-                      className="text-base font-medium mr-2"
-                      style={{ color: colors.textWhite }}
-                      numberOfLines={1}
-                    >
-                      {transaction.payee}
-                    </Text>
-                    {isShared && (
-                      <View
-                        className="rounded"
-                        style={{
-                          backgroundColor: 'rgba(168, 181, 161, 0.2)',
-                          borderWidth: 1,
-                          borderColor: 'rgba(168,181,161,0.3)',
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                        }}
-                      >
-                        <Text
-                          className="text-[9px] font-bold uppercase tracking-wider"
-                          style={{ color: colors.sageGreen }}
-                        >
-                          Shared
-                        </Text>
-                      </View>
-                    )}
+            <Pressable
+              onPress={handlePress}
+              className="rounded-2xl"
+              style={{
+                backgroundColor: colors.glassWhite,
+                borderWidth: 1,
+                borderColor: colors.glassBorder,
+                padding: 16,
+              }}
+            >
+              <View className="flex-row justify-between items-center">
+                {/* Left Side */}
+                <View className="flex-row items-center flex-1">
+                  {/* Icon */}
+                  <View
+                    className="rounded-xl mr-3 items-center justify-center"
+                    style={{
+                      width: 44,
+                      height: 44,
+                      backgroundColor: colors.glassBorder,
+                    }}
+                  >
+                    <Text className="text-xl">{transaction.emoji}</Text>
                   </View>
 
-                  <View className="flex-row items-center">
+                  {/* Info */}
+                  <View className="flex-1">
+                    <View className="flex-row items-center mb-1">
+                      <Text
+                        className="text-base font-medium mr-2"
+                        style={{ color: colors.textWhite }}
+                        numberOfLines={1}
+                      >
+                        {transaction.payee}
+                      </Text>
+                      {isShared && (
+                        <View
+                          className="rounded"
+                          style={{
+                            backgroundColor: 'rgba(168, 181, 161, 0.2)',
+                            borderWidth: 1,
+                            borderColor: 'rgba(168,181,161,0.3)',
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                          }}
+                        >
+                          <Text
+                            className="text-[9px] font-bold uppercase tracking-wider"
+                            style={{ color: colors.sageGreen }}
+                          >
+                            Shared
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    <View className="flex-row items-center">
+                      <Text
+                        className="text-xs"
+                        style={{ color: colors.textWhiteTertiary }}
+                      >
+                        {transaction.categoryName}
+                        {' \u2022 '}
+                        {isShared
+                          ? (transaction.paidByYou ? 'You paid' : `${transaction.partnerName} paid`)
+                          : transaction.walletName}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Right Side */}
+                <View className="items-end ml-3">
+                  <Text
+                    className="text-base font-semibold"
+                    style={{
+                      color: getAmountColor(transaction.type),
+                      fontVariant: ['tabular-nums'],
+                    }}
+                  >
+                    {isIncome ? '+' : '-'}
+                    {formatCurrency(transaction.amount)} CHF
+                  </Text>
+                  {isShared && (
                     <Text
-                      className="text-xs"
+                      className="text-[11px] mt-0.5"
                       style={{ color: colors.textWhiteTertiary }}
                     >
-                      {transaction.categoryName}
-                      {' \u2022 '}
-                      {isShared
-                        ? (transaction.paidByYou ? 'You paid' : `${transaction.partnerName} paid`)
-                        : transaction.walletName}
+                      {transaction.paidByYou
+                        ? `${transaction.partnerName} owes: ${formatCurrency(transaction.partnerOwes || 0)}`
+                        : `You owe: ${formatCurrency(transaction.youOwe || 0)}`}
                     </Text>
-                  </View>
+                  )}
                 </View>
               </View>
-
-              {/* Right Side */}
-              <View className="items-end ml-3">
-                <Text
-                  className="text-base font-semibold"
-                  style={{
-                    color: getAmountColor(transaction.type),
-                    fontVariant: ['tabular-nums'],
-                  }}
-                >
-                  {isIncome ? '+' : '-'}
-                  {formatCurrency(transaction.amount)} CHF
-                </Text>
-                {isShared && (
-                  <Text
-                    className="text-[11px] mt-0.5"
-                    style={{ color: colors.textWhiteTertiary }}
-                  >
-                    {transaction.paidByYou
-                      ? `${transaction.partnerName} owes: ${formatCurrency(transaction.partnerOwes || 0)}`
-                      : `You owe: ${formatCurrency(transaction.youOwe || 0)}`}
-                  </Text>
-                )}
-              </View>
-            </View>
-          </Pressable>
-        </Animated.View>
+            </Pressable>
+          </Animated.View>
+        </GestureDetector>
       </View>
 
       {/* Delete Confirmation Modal */}
@@ -297,7 +291,6 @@ export default function TransactionListItem({
               borderColor: colors.glassBorder,
             }}
           >
-            {/* Title */}
             <Text
               className="text-xl font-bold mb-4"
               style={{ color: colors.textWhite }}
@@ -305,7 +298,6 @@ export default function TransactionListItem({
               Delete Transaction
             </Text>
 
-            {/* Warning */}
             <View
               className="flex-row items-center rounded-xl mb-4"
               style={{
@@ -324,7 +316,6 @@ export default function TransactionListItem({
               </Text>
             </View>
 
-            {/* Transaction Preview */}
             <View
               className="rounded-xl mb-6"
               style={{
@@ -362,7 +353,6 @@ export default function TransactionListItem({
               )}
             </View>
 
-            {/* Shared Warning */}
             {isShared && (
               <View
                 className="rounded-xl mb-4"
@@ -379,7 +369,6 @@ export default function TransactionListItem({
               </View>
             )}
 
-            {/* Actions */}
             <View className="flex-row" style={{ gap: 12 }}>
               <Pressable
                 onPress={() => setShowDeleteModal(false)}
