@@ -283,10 +283,12 @@ export default function TransactionListItem({
                         style={{ color: colors.textWhiteTertiary }}
                       >
                         {transaction.categoryName}
-                        {' \u2022 '}
-                        {isShared
-                          ? (transaction.paidByYou ? 'You paid' : `${transaction.partnerName} paid`)
-                          : transaction.walletName}
+                        {isShared && (
+                          <>
+                            {' \u2022 '}
+                            {transaction.paidByYou ? 'You paid' : `${transaction.partnerName} paid`}
+                          </>
+                        )}
                       </Text>
                     </View>
                   </View>

@@ -135,10 +135,7 @@ export default function RecurringSection({ recurringTransactions, onEdit }: Recu
                         : transaction.date
                         ? formatScheduledDate(transaction.date)
                         : 'Upcoming'}
-                      {transaction.isShared
-                        ? ` • Shared with ${transaction.partnerName}`
-                        : transaction.walletName ? ` • ${transaction.walletName}` : ''
-                      }
+                      {transaction.isShared && ` • Shared with ${transaction.partnerName}`}
                     </Text>
                   </View>
                 </View>
