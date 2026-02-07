@@ -259,6 +259,8 @@ export default function TransactionsTabScreen() {
       recurringDataExists: !!recurringQuery.data,
       recurringCount: recurringQuery.data?.length || 0,
       formattedTransactionsCount: formattedTransactions?.length || 0,
+      categoriesLoaded: !!categoriesQuery.data,
+      categoriesCount: categoriesQuery.data?.length || 0,
       today
     });
 
@@ -280,6 +282,7 @@ export default function TransactionsTabScreen() {
           categoryName: category?.name,
           accountId: r.accountId,
           allCategories: categoriesQuery.data?.length || 0,
+          sampleCategoryId: categoriesQuery.data?.[0]?.id,
         });
 
         // Calculate next occurrence date
@@ -354,7 +357,7 @@ export default function TransactionsTabScreen() {
     });
 
     return items;
-  }, [recurringQuery.data, formattedTransactions]);
+  }, [recurringQuery.data, formattedTransactions, categoriesQuery.data, accountsQuery.data]);
 
   // Use filter hook with search
   const { filters, setFilters, filteredTransactions, groupedByDate } = useTransactionFilters(
