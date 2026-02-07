@@ -255,6 +255,12 @@ export default function TransactionsTabScreen() {
     const today = new Date().toISOString().split('T')[0];
     const items: any[] = [];
 
+    // Don't build recurring list if categories aren't loaded yet
+    if (!categoriesQuery.data || categoriesQuery.data.length === 0) {
+      console.log('⏳ Waiting for categories to load before building recurring list');
+      return [];
+    }
+
     console.log('🔄 Building formattedRecurring:', {
       recurringDataExists: !!recurringQuery.data,
       recurringCount: recurringQuery.data?.length || 0,
@@ -270,6 +276,19 @@ export default function TransactionsTabScreen() {
         // Look up category and account by ID from the already loaded data
         const category = categoriesQuery.data?.find((c: any) => c.id === r.categoryId);
         const account = accountsQuery.data?.find((a: any) => a.id === r.accountId);
+
+        // Debug: Log ALL categories to see what we have
+        if (!category && categoriesQuery.data && categoriesQuery.data.length > 0) {
+          console.log('❌ Category NOT found for recurring template');
+          console.log('Looking for categoryId:', r.categoryId);
+          console.log('Available categories:', categoriesQuery.data.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            emoji: c.emoji,
+            idType: typeof c.id,
+          })));
+          console.log('Recurring template categoryId type:', typeof r.categoryId);
+        }
 
         console.log('➕ Adding recurring template:', {
           id: r.id,
