@@ -290,6 +290,19 @@ export default function TransactionsTabScreen() {
           console.log('Recurring template categoryId type:', typeof r.categoryId);
         }
 
+        // Extract emoji from category
+        let categoryEmoji = '📝';
+        if (category?.emoji) {
+          categoryEmoji = category.emoji;
+        } else if (category?.name) {
+          // Extract emoji from the beginning of the name
+          const emojiRegex = /([\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])\s*/u;
+          const emojiMatch = category.name.match(emojiRegex);
+          if (emojiMatch) {
+            categoryEmoji = emojiMatch[1];
+          }
+        }
+
         console.log('➕ Adding recurring template:', {
           id: r.id,
           payee: r.payee,
@@ -297,11 +310,10 @@ export default function TransactionsTabScreen() {
           isActive: r.isActive,
           categoryId: r.categoryId,
           categoryFound: !!category,
-          categoryEmoji: category?.emoji,
+          categoryEmoji: categoryEmoji,
           categoryName: category?.name,
           accountId: r.accountId,
           allCategories: categoriesQuery.data?.length || 0,
-          sampleCategoryId: categoriesQuery.data?.[0]?.id,
         });
 
         // Calculate next occurrence date
@@ -331,7 +343,7 @@ export default function TransactionsTabScreen() {
           type: r.type,
           amount: r.amount,
           payee: r.payee || 'Unknown',
-          emoji: category?.emoji || '📝',
+          emoji: categoryEmoji,
           dayOfMonth: r.recurringDay || 1,
           date: nextDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
           isRecurring: true,
