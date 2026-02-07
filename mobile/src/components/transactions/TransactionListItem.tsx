@@ -277,6 +277,12 @@ export default function TransactionListItem({
                         style={{ color: colors.textWhiteTertiary }}
                       >
                         {transaction.categoryName}
+                        {transaction.walletName && (
+                          <>
+                            {' \u2022 '}
+                            {transaction.walletName}
+                          </>
+                        )}
                         {isShared && (
                           <>
                             {' \u2022 '}
