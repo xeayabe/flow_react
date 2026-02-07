@@ -454,11 +454,21 @@ export default function TransactionsTabScreen() {
           />
         </View>
 
-        {/* Recurring Section */}
+        {/* Upcoming Section */}
         {formattedRecurring.length > 0 && (
           <RecurringSection
             recurringTransactions={formattedRecurring}
-            onEdit={(id) => router.push(`/transactions/add?recurringId=${id}`)}
+            onEdit={(id) => {
+              // Find the item to determine if it's recurring or a future transaction
+              const item = formattedRecurring.find(r => r.id === id);
+              if (item?.isRecurring) {
+                // It's a recurring template
+                router.push(`/transactions/add?recurringId=${id}`);
+              } else {
+                // It's a future transaction
+                router.push(`/transactions/add?id=${id}`);
+              }
+            }}
           />
         )}
 
