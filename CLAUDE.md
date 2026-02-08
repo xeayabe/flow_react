@@ -1054,6 +1054,22 @@ import { GlassCard } from '@/components/ui/GlassCard';
    ```
 
 ---
+## Documentation Maintenance Protocol
+
+**After completing any work session:**
+1. Ask: "What documentation needs updating based on today's changes?"
+2. Update affected .md files immediately
+3. Commit documentation updates with clear messages like "Docs: Update technical-specs after authentication implementation"
+
+**Before starting new features:**
+1. Verify current documentation reflects actual codebase state
+2. Update any outdated sections
+3. Ensure CLAUDE.md patterns match existing code
+
+**Weekly review trigger:**
+Every Sunday (or your chosen day), run the "Weekly Documentation Sync Check" prompt from MAINTENANCE.md
+
+---
 
 ## 📚 Key Reference Files
 
