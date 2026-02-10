@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { db } from '@/lib/db';
 import { useEffect } from 'react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
@@ -78,6 +79,7 @@ export default function RootLayout() {
   const colorScheme = 'light';
 
   return (
+  <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardProvider>
@@ -86,5 +88,6 @@ export default function RootLayout() {
         </KeyboardProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
