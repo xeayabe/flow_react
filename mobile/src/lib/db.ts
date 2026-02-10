@@ -1,5 +1,5 @@
 import { init, i } from '@instantdb/react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Store from '@instantdb/react-native/dist/Storage.native';
 // Define the database schema
 const schema = i.schema({
   entities: {
@@ -390,7 +390,7 @@ const APP_ID = process.env.EXPO_PUBLIC_INSTANTDB_APP_ID || '';
 export const db = init({
   appId: APP_ID,
   schema,
-  storage: AsyncStorage,
+  Store: Store,
 });
 
 export type Schema = typeof schema;
