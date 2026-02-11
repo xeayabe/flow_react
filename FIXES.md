@@ -26,7 +26,7 @@
   - Impact: Prevents white screen crashes
   - Files: `ErrorBoundary.tsx`, `_layout.tsx`
 
-- [ ] **TEST-2** - Configure Jest testing infrastructure (8h)
+- [x] **TEST-2** - Configure Jest testing infrastructure (8h)
   - Install Jest, React Native Testing Library
   - Configure babel, jest.config.js
   - Create example test
