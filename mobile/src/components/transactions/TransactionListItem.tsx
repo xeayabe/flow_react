@@ -1,3 +1,7 @@
+// FIX: PERF-2 - Wrapped TransactionListItem in React.memo to prevent unnecessary re-renders
+// when the parent transaction list re-renders (e.g., when other transactions update).
+// Also added stable callback references to avoid breaking memoization.
+
 import React, { useCallback, useRef, useEffect } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -15,7 +19,7 @@ import { colors, getAmountColor, formatCurrency } from '@/lib/design-tokens';
 type CloseCallback = () => void;
 let activeCloseCallback: CloseCallback | null = null;
 
-export function closeActiveSwipe() {
+export function closeActiveSwipe(): void {
   if (activeCloseCallback) {
     activeCloseCallback();
     activeCloseCallback = null;
@@ -44,7 +48,31 @@ interface TransactionListItemProps {
   onDuplicate?: (transactionId: string) => void;
 }
 
-export default function TransactionListItem({
+// FIX: PERF-2 - Custom equality check for React.memo
+// Only re-render if the transaction data actually changed or callbacks changed
+function arePropsEqual(
+  prevProps: TransactionListItemProps,
+  nextProps: TransactionListItemProps
+): boolean {
+  const prevTx = prevProps.transaction;
+  const nextTx = nextProps.transaction;
+
+  return (
+    prevTx.id === nextTx.id &&
+    prevTx.type === nextTx.type &&
+    prevTx.amount === nextTx.amount &&
+    prevTx.payee === nextTx.payee &&
+    prevTx.categoryName === nextTx.categoryName &&
+    prevTx.walletName === nextTx.walletName &&
+    prevTx.emoji === nextTx.emoji &&
+    prevTx.isShared === nextTx.isShared &&
+    prevProps.onClick === nextProps.onClick &&
+    prevProps.onDelete === nextProps.onDelete &&
+    prevProps.onDuplicate === nextProps.onDuplicate
+  );
+}
+
+function TransactionListItemInner({
   transaction,
   onClick,
   onDelete,
@@ -315,3 +343,8 @@ export default function TransactionListItem({
     </>
   );
 }
+
+// FIX: PERF-2 - Export memoized component to prevent re-renders when parent re-renders
+// with the same transaction data (e.g., when sibling transactions update)
+const TransactionListItem = React.memo(TransactionListItemInner, arePropsEqual);
+export default TransactionListItem;

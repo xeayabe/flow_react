@@ -1,7 +1,19 @@
+// FIX: CQP-006/ARCH-1 - Circular dependency broken: now imports from shared-api instead of budget-api
+// FIX: CODE-4 - Uses typed errors instead of generic catch blocks
+// FIX: CODE-2 - Replaced critical `any` types with proper interfaces
+// FIX: SEC-003 - Replaced console.log/error with secure logger
+// FIX: SEC-008 - Scoped users query in getHouseholdTransactionsWithCreators
+// FIX: DAT-002 - Budget spentAmount update included in atomic transaction where possible
+// FIX: DAT-008 - Null/undefined guards (?? 0) before all financial arithmetic
+
 import { db } from './db';
+import { logger } from './logger'; // FIX: SEC-003 - Secure logger
 import { getUserAccounts } from './accounts-api';
-import { updateBudgetSpentAmount, getMemberBudgetPeriod } from './budget-api';
+// FIX: CQP-006 - Import from shared-api instead of budget-api to break circular dependency
+import { updateBudgetSpentAmount, getMemberBudgetPeriod } from './shared-api';
 import { calculateBudgetPeriod } from './payday-utils';
+import { ValidationError, DataIntegrityError, getErrorMessage } from '../types/errors';
+import type { AccountRecord, BudgetRecord, BudgetSummaryRecord, TransactionRecord, UserRecord } from '../types/api';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -53,72 +65,192 @@ export interface TransactionResponse {
   error?: string;
 }
 
+// FIX: CODE-2 - Extracted helper to get today's date string in YYYY-MM-DD format
+function getTodayDateString(): string {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+}
+
 /**
- * Create a new transaction and update account balance
+ * Validates common transaction input fields.
+ * Throws ValidationError if input is invalid.
  */
-export async function createTransaction(request: CreateTransactionRequest): Promise<TransactionResponse> {
+function validateTransactionInput(request: { amount: number; date: string }): void {
+  if (!request.amount || request.amount <= 0) {
+    throw new ValidationError('Amount must be greater than 0', { amount: 'Amount must be greater than 0' });
+  }
+  if (!request.date) {
+    throw new ValidationError('Please select a date', { date: 'Please select a date' });
+  }
+  const transactionDate = new Date(request.date + 'T00:00:00');
+  if (isNaN(transactionDate.getTime())) {
+    throw new ValidationError('Invalid date format', { date: 'Invalid date format' });
+  }
+}
+
+/**
+ * Fetches an account by ID and throws DataIntegrityError if not found.
+ */
+async function fetchAccountOrThrow(accountId: string): Promise<AccountRecord> {
+  const accountResult = await db.queryOnce({
+    accounts: {
+      $: {
+        where: { id: accountId },
+      },
+    },
+  });
+  // @ts-ignore - InstantDB types not aligned with our schema
+  const account = accountResult.data.accounts?.[0] as AccountRecord | undefined;
+  if (!account) {
+    throw new DataIntegrityError('Account not found', { accountId });
+  }
+  return account;
+}
+
+/**
+ * FIX: DAT-002 - Pre-fetch budget data so it can be included in the atomic transaction.
+ * Returns the budget record and computed new spent amount, or null if no budget update needed.
+ *
+ * This is called BEFORE the atomic db.transact() so that:
+ * 1. We know which budget record to update
+ * 2. We pre-compute the new spentAmount
+ * 3. We can include the budget update op in the same atomic call
+ */
+async function prefetchBudgetForAtomicUpdate(
+  request: { userId: string; householdId: string; categoryId: string; date: string; isExcludedFromBudget?: boolean },
+  account: AccountRecord,
+  amountDelta: number,
+  operation: 'add' | 'subtract'
+): Promise<{ budget: BudgetRecord; newSpentAmount: number } | null> {
   try {
-    console.log('Creating transaction:', { type: request.type, amount: request.amount });
-
-    // Validate input
-    if (!request.amount || request.amount <= 0) {
-      return { success: false, error: 'Amount must be greater than 0' };
+    if (account.isExcludedFromBudget || request.isExcludedFromBudget) {
+      logger.debug('Account or transaction is excluded from budget, skipping budget update');
+      return null;
     }
 
-    if (!request.date) {
-      return { success: false, error: 'Please select a date' };
+    const budgetPeriod = await getMemberBudgetPeriod(request.userId, request.householdId);
+    const txDate = request.date;
+    if (txDate < budgetPeriod.start || txDate > budgetPeriod.end) {
+      return null; // Transaction outside budget period
     }
 
-    // Allow any valid date (past, present, or future)
-    // This allows users to plan ahead for expenses like rent
-    const transactionDate = new Date(request.date + 'T00:00:00');
-    if (isNaN(transactionDate.getTime())) {
-      return { success: false, error: 'Invalid date format' };
-    }
-
-    const transactionId = uuidv4();
-    const now = Date.now();
-
-    // Get current account balance
-    const accountResult = await db.queryOnce({
-      accounts: {
+    const budgetResult = await db.queryOnce({
+      budgets: {
         $: {
           where: {
-            id: request.accountId,
+            userId: request.userId,
+            categoryId: request.categoryId,
+            isActive: true,
           },
         },
       },
     });
 
-    const account = accountResult.data.accounts?.[0];
-    if (!account) {
-      return { success: false, error: 'Account not found' };
-    }
+    // @ts-ignore - InstantDB types not aligned with our schema
+    const budget = budgetResult.data.budgets?.[0] as BudgetRecord | undefined;
+    if (!budget) return null;
 
-    console.log('Account found:', { accountId: account.id, currentBalance: account.balance });
+    // FIX: DAT-008 - Null safety: use ?? 0 for spentAmount and amountDelta
+    const currentSpent = budget.spentAmount ?? 0;
+    const safeDelta = amountDelta ?? 0;
+    const newSpentAmount = operation === 'add'
+      ? Math.max(0, currentSpent + safeDelta)
+      : Math.max(0, currentSpent - safeDelta);
 
-    // Check if this is a future transaction
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return { budget, newSpentAmount };
+  } catch (error) {
+    // FIX: CODE-4 - Use getErrorMessage for consistent error logging
+    logger.warn('Failed to prefetch budget for atomic update:', getErrorMessage(error));
+    // Return null so the main transaction can still proceed without budget update
+    return null;
+  }
+}
+
+/**
+ * FIX: DAT-002 - Best-effort budget summary update after main atomic transaction.
+ * This updates the budgetSummary.totalSpent field which is a denormalized aggregate.
+ * Not included in the main atomic tx because it requires reading ALL budgets
+ * (not just the one being modified), making it impractical to pre-compute.
+ */
+async function bestEffortUpdateBudgetSummary(userId: string): Promise<void> {
+  try {
+    const result = await db.queryOnce({
+      budgets: {
+        $: { where: { userId, isActive: true } },
+      },
+      budgetSummary: {
+        $: { where: { userId } },
+      },
+    });
+
+    // @ts-ignore - InstantDB types not aligned with our schema
+    const budgets = (result.data.budgets || []) as BudgetRecord[];
+    // @ts-ignore - InstantDB types not aligned with our schema
+    const summary = result.data.budgetSummary?.[0] as BudgetSummaryRecord | undefined;
+    if (!summary) return;
+
+    // FIX: DAT-008 - Null safety on spentAmount
+    const totalSpent = budgets.reduce((sum, b) => sum + (b.spentAmount ?? 0), 0);
+
+    await db.transact([
+      db.tx.budgetSummary[summary.id].update({ totalSpent }),
+    ]);
+  } catch (error) {
+    logger.warn('Failed to update budget summary (best-effort):', getErrorMessage(error));
+  }
+}
+
+/**
+ * Create a new transaction and update account balance + budget atomically
+ *
+ * FIX: DAT-002 - Transaction creation, account balance update, AND budget spentAmount
+ * update are now in a SINGLE db.transact() call to prevent partial state where
+ * the transaction exists but the budget isn't updated, or vice versa.
+ *
+ * The budget summary (totalSpent) is updated as a best-effort follow-up because
+ * it requires aggregating all budget categories which can't be pre-computed atomically.
+ */
+export async function createTransaction(request: CreateTransactionRequest): Promise<TransactionResponse> {
+  try {
+    logger.debug('Creating transaction:', { type: request.type }); // FIX: SEC-003 - Don't log amount
+
+    // FIX: CODE-4 - Use typed validation
+    validateTransactionInput(request);
+
+    const transactionId = uuidv4();
+
+    // FIX: CODE-2 - Use typed account fetch
+    const account = await fetchAccountOrThrow(request.accountId);
+
+    logger.debug('Account found for transaction'); // FIX: SEC-003 - Don't log balance/IDs
+
+    const todayStr = getTodayDateString();
     const isFutureTransaction = request.date > todayStr;
 
-    // Calculate new balance - only update if NOT a future transaction
-    let newBalance = account.balance;
+    // FIX: DAT-008 - Null safety: use ?? 0 for account balance
+    let newBalance = account.balance ?? 0;
     if (!isFutureTransaction) {
       if (request.type === 'income') {
-        newBalance += request.amount;
-        console.log('Income transaction: adding', request.amount, 'to balance');
+        newBalance += (request.amount ?? 0);
       } else {
-        newBalance -= request.amount;
-        console.log('Expense transaction: subtracting', request.amount, 'from balance');
+        newBalance -= (request.amount ?? 0);
       }
-      console.log('New balance will be:', newBalance);
-    } else {
-      console.log('Future transaction detected - balance will NOT be updated until', request.date);
     }
 
-    // Create transaction and update account balance in a transaction
-    await db.transact([
+    // FIX: DAT-002 - Pre-fetch budget data BEFORE the atomic transaction
+    let budgetUpdate: { budget: BudgetRecord; newSpentAmount: number } | null = null;
+    if (request.type === 'expense' && !isFutureTransaction) {
+      budgetUpdate = await prefetchBudgetForAtomicUpdate(
+        request,
+        account,
+        request.amount ?? 0,
+        'add'
+      );
+    }
+
+    // FIX: DAT-002 - Build ALL operations for a single atomic db.transact() call
+    // This ensures transaction + balance + budget are all-or-nothing
+    const atomicOps: any[] = [
       db.tx.transactions[transactionId].update({
         userId: request.userId,
         householdId: request.householdId,
@@ -136,53 +268,27 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
       db.tx.accounts[request.accountId].update({
         balance: newBalance,
       }),
-    ]);
+    ];
 
-    console.log('Transaction created successfully:', { transactionId, type: request.type, newBalance, isShared: request.isShared });
-
-    // Update budget spent amount if this is an expense transaction (skip future transactions)
-    if (request.type === 'expense' && !isFutureTransaction) {
-      try {
-        console.log('Updating budget for expense transaction');
-
-        // Check if the account is excluded from budget OR the transaction is excluded
-        if (account.isExcludedFromBudget || request.isExcludedFromBudget) {
-          console.log('Account or transaction is excluded from budget, skipping budget update');
-        } else {
-          // Get member's personal budget period (or fallback to household)
-          const budgetPeriod = await getMemberBudgetPeriod(request.userId, request.householdId);
-
-          // Check if transaction date falls within this budget period
-          const txDate = request.date;
-          if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
-            // Get current budget spent amount
-            const budgetResult = await db.queryOnce({
-              budgets: {
-                $: {
-                  where: {
-                    userId: request.userId,
-                    categoryId: request.categoryId,
-                    isActive: true,
-                  },
-                },
-              },
-            });
-
-            const budget = budgetResult.data.budgets?.[0];
-            if (budget) {
-              const newSpentAmount = (budget.spentAmount || 0) + request.amount;
-              await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
-              console.log('Budget updated for expense transaction');
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to update budget spent amount:', error);
-        // Don't fail the transaction creation if budget update fails
-      }
+    // FIX: DAT-002 - Include budget spentAmount update in the same atomic transaction
+    if (budgetUpdate) {
+      atomicOps.push(
+        db.tx.budgets[budgetUpdate.budget.id].update({
+          spentAmount: budgetUpdate.newSpentAmount,
+        })
+      );
     }
 
-    console.log('✅ Transaction fully completed and committed to database');
+    // Single atomic call: transaction + balance + budget spentAmount
+    await db.transact(atomicOps);
+
+    logger.debug('Transaction created successfully (atomic with budget)'); // FIX: SEC-003
+
+    // FIX: DAT-002 - Best-effort: update budget summary totalSpent (non-critical, outside atomic tx)
+    if (budgetUpdate) {
+      await bestEffortUpdateBudgetSummary(request.userId);
+    }
+
     return {
       success: true,
       transactionId: transactionId,
@@ -197,18 +303,21 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
         date: request.date,
         note: request.note,
         isShared: request.isShared || false,
-        paidByUserId: request.isShared ? request.paidByUserId : request.userId
-      } as Transaction
+        paidByUserId: request.isShared ? request.paidByUserId : request.userId,
+      } as Transaction,
     };
   } catch (error) {
-    console.error('Create transaction error:', error);
-    console.error('Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : '',
-    });
+    // FIX: CODE-4 - Typed error handling
+    if (error instanceof ValidationError) {
+      return { success: false, error: error.message };
+    }
+    if (error instanceof DataIntegrityError) {
+      return { success: false, error: error.message };
+    }
+    logger.error('Create transaction error:', getErrorMessage(error)); // FIX: SEC-003
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to create transaction',
+      error: getErrorMessage(error),
     };
   }
 }
@@ -221,13 +330,12 @@ export async function getUserTransactions(userId: string): Promise<Transaction[]
     const result = await db.queryOnce({
       transactions: {
         $: {
-          where: {
-            userId,
-          },
+          where: { userId },
         },
       },
     });
 
+    // FIX: CODE-2 - Explicit cast with intermediate type
     const transactions = (result.data.transactions ?? []) as Transaction[];
 
     // Sort by date descending (newest first)
@@ -239,7 +347,7 @@ export async function getUserTransactions(userId: string): Promise<Transaction[]
 
     return transactions;
   } catch (error) {
-    console.error('Get transactions error:', error);
+    logger.error('Get transactions error:', getErrorMessage(error)); // FIX: SEC-003
     return [];
   }
 }
@@ -252,16 +360,13 @@ export async function getHouseholdTransactions(householdId: string): Promise<Tra
     const result = await db.queryOnce({
       transactions: {
         $: {
-          where: {
-            householdId,
-          },
+          where: { householdId },
         },
       },
     });
 
     const transactions = (result.data.transactions ?? []) as Transaction[];
 
-    // Sort by date descending (newest first)
     transactions.sort((a, b) => {
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
@@ -270,7 +375,7 @@ export async function getHouseholdTransactions(householdId: string): Promise<Tra
 
     return transactions;
   } catch (error) {
-    console.error('Get household transactions error:', error);
+    logger.error('Get household transactions error:', getErrorMessage(error)); // FIX: SEC-003
     return [];
   }
 }
@@ -283,44 +388,47 @@ export interface TransactionWithCreator extends Transaction {
   creatorName?: string;
 }
 
-export async function getHouseholdTransactionsWithCreators(householdId: string, currentUserId?: string): Promise<TransactionWithCreator[]> {
+export async function getHouseholdTransactionsWithCreators(
+  householdId: string,
+  currentUserId?: string
+): Promise<TransactionWithCreator[]> {
   try {
     const result = await db.queryOnce({
       transactions: {
         $: {
-          where: {
-            householdId,
-          },
+          where: { householdId },
         },
       },
-      users: {},
     });
 
-    const transactions = (result.data.transactions ?? []) as Transaction[];
-    const users = result.data.users ?? [];
+    // FIX: SEC-008 - Fetch only household member users instead of ALL users
+    const { data: memberData } = await db.queryOnce({
+      householdMembers: {
+        $: { where: { householdId, status: 'active' } }, // FIX: SEC-008 - Scoped
+      },
+    });
+    const memberUserIds = (memberData.householdMembers || []).map((m: any) => m.userId);
+    const userPromises = memberUserIds.map((uid: string) =>
+      db.queryOnce({ users: { $: { where: { id: uid } } } }) // FIX: SEC-008 - Scoped by id
+    );
+    const userResults = await Promise.all(userPromises);
+    const users = userResults.flatMap((r) => (r.data.users || []) as UserRecord[]);
 
-    // Filter transactions:
-    // Members should ONLY see their own transactions (both personal and shared)
-    // They should NOT see other members' transactions, even if shared
-    // Filter out old settlement transactions (type === 'settlement')
-    const filteredTransactions = transactions.filter((tx: any) => {
+    // FIX: CODE-2 - Use TransactionRecord type instead of any
+    const transactions = (result.data.transactions ?? []) as TransactionRecord[];
+
+    // Filter transactions: only show user's own transactions
+    const filteredTransactions = transactions.filter((tx) => {
       // Always exclude old settlement transactions
       if (tx.type === 'settlement') return false;
-
-      // If no currentUserId provided, show all (backwards compatibility)
       if (!currentUserId) return true;
-
-      // Only show user's own transactions
-      // This means members only see what THEY created
       if (tx.userId === currentUserId) return true;
-
-      // Hide all other users' transactions (including shared ones)
       return false;
     });
 
     // Enrich transactions with creator names
     const enrichedTransactions = filteredTransactions.map((tx) => {
-      const creator = users.find((u: any) => u.id === tx.userId);
+      const creator = users.find((u) => u.id === tx.userId);
       return {
         ...tx,
         creatorName: creator?.name || 'Unknown',
@@ -336,13 +444,16 @@ export async function getHouseholdTransactionsWithCreators(householdId: string, 
 
     return enrichedTransactions;
   } catch (error) {
-    console.error('Get household transactions with creators error:', error);
+    logger.error('Get household transactions with creators error:', getErrorMessage(error)); // FIX: SEC-003
     return [];
   }
 }
 
 /**
- * Delete a transaction and restore account balance
+ * Delete a transaction and restore account balance + budget atomically
+ *
+ * FIX: DAT-002 - Transaction deletion, balance restore, split cleanup, AND budget
+ * spentAmount update are now in a SINGLE db.transact() call.
  */
 export async function deleteTransaction(transactionId: string): Promise<TransactionResponse> {
   try {
@@ -350,139 +461,99 @@ export async function deleteTransaction(transactionId: string): Promise<Transact
     const transactionResult = await db.queryOnce({
       transactions: {
         $: {
-          where: {
-            id: transactionId,
-          },
+          where: { id: transactionId },
         },
       },
     });
 
-    const transaction = transactionResult.data.transactions?.[0];
+    // FIX: CODE-2 - Use TransactionRecord type
+    const transaction = transactionResult.data.transactions?.[0] as TransactionRecord | undefined;
     if (!transaction) {
       return { success: false, error: 'Transaction not found' };
     }
 
     // Get current account balance
-    const accountResult = await db.queryOnce({
-      accounts: {
-        $: {
-          where: {
-            id: transaction.accountId,
-          },
-        },
-      },
-    });
-
-    const account = accountResult.data.accounts?.[0];
-    if (!account) {
-      return { success: false, error: 'Account not found' };
-    }
+    const account = await fetchAccountOrThrow(transaction.accountId);
 
     // Check for associated shared expense splits
-    console.log('🔍 Checking for shared expense splits for transaction:', transactionId);
     const splitsResult = await db.queryOnce({
       shared_expense_splits: {
         $: {
-          where: {
-            transactionId: transactionId,
-          },
+          where: { transactionId: transactionId },
         },
       },
     });
 
+    // @ts-ignore - InstantDB types not aligned with our schema
     const splits = splitsResult.data?.shared_expense_splits || [];
-    console.log(`Found ${splits.length} splits to delete`);
+    logger.debug('Found', splits.length, 'splits to delete'); // FIX: SEC-003
 
-    // Check if this is a future transaction
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayStr = getTodayDateString();
     const isFutureTransaction = transaction.date > todayStr;
 
-    // Restore balance (opposite of what was added/subtracted) - only if NOT a future transaction
-    let restoredBalance = account.balance;
+    // FIX: DAT-008 - Null safety: use ?? 0 for account balance and transaction amount
+    let restoredBalance = account.balance ?? 0;
     if (!isFutureTransaction) {
       if (transaction.type === 'income') {
-        restoredBalance -= transaction.amount;
+        restoredBalance -= (transaction.amount ?? 0);
       } else {
-        restoredBalance += transaction.amount;
+        restoredBalance += (transaction.amount ?? 0);
       }
-      console.log('Restoring balance to:', restoredBalance);
-    } else {
-      console.log('Future transaction - no balance to restore');
     }
 
-    // Build delete operations: splits first, then transaction and balance update
-    const deleteOperations = [
+    // FIX: DAT-002 - Pre-fetch budget for atomic delete
+    let budgetUpdate: { budget: BudgetRecord; newSpentAmount: number } | null = null;
+    if (transaction.type === 'expense' && !isFutureTransaction) {
+      budgetUpdate = await prefetchBudgetForAtomicUpdate(
+        {
+          userId: transaction.userId,
+          householdId: transaction.householdId,
+          categoryId: transaction.categoryId,
+          date: transaction.date,
+          isExcludedFromBudget: transaction.isExcludedFromBudget,
+        },
+        account,
+        transaction.amount ?? 0,
+        'subtract'
+      );
+    }
+
+    // FIX: DAT-002 - Build ALL operations for single atomic db.transact() call
+    // FIX: CODE-2 - Type the split record for delete operations
+    interface SplitForDelete { id: string }
+    const atomicOps: any[] = [
       // Delete all associated splits
-      ...splits.map((split: any) => db.tx.shared_expense_splits[split.id].delete()),
+      ...(splits as SplitForDelete[]).map((split) => db.tx.shared_expense_splits[split.id].delete()),
       // Delete transaction
       db.tx.transactions[transactionId].delete(),
-      // Update account balance (only changes if not a future transaction)
+      // Restore account balance
       db.tx.accounts[transaction.accountId].update({
-        balance: restoredBalance
+        balance: restoredBalance,
       }),
     ];
 
-    // Delete transaction, splits, and restore balance
-    await db.transact(deleteOperations);
+    // FIX: DAT-002 - Include budget spentAmount update in the same atomic transaction
+    if (budgetUpdate) {
+      atomicOps.push(
+        db.tx.budgets[budgetUpdate.budget.id].update({
+          spentAmount: budgetUpdate.newSpentAmount,
+        })
+      );
+    }
 
-    console.log(`✅ Transaction deleted: ${transactionId} (${splits.length} splits also deleted)`);
+    // Single atomic call: delete splits + delete tx + restore balance + update budget
+    await db.transact(atomicOps);
 
-    // Update budget spent amount if this was an expense transaction (skip future transactions)
-    if (transaction.type === 'expense' && !isFutureTransaction) {
-      try {
-        // Check if the account is excluded from budget
-        if (transaction.accountId && transaction.accountId.length > 0) {
-          const accountResult = await db.queryOnce({
-            accounts: {
-              $: {
-                where: {
-                  id: transaction.accountId,
-                },
-              },
-            },
-          });
+    logger.debug('Transaction deleted successfully (atomic with budget)'); // FIX: SEC-003
 
-          const account = accountResult.data.accounts?.[0];
-          if (account?.isExcludedFromBudget || transaction.isExcludedFromBudget) {
-            console.log('Account or transaction is excluded from budget, skipping budget update on delete');
-          } else {
-            // Get member's personal budget period (or fallback to household)
-            const budgetPeriod = await getMemberBudgetPeriod(transaction.userId, transaction.householdId);
-
-            // Check if transaction date falls within this budget period
-            const txDate = transaction.date;
-            if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
-              // Get current budget spent amount
-              const budgetResult = await db.queryOnce({
-                budgets: {
-                  $: {
-                    where: {
-                      userId: transaction.userId,
-                      categoryId: transaction.categoryId,
-                      isActive: true,
-                    },
-                  },
-                },
-              });
-
-              const budget = budgetResult.data.budgets?.[0];
-              if (budget) {
-                const newSpentAmount = Math.max(0, (budget.spentAmount || 0) - transaction.amount);
-                await updateBudgetSpentAmount(transaction.userId, transaction.categoryId, budgetPeriod.start, newSpentAmount);
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to update budget spent amount on delete:', error);
-        // Don't fail the transaction deletion if budget update fails
-      }
+    // FIX: DAT-002 - Best-effort: update budget summary totalSpent
+    if (budgetUpdate) {
+      await bestEffortUpdateBudgetSummary(transaction.userId);
     }
 
     return { success: true };
   } catch (error) {
-    console.error('Delete transaction error:', error);
+    logger.error('Delete transaction error:', getErrorMessage(error)); // FIX: SEC-003
     return {
       success: false,
       error: 'Failed to delete transaction',
@@ -498,9 +569,7 @@ export async function getTransaction(transactionId: string, userId: string): Pro
     const result = await db.queryOnce({
       transactions: {
         $: {
-          where: {
-            id: transactionId,
-          },
+          where: { id: transactionId },
         },
       },
     });
@@ -509,41 +578,37 @@ export async function getTransaction(transactionId: string, userId: string): Pro
 
     // Security check: ensure user owns the transaction
     if (transaction && transaction.userId !== userId) {
-      console.warn('Access denied: user does not own this transaction');
+      logger.warn('Access denied: user does not own this transaction'); // FIX: SEC-003
       return null;
     }
 
     return transaction || null;
   } catch (error) {
-    console.error('Get transaction error:', error);
+    logger.error('Get transaction error:', getErrorMessage(error)); // FIX: SEC-003
     return null;
   }
 }
 
 /**
- * Update a transaction with balance adjustments
- * Handles: amount changes, type changes, account changes
+ * Update a transaction with balance adjustments + budget update atomically.
+ * Handles: amount changes, type changes, account changes, future date transitions.
+ *
+ * FIX: DAT-002 - For simple cases (same category, amount changed), the budget update
+ * is included in the atomic db.transact() call. For complex cases (category changed),
+ * updates are done as best-effort follow-up because two different budgets must be updated.
  */
 export async function updateTransaction(request: UpdateTransactionRequest): Promise<TransactionResponse> {
   try {
-    console.log('Updating transaction:', { id: request.id, type: request.type, amount: request.amount });
+    logger.debug('Updating transaction'); // FIX: SEC-003 - Don't log IDs or amounts
 
-    // Validate input
-    if (!request.amount || request.amount <= 0) {
-      return { success: false, error: 'Amount must be greater than 0' };
-    }
-
-    if (!request.date) {
-      return { success: false, error: 'Please select a date' };
-    }
+    // FIX: CODE-4 - Use typed validation
+    validateTransactionInput(request);
 
     // Get the original transaction
     const originalTxResult = await db.queryOnce({
       transactions: {
         $: {
-          where: {
-            id: request.id,
-          },
+          where: { id: request.id },
         },
       },
     });
@@ -559,100 +624,49 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
     }
 
     // Get current balances for affected accounts
-    const oldAccountResult = await db.queryOnce({
-      accounts: {
-        $: {
-          where: {
-            id: originalTx.accountId,
-          },
-        },
-      },
-    });
+    const oldAccount = await fetchAccountOrThrow(originalTx.accountId);
 
-    const oldAccount = oldAccountResult.data.accounts?.[0];
-    if (!oldAccount) {
-      return { success: false, error: 'Original account not found' };
-    }
-
-    let newAccountData = oldAccount;
+    let newAccountData: AccountRecord = oldAccount;
     let needsSecondAccountUpdate = false;
 
-    // Check if original and new transactions are future-dated
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayStr = getTodayDateString();
     const wasOriginalFuture = originalTx.date > todayStr;
     const isNewFuture = request.date > todayStr;
 
     // If account changed, get the new account
     if (originalTx.accountId !== request.accountId) {
-      const newAccountResult = await db.queryOnce({
-        accounts: {
-          $: {
-            where: {
-              id: request.accountId,
-            },
-          },
-        },
-      });
-
-      newAccountData = newAccountResult.data.accounts?.[0];
-      if (!newAccountData) {
-        return { success: false, error: 'New account not found' };
-      }
+      newAccountData = await fetchAccountOrThrow(request.accountId);
       needsSecondAccountUpdate = true;
     }
 
     // Calculate balance adjustments
-    // Only adjust balances if transactions are not future-dated
-    // Step 1: Reverse the original transaction's impact (only if original was NOT future)
-    let oldAccountNewBalance = oldAccount.balance;
+    // FIX: DAT-008 - Null safety: use ?? 0 for all balance/amount references
+    // Step 1: Reverse original transaction impact (only if not future)
+    let oldAccountNewBalance = oldAccount.balance ?? 0;
     if (!wasOriginalFuture) {
       if (originalTx.type === 'income') {
-        oldAccountNewBalance -= originalTx.amount;
-        console.log(`Reversing income: subtracting ${originalTx.amount} from old account`);
+        oldAccountNewBalance -= (originalTx.amount ?? 0);
       } else {
-        oldAccountNewBalance += originalTx.amount;
-        console.log(`Reversing expense: adding ${originalTx.amount} to old account`);
+        oldAccountNewBalance += (originalTx.amount ?? 0);
       }
-    } else {
-      console.log('Original transaction was future-dated, no balance reversal needed');
     }
 
-    // Step 2: Apply the new transaction's impact (only if new date is NOT future)
-    let newAccountNewBalance = newAccountData.balance;
-    if (needsSecondAccountUpdate) {
-      // If account changed, we're working with the new account's balance
-      newAccountNewBalance = newAccountData.balance;
-    } else {
-      // If account didn't change, we're updating the same account
-      newAccountNewBalance = oldAccountNewBalance;
-    }
+    // Step 2: Apply new transaction impact (only if not future)
+    let newAccountNewBalance = needsSecondAccountUpdate
+      ? (newAccountData.balance ?? 0)
+      : oldAccountNewBalance;
 
     if (!isNewFuture) {
       if (request.type === 'income') {
-        newAccountNewBalance += request.amount;
-        console.log(`Applying income: adding ${request.amount} to new account`);
+        newAccountNewBalance += (request.amount ?? 0);
       } else {
-        newAccountNewBalance -= request.amount;
-        console.log(`Applying expense: subtracting ${request.amount} from new account`);
+        newAccountNewBalance -= (request.amount ?? 0);
       }
-    } else {
-      console.log('New transaction is future-dated, no balance update applied');
     }
 
-    console.log('Balance adjustments:', {
-      oldAccountId: originalTx.accountId,
-      oldAccountBalance: oldAccount.balance,
-      oldAccountNewBalance,
-      newAccountId: request.accountId,
-      newAccountBalance: newAccountData.balance,
-      newAccountNewBalance,
-    });
-
-    // Step 3: Update transaction and balance(s)
+    // Step 3: Build atomic operations array
     const now = Date.now();
 
-    // Build the transaction update
     const txUpdate = db.tx.transactions[request.id].update({
       type: request.type,
       amount: request.amount,
@@ -666,176 +680,133 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
       paidByUserId: request.paidByUserId || undefined,
     });
 
-    // Determine if we need to update balances
-    // We need to update if: original was not future OR new is not future
     const needsBalanceUpdate = !wasOriginalFuture || !isNewFuture;
 
-    // If both are future, just update the transaction without balance changes
-    if (!needsBalanceUpdate) {
-      console.log('Both original and new dates are in the future, skipping balance updates');
-      await db.transact([txUpdate]);
-    } else if (needsSecondAccountUpdate) {
-      // If account changed, update both old and new accounts separately
-      const updates: any[] = [txUpdate];
+    // FIX: DAT-002 - Build atomic operations including budget where possible
+    const atomicOps: any[] = [txUpdate];
 
-      // Only update old account if original was not future
-      if (!wasOriginalFuture) {
-        updates.push(db.tx.accounts[originalTx.accountId].update({
-          balance: oldAccountNewBalance,
-        }));
+    if (needsBalanceUpdate) {
+      if (needsSecondAccountUpdate) {
+        if (!wasOriginalFuture) {
+          atomicOps.push(db.tx.accounts[originalTx.accountId].update({ balance: oldAccountNewBalance }));
+        }
+        if (!isNewFuture) {
+          atomicOps.push(db.tx.accounts[request.accountId].update({ balance: newAccountNewBalance }));
+        }
+      } else {
+        if (!wasOriginalFuture || !isNewFuture) {
+          atomicOps.push(db.tx.accounts[originalTx.accountId].update({ balance: newAccountNewBalance }));
+        }
       }
-
-      // Only update new account if new date is not future
-      if (!isNewFuture) {
-        updates.push(db.tx.accounts[request.accountId].update({
-          balance: newAccountNewBalance,
-        }));
-      }
-
-      await db.transact(updates);
-    } else {
-      // Same account - use the final calculated balance (newAccountNewBalance has both reversal and new transaction)
-      const updates: any[] = [txUpdate];
-
-      // Only update balance if there's an actual change needed
-      if (!wasOriginalFuture || !isNewFuture) {
-        updates.push(db.tx.accounts[originalTx.accountId].update({
-          balance: newAccountNewBalance,
-        }));
-      }
-
-      await db.transact(updates);
     }
 
-    console.log('Transaction updated successfully:', request.id);
-
-    // Update budget spent amounts if category or amount changed (skip for future transactions)
+    // FIX: DAT-002 - For same-category updates, include budget in atomic transaction
+    let budgetUpdatedAtomically = false;
     if (request.type === 'expense' && originalTx.type === 'expense' && !isNewFuture) {
+      const isOriginalAccountExcluded = oldAccount.isExcludedFromBudget;
+      const isNewAccountExcluded = needsSecondAccountUpdate ? newAccountData.isExcludedFromBudget : isOriginalAccountExcluded;
+      const isOriginalTxExcluded = originalTx.isExcludedFromBudget || false;
+      const isNewTxExcluded = request.isExcludedFromBudget || false;
+      const shouldUpdateBudget = !isNewAccountExcluded && !isNewTxExcluded;
+
+      if (shouldUpdateBudget && originalTx.categoryId === request.categoryId) {
+        // Same category: we can include budget update in atomic transaction
+        try {
+          const budgetPeriod = await getMemberBudgetPeriod(request.userId, request.householdId);
+          const txDate = request.date;
+          if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
+            const budgetResult = await db.queryOnce({
+              budgets: { $: { where: { userId: request.userId, categoryId: request.categoryId, isActive: true } } },
+            });
+            // @ts-ignore - InstantDB types
+            const budget = budgetResult.data.budgets?.[0] as BudgetRecord | undefined;
+            if (budget) {
+              // FIX: DAT-008 - Null safety
+              const currentSpent = budget.spentAmount ?? 0;
+              let newSpentAmount: number;
+              if (!wasOriginalFuture) {
+                // Both dates are non-future: apply diff
+                const amountDiff = (request.amount ?? 0) - (originalTx.amount ?? 0);
+                newSpentAmount = Math.max(0, currentSpent + amountDiff);
+              } else {
+                // Original was future, now it's not - add full new amount
+                newSpentAmount = currentSpent + (request.amount ?? 0);
+              }
+              atomicOps.push(
+                db.tx.budgets[budget.id].update({ spentAmount: newSpentAmount })
+              );
+              budgetUpdatedAtomically = true;
+            }
+          }
+        } catch (error) {
+          logger.warn('Failed to include budget in atomic update, will fall back:', getErrorMessage(error));
+        }
+      }
+    }
+
+    // Execute atomic transaction
+    await db.transact(atomicOps);
+
+    logger.debug('Transaction updated successfully'); // FIX: SEC-003
+
+    // FIX: DAT-002 - Handle category-change budget updates (requires two budget records,
+    // can't easily be atomic with the main transaction)
+    if (request.type === 'expense' && originalTx.type === 'expense' && !isNewFuture && !budgetUpdatedAtomically) {
       try {
-        // Check if either account or transaction is excluded from budget
         const isOriginalAccountExcluded = oldAccount.isExcludedFromBudget;
         const isNewAccountExcluded = needsSecondAccountUpdate ? newAccountData.isExcludedFromBudget : isOriginalAccountExcluded;
         const isOriginalTxExcluded = originalTx.isExcludedFromBudget || false;
         const isNewTxExcluded = request.isExcludedFromBudget || false;
-
-        console.log('Budget update check:', {
-          isOriginalAccountExcluded,
-          isNewAccountExcluded,
-          isOriginalTxExcluded,
-          isNewTxExcluded,
-          accountChanged: needsSecondAccountUpdate,
-          wasOriginalFuture,
-          isNewFuture,
-        });
-
-        // Only update budget if BOTH the account and transaction are NOT excluded
         const shouldUpdateBudget = !isNewAccountExcluded && !isNewTxExcluded;
 
-        if (!shouldUpdateBudget) {
-          console.log('Account or transaction excluded from budget, skipping budget update');
-        } else {
-          // Get member's personal budget period
+        if (shouldUpdateBudget) {
           const budgetPeriod = await getMemberBudgetPeriod(request.userId, request.householdId);
-
           const txDate = request.date;
           if (txDate >= budgetPeriod.start && txDate <= budgetPeriod.end) {
-            // If category changed, update both old and new categories
             if (originalTx.categoryId !== request.categoryId) {
-              // Update old category - only if original account/transaction were not excluded AND original was not future
+              // Category changed: update both old and new categories
               if (!isOriginalAccountExcluded && !isOriginalTxExcluded && !wasOriginalFuture) {
                 const oldBudgetResult = await db.queryOnce({
-                  budgets: {
-                    $: {
-                      where: {
-                        userId: request.userId,
-                        categoryId: originalTx.categoryId,
-                        isActive: true,
-                      },
-                    },
-                  },
+                  budgets: { $: { where: { userId: request.userId, categoryId: originalTx.categoryId, isActive: true } } },
                 });
-
-                const oldBudget = oldBudgetResult.data.budgets?.[0];
+                // @ts-ignore - InstantDB types
+                const oldBudget = oldBudgetResult.data.budgets?.[0] as BudgetRecord | undefined;
                 if (oldBudget) {
-                  const newSpentAmount = Math.max(0, (oldBudget.spentAmount || 0) - originalTx.amount);
+                  // FIX: DAT-008 - Null safety
+                  const newSpentAmount = Math.max(0, (oldBudget.spentAmount ?? 0) - (originalTx.amount ?? 0));
                   await updateBudgetSpentAmount(request.userId, originalTx.categoryId, budgetPeriod.start, newSpentAmount);
                 }
               }
 
-              // Update new category - only if new account and transaction are not excluded
               if (!isNewAccountExcluded && !isNewTxExcluded) {
                 const newBudgetResult = await db.queryOnce({
-                  budgets: {
-                    $: {
-                      where: {
-                        userId: request.userId,
-                        categoryId: request.categoryId,
-                        isActive: true,
-                      },
-                    },
-                  },
+                  budgets: { $: { where: { userId: request.userId, categoryId: request.categoryId, isActive: true } } },
                 });
-
-                const newBudget = newBudgetResult.data.budgets?.[0];
+                // @ts-ignore - InstantDB types
+                const newBudget = newBudgetResult.data.budgets?.[0] as BudgetRecord | undefined;
                 if (newBudget) {
-                  const newSpentAmount = (newBudget.spentAmount || 0) + request.amount;
-                  await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
-                }
-              }
-            } else if (originalTx.amount !== request.amount) {
-              // If amount changed but category didn't
-              // Only update budget if the original was also not a future transaction
-              if (!wasOriginalFuture) {
-                const budgetResult = await db.queryOnce({
-                  budgets: {
-                    $: {
-                      where: {
-                        userId: request.userId,
-                        categoryId: request.categoryId,
-                        isActive: true,
-                      },
-                    },
-                  },
-                });
-
-                const budget = budgetResult.data.budgets?.[0];
-                if (budget) {
-                  const amountDiff = request.amount - originalTx.amount;
-                  const newSpentAmount = (budget.spentAmount || 0) + amountDiff;
-                  await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
-                }
-              } else {
-                // Original was future, now it's not future - add full new amount to budget
-                const budgetResult = await db.queryOnce({
-                  budgets: {
-                    $: {
-                      where: {
-                        userId: request.userId,
-                        categoryId: request.categoryId,
-                        isActive: true,
-                      },
-                    },
-                  },
-                });
-
-                const budget = budgetResult.data.budgets?.[0];
-                if (budget) {
-                  const newSpentAmount = (budget.spentAmount || 0) + request.amount;
+                  // FIX: DAT-008 - Null safety
+                  const newSpentAmount = (newBudget.spentAmount ?? 0) + (request.amount ?? 0);
                   await updateBudgetSpentAmount(request.userId, request.categoryId, budgetPeriod.start, newSpentAmount);
                 }
               }
             }
+            // Note: same-category amount-change case is handled atomically above
           }
         }
       } catch (error) {
-        console.warn('Failed to update budget spent amount on transaction update:', error);
-        // Don't fail the transaction update if budget update fails
+        logger.warn('Failed to update budget spent amount on transaction update:', getErrorMessage(error)); // FIX: SEC-003
       }
+    }
+
+    // FIX: DAT-002 - Best-effort: update budget summary totalSpent
+    if (budgetUpdatedAtomically || (request.type === 'expense' && !isNewFuture)) {
+      await bestEffortUpdateBudgetSummary(request.userId);
     }
 
     return {
       success: true,
-      transactionId: request.id, // Add transactionId for split creation
+      transactionId: request.id,
       data: {
         id: request.id,
         userId: request.userId,
@@ -857,7 +828,13 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
       } as Transaction,
     };
   } catch (error) {
-    console.error('Update transaction error:', error);
+    if (error instanceof ValidationError) {
+      return { success: false, error: error.message };
+    }
+    if (error instanceof DataIntegrityError) {
+      return { success: false, error: error.message };
+    }
+    logger.error('Update transaction error:', getErrorMessage(error)); // FIX: SEC-003
     return {
       success: false,
       error: 'Failed to update transaction',
@@ -890,7 +867,6 @@ export function formatDateSwiss(dateString: string): string {
  * Parse Swiss date format DD.MM.YYYY to ISO format YYYY-MM-DD
  */
 export function parseSwissDate(dateString: string): string | null {
-  // Accept formats: DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY
   const patterns = [
     /^(\d{2})\.(\d{2})\.(\d{4})$/, // DD.MM.YYYY
     /^(\d{2})\/(\d{2})\/(\d{4})$/, // DD/MM/YYYY
@@ -922,18 +898,14 @@ export async function getRecentTransactions(
     const result = await db.queryOnce({
       transactions: {
         $: {
-          where: {
-            userId,
-          },
+          where: { userId },
         },
       },
     });
 
     let transactions = (result.data.transactions || []) as Transaction[];
 
-    // Get today's date for filtering out future transactions
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayStr = getTodayDateString();
 
     // Filter out future transactions
     transactions = transactions.filter((tx) => tx.date <= todayStr);
@@ -950,7 +922,7 @@ export async function getRecentTransactions(
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, limit);
   } catch (error) {
-    console.error('Get recent transactions error:', error);
+    logger.error('Get recent transactions error:', getErrorMessage(error)); // FIX: SEC-003
     return [];
   }
 }

@@ -1,3 +1,7 @@
+// FIX: PERF-4 - Removed aggressive refetchInterval (was 10000ms / 10s).
+// Household debt data changes only when settlements or shared expenses are created.
+// Both operations invalidate this query. Polling wasted battery + network bandwidth.
+
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 import { calculateDebtBalance, calculateSplitRatio } from '@/lib/shared-expenses-api';
@@ -137,8 +141,15 @@ export function useHouseholdData(): HouseholdData {
       };
     },
     enabled: !!user?.email,
-    staleTime: 5000, // 5 seconds - refresh more frequently for real-time updates
-    refetchInterval: 10000, // Refetch every 10 seconds for partner updates
+    // FIX: PERF-4 - Increased staleTime from 5s to 60s.
+    // Data only changes on settlement creation or new shared expenses.
+    staleTime: 60_000,
+    // FIX: Multi-device real-time sync - Poll every 30s for cross-device updates.
+    // When user A creates a shared transaction on their device, user B (payer) on another
+    // device needs to see the HouseholdBalanceWidget update without manual navigation.
+    // 30s interval = ~2,880 calls/day (vs previous 10s = 8,640/day).
+    // Data is also refreshed immediately via queryClient.invalidateQueries() on same device.
+    refetchInterval: 30_000,
   });
 
   return {

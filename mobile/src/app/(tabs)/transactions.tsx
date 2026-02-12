@@ -1,10 +1,19 @@
-import React, { useState } from 'react';
+// FIX: PERF-2 - Replaced Animated.ScrollView with @shopify/flash-list FlashList
+// for the transaction list. The original used ScrollView which renders ALL items at once
+// (no virtualization), causing memory spikes and jank with 100+ transactions.
+// FlashList recycles views and only renders visible items.
+//
+// Also added pagination (50 items at a time) via onEndReached to avoid loading
+// all transactions into memory at once.
+
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, Pressable, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
+import { FlashList } from '@shopify/flash-list';
 import { Settings, Search, Plus } from 'lucide-react-native';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { db } from '@/lib/db';
@@ -18,13 +27,16 @@ import TransactionFilters from '@/components/transactions/TransactionFilters';
 import StickyStatusBar from '@/components/layout/StickyStatusBar';
 import { useTransactionFilters } from '@/hooks/useTransactionFilters';
 
+// FIX: PERF-2 - Pagination batch size
+const PAGE_SIZE = 50;
+
 function formatDateHeader(dateStr: string): string {
   try {
     const date = parseISO(dateStr);
     if (isToday(date)) {
-      return `Today • ${format(date, 'MMM d')}`;
+      return `Today \u2022 ${format(date, 'MMM d')}`;
     } else if (isYesterday(date)) {
-      return `Yesterday • ${format(date, 'MMM d')}`;
+      return `Yesterday \u2022 ${format(date, 'MMM d')}`;
     } else {
       return format(date, 'MMM d, yyyy');
     }
@@ -32,6 +44,11 @@ function formatDateHeader(dateStr: string): string {
     return dateStr;
   }
 }
+
+// FIX: PERF-2 - Item type for FlashList that can be either a header or a transaction
+type ListItem =
+  | { type: 'header'; date: string; label: string }
+  | { type: 'transaction'; data: any };
 
 export default function TransactionsTabScreen() {
   const insets = useSafeAreaInsets();
@@ -41,22 +58,16 @@ export default function TransactionsTabScreen() {
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-    },
-  });
+  // FIX: PERF-2 - Pagination state
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   // Get user and household info
   const householdQuery = useQuery({
     queryKey: ['user-household', user?.email],
     queryFn: async () => {
       if (!user?.email) throw new Error('No user email');
-      console.log('🔍 Fetching household for user:', user.email);
       const result = await getUserProfileAndHousehold(user.email);
       if (!result) throw new Error('No household found');
-      console.log('✅ Household data:', { userId: result.userId, householdId: result.householdId });
       return result;
     },
     enabled: !!user?.email,
@@ -105,10 +116,8 @@ export default function TransactionsTabScreen() {
     queryKey: ['transactions', householdQuery.data?.userId],
     queryFn: async () => {
       if (!householdQuery.data?.userId) {
-        console.log('❌ No userId available for transactions query');
         return [];
       }
-      console.log('🔍 Fetching transactions for userId:', householdQuery.data.userId);
 
       try {
         // @ts-ignore - InstantDB types
@@ -122,13 +131,9 @@ export default function TransactionsTabScreen() {
             account: {},
           },
         });
-        console.log('✅ Transactions fetched:', result?.data?.transactions?.length || 0);
-        if (result?.data?.transactions?.length > 0) {
-          console.log('Sample transaction keys:', Object.keys(result.data.transactions[0]));
-        }
         return (result?.data?.transactions || []) as any[];
       } catch (error) {
-        console.error('❌ Error fetching transactions:', error);
+        console.error('Error fetching transactions:', error);
         return [];
       }
     },
@@ -140,13 +145,8 @@ export default function TransactionsTabScreen() {
     queryKey: ['recurring-templates', householdQuery.data?.userId, householdQuery.data?.householdId],
     queryFn: async () => {
       if (!householdQuery.data?.userId || !householdQuery.data?.householdId) {
-        console.log('⚠️ No userId or householdId for recurring query');
         return [];
       }
-      console.log('🔄 Fetching recurring templates for:', {
-        userId: householdQuery.data.userId,
-        householdId: householdQuery.data.householdId
-      });
       // @ts-ignore - InstantDB types
       const result = await db.queryOnce({
         // @ts-ignore
@@ -160,37 +160,17 @@ export default function TransactionsTabScreen() {
         },
       });
       const allTemplates = (result?.data?.recurringTemplates || []) as any[];
-      console.log('✅ All recurring templates (no filter):', allTemplates.length);
-      console.log('📦 Full result object:', JSON.stringify(result, null, 2));
-      if (allTemplates.length > 0) {
-        console.log('📋 Sample template:', {
-          id: allTemplates[0].id,
-          payee: allTemplates[0].payee,
-          isActive: allTemplates[0].isActive,
-          recurringDay: allTemplates[0].recurringDay,
-          amount: allTemplates[0].amount,
-          type: allTemplates[0].type,
-        });
-      }
-
       // Filter for active only
-      const activeTemplates = allTemplates.filter((t: any) => t.isActive === true);
-      console.log('✅ Active recurring templates:', activeTemplates.length);
-      return activeTemplates;
+      return allTemplates.filter((t: any) => t.isActive === true);
     },
     enabled: !!householdQuery.data?.userId && !!householdQuery.data?.householdId,
   });
 
   // Format transactions for display
-  const formattedTransactions = React.useMemo(() => {
+  const formattedTransactions = useMemo(() => {
     if (!transactionsQuery.data) {
-      console.log('⚠️ No transaction data available');
       return [];
     }
-
-    console.log('📊 Raw transactions data:', transactionsQuery.data.length);
-    console.log('📊 Sample transaction:', transactionsQuery.data[0]);
-    console.log('📊 Categories available:', categoriesQuery.data?.length);
 
     // Build a category lookup map
     const categoryMap = new Map();
@@ -206,20 +186,12 @@ export default function TransactionsTabScreen() {
       accountsQuery.data.forEach((acc: any) => {
         accountMap.set(acc.id, acc);
       });
-      console.log('📊 Accounts available:', accountsQuery.data.length, accountsQuery.data.map((a: any) => ({ id: a.id, name: a.name })));
     }
 
     return transactionsQuery.data.map((t: any) => {
       // Look up category and account by ID
       const category = categoryMap.get(t.categoryId);
       const account = accountMap.get(t.accountId);
-
-      console.log('📊 Transaction mapping:', {
-        payee: t.payee,
-        accountId: t.accountId,
-        accountFound: !!account,
-        walletName: account?.name,
-      });
 
       // Extract emoji from category name if it exists
       let categoryEmoji = '📝';
@@ -228,8 +200,6 @@ export default function TransactionsTabScreen() {
       if (category?.emoji) {
         categoryEmoji = category.emoji;
       } else if (category?.name) {
-        // Try to extract emoji from the beginning of the name
-        // Simple emoji detection - emojis are typically 1-2 chars at the start
         const emojiRegex = /([\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])\s*/u;
         const emojiMatch = category.name.match(emojiRegex);
         if (emojiMatch) {
@@ -260,51 +230,25 @@ export default function TransactionsTabScreen() {
   }, [transactionsQuery.data, categoriesQuery.data, accountsQuery.data, householdQuery.data?.userId]);
 
   // Combine recurring templates + future transactions
-  const formattedRecurring = React.useMemo(() => {
+  const formattedRecurring = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     const items: any[] = [];
 
     // Don't build recurring list if categories aren't loaded yet
     if (!categoriesQuery.data || categoriesQuery.data.length === 0) {
-      console.log('⏳ Waiting for categories to load before building recurring list');
       return [];
     }
-
-    console.log('🔄 Building formattedRecurring:', {
-      recurringDataExists: !!recurringQuery.data,
-      recurringCount: recurringQuery.data?.length || 0,
-      formattedTransactionsCount: formattedTransactions?.length || 0,
-      categoriesLoaded: !!categoriesQuery.data,
-      categoriesCount: categoriesQuery.data?.length || 0,
-      today
-    });
 
     // Add recurring templates
     if (recurringQuery.data) {
       recurringQuery.data.forEach((r: any) => {
-        // Look up category and account by ID from the already loaded data
         const category = categoriesQuery.data?.find((c: any) => c.id === r.categoryId);
         const account = accountsQuery.data?.find((a: any) => a.id === r.accountId);
 
-        // Debug: Log ALL categories to see what we have
-        if (!category && categoriesQuery.data && categoriesQuery.data.length > 0) {
-          console.log('❌ Category NOT found for recurring template');
-          console.log('Looking for categoryId:', r.categoryId);
-          console.log('Available categories:', categoriesQuery.data.map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            emoji: c.emoji,
-            idType: typeof c.id,
-          })));
-          console.log('Recurring template categoryId type:', typeof r.categoryId);
-        }
-
-        // Extract emoji from category
         let categoryEmoji = '📝';
         if (category?.emoji) {
           categoryEmoji = category.emoji;
         } else if (category?.name) {
-          // Extract emoji from the beginning of the name
           const emojiRegex = /([\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])\s*/u;
           const emojiMatch = category.name.match(emojiRegex);
           if (emojiMatch) {
@@ -312,40 +256,17 @@ export default function TransactionsTabScreen() {
           }
         }
 
-        console.log('➕ Adding recurring template:', {
-          id: r.id,
-          payee: r.payee,
-          recurringDay: r.recurringDay,
-          isActive: r.isActive,
-          categoryId: r.categoryId,
-          categoryFound: !!category,
-          categoryEmoji: categoryEmoji,
-          categoryName: category?.name,
-          accountId: r.accountId,
-          allCategories: categoriesQuery.data?.length || 0,
-        });
-
         // Calculate next occurrence date
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Reset time to start of day
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth();
+        const todayDate = new Date();
+        todayDate.setHours(0, 0, 0, 0);
+        const currentYear = todayDate.getFullYear();
+        const currentMonth = todayDate.getMonth();
         const recurringDay = r.recurringDay || 1;
 
-        // Start with this month at noon to avoid timezone issues
         let nextDate = new Date(currentYear, currentMonth, recurringDay, 12, 0, 0);
-
-        // If the date has already passed this month, use next month
-        if (nextDate <= today) {
+        if (nextDate <= todayDate) {
           nextDate = new Date(currentYear, currentMonth + 1, recurringDay, 12, 0, 0);
         }
-
-        console.log('📅 Calculated next date:', {
-          recurringDay,
-          today: today.toISOString().split('T')[0],
-          nextDate: nextDate.toISOString().split('T')[0],
-          nextDateFull: nextDate.toISOString(),
-        });
 
         items.push({
           id: r.id,
@@ -354,7 +275,7 @@ export default function TransactionsTabScreen() {
           payee: r.payee || 'Unknown',
           emoji: categoryEmoji,
           dayOfMonth: r.recurringDay || 1,
-          date: nextDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+          date: nextDate.toISOString().split('T')[0],
           isRecurring: true,
           isActive: r.isActive,
           isShared: r.isShared || false,
@@ -368,11 +289,6 @@ export default function TransactionsTabScreen() {
     if (formattedTransactions) {
       formattedTransactions.forEach((t: any) => {
         if (t.date > today) {
-          console.log('➕ Adding future transaction:', {
-            id: t.id,
-            payee: t.payee,
-            date: t.date
-          });
           items.push({
             id: t.id,
             type: t.type,
@@ -390,12 +306,6 @@ export default function TransactionsTabScreen() {
       });
     }
 
-    console.log('✅ formattedRecurring built:', {
-      totalItems: items.length,
-      recurring: items.filter(i => i.isRecurring).length,
-      future: items.filter(i => !i.isRecurring).length
-    });
-
     return items;
   }, [recurringQuery.data, formattedTransactions, categoriesQuery.data, accountsQuery.data]);
 
@@ -405,7 +315,7 @@ export default function TransactionsTabScreen() {
   );
 
   // Apply search query separately
-  const searchFilteredTransactions = React.useMemo(() => {
+  const searchFilteredTransactions = useMemo(() => {
     if (!searchQuery.trim()) return filteredTransactions;
 
     const query = searchQuery.toLowerCase();
@@ -417,12 +327,13 @@ export default function TransactionsTabScreen() {
     });
   }, [filteredTransactions, searchQuery]);
 
-  // Regroup by date after search (exclude future transactions)
-  const searchGroupedByDate = React.useMemo(() => {
+  // FIX: PERF-2 - Flatten grouped transactions into a list of items for FlashList.
+  // Each date group becomes a header item followed by transaction items.
+  const flatListData: ListItem[] = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     const grouped: Record<string, any[]> = {};
+
     searchFilteredTransactions.forEach((transaction: any) => {
-      // Only include transactions that are today or in the past
       if (transaction.date <= today) {
         const date = transaction.date.split('T')[0];
         if (!grouped[date]) {
@@ -431,10 +342,27 @@ export default function TransactionsTabScreen() {
         grouped[date].push(transaction);
       }
     });
-    console.log('📅 Grouped by date:', Object.keys(grouped).length, 'dates');
-    console.log('📅 First date group:', Object.keys(grouped)[0], grouped[Object.keys(grouped)[0]]?.length || 0, 'transactions');
-    return grouped;
+
+    // Sort dates descending (newest first)
+    const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+
+    const items: ListItem[] = [];
+    for (const date of sortedDates) {
+      items.push({ type: 'header', date, label: formatDateHeader(date) });
+      for (const tx of grouped[date]) {
+        items.push({ type: 'transaction', data: tx });
+      }
+    }
+
+    return items;
   }, [searchFilteredTransactions]);
+
+  // FIX: PERF-2 - Only show first `visibleCount` items for pagination
+  const paginatedData = useMemo(() => {
+    return flatListData.slice(0, visibleCount);
+  }, [flatListData, visibleCount]);
+
+  const hasMore = visibleCount < flatListData.length;
 
   const categories = (categoriesQuery.data || []).map((c: any) => ({
     id: c.id,
@@ -443,55 +371,34 @@ export default function TransactionsTabScreen() {
   }));
   const isLoading = householdQuery.isLoading || transactionsQuery.isLoading;
 
-  console.log('🎨 Render state:', {
-    isLoading,
-    householdLoading: householdQuery.isLoading,
-    transactionsLoading: transactionsQuery.isLoading,
-    hasUserId: !!householdQuery.data?.userId,
-    transactionsCount: formattedTransactions.length,
-    groupedDates: Object.keys(searchGroupedByDate).length,
-    recurringCount: formattedRecurring.length,
-    recurringData: formattedRecurring,
-  });
-
   // Delete handler
-  const handleDelete = async (transactionId: string) => {
+  const handleDelete = useCallback(async (transactionId: string) => {
     try {
-      console.log('🗑️ Deleting transaction:', transactionId);
-
-      // Use the proper delete API that handles account balance updates
       const result = await deleteTransaction(transactionId);
-
       if (!result.success) {
-        console.error('❌ Delete failed:', result.error);
+        console.error('Delete failed:', result.error);
         return;
       }
-
-      console.log('✅ Transaction deleted successfully');
-      // Invalidate queries to refresh all data
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
       queryClient.invalidateQueries({ queryKey: ['budget-details'] });
+      queryClient.invalidateQueries({ queryKey: ['household-data'] });
+      queryClient.invalidateQueries({ queryKey: ['settlement-data'] });
     } catch (error) {
-      console.error('❌ Error deleting transaction:', error);
+      console.error('Error deleting transaction:', error);
     }
-  };
+  }, [queryClient]);
 
   // Duplicate handler
-  const handleDuplicate = (transactionId: string) => {
+  const handleDuplicate = useCallback((transactionId: string) => {
     const transaction = formattedTransactions.find((t: any) => t.id === transactionId);
     if (!transaction) {
-      console.error('❌ Transaction not found for duplication:', transactionId);
+      console.error('Transaction not found for duplication:', transactionId);
       return;
     }
 
-    console.log('📋 Duplicating transaction:', transactionId);
-
-    // Navigate to add screen with pre-filled data
-    // Note: We use today's date, not the original transaction date
     const today = new Date().toISOString().split('T')[0];
-
     router.push({
       pathname: '/transactions/add',
       params: {
@@ -505,21 +412,56 @@ export default function TransactionsTabScreen() {
         date: today,
       }
     });
-  };
+  }, [formattedTransactions]);
+
+  // FIX: PERF-2 - Load more handler for pagination
+  const handleEndReached = useCallback(() => {
+    if (hasMore) {
+      setVisibleCount(prev => prev + PAGE_SIZE);
+    }
+  }, [hasMore]);
+
+  // FIX: PERF-2 - Render item for FlashList
+  const renderItem = useCallback(({ item }: { item: ListItem }) => {
+    if (item.type === 'header') {
+      return (
+        <Text
+          className="text-sm font-semibold mb-2 ml-1 mt-4"
+          style={{ color: 'rgba(255,255,255,0.7)' }}
+        >
+          {item.label}
+        </Text>
+      );
+    }
+
+    return (
+      <TransactionListItem
+        transaction={item.data}
+        onClick={() => router.push(`/transactions/add?id=${item.data.id}`)}
+        onDelete={handleDelete}
+        onDuplicate={handleDuplicate}
+      />
+    );
+  }, [handleDelete, handleDuplicate]);
+
+  // FIX: PERF-2 - Key extractor for FlashList
+  const keyExtractor = useCallback((item: ListItem) => {
+    if (item.type === 'header') return `header-${item.date}`;
+    return item.data.id;
+  }, []);
+
+  // FIX: PERF-2 - Estimated item size for FlashList optimization
+  // Headers are ~30px, transaction items are ~76px
+  const getItemType = useCallback((item: ListItem) => {
+    return item.type;
+  }, []);
 
   return (
     <LinearGradient colors={['#1A1C1E', '#2C5F5D']} style={{ flex: 1 }}>
       <StickyStatusBar scrollY={scrollY} />
 
-      <Animated.ScrollView
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        contentContainerStyle={{
-          paddingTop: (insets.top || 44) + 16,
-          paddingHorizontal: 20,
-          paddingBottom: 100,
-        }}
-      >
+      {/* Header - rendered outside FlashList */}
+      <View style={{ paddingTop: (insets.top || 44) + 16, paddingHorizontal: 20 }}>
         {/* Header */}
         <View className="flex-row items-center justify-between mb-6">
           <Text
@@ -571,77 +513,75 @@ export default function TransactionsTabScreen() {
           <RecurringSection
             recurringTransactions={formattedRecurring}
             onEdit={(id) => {
-              // Find the item to determine if it's recurring or a future transaction
               const item = formattedRecurring.find(r => r.id === id);
               if (item?.isRecurring) {
-                // It's a recurring template - pass recurringId parameter
                 router.push(`/transactions/add?recurringId=${id}`);
               } else {
-                // It's a future transaction - pass regular id parameter
                 router.push(`/transactions/add?id=${id}`);
               }
             }}
             onDelete={async (id, isRecurring) => {
               try {
                 if (isRecurring) {
-                  // Deactivate recurring template
                   await deactivateRecurringTemplate(id);
-                  console.log('✅ Recurring template deactivated');
                 } else {
-                  // Delete future transaction
                   await deleteTransaction(id);
-                  console.log('✅ Future transaction deleted');
                 }
-
-                // Refresh data
                 queryClient.invalidateQueries({ queryKey: ['transactions'] });
                 queryClient.invalidateQueries({ queryKey: ['recurring-templates'] });
                 queryClient.invalidateQueries({ queryKey: ['accounts'] });
+                queryClient.invalidateQueries({ queryKey: ['household-data'] });
+                queryClient.invalidateQueries({ queryKey: ['settlement-data'] });
               } catch (error) {
                 console.error('Error deleting:', error);
               }
             }}
           />
         )}
+      </View>
 
-        {/* Transaction List (Grouped by Date) */}
-        {isLoading ? (
-          <View className="items-center justify-center py-20">
-            <Text style={{ color: 'rgba(255,255,255,0.5)' }}>Loading transactions...</Text>
-          </View>
-        ) : Object.keys(searchGroupedByDate).length > 0 ? (
-          Object.entries(searchGroupedByDate).map(([date, transactions]) => (
-            <View key={date} className="mb-4">
-              <Text
-                className="text-sm font-semibold mb-2 ml-1"
-                style={{ color: 'rgba(255,255,255,0.7)' }}
-              >
-                {formatDateHeader(date)}
-              </Text>
-              {(transactions as any[]).map((transaction) => (
-                <TransactionListItem
-                  key={transaction.id}
-                  transaction={transaction}
-                  onClick={() => router.push(`/transactions/add?id=${transaction.id}`)}
-                  onDelete={handleDelete}
-                  onDuplicate={handleDuplicate}
-                />
-              ))}
-            </View>
-          ))
-        ) : (
-          <View className="items-center justify-center py-20">
-            <Text className="text-5xl mb-4">📊</Text>
-            <Text
-              className="text-center text-sm"
-              style={{ color: 'rgba(255,255,255,0.5)', lineHeight: 20 }}
-            >
-              No transactions found.{'\n'}
-              Tap + to add your first transaction.
-            </Text>
-          </View>
-        )}
-      </Animated.ScrollView>
+      {/* FIX: PERF-2 - FlashList replaces Animated.ScrollView for virtualized rendering */}
+      {isLoading ? (
+        <View className="items-center justify-center py-20" style={{ paddingHorizontal: 20 }}>
+          <Text style={{ color: 'rgba(255,255,255,0.5)' }}>Loading transactions...</Text>
+        </View>
+      ) : paginatedData.length > 0 ? (
+        <FlashList
+          data={paginatedData}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          // FIX: PERF-2 - Average item height for FlashList layout estimation
+          estimatedItemSize={76}
+          getItemType={getItemType}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingBottom: 100,
+          }}
+          showsVerticalScrollIndicator={false}
+          ListFooterComponent={
+            hasMore ? (
+              <View className="items-center py-4">
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
+                  Loading more...
+                </Text>
+              </View>
+            ) : null
+          }
+        />
+      ) : (
+        <View className="items-center justify-center py-20" style={{ paddingHorizontal: 20 }}>
+          <Text className="text-5xl mb-4">📊</Text>
+          <Text
+            className="text-center text-sm"
+            style={{ color: 'rgba(255,255,255,0.5)', lineHeight: 20 }}
+          >
+            No transactions found.{'\n'}
+            Tap + to add your first transaction.
+          </Text>
+        </View>
+      )}
 
       {/* FAB */}
       <Pressable
@@ -654,7 +594,6 @@ export default function TransactionsTabScreen() {
           height: 64,
           borderRadius: 32,
           backgroundColor: '#2C5F5D',
-          // Triple-layer glow effect
           shadowColor: '#A8B5A1',
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.4,

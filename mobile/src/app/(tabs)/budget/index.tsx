@@ -10,6 +10,9 @@ import { getBudgetSummary, getBudgetDetails, getMemberBudgetPeriod } from '@/lib
 import { getCategoryGroups } from '@/lib/category-groups-api';
 import { formatDateSwiss } from '@/lib/payday-utils';
 import { getCurrentBudgetPeriod } from '@/lib/budget-period-utils';
+// FIX: TASK-3/TASK-8 - Import design tokens and budget color system
+import { colors } from '@/lib/design-tokens';
+import { getBudgetColor } from '@/lib/getBudgetColor';
 
 interface BudgetSummaryData {
   totalIncome: number;
@@ -17,17 +20,9 @@ interface BudgetSummaryData {
   totalSpent: number;
 }
 
-function getStatusColor(status: string): string {
-  switch (status) {
-    case 'on-track':
-      return '#10B981';
-    case 'warning':
-      return '#F59E0B';
-    case 'over-budget':
-      return '#EF4444';
-    default:
-      return '#6B7280';
-  }
+// FIX: TASK-8 - Replace hardcoded red/amber/green with 4-tier budget color system
+function getStatusColor(percentUsed: number): string {
+  return getBudgetColor(percentUsed);
 }
 
 export default function BudgetTabScreen() {
@@ -149,29 +144,45 @@ export default function BudgetTabScreen() {
 
   if (userProfileQuery.isLoading || budgetPeriodQuery.isLoading || summaryQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
-      <View className="flex-1 bg-white justify-center items-center">
-        <ActivityIndicator size="large" color="#006A6A" />
+      // FIX: TASK-3 - Replace hardcoded white background with design token
+      <View style={{ flex: 1, backgroundColor: colors.contextDark, justifyContent: 'center', alignItems: 'center' }}>
+        {/* FIX: TASK-3 - Replace hardcoded '#006A6A' with design token */}
+        <ActivityIndicator size="large" color={colors.contextTeal} />
       </View>
     );
   }
 
   if (!summary) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
+      // FIX: TASK-3 - Replace hardcoded white background with design token
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.contextDark }} edges={['bottom']}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
           <View className="items-center">
-            <View className="w-20 h-20 rounded-full bg-teal-50 items-center justify-center mb-6">
+            <View style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              // FIX: TASK-3 - Replace hardcoded teal-50 with design token
+              backgroundColor: colors.bgGlass,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 24,
+            }}>
               <Text className="text-4xl">📊</Text>
             </View>
-            <Text className="text-2xl font-bold text-gray-900 text-center mb-3">Set up your budget</Text>
-            <Text className="text-base text-gray-600 text-center leading-6 mb-8">
+            {/* FIX: TASK-3 - Use design token for text color */}
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.textWhite, textAlign: 'center', marginBottom: 12 }}>
+              Set up your budget
+            </Text>
+            <Text style={{ fontSize: 16, color: colors.textWhiteSecondary, textAlign: 'center', lineHeight: 24, marginBottom: 32 }}>
               Allocate your monthly income to track spending and ensure every franc has a purpose.
             </Text>
             <Pressable
               onPress={() => router.push('/budget/category-group-allocation')}
-              className="bg-teal-600 py-3 px-8 rounded-lg"
+              // FIX: TASK-3 - Use design token for button background
+              style={{ backgroundColor: colors.contextTeal, paddingVertical: 12, paddingHorizontal: 32, borderRadius: 8 }}
             >
-              <Text className="text-white font-semibold text-center">Create My First Budget</Text>
+              <Text style={{ color: colors.textWhite, fontWeight: '600', textAlign: 'center' }}>Create My First Budget</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -187,58 +198,94 @@ export default function BudgetTabScreen() {
   // Remaining is what's left from allocated that hasn't been spent
   const remaining = Math.round((allocatedRounded - spentRounded) * 100) / 100;
   const allocatedPercentage = (allocatedRounded / incomeRounded) * 100;
+  // FIX: TASK-8 - Use 4-tier budget color for overall status
+  const overallSpentPercentage = allocatedRounded > 0 ? (spentRounded / allocatedRounded) * 100 : 0;
+  const overallStatusColor = getStatusColor(overallSpentPercentage);
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    // FIX: TASK-3 - Replace hardcoded white background with dark theme
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.contextDark }} edges={['top']}>
       {/* Header */}
-      <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 24,
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        // FIX: TASK-3 - Use design token for border color
+        borderBottomColor: colors.borderTeal,
+      }}>
         <View>
-          <Text className="text-3xl font-bold text-gray-900">Budget</Text>
-          <Text className="text-sm text-gray-500 mt-1">
+          {/* FIX: TASK-3 - Use design token for text color */}
+          <Text style={{ fontSize: 30, fontWeight: 'bold', color: colors.textWhite }}>Budget</Text>
+          <Text style={{ fontSize: 14, color: colors.textWhiteSecondary, marginTop: 4 }}>
             {formatDateSwiss(budgetPeriod.start)} - {formatDateSwiss(budgetPeriod.end)}
           </Text>
         </View>
-        <Pressable onPress={() => router.push('/(tabs)/budget/setup')} className="p-2">
-          <Edit3 size={24} color="#006A6A" />
+        <Pressable
+          onPress={() => router.push('/(tabs)/budget/setup')}
+          style={{ padding: 8, minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' }}
+        >
+          {/* FIX: TASK-3 - Replace hardcoded '#006A6A' with design token */}
+          <Edit3 size={24} color={colors.contextTeal} />
         </Pressable>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-        <View className="px-6 py-6">
-          <View className="mb-8 p-5 rounded-2xl bg-gradient-to-br from-teal-50 to-blue-50" style={{ borderWidth: 1, borderColor: '#CCFBF1' }}>
-            <View className="mb-4">
-              <View className="flex-row justify-between mb-2">
-                <Text className="text-sm text-gray-600">Total Allocated</Text>
-                <Text className="text-sm font-semibold text-gray-900">{allocatedPercentage.toFixed(1)}%</Text>
+        <View style={{ paddingHorizontal: 24, paddingVertical: 24 }}>
+          {/* Summary Card */}
+          <View style={{
+            marginBottom: 32,
+            padding: 20,
+            borderRadius: 16,
+            // FIX: TASK-3 - Use design token for background
+            backgroundColor: colors.bgDark,
+            borderWidth: 1,
+            // FIX: TASK-3 - Use design token for border
+            borderColor: colors.borderTeal,
+          }}>
+            <View style={{ marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                {/* FIX: TASK-3 - Use design token for text color */}
+                <Text style={{ fontSize: 14, color: colors.textWhiteSecondary }}>Total Allocated</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textWhite }}>{allocatedPercentage.toFixed(1)}%</Text>
               </View>
-              <View className="h-3 bg-teal-200 rounded-full overflow-hidden">
+              <View style={{ height: 12, backgroundColor: colors.bgGlass, borderRadius: 9999, overflow: 'hidden' }}>
                 <View
-                  className="h-full bg-teal-600"
-                  style={{ width: `${Math.min(100, allocatedPercentage)}%` }}
+                  style={{
+                    height: '100%',
+                    width: `${Math.min(100, allocatedPercentage)}%`,
+                    // FIX: TASK-3 - Use design token for progress bar
+                    backgroundColor: colors.contextTeal,
+                  }}
                 />
               </View>
             </View>
 
-            <View className="flex-row justify-between mb-3">
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
               <View>
-                <Text className="text-xs text-gray-600 mb-0.5">Allocated</Text>
-                <Text className="text-xl font-bold text-teal-700">{allocatedRounded.toFixed(2)}</Text>
-                <Text className="text-xs text-gray-500">CHF</Text>
+                <Text style={{ fontSize: 12, color: colors.textWhiteSecondary, marginBottom: 2 }}>Allocated</Text>
+                {/* FIX: TASK-3 - Use design token for text color */}
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.sageGreen }}>{allocatedRounded.toFixed(2)}</Text>
+                <Text style={{ fontSize: 12, color: colors.textWhiteTertiary }}>CHF</Text>
               </View>
-              <View className="items-end">
-                <Text className="text-xs text-gray-600 mb-0.5">Spent</Text>
-                <Text className="text-xl font-bold text-gray-900">{summary.totalSpent.toFixed(2)}</Text>
-                <Text className="text-xs text-gray-500">CHF</Text>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={{ fontSize: 12, color: colors.textWhiteSecondary, marginBottom: 2 }}>Spent</Text>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.textWhite }}>{summary.totalSpent.toFixed(2)}</Text>
+                <Text style={{ fontSize: 12, color: colors.textWhiteTertiary }}>CHF</Text>
               </View>
-              <View className="items-end">
-                <Text className="text-xs text-gray-600 mb-0.5">Remaining</Text>
-                <Text className="text-xl font-bold text-teal-600">{remaining.toFixed(2)}</Text>
-                <Text className="text-xs text-gray-500">CHF</Text>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={{ fontSize: 12, color: colors.textWhiteSecondary, marginBottom: 2 }}>Remaining</Text>
+                {/* FIX: TASK-8 - Use 4-tier budget color instead of hardcoded teal */}
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: overallStatusColor }}>{remaining.toFixed(2)}</Text>
+                <Text style={{ fontSize: 12, color: colors.textWhiteTertiary }}>CHF</Text>
               </View>
             </View>
           </View>
 
-          <View className="mb-8 gap-3">
+          {/* Category Groups */}
+          <View style={{ marginBottom: 32, gap: 12 }}>
             {(categoryGroupsQuery.data || [])
               .filter((g) => g.type === 'expense')
               .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
@@ -247,25 +294,41 @@ export default function BudgetTabScreen() {
                 const allocated = groupDetails.reduce((sum: number, d: any) => sum + d.allocatedAmount, 0);
                 const spent = groupDetails.reduce((sum: number, d: any) => sum + d.spentAmount, 0);
                 const percentage = allocated > 0 ? (spent / allocated) * 100 : 0;
+                // FIX: TASK-8 - Use 4-tier budget color system
+                const groupColor = getStatusColor(percentage);
 
                 return (
-                  <View key={group.key} className="p-4 rounded-xl" style={{ backgroundColor: '#F3F4F615', borderWidth: 1, borderColor: '#E5E7EB' }}>
-                    <View className="flex-row items-center justify-between mb-2">
-                      <View className="flex-row items-center gap-2">
-                        <Text className="text-lg">{group.icon || '📂'}</Text>
+                  <View key={group.key} style={{
+                    padding: 16,
+                    borderRadius: 12,
+                    // FIX: TASK-3 - Use design token for background
+                    backgroundColor: colors.bgGlass,
+                    borderWidth: 1,
+                    borderColor: colors.borderTeal,
+                  }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={{ fontSize: 18 }}>{group.icon || '📂'}</Text>
                         <View>
-                          <Text className="text-sm font-semibold text-gray-900">{group.name}</Text>
-                          <Text className="text-xs text-gray-600">{allocated.toFixed(2)} CHF budget</Text>
+                          {/* FIX: TASK-3 - Use design token for text color */}
+                          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textWhite }}>{group.name}</Text>
+                          <Text style={{ fontSize: 12, color: colors.textWhiteTertiary }}>{allocated.toFixed(2)} CHF budget</Text>
                         </View>
                       </View>
-                      <Text className="text-sm font-bold" style={{ color: '#006A6A' }}>
+                      {/* FIX: TASK-3/TASK-8 - Replace hardcoded '#006A6A' with budget color */}
+                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: groupColor }}>
                         {percentage.toFixed(0)}%
                       </Text>
                     </View>
-                    <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    {/* FIX: TASK-3 - Use design tokens for progress bar */}
+                    <View style={{ height: 8, backgroundColor: colors.bgDark, borderRadius: 9999, overflow: 'hidden' }}>
                       <View
-                        className="h-full"
-                        style={{ width: `${Math.min(100, percentage)}%`, backgroundColor: '#006A6A' }}
+                        style={{
+                          height: '100%',
+                          width: `${Math.min(100, percentage)}%`,
+                          // FIX: TASK-8 - Use 4-tier budget color instead of hardcoded '#006A6A'
+                          backgroundColor: groupColor,
+                        }}
                       />
                     </View>
                   </View>
@@ -273,8 +336,9 @@ export default function BudgetTabScreen() {
               })}
           </View>
 
+          {/* Individual Categories */}
           <View>
-            <Text className="text-sm font-semibold text-gray-900 mb-4 uppercase">Categories</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textWhite, marginBottom: 16, textTransform: 'uppercase' }}>Categories</Text>
 
             {(categoryGroupsQuery.data || [])
               .filter((g) => g.type === 'expense')
@@ -284,8 +348,8 @@ export default function BudgetTabScreen() {
                 if (groupDetails.length === 0) return null;
 
                 return (
-                  <View key={group.key} className="mb-6">
-                    <Text className="text-xs font-semibold text-gray-500 mb-3 uppercase">
+                  <View key={group.key} style={{ marginBottom: 24 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textWhiteTertiary, marginBottom: 12, textTransform: 'uppercase' }}>
                       {group.icon && `${group.icon} `}{group.name}
                     </Text>
 
@@ -293,38 +357,51 @@ export default function BudgetTabScreen() {
                       .sort((a: any, b: any) => b.allocatedAmount - a.allocatedAmount)
                       .map((detail: any) => {
                       const percentage = detail.allocatedAmount > 0 ? (detail.spentAmount / detail.allocatedAmount) * 100 : 0;
-                      const statusColor = getStatusColor(detail.status);
+                      // FIX: TASK-8 - Use 4-tier budget color instead of red/amber/green
+                      const statusColor = getStatusColor(percentage);
 
                       return (
                         <Pressable
                           key={detail.id}
                           onPress={() => router.push(`/(tabs)/transactions?category=${detail.categoryId}`)}
-                          className="mb-4 p-4 rounded-xl bg-gray-50 active:bg-gray-100"
+                          style={{
+                            marginBottom: 16,
+                            padding: 16,
+                            borderRadius: 12,
+                            // FIX: TASK-3 - Use design token for background
+                            backgroundColor: colors.bgGlass,
+                            borderWidth: 1,
+                            borderColor: colors.borderTealLight,
+                          }}
                         >
-                          <View className="flex-row items-start justify-between mb-3">
-                            <View className="flex-1">
-                              <Text className="text-sm font-semibold text-gray-900">{detail.categoryName}</Text>
-                              <View className="flex-row gap-3 mt-1">
-                                <Text className="text-xs text-gray-600">
-                                  Budget: <Text className="font-semibold">{detail.allocatedAmount.toFixed(2)}</Text> CHF
+                          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                            <View style={{ flex: 1 }}>
+                              {/* FIX: TASK-3 - Use design token for text color */}
+                              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textWhite }}>{detail.categoryName}</Text>
+                              <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
+                                <Text style={{ fontSize: 12, color: colors.textWhiteTertiary }}>
+                                  Budget: <Text style={{ fontWeight: '600' }}>{detail.allocatedAmount.toFixed(2)}</Text> CHF
                                 </Text>
-                                <Text className="text-xs text-gray-600">
-                                  Spent: <Text className="font-semibold">{detail.spentAmount.toFixed(2)}</Text> CHF
+                                <Text style={{ fontSize: 12, color: colors.textWhiteTertiary }}>
+                                  Spent: <Text style={{ fontWeight: '600' }}>{detail.spentAmount.toFixed(2)}</Text> CHF
                                 </Text>
                               </View>
                             </View>
-                            <View className="items-end">
-                              <Text className="text-sm font-bold" style={{ color: statusColor }}>
+                            <View style={{ alignItems: 'flex-end' }}>
+                              {/* FIX: TASK-8 - Use 4-tier budget color */}
+                              <Text style={{ fontSize: 14, fontWeight: 'bold', color: statusColor }}>
                                 {percentage.toFixed(0)}%
                               </Text>
                             </View>
                           </View>
 
-                          <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          {/* FIX: TASK-3 - Use design tokens for progress bar */}
+                          <View style={{ height: 8, backgroundColor: colors.bgDark, borderRadius: 9999, overflow: 'hidden' }}>
                             <View
-                              className="h-full"
                               style={{
+                                height: '100%',
                                 width: `${Math.min(100, percentage)}%`,
+                                // FIX: TASK-8 - Use 4-tier budget color
                                 backgroundColor: statusColor,
                               }}
                             />

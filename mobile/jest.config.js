@@ -37,6 +37,12 @@ module.exports = {
     '**/*.(test|spec).(ts|tsx|js|jsx)',
   ],
 
+  // Ignore patterns
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/fixes/',
+  ],
+
   // Module file extensions
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 

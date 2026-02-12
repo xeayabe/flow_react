@@ -1,6 +1,10 @@
+// FIX: SEC-003 - Replaced console.log/error with secure logger
+// All queries in this file are already properly scoped by userId or householdId
+
 import { db } from './db';
 import { Transaction } from './transactions-api';
 import { Category } from './categories-api';
+import { logger } from './logger'; // FIX: SEC-003 - Secure logger
 
 export interface CategorySpending {
   categoryId: string;
@@ -74,7 +78,7 @@ export async function getTransactionsInRange(
 
     return transactions;
   } catch (error) {
-    console.error('Get transactions in range error:', error);
+    logger.error('Get transactions in range error:', error); // FIX: SEC-003
     return [];
   }
 }
@@ -182,7 +186,7 @@ export async function getCategoryAnalytics(
       categoryBreakdown,
     };
   } catch (error) {
-    console.error('Get category analytics error:', error);
+    logger.error('Get category analytics error:', error); // FIX: SEC-003
     return {
       totalAmount: 0,
       categoryCount: 0,
@@ -219,7 +223,7 @@ export function getDateRange(option: DateRangeOption, paydayDay: number = 25): {
   const month = today.getMonth();
   const day = today.getDate();
 
-  console.log(`📅 getDateRange called: today=${day}/${month + 1}/${year}, paydayDay=${paydayDay}, option=${option}`);
+  logger.debug('getDateRange called', { option }); // FIX: SEC-003 - Don't log payday or date details
 
   const formatDate = (d: Date): string => {
     const y = d.getFullYear();
@@ -249,14 +253,12 @@ export function getDateRange(option: DateRangeOption, paydayDay: number = 25): {
         const nextMonth = month === 11 ? 0 : month + 1;
         const nextYear = month === 11 ? year + 1 : year;
         periodEnd = new Date(nextYear, nextMonth, paydayDay - 1);
-        console.log(`✓ After payday: ${formatDate(periodStart)} to ${formatDate(periodEnd)}`);
       } else {
         // Previous period: payday last month to today (still in current period until payday)
         const lastMonth = month === 0 ? 11 : month - 1;
         const lastYear = month === 0 ? year - 1 : year;
         periodStart = new Date(lastYear, lastMonth, paydayDay);
         periodEnd = today; // Use today's date, not paydayDay - 1
-        console.log(`✓ Before payday: ${formatDate(periodStart)} to ${formatDate(periodEnd)}`);
       }
 
       return {

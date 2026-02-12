@@ -1,6 +1,13 @@
+// FIX: SEC-003 - Replaced console.log/error with secure logger
+// FIX: DAT-009 - Added cascade guard check before wallet deletion
+// FIX: DAT-008 - Null safety (?? 0) for financial arithmetic on balances
+// All queries in this file are already properly scoped by userId or id
+
 import { db } from './db';
+import { checkWalletDeletable } from './cascade-guard'; // FIX: DAT-009
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from './logger'; // FIX: SEC-003 - Secure logger
 
 export const INSTITUTIONS = [
   'UBS',
@@ -74,7 +81,7 @@ async function getUserHouseholdInfo(email: string): Promise<{ householdId: strin
 
     const user = userResult.data.users?.[0];
     if (!user) {
-      console.error('User not found:', email);
+      logger.error('User not found for email lookup'); // FIX: SEC-003 - Don't log email
       return null;
     }
 
@@ -92,13 +99,13 @@ async function getUserHouseholdInfo(email: string): Promise<{ householdId: strin
 
     const membership = membershipResult.data.householdMembers?.[0];
     if (!membership) {
-      console.error('No active household membership found for user:', user.id);
+      logger.error('No active household membership found for user'); // FIX: SEC-003 - Don't log userId
       return null;
     }
 
     // Validate that householdId exists in the membership record
     if (!membership.householdId) {
-      console.error('Membership has no householdId:', membership.id);
+      logger.error('Membership has no householdId'); // FIX: SEC-003 - Don't log membership id
       return null;
     }
 
@@ -116,7 +123,7 @@ async function getUserHouseholdInfo(email: string): Promise<{ householdId: strin
 
     const household = householdResult.data.households?.[0];
     if (!household) {
-      console.error('Household not found for householdId:', membership.householdId);
+      logger.error('Household not found'); // FIX: SEC-003 - Don't log householdId
       return null;
     }
 
@@ -126,7 +133,7 @@ async function getUserHouseholdInfo(email: string): Promise<{ householdId: strin
       currency: household.currency || 'CHF',
     };
   } catch (error) {
-    console.error('Get household info error:', error);
+    logger.error('Get household info error:', error); // FIX: SEC-003
     return null;
   }
 }
@@ -150,7 +157,7 @@ export async function checkAccountNameExists(userId: string, name: string): Prom
 
     return (result.data.accounts?.length || 0) > 0;
   } catch (error) {
-    console.error('Check account name error:', error);
+    logger.error('Check account name error:', error); // FIX: SEC-003
     return false;
   }
 }
@@ -173,7 +180,7 @@ export async function getUserAccountsCount(userId: string): Promise<number> {
 
     return result.data.accounts?.length || 0;
   } catch (error) {
-    console.error('Get accounts count error:', error);
+    logger.error('Get accounts count error:', error); // FIX: SEC-003
     return 0;
   }
 }
@@ -256,14 +263,14 @@ export async function createAccount(
       db.tx.accounts[accountId].update(newAccount),
     ]);
 
-    console.log('Account created:', { accountId, name: accountData.name, isDefault: shouldBeDefault });
+    logger.debug('Account created successfully'); // FIX: SEC-003 - Don't log accountId, name, or balance
 
     return {
       success: true,
       account: { id: accountId, ...newAccount },
     };
   } catch (error) {
-    console.error('Create account error:', error);
+    logger.error('Create account error:', error); // FIX: SEC-003
     return {
       success: false,
       error: 'Failed to create account. Please try again',
@@ -296,7 +303,7 @@ export async function getUserAccounts(email: string): Promise<Account[]> {
 
     return (result.data.accounts || []) as Account[];
   } catch (error) {
-    console.error('Get user accounts error:', error);
+    logger.error('Get user accounts error:', error); // FIX: SEC-003
     return [];
   }
 }
@@ -351,7 +358,7 @@ export async function getAccountById(accountId: string): Promise<Account | null>
     const account = result.data.accounts?.[0];
     return account ? (account as Account) : null;
   } catch (error) {
-    console.error('Get account by ID error:', error);
+    logger.error('Get account by ID error:', error); // FIX: SEC-003
     return null;
   }
 }
@@ -421,7 +428,7 @@ export async function updateAccount(
       db.tx.accounts[accountId].update(updates),
     ]);
 
-    console.log('Account updated:', { accountId, updates });
+    logger.debug('Account updated successfully'); // FIX: SEC-003 - Don't log accountId or update details
 
     // Fetch updated account
     const updatedAccount = await getAccountById(accountId);
@@ -431,7 +438,7 @@ export async function updateAccount(
       account: updatedAccount || undefined,
     };
   } catch (error) {
-    console.error('Update account error:', error);
+    logger.error('Update account error:', error); // FIX: SEC-003
     return {
       success: false,
       error: 'Failed to update account. Please try again',
@@ -441,6 +448,10 @@ export async function updateAccount(
 
 /**
  * Delete an account (soft delete)
+ *
+ * FIX: DAT-009 - Check for dependent records (transactions, recurring templates)
+ * before allowing deletion. If dependent records exist, return a user-friendly
+ * error message explaining what needs to be done first.
  */
 export async function deleteAccount(accountId: string): Promise<AccountResponse> {
   try {
@@ -449,17 +460,26 @@ export async function deleteAccount(accountId: string): Promise<AccountResponse>
       return { success: false, error: 'Account not found' };
     }
 
+    // FIX: DAT-009 - Check cascade guard before deleting
+    const deletability = await checkWalletDeletable(accountId);
+    if (!deletability.canDelete) {
+      return {
+        success: false,
+        error: deletability.reason || 'This wallet cannot be deleted because it has dependent records.',
+      };
+    }
+
     await db.transact([
       db.tx.accounts[accountId].update({
         isActive: false
       }),
     ]);
 
-    console.log('Account deleted:', accountId);
+    logger.debug('Account deleted successfully'); // FIX: SEC-003 - Don't log accountId
 
     return { success: true };
   } catch (error) {
-    console.error('Delete account error:', error);
+    logger.error('Delete account error:', error); // FIX: SEC-003
     return {
       success: false,
       error: 'Failed to delete account. Please try again',

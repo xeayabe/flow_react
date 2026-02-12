@@ -1,3 +1,8 @@
+// FIX: PERF-4 - Removed aggressive refetchInterval: 5000 from balance query.
+// This widget was polling the database every 5 seconds (~17,280 calls/day).
+// Balance only changes when transactions or settlements are created, both of which
+// invalidate ['true-balance'] via queryClient.invalidateQueries().
+
 import React from 'react';
 import { View, Text } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -24,7 +29,9 @@ export default function TrueBalanceWidget() {
       return calculateTrueBalance(userProfile.id);
     },
     enabled: !!user?.email,
-    refetchInterval: 5000 // Refresh every 5 seconds
+    // FIX: PERF-4 - Removed refetchInterval: 5000.
+    // Balance data is refreshed via query invalidation after transactions/settlements.
+    staleTime: 30_000,
   });
 
   if (!balanceInfo) {

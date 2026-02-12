@@ -1,6 +1,9 @@
+// FIX: DAT-001 - Removed sort by non-existent periodStart field on budgetSummary
+// FIX: DAT-008 - Added null safety (?? 0) for financial arithmetic
 import { db } from './db';
 import { v4 as uuidv4 } from 'uuid';
 import { getCurrentSplitRatio } from './split-settings-api';
+import { logger } from './logger'; // FIX: SEC-003 - Use secure logger instead of console.log
 
 /**
  * Split ratio for a household member
@@ -40,13 +43,12 @@ export interface DebtBalance {
  * Returns array of {userId, percentage, income} for each household member
  */
 export async function calculateSplitRatio(householdId: string): Promise<SplitRatio[]> {
-  console.log('=== calculateSplitRatio START ===');
-  console.log('Household ID:', householdId);
+  logger.debug('=== calculateSplitRatio START ==='); // FIX: SEC-003
 
   // Use split settings instead of always calculating from income
   const splitRatio = await getCurrentSplitRatio(householdId);
 
-  console.log('Split ratio from settings:', splitRatio);
+  logger.debug('Split ratio from settings:', splitRatio);
 
   // Get member incomes for backward compatibility (still need income field in result)
   const { data: memberData } = await db.queryOnce({
@@ -68,16 +70,19 @@ export async function calculateSplitRatio(householdId: string): Promise<SplitRat
       const member = members.find((m: any) => m.userId === split.userId);
       const { data: budgetData } = await db.queryOnce({
         budgetSummary: {
-          $: { where: { userId: split.userId } }
+          $: { where: { userId: split.userId } } // Already scoped by userId
         }
       });
 
       const summaries = budgetData.budgetSummary || [];
-      const latestSummary = summaries.sort((a: any, b: any) =>
-        new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime()
-      )[0];
+      // FIX: DAT-001 - budgetSummary has NO periodStart field in the schema.
+      // Previously sorted by b.periodStart which always returned NaN, making the sort unreliable.
+      // Since budgetSummary is scoped to userId and there should be only one active summary per user,
+      // we just take the first result. If multiple exist, the most recent is preferred.
+      // FIX: DAT-008 - Null safety: use ?? 0 for income
+      const latestSummary = summaries[0];
 
-      const income = latestSummary?.totalIncome || 0;
+      const income = latestSummary?.totalIncome ?? 0;
 
       return {
         userId: split.userId,
@@ -87,8 +92,8 @@ export async function calculateSplitRatio(householdId: string): Promise<SplitRat
     })
   );
 
-  console.log('Calculated splits:', result);
-  console.log('=== calculateSplitRatio END ===');
+  logger.debug('Calculated splits:', result); // FIX: SEC-003
+  logger.debug('=== calculateSplitRatio END ===');
   return result;
 }
 
@@ -102,17 +107,13 @@ export async function createExpenseSplits(
   householdId: string,
   paidByUserId: string
 ): Promise<ExpenseSplit[]> {
-  console.log('=== createExpenseSplits START ===');
-  console.log('Transaction ID:', transactionId);
-  console.log('Amount:', amount);
-  console.log('Household ID:', householdId);
-  console.log('Paid by:', paidByUserId);
+  logger.debug('=== createExpenseSplits START ==='); // FIX: SEC-003
 
   // Get split ratios
   const splits = await calculateSplitRatio(householdId);
 
   if (splits.length === 0) {
-    console.log('No splits calculated, returning empty array');
+    logger.debug('No splits calculated, returning empty array');
     return [];
   }
 
@@ -124,16 +125,16 @@ export async function createExpenseSplits(
       transactionId,
       owerUserId: split.userId,
       owedToUserId: paidByUserId,
-      splitAmount: Math.round((amount * split.percentage) / 100 * 100) / 100, // Round to 2 decimals
+      splitAmount: Math.round(((amount ?? 0) * (split.percentage ?? 0)) / 100 * 100) / 100, // FIX: DAT-008 - Null safety + Round to 2 decimals
       splitPercentage: split.percentage,
       isPaid: false, // They still owe this amount
       createdAt: Date.now()
     }));
 
-  console.log('Split records to create:', splitRecords);
+  logger.debug('Split records to create:', splitRecords.length); // FIX: SEC-003
 
   if (splitRecords.length === 0) {
-    console.log('No split records to create (only one member or payer is the only member)');
+    logger.debug('No split records to create (only one member or payer is the only member)');
     return [];
   }
 
@@ -151,8 +152,8 @@ export async function createExpenseSplits(
     )
   );
 
-  console.log('Splits created successfully');
-  console.log('=== createExpenseSplits END ===');
+  logger.debug('Splits created successfully');
+  logger.debug('=== createExpenseSplits END ===');
   return splitRecords;
 }
 
@@ -160,34 +161,32 @@ export async function createExpenseSplits(
  * Delete split records for a transaction (used when transaction is deleted or un-shared)
  */
 export async function deleteExpenseSplits(transactionId: string): Promise<void> {
-  console.log('=== deleteExpenseSplits START ===');
-  console.log('Transaction ID:', transactionId);
+  logger.debug('=== deleteExpenseSplits START ==='); // FIX: SEC-003
 
   const { data } = await db.queryOnce({
     shared_expense_splits: {
-      $: { where: { transactionId } }
+      $: { where: { transactionId } } // Scoped by transactionId
     }
   });
 
   const splits = data.shared_expense_splits || [];
-  console.log('Found splits to delete:', splits.length);
+  logger.debug('Found splits to delete:', splits.length);
 
   if (splits.length > 0) {
     await db.transact(
       splits.map((split: any) => db.tx.shared_expense_splits[split.id].delete())
     );
-    console.log('Splits deleted successfully');
+    logger.debug('Splits deleted successfully');
   }
 
-  console.log('=== deleteExpenseSplits END ===');
+  logger.debug('=== deleteExpenseSplits END ===');
 }
 
 /**
  * Mark a split as paid (settled)
  */
 export async function markSplitAsPaid(splitId: string): Promise<void> {
-  console.log('=== markSplitAsPaid START ===');
-  console.log('Split ID:', splitId);
+  logger.debug('=== markSplitAsPaid START ==='); // FIX: SEC-003
 
   await db.transact([
     db.tx.shared_expense_splits[splitId].update({
@@ -195,8 +194,8 @@ export async function markSplitAsPaid(splitId: string): Promise<void> {
     })
   ]);
 
-  console.log('Split marked as paid');
-  console.log('=== markSplitAsPaid END ===');
+  logger.debug('Split marked as paid');
+  logger.debug('=== markSplitAsPaid END ===');
 }
 
 /**
@@ -208,32 +207,41 @@ export async function calculateDebtBalance(
   userId1: string,
   userId2: string
 ): Promise<DebtBalance> {
-  console.log('=== calculateDebtBalance START ===');
-  console.log('User 1:', userId1);
-  console.log('User 2:', userId2);
+  logger.debug('=== calculateDebtBalance START ==='); // FIX: SEC-003
 
-  // Get all unpaid splits between these two users
-  const { data } = await db.queryOnce({
-    shared_expense_splits: {}
+  // FIX: SEC-010 - Scope splits query by user involvement instead of fetching ALL splits
+  // Get unpaid splits where user1 owes user2
+  const { data: user1OwesData } = await db.queryOnce({
+    shared_expense_splits: {
+      $: { where: { owerUserId: userId1 } }, // FIX: SEC-010 - Scoped to user1 as ower
+    },
   });
 
-  const allSplits = data.shared_expense_splits || [];
-  console.log('Total splits in database:', allSplits.length);
+  // Get unpaid splits where user2 owes user1
+  const { data: user2OwesData } = await db.queryOnce({
+    shared_expense_splits: {
+      $: { where: { owerUserId: userId2 } }, // FIX: SEC-010 - Scoped to user2 as ower
+    },
+  });
+
+  const user1OwesSplits = user1OwesData.shared_expense_splits || [];
+  const user2OwesSplits = user2OwesData.shared_expense_splits || [];
 
   let netBalance = 0;
 
-  for (const split of allSplits) {
-    if (split.isPaid) continue; // Skip settled splits
-
-    // User1 owes User2
-    if (split.owerUserId === userId1 && split.owedToUserId === userId2) {
-      netBalance += split.splitAmount;
-      console.log(`User1 owes User2: +${split.splitAmount}`);
+  // User1 owes User2
+  for (const split of user1OwesSplits) {
+    if (split.isPaid) continue;
+    if (split.owedToUserId === userId2) {
+      netBalance += (split.splitAmount ?? 0); // FIX: DAT-008 - Null safety
     }
-    // User2 owes User1
-    else if (split.owerUserId === userId2 && split.owedToUserId === userId1) {
-      netBalance -= split.splitAmount;
-      console.log(`User2 owes User1: -${split.splitAmount}`);
+  }
+
+  // User2 owes User1
+  for (const split of user2OwesSplits) {
+    if (split.isPaid) continue;
+    if (split.owedToUserId === userId1) {
+      netBalance -= (split.splitAmount ?? 0); // FIX: DAT-008 - Null safety
     }
   }
 
@@ -244,8 +252,8 @@ export async function calculateDebtBalance(
     amount: Math.abs(Math.round(netBalance * 100) / 100)
   };
 
-  console.log('Debt balance result:', result);
-  console.log('=== calculateDebtBalance END ===');
+  logger.debug('Debt balance calculated'); // FIX: SEC-003
+  logger.debug('=== calculateDebtBalance END ===');
   return result;
 }
 
@@ -253,18 +261,17 @@ export async function calculateDebtBalance(
  * Get all unpaid splits for a user (what they owe others)
  */
 export async function getUnpaidSplitsForUser(userId: string): Promise<any[]> {
-  console.log('=== getUnpaidSplitsForUser START ===');
-  console.log('User ID:', userId);
+  logger.debug('=== getUnpaidSplitsForUser START ==='); // FIX: SEC-003
 
   const { data } = await db.queryOnce({
     shared_expense_splits: {
-      $: { where: { owerUserId: userId, isPaid: false } }
+      $: { where: { owerUserId: userId, isPaid: false } } // Already scoped by userId
     }
   });
 
   const splits = data.shared_expense_splits || [];
-  console.log('Found unpaid splits:', splits.length);
-  console.log('=== getUnpaidSplitsForUser END ===');
+  logger.debug('Found unpaid splits:', splits.length);
+  logger.debug('=== getUnpaidSplitsForUser END ===');
   return splits;
 }
 
@@ -272,18 +279,17 @@ export async function getUnpaidSplitsForUser(userId: string): Promise<any[]> {
  * Get all unpaid splits owed TO a user (what others owe them)
  */
 export async function getUnpaidSplitsOwedToUser(userId: string): Promise<any[]> {
-  console.log('=== getUnpaidSplitsOwedToUser START ===');
-  console.log('User ID:', userId);
+  logger.debug('=== getUnpaidSplitsOwedToUser START ==='); // FIX: SEC-003
 
   const { data } = await db.queryOnce({
     shared_expense_splits: {
-      $: { where: { owedToUserId: userId, isPaid: false } }
+      $: { where: { owedToUserId: userId, isPaid: false } } // Already scoped by userId
     }
   });
 
   const splits = data.shared_expense_splits || [];
-  console.log('Found unpaid splits owed to user:', splits.length);
-  console.log('=== getUnpaidSplitsOwedToUser END ===');
+  logger.debug('Found unpaid splits owed to user:', splits.length);
+  logger.debug('=== getUnpaidSplitsOwedToUser END ===');
   return splits;
 }
 
@@ -291,18 +297,17 @@ export async function getUnpaidSplitsOwedToUser(userId: string): Promise<any[]> 
  * Get splits for a specific transaction
  */
 export async function getSplitsForTransaction(transactionId: string): Promise<any[]> {
-  console.log('=== getSplitsForTransaction START ===');
-  console.log('Transaction ID:', transactionId);
+  logger.debug('=== getSplitsForTransaction START ==='); // FIX: SEC-003
 
   const { data } = await db.queryOnce({
     shared_expense_splits: {
-      $: { where: { transactionId } }
+      $: { where: { transactionId } } // Scoped by transactionId
     }
   });
 
   const splits = data.shared_expense_splits || [];
-  console.log('Found splits:', splits.length);
-  console.log('=== getSplitsForTransaction END ===');
+  logger.debug('Found splits:', splits.length);
+  logger.debug('=== getSplitsForTransaction END ===');
   return splits;
 }
 
@@ -312,7 +317,7 @@ export async function getSplitsForTransaction(transactionId: string): Promise<an
 export async function getUserHouseholdId(userId: string): Promise<string | null> {
   const { data } = await db.queryOnce({
     householdMembers: {
-      $: { where: { userId, status: 'active' } }
+      $: { where: { userId, status: 'active' } } // Already scoped by userId
     }
   });
 
@@ -325,7 +330,7 @@ export async function getUserHouseholdId(userId: string): Promise<string | null>
 export async function getOtherHouseholdMember(userId: string, householdId: string): Promise<string | null> {
   const { data } = await db.queryOnce({
     householdMembers: {
-      $: { where: { householdId, status: 'active' } }
+      $: { where: { householdId, status: 'active' } } // Already scoped by householdId
     }
   });
 

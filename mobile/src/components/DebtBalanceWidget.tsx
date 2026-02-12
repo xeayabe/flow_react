@@ -1,3 +1,9 @@
+// FIX: PERF-4 - Removed aggressive refetchInterval: 5000 from debt balance query.
+// This widget was polling the database every 5 seconds (~17,280 calls/day),
+// even when the settlement screen was not visible. Debt balances only change
+// when settlements are created or shared expenses are added, both of which
+// invalidate the relevant queries via queryClient.
+
 import React, { useState } from 'react';
 import { View, Text, Pressable, Alert } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -93,8 +99,6 @@ export default function DebtBalanceWidget() {
   const { data: debtInfo } = useQuery({
     queryKey: ['debt-balance', user?.email],
     queryFn: async () => {
-      console.log('🔍 DebtBalanceWidget: Starting query for', user?.email);
-
       if (!user?.email) throw new Error('No user email');
 
       // Get current user profile
@@ -103,12 +107,10 @@ export default function DebtBalanceWidget() {
       });
 
       if (!userData?.users?.[0]) {
-        console.log('❌ No user profile found');
         return null;
       }
 
       const userProfile = userData.users[0];
-      console.log('👤 User profile:', userProfile.id, userProfile.name);
 
       // Get current user's household membership
       const { data: memberData } = await db.queryOnce({
@@ -118,12 +120,10 @@ export default function DebtBalanceWidget() {
       });
 
       if (!memberData?.householdMembers?.[0]) {
-        console.log('❌ No household membership found for user');
         return null;
       }
 
       const currentMember = memberData.householdMembers[0];
-      console.log('🏠 Current member:', currentMember.id, 'Household:', currentMember.householdId);
 
       // Get all household members
       const { data: allMembersData } = await db.queryOnce({
@@ -139,14 +139,8 @@ export default function DebtBalanceWidget() {
       });
 
       if (!allMembersData?.householdMembers) {
-        console.log('❌ No household members data returned');
         return null;
       }
-
-      console.log('👥 Total household members:', allMembersData.householdMembers.length);
-      allMembersData.householdMembers.forEach((m: any) => {
-        console.log('   -', m.userId, 'Role:', m.role);
-      });
 
       // Find the other member (partner)
       const otherMember = allMembersData.householdMembers.find(
@@ -154,28 +148,19 @@ export default function DebtBalanceWidget() {
       );
 
       if (!otherMember) {
-        console.log('❌ No partner found in household');
         return null;
       }
 
       const otherUser = allMembersData.users?.find((u: any) => u.id === otherMember.userId);
-      console.log('👥 Partner found:', otherUser?.name);
 
       // Get split percentages based on income
-      console.log('📊 Calculating split ratios for household:', currentMember.householdId);
       const splits = await calculateSplitRatio(currentMember.householdId);
-      console.log('📊 Split ratios returned:', splits);
 
       const currentUserSplit = splits.find((s: any) => s.userId === userProfile.id);
       const otherUserSplit = splits.find((s: any) => s.userId === otherMember.userId);
 
-      console.log('📊 Current user split:', currentUserSplit?.percentage || 50, '%');
-      console.log('📊 Other user split:', otherUserSplit?.percentage || 50, '%');
-
       // Calculate debt balance
-      console.log('💰 Calculating debt balance between', userProfile.id, 'and', otherMember.userId);
       const balance = await calculateDebtBalance(userProfile.id, otherMember.userId);
-      console.log('💰 Debt balance result:', balance);
 
       const result = {
         ...balance,
@@ -185,27 +170,22 @@ export default function DebtBalanceWidget() {
         otherUserPercentage: otherUserSplit?.percentage || 50,
       } as DebtInfo;
 
-      console.log('✅ DebtBalanceWidget query complete:', result);
       return result;
     },
     enabled: !!user?.email,
-    refetchInterval: 5000, // Refresh every 5 seconds
-  });
-
-  console.log('🎨 Rendering DebtBalanceWidget:', {
-    hasData: !!debtInfo,
-    amount: debtInfo?.amount,
+    // FIX: PERF-4 - Removed refetchInterval: 5000.
+    // Debt balance only changes when settlements or shared expenses are created.
+    // Those mutations invalidate ['debt-balance'] via queryClient.invalidateQueries().
+    staleTime: 60_000,
   });
 
   // Don't show widget if no data (single-member household)
   if (!debtInfo) {
-    console.log('⚠️ Widget hidden: No debt info (likely single-member household)');
     return null;
   }
 
   // Don't show widget if balance is 0 (no active settlement needed)
   if (debtInfo.amount === 0) {
-    console.log('⚠️ Widget hidden: Balance is 0, no active settlement');
     return null;
   }
 

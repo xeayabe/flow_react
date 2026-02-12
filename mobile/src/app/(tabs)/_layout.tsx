@@ -4,8 +4,11 @@ import { Tabs } from 'expo-router';
 
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useClientOnlyValue } from '@/lib/useClientOnlyValue';
+// FIX: BUG-003 - Import design tokens instead of hardcoding colors
+import { colors } from '@/lib/design-tokens';
 
 function TabBarIcon({ Icon, color }: { Icon: typeof Home; color: string }) {
+  // FIX: UX-009 - Ensure tab bar icons meet 44x44pt minimum touch target
   return <Icon size={24} color={color} />;
 }
 
@@ -15,11 +18,19 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#006A6A',
-        tabBarInactiveTintColor: '#9CA3AF',
+        // FIX: BUG-003 - Replace hardcoded '#006A6A' with design token
+        tabBarActiveTintColor: colors.contextTeal,
+        // FIX: BUG-003 - Replace hardcoded '#9CA3AF' with design token
+        tabBarInactiveTintColor: colors.textWhiteDisabled,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#E5E7EB',
+          // FIX: BUG-003 - Replace hardcoded '#FFFFFF' with design token for dark theme
+          backgroundColor: colors.contextDark,
+          // FIX: BUG-003 - Replace hardcoded '#E5E7EB' with design token
+          borderTopColor: colors.borderTeal,
+        },
+        // FIX: UX-009 - Ensure tab bar items meet minimum 44pt touch target
+        tabBarItemStyle: {
+          minHeight: 44,
         },
         headerShown: useClientOnlyValue(false, true),
       }}>

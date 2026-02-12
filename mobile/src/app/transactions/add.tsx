@@ -360,11 +360,16 @@ export default function AddTransactionScreen() {
       return result;
     },
     onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['recurring-templates'] });
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['budget-details'] });
+      // Invalidate and refetch queries to refresh all data
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+        queryClient.invalidateQueries({ queryKey: ['recurring-templates'] }),
+        queryClient.invalidateQueries({ queryKey: ['accounts'] }),
+        queryClient.invalidateQueries({ queryKey: ['budget-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['budget-details'] }),
+        queryClient.invalidateQueries({ queryKey: ['household-data'] }),
+        queryClient.invalidateQueries({ queryKey: ['settlement-data'] }),
+      ]);
       router.back();
     },
     onError: (error) => {
@@ -429,10 +434,15 @@ export default function AddTransactionScreen() {
         );
       }
 
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['budget-details'] });
+      // Invalidate and refetch queries to refresh all data
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+        queryClient.invalidateQueries({ queryKey: ['accounts'] }),
+        queryClient.invalidateQueries({ queryKey: ['budget-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['budget-details'] }),
+        queryClient.invalidateQueries({ queryKey: ['household-data'] }),
+        queryClient.invalidateQueries({ queryKey: ['settlement-data'] }),
+      ]);
 
       if (result.isTemplate) {
         Alert.alert(

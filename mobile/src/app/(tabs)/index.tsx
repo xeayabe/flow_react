@@ -106,8 +106,9 @@ export default function DashboardScreen() {
       return calculateTrueBalance(userId);
     },
     enabled: !!userId,
-    refetchInterval: 5000,
-    staleTime: 5000,
+    // FIX: PERF-4 - Removed refetchInterval: 5000.
+    // Balance changes only after transactions/settlements, which invalidate this query.
+    staleTime: 30_000,
   });
 
   // Get all accounts
@@ -251,7 +252,8 @@ export default function DashboardScreen() {
         <View className="flex-1 items-center justify-center px-6">
           <Text className="text-4xl mb-4">⚠️</Text>
           <Text className="text-white text-lg font-semibold mb-2">Unable to load dashboard</Text>
-          <Text className="text-white/60 text-sm text-center mb-6">
+          {/* FIX: TASK-3 - Use design token for text color */}
+          <Text style={{ color: colors.textWhiteTertiary }} className="text-sm text-center mb-6">
             {(userProfileQuery.error as Error).message}
           </Text>
           <Pressable
@@ -337,7 +339,8 @@ export default function DashboardScreen() {
 
   return (
     <LinearGradient
-      colors={['#1A1C1E', '#2C5F5D']}
+      // FIX: TASK-3 - Replace hardcoded gradient colors with design tokens
+      colors={[colors.contextDark, colors.contextTeal]}
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 1 }}
       style={{ flex: 1 }}
@@ -434,7 +437,8 @@ export default function DashboardScreen() {
             borderColor: colors.borderSage,
           }}
         />
-        <Plus size={28} color="#fff" strokeWidth={2.5} />
+        {/* FIX: TASK-3 - Use design token for icon color */}
+        <Plus size={28} color={colors.textWhite} strokeWidth={2.5} />
       </Pressable>
     </LinearGradient>
   );

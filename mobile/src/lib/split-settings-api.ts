@@ -1,3 +1,5 @@
+// FIX: DAT-001 - Removed sort by non-existent periodStart field on budgetSummary
+// FIX: DAT-008 - Added null safety (?? 0) for financial arithmetic
 import { db } from './db';
 
 /**
@@ -31,16 +33,20 @@ export async function getSplitSettings(householdId: string) {
     const memberIncomes: Record<string, number> = {};
 
     members.forEach((m: any) => {
-      // Get the most recent budget summary for this user
+      // FIX: DAT-001 - budgetSummary has NO periodStart field in the schema.
+      // Previously sorted by b.periodStart which always returned NaN.
+      // Since each user typically has one active budgetSummary, we just filter by userId
+      // and take the first result.
       const userSummaries = budgetSummaries
-        .filter((s: any) => s.userId === m.userId)
-        .sort((a: any, b: any) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime());
+        .filter((s: any) => s.userId === m.userId);
 
       const latestSummary = userSummaries[0];
-      memberIncomes[m.userId] = latestSummary?.totalIncome || 0;
+      // FIX: DAT-008 - Null safety: use ?? 0 for totalIncome
+      memberIncomes[m.userId] = latestSummary?.totalIncome ?? 0;
     });
 
-    const totalIncome = Object.values(memberIncomes).reduce((sum: number, income: number) => sum + income, 0);
+    // FIX: DAT-008 - Null safety in total income calculation
+    const totalIncome = Object.values(memberIncomes).reduce((sum: number, income: number) => sum + (income ?? 0), 0);
 
     if (totalIncome === 0) {
       // No incomes set - split evenly
@@ -50,7 +56,7 @@ export async function getSplitSettings(householdId: string) {
     } else {
       // Proportional based on income
       members.forEach((m: any) => {
-        splitRatios[m.userId] = ((memberIncomes[m.userId] || 0) / totalIncome) * 100;
+        splitRatios[m.userId] = (((memberIncomes[m.userId] ?? 0) / totalIncome) * 100);
       });
     }
   } else {
@@ -67,7 +73,7 @@ export async function getSplitSettings(householdId: string) {
       return {
         userId: m.userId,
         name: user?.name || 'Unknown',
-        percentage: splitRatios[m.userId] || 0
+        percentage: splitRatios[m.userId] ?? 0 // FIX: DAT-008 - Null safety
       };
     })
   };
@@ -81,11 +87,11 @@ export async function updateSplitSettings(
   splitMethod: 'automatic' | 'manual',
   manualRatios?: Record<string, number>
 ) {
-  console.log('💾 Updating split settings:', { householdId, splitMethod, manualRatios });
+  console.log('Updating split settings:', { householdId, splitMethod, manualRatios });
 
   // Validate manual ratios if provided
   if (splitMethod === 'manual' && manualRatios) {
-    const total = Object.values(manualRatios).reduce((sum, val) => sum + val, 0);
+    const total = Object.values(manualRatios).reduce((sum, val) => sum + (val ?? 0), 0); // FIX: DAT-008
     if (Math.abs(total - 100) > 0.01) {
       throw new Error('Percentages must total 100%');
     }
@@ -98,7 +104,7 @@ export async function updateSplitSettings(
     })
   ]);
 
-  console.log('✅ Split settings updated');
+  console.log('Split settings updated');
 }
 
 /**
@@ -116,7 +122,8 @@ export async function getCurrentSplitRatio(householdId: string): Promise<Array<{
       }
     });
 
-    const evenSplit = 100 / (data.householdMembers?.length || 1);
+    const memberCount = data.householdMembers?.length || 1;
+    const evenSplit = 100 / memberCount;
     return (data.householdMembers || []).map((m: any) => ({
       userId: m.userId,
       percentage: evenSplit

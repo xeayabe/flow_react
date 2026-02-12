@@ -1,5 +1,8 @@
+// FIX: DAT-005 - Removed unused calculateBudgetPeriod import and dead budgetPeriod variable
+// FIX: SEC-003 - Replaced console.log/error with secure logger; removed sensitive data from logs
 import { db } from './db';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from './logger'; // FIX: SEC-003 - Secure logger
 
 // Generate random 6-character alphanumeric code
 function generateInviteCode(): string {
@@ -74,24 +77,18 @@ export async function validateInviteCode(code: string) {
 
 // Accept invite code (after signup)
 export async function acceptInviteCode(code: string, newUserId: string) {
-  console.log('=== acceptInviteCode START ===');
-  console.log('Code:', code);
-  console.log('New user ID:', newUserId);
+  logger.debug('=== acceptInviteCode START ==='); // FIX: SEC-003
 
   const validation = await validateInviteCode(code);
-  console.log('Validation result:', validation);
+  logger.debug('Validation result:', { valid: validation.valid }); // FIX: SEC-003 - Don't log code or invite details
 
   if (!validation.valid) {
-    console.error('Invalid code:', validation.error);
+    logger.error('Invalid invite code'); // FIX: SEC-003 - Don't log error details
     throw new Error(validation.error);
   }
 
   const invite = validation.invite!;
-  console.log('Valid invite found:', {
-    inviteId: invite.id,
-    householdId: invite.householdId,
-    invitedBy: invite.invitedByUserId
-  });
+  logger.debug('Valid invite found'); // FIX: SEC-003 - Don't log invite ID, householdId, or invitedBy
 
   // Check household member limit (max 2 for Phase 2)
   const { data } = await db.queryOnce({
@@ -105,10 +102,10 @@ export async function acceptInviteCode(code: string, newUserId: string) {
     }
   });
 
-  console.log('Current active members:', data.householdMembers.length);
+  logger.debug('Current active members:', data.householdMembers.length); // FIX: SEC-003
 
   if (data.householdMembers.length >= 2) {
-    console.error('Household full');
+    logger.error('Household full'); // FIX: SEC-003
     throw new Error('Household is full (max 2 members)');
   }
 
@@ -122,20 +119,16 @@ export async function acceptInviteCode(code: string, newUserId: string) {
   const household = householdResult.data.households?.[0];
   const householdPayday = household?.paydayDay ?? 25;
 
-  // Calculate budget period for invited member using household's payday
-  const { calculateBudgetPeriod } = await import('./payday-utils');
-  const budgetPeriod = calculateBudgetPeriod(householdPayday);
+  // FIX: DAT-005 - Removed unused calculateBudgetPeriod import and dead code.
+  // Previously: const { calculateBudgetPeriod } = await import('./payday-utils');
+  //             const budgetPeriod = calculateBudgetPeriod(householdPayday);
+  // The budgetPeriod variable was calculated but never used in the db.transact() call below.
+  // Budget periods are always calculated dynamically from paydayDay, never stored in the database.
 
   // Add user to household as MEMBER with household's payday as default
   const memberId = uuidv4();
 
-  console.log('Creating household member:');
-  console.log('- Member ID:', memberId);
-  console.log('- Household ID:', invite.householdId);
-  console.log('- User ID:', newUserId);
-  console.log('- Role: member');
-  console.log('- Status: active');
-  console.log('- Payday: initialized with household payday (' + householdPayday + ')');
+  logger.debug('Creating household member with role: member'); // FIX: SEC-003 - Don't log IDs
 
   await db.transact([
     // Mark invite as accepted
@@ -155,8 +148,8 @@ export async function acceptInviteCode(code: string, newUserId: string) {
     })
   ]);
 
-  console.log('Transaction complete - member added with role: member');
-  console.log('=== acceptInviteCode END ===');
+  logger.debug('Transaction complete - member added'); // FIX: SEC-003
+  logger.debug('=== acceptInviteCode END ===');
 
   return { householdId: invite.householdId };
 }

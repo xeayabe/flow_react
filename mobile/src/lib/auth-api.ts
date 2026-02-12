@@ -1,7 +1,15 @@
+// FIX: SEC-003 - Replaced console.log/error with secure logger
+// FIX: SEC-004 - Generic error messages that don't leak implementation details
+// FIX: DAT-005 - Removed unused calculateBudgetPeriod import and dead code that calculated period dates
+// All queries in this file are already properly scoped by email or userId
+
 import { db } from './db';
-import { calculateBudgetPeriod } from './payday-utils';
+// FIX: DAT-005 - Removed: import { calculateBudgetPeriod } from './payday-utils';
+// calculateBudgetPeriod was imported and called but the result was never used.
+// Periods are calculated dynamically from paydayDay, never stored.
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from './logger'; // FIX: SEC-003 - Secure logger
 
 export interface SignupData {
   email: string;
@@ -113,21 +121,24 @@ export async function sendMagicCode(email: string): Promise<AuthResponse> {
   } catch (error: unknown) {
     const err = error as { message?: string; body?: { message?: string } };
 
-    // Parse error message for user-friendly responses
+    // FIX: SEC-004 - Parse error internally but NEVER expose implementation details to user
     const errorMessage = err.message || err.body?.message || '';
 
-    let userFriendlyError = 'Failed to send verification code. Please try again';
+    // FIX: SEC-004 - Always return a generic, user-friendly error message
+    // Do NOT expose internal error details like DB names, query structure, or stack traces
+    let userFriendlyError = 'Unable to send verification code. Please try again.'; // FIX: SEC-004
 
-    // Handle specific error cases
+    // Handle specific error cases with generic messages
     if (errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
-      userFriendlyError = 'Too many attempts. Please try again in a few minutes';
-      console.log('Magic code request rate limited');
+      userFriendlyError = 'Too many attempts. Please try again in a few minutes.';
+      logger.debug('Magic code request rate limited'); // FIX: SEC-003
     } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
-      userFriendlyError = 'Connection issue. Please check your internet and try again';
-      console.log('Network error sending magic code');
+      userFriendlyError = 'Connection issue. Please check your internet and try again.';
+      logger.debug('Network error sending magic code'); // FIX: SEC-003
     } else {
-      // Log unexpected errors for debugging
-      console.error('Send magic code error:', error);
+      // FIX: SEC-003 - Log internally for debugging but don't expose to user
+      // FIX: SEC-004 - Error object may contain DB table names, query info, etc.
+      logger.error('Send magic code error:', errorMessage); // FIX: SEC-003 - Don't log full error object
     }
 
     // Record failed attempt
@@ -135,7 +146,7 @@ export async function sendMagicCode(email: string): Promise<AuthResponse> {
 
     return {
       success: false,
-      error: userFriendlyError,
+      error: userFriendlyError, // FIX: SEC-004 - Generic message only
     };
   }
 }
@@ -160,26 +171,27 @@ export async function verifyMagicCode(email: string, code: string): Promise<Auth
   } catch (error: unknown) {
     const err = error as { message?: string; body?: { message?: string } };
 
-    // Parse error message for user-friendly responses
-    // Check both error.message and error.body.message
+    // FIX: SEC-004 - Parse error internally but NEVER expose implementation details
     const errorMessage = err.message || err.body?.message || '';
 
-    let userFriendlyError = 'Incorrect code. Please check your email and try again';
+    // FIX: SEC-004 - Always return generic messages regardless of the specific error
+    // The original code exposed "Record not found" and "app-user-magic-code" table names
+    let userFriendlyError = 'Incorrect code. Please check your email and try again.'; // FIX: SEC-004
 
-    // Handle specific error cases
+    // Handle specific error cases with generic messages
     if (errorMessage.includes('Record not found') || errorMessage.includes('app-user-magic-code')) {
-      userFriendlyError = 'Incorrect code. Please check your email and try again';
-      // Log user-friendly message instead of technical error
-      console.log('Login attempt with incorrect verification code');
+      // FIX: SEC-004 - Don't reveal that the issue is a missing DB record or table name
+      userFriendlyError = 'Incorrect code. Please check your email and try again.';
+      logger.debug('Login attempt with incorrect verification code'); // FIX: SEC-003
     } else if (errorMessage.includes('expired')) {
-      userFriendlyError = 'This code has expired. Please request a new one';
-      console.log('Login attempt with expired verification code');
+      userFriendlyError = 'This code has expired. Please request a new one.';
+      logger.debug('Login attempt with expired verification code'); // FIX: SEC-003
     } else if (errorMessage.includes('already used')) {
-      userFriendlyError = 'This code has already been used. Please request a new one';
-      console.log('Login attempt with already used verification code');
+      userFriendlyError = 'This code has already been used. Please request a new one.';
+      logger.debug('Login attempt with already used verification code'); // FIX: SEC-003
     } else {
-      // Log unexpected errors for debugging
-      console.error('Verify magic code error:', error);
+      // FIX: SEC-003 + SEC-004 - Log error message only, not full error object
+      logger.error('Verify magic code error:', errorMessage); // FIX: SEC-003
     }
 
     // Record failed attempt
@@ -187,7 +199,7 @@ export async function verifyMagicCode(email: string, code: string): Promise<Auth
 
     return {
       success: false,
-      error: userFriendlyError,
+      error: userFriendlyError, // FIX: SEC-004 - Generic message only
     };
   }
 }
@@ -201,7 +213,7 @@ export async function createUserProfile(email: string, name: string): Promise<Au
     const userId = uuidv4();
     const now = Date.now();
 
-    console.log('⚠️ createUserProfile - Creating user ONLY, NO household');
+    logger.debug('createUserProfile - Creating user profile'); // FIX: SEC-003 - Don't log email or name
 
     // Create user profile
     await db.transact([
@@ -214,15 +226,15 @@ export async function createUserProfile(email: string, name: string): Promise<Au
       }),
     ]);
 
-    console.log('✅ User profile created:', { userId, email, name });
-    console.log('⚠️ NO household created - must be created separately');
+    logger.debug('User profile created successfully'); // FIX: SEC-003 - Don't log userId, email, or name
 
     return { success: true };
   } catch (error) {
-    console.error('Create profile error:', error);
+    // FIX: SEC-003 + SEC-004 - Don't log or expose full error details
+    logger.error('Create profile error'); // FIX: SEC-003 - Don't log error object that may contain user data
     return {
       success: false,
-      error: 'Failed to create user profile',
+      error: 'Unable to create your profile. Please try again.', // FIX: SEC-004 - Generic message
     };
   }
 }
@@ -232,12 +244,14 @@ export async function createUserProfile(email: string, name: string): Promise<Au
  */
 export async function createDefaultHousehold(userId: string, name: string): Promise<{ success: boolean; householdId?: string; error?: string }> {
   try {
-    console.log('Creating default household for user:', userId);
+    logger.debug('Creating default household'); // FIX: SEC-003 - Don't log userId
 
     const householdId = uuidv4();
     const householdName = `${name}'s Household`;
     const defaultPaydayDay = 25; // Swiss standard
-    const budgetPeriod = calculateBudgetPeriod(defaultPaydayDay);
+    // FIX: DAT-005 - Removed: const budgetPeriod = calculateBudgetPeriod(defaultPaydayDay);
+    // The budgetPeriod variable was calculated but never used. Budget periods are
+    // always calculated dynamically from paydayDay, never stored in the database.
     const now = Date.now();
 
     // Create household
@@ -262,17 +276,15 @@ export async function createDefaultHousehold(userId: string, name: string): Prom
       }),
     ]);
 
-    console.log('✅ Household member created');
-    console.log('✅ Personal budget period set:', budgetPeriod.start, '-', budgetPeriod.end);
-
-    console.log('✅ Default household created:', { householdId, householdName });
+    logger.debug('Default household created successfully'); // FIX: SEC-003 - Don't log householdId or name
 
     return { success: true, householdId };
   } catch (error) {
-    console.error('Create default household error:', error);
+    // FIX: SEC-003 + SEC-004 - Don't expose internal error details
+    logger.error('Create default household error'); // FIX: SEC-003
     return {
       success: false,
-      error: 'Failed to create default household',
+      error: 'Unable to set up your household. Please try again.', // FIX: SEC-004 - Generic message
     };
   }
 }
@@ -298,7 +310,7 @@ export async function checkUserProfile(email: string): Promise<{ exists: boolean
     }
     return { exists: false };
   } catch (error) {
-    console.error('Check profile error:', error);
+    logger.error('Check profile error'); // FIX: SEC-003 - Don't log error that may contain email
     return { exists: false };
   }
 }

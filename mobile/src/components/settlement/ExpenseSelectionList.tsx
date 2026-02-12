@@ -63,63 +63,64 @@ export function ExpenseSelectionList({
                   : 'rgba(255, 255, 255, 0.05)',
                 borderRadius: 12,
                 padding: 14,
-                flexDirection: 'row',
-                alignItems: 'center',
               })}
             >
-              {/* Checkbox */}
-              <View
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 4,
-                  backgroundColor: isSelected ? '#2C5F5D' : 'transparent',
-                  borderWidth: isSelected ? 0 : 2,
-                  borderColor: 'rgba(255, 255, 255, 0.3)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 12,
-                }}
-              >
-                {isSelected && (
-                  <Check size={14} color="#fff" strokeWidth={2.5} />
-                )}
-              </View>
-
-              {/* Expense Details */}
-              <View className="flex-1">
-                <Text
-                  className="text-white/90 font-medium"
-                  style={{ fontSize: 15 }}
-                  numberOfLines={1}
-                >
-                  {expense.description}
-                </Text>
-                <Text
-                  className="text-white/50 mt-1"
-                  style={{ fontSize: 11 }}
-                >
-                  {formatTransactionDate(expense.date)} • Paid by {expense.paidBy}
-                </Text>
-                <Text
-                  className="text-white/60 mt-1"
-                  style={{ fontSize: 11 }}
-                >
-                  You owe: {formatCurrency(Math.abs(expense.yourShare))}
-                </Text>
-              </View>
-
-              {/* Total Amount */}
-              <View className="items-end">
-                <Text
-                  className="text-white/80"
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                {/* Checkbox */}
+                <View
                   style={{
-                    fontSize: 14,
-                    fontVariant: ['tabular-nums'],
+                    width: 20,
+                    height: 20,
+                    borderRadius: 4,
+                    backgroundColor: isSelected ? '#2C5F5D' : 'transparent',
+                    borderWidth: isSelected ? 0 : 2,
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 12,
+                    marginTop: 2,
                   }}
                 >
-                  {formatCurrency(expense.totalAmount)}
-                </Text>
+                  {isSelected && (
+                    <Check size={14} color="#fff" strokeWidth={2.5} />
+                  )}
+                </View>
+
+                {/* Expense Details */}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text
+                    className="text-white/90 font-medium"
+                    style={{ fontSize: 15 }}
+                    numberOfLines={1}
+                  >
+                    {expense.description}
+                  </Text>
+                  <Text
+                    className="text-white/50 mt-1"
+                    style={{ fontSize: 11 }}
+                  >
+                    {formatTransactionDate(expense.date)} • Paid by {expense.paidBy}
+                  </Text>
+                  <Text
+                    className="text-white/60 mt-1"
+                    style={{ fontSize: 11 }}
+                  >
+                    You owe: {formatCurrency(Math.abs(expense.yourShare))}
+                  </Text>
+                </View>
+
+                {/* Total Amount */}
+                <View style={{ alignItems: 'flex-end', marginLeft: 12 }}>
+                  <Text
+                    className="text-white/80"
+                    style={{
+                      fontSize: 14,
+                      fontVariant: ['tabular-nums'],
+                    }}
+                  >
+                    {formatCurrency(expense.totalAmount)}
+                  </Text>
+                </View>
               </View>
             </Pressable>
           );

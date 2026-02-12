@@ -1,6 +1,15 @@
+// FIX: SEC-001 - Scoped accounts query in createSettlement
+// FIX: SEC-002 - Scoped users queries via household member lookup
+// FIX: SEC-003 - Replaced console.log/error/warn with secure logger
+// FIX: SEC-010 - Scoped shared_expense_splits queries by user involvement
+// FIX: DAT-003 - Atomic settlement operations (from other agent)
+// FIX: DAT-008 - Null safety for financial arithmetic (from other agent)
+// FIX: CODE-6 - Decomposed into clear phases (from other agent)
+
 import { db } from './db';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from './logger'; // FIX: SEC-003 - Secure logger
 
 /**
  * Unsettled shared expense with details
@@ -32,15 +41,80 @@ export interface DebtSummary {
 }
 
 /**
+ * FIX: SEC-002 - Helper to get user details via household member lookup
+ * Instead of fetching ALL users, fetches household members first then users by ID
+ */
+async function getHouseholdUserMap(householdId: string): Promise<Map<string, any>> {
+  // Get household members (scoped by householdId)
+  const { data: memberData } = await db.queryOnce({
+    householdMembers: {
+      $: { where: { householdId, status: 'active' } }, // FIX: SEC-002 - Scoped
+    },
+  });
+
+  const members = memberData.householdMembers || [];
+  const userMap = new Map<string, any>();
+
+  // Fetch each user by their ID individually
+  for (const member of members) {
+    const { data: userData } = await db.queryOnce({
+      users: {
+        $: { where: { id: member.userId } }, // FIX: SEC-002 - Scoped by id
+      },
+    });
+    const user = userData.users?.[0];
+    if (user) {
+      userMap.set(user.id, user);
+    }
+  }
+
+  return userMap;
+}
+
+/**
+ * FIX: SEC-010 - Helper to get splits for household transactions
+ * Instead of fetching ALL splits, fetches by owerUserId and owedToUserId
+ */
+async function getHouseholdSplits(
+  transactionIds: string[],
+  userId1: string,
+  userId2: string
+): Promise<any[]> {
+  // FIX: SEC-010 - Fetch splits scoped by user involvement
+  const { data: owerData1 } = await db.queryOnce({
+    shared_expense_splits: {
+      $: { where: { owerUserId: userId1 } }, // FIX: SEC-010 - Scoped
+    },
+  });
+
+  const { data: owerData2 } = await db.queryOnce({
+    shared_expense_splits: {
+      $: { where: { owerUserId: userId2 } }, // FIX: SEC-010 - Scoped
+    },
+  });
+
+  const allRelevantSplits = [
+    ...(owerData1.shared_expense_splits || []),
+    ...(owerData2.shared_expense_splits || []),
+  ];
+
+  // Deduplicate by id and filter to household transactions
+  const seenIds = new Set<string>();
+  return allRelevantSplits.filter((s: any) => {
+    if (seenIds.has(s.id)) return false;
+    seenIds.add(s.id);
+    return transactionIds.includes(s.transactionId);
+  });
+}
+
+/**
  * Get ALL unsettled shared expenses for the current user in a household
  */
 export async function getUnsettledSharedExpenses(
   householdId: string,
   currentUserId: string
 ): Promise<UnsettledExpense[]> {
-  console.log('=== getUnsettledSharedExpenses START ===');
-  console.log('Household ID:', householdId);
-  console.log('Current User ID:', currentUserId);
+  logger.debug('=== getUnsettledSharedExpenses START ==='); // FIX: SEC-003
 
   // Get all shared transactions for this household
   const { data: txData } = await db.queryOnce({
@@ -58,28 +132,30 @@ export async function getUnsettledSharedExpenses(
   // DON'T filter by transaction.settled - we only care about split.isPaid
   // The transaction.settled flag is just for tracking, splits are the source of truth
   const transactions = allTransactions;
-  console.log('Found shared transactions:', transactions.length);
+  logger.debug('Found shared transactions:', transactions.length); // FIX: SEC-003
 
   if (transactions.length === 0) {
-    console.log('No shared transactions found');
+    logger.debug('No shared transactions found'); // FIX: SEC-003
     return [];
   }
 
-  // Get all splits
-  const { data: splitData } = await db.queryOnce({
-    shared_expense_splits: {},
+  // FIX: SEC-002 - Get household members to find the other user
+  const { data: memberData } = await db.queryOnce({
+    householdMembers: {
+      $: { where: { householdId, status: 'active' } }, // FIX: SEC-002 - Scoped
+    },
   });
-
-  const allSplits = splitData.shared_expense_splits || [];
-  console.log('Total splits in DB:', allSplits.length);
+  const members = memberData.householdMembers || [];
+  const otherMember = members.find((m: any) => m.userId !== currentUserId);
+  const otherUserId = otherMember?.userId || '';
 
   // Create transaction map for quick lookup
   const transactionMap = new Map(transactions.map((t: any) => [t.id, t]));
   const transactionIds = transactions.map((t: any) => t.id);
 
-  // Filter splits for this household's transactions
-  const householdSplits = allSplits.filter((s: any) => transactionIds.includes(s.transactionId));
-  console.log('Household splits:', householdSplits.length);
+  // FIX: SEC-010 - Get splits scoped by user involvement instead of all splits
+  const householdSplits = await getHouseholdSplits(transactionIds, currentUserId, otherUserId);
+  logger.debug('Household splits:', householdSplits.length); // FIX: SEC-003
 
   // Get categories for display
   const { data: categoryData } = await db.queryOnce({
@@ -90,28 +166,19 @@ export async function getUnsettledSharedExpenses(
   const categories = categoryData.categories || [];
   const categoryMap = new Map(categories.map((c: any) => [c.id, c]));
 
-  // Get users for display
-  const { data: userData } = await db.queryOnce({
-    users: {},
-  });
-  const users = userData.users || [];
-  const userMap = new Map(users.map((u: any) => [u.id, u]));
+  // FIX: SEC-002 - Get users via household member lookup instead of fetching ALL users
+  const userMap = await getHouseholdUserMap(householdId);
 
   // Find unpaid splits where current user owes money OR is owed money
   const unsettledExpenses: UnsettledExpense[] = [];
 
-  console.log('🔍 Processing splits for current user:', currentUserId.substring(0, 8));
   for (const split of householdSplits) {
-    console.log(`  Split ${split.id.substring(0, 8)}: owerUserId=${split.owerUserId?.substring(0, 8)}, owedToUserId=${split.owedToUserId?.substring(0, 8)}, isPaid=${split.isPaid}, amount=${split.splitAmount}`);
-
     if (split.isPaid) {
-      console.log(`    ❌ Skipping - already paid`);
       continue; // Skip settled splits
     }
 
     const transaction = transactionMap.get(split.transactionId);
     if (!transaction) {
-      console.log(`    ❌ Skipping - no transaction found for ID ${split.transactionId?.substring(0, 8)}`);
       continue;
     }
 
@@ -119,14 +186,9 @@ export async function getUnsettledSharedExpenses(
     const currentUserOwes = split.owerUserId === currentUserId;
     const currentUserIsOwed = split.owedToUserId === currentUserId;
 
-    console.log(`    currentUserOwes=${currentUserOwes}, currentUserIsOwed=${currentUserIsOwed}`);
-
     if (!currentUserOwes && !currentUserIsOwed) {
-      console.log(`    ❌ Skipping - current user not involved in this split`);
       continue;
     }
-
-    console.log(`    ✅ Including split in unsettled expenses`);
 
     const category = categoryMap.get(transaction.categoryId);
     const paidByUser = userMap.get(transaction.paidByUserId);
@@ -138,8 +200,9 @@ export async function getUnsettledSharedExpenses(
       date: transaction.date,
       category: category?.name || 'Unknown',
       categoryId: transaction.categoryId,
-      totalAmount: transaction.amount,
-      yourShare: currentUserOwes ? split.splitAmount : -split.splitAmount, // positive = you owe, negative = you're owed
+      // FIX: DAT-008 - Null safety for financial arithmetic
+      totalAmount: transaction.amount ?? 0,
+      yourShare: currentUserOwes ? (split.splitAmount ?? 0) : -(split.splitAmount ?? 0),
       paidBy: paidByUser?.name || paidByUser?.email?.split('@')[0] || 'Unknown',
       paidByUserId: transaction.paidByUserId,
       description: transaction.note || transaction.payee || category?.name || 'Shared expense',
@@ -151,8 +214,8 @@ export async function getUnsettledSharedExpenses(
   // Sort by date (newest first)
   unsettledExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  console.log('Unsettled expenses for user:', unsettledExpenses.length);
-  console.log('=== getUnsettledSharedExpenses END ===');
+  logger.debug('Unsettled expenses for user:', unsettledExpenses.length); // FIX: SEC-003
+  logger.debug('=== getUnsettledSharedExpenses END ==='); // FIX: SEC-003
 
   return unsettledExpenses;
 }
@@ -164,9 +227,7 @@ export async function calculateHouseholdDebt(
   householdId: string,
   currentUserId: string
 ): Promise<DebtSummary | null> {
-  console.log('=== calculateHouseholdDebt START ===');
-  console.log('Household ID:', householdId);
-  console.log('Current User ID:', currentUserId);
+  logger.debug('=== calculateHouseholdDebt START ==='); // FIX: SEC-003
 
   // Get other household member
   const { data: memberData } = await db.queryOnce({
@@ -179,17 +240,16 @@ export async function calculateHouseholdDebt(
   const otherMember = members.find((m: any) => m.userId !== currentUserId);
 
   if (!otherMember) {
-    console.log('No other member found in household');
+    logger.debug('No other member found in household'); // FIX: SEC-003
     return null;
   }
 
   const otherUserId = otherMember.userId;
-  console.log('Other member ID:', otherUserId);
 
-  // Get other member's user details
+  // FIX: SEC-002 - Get other member's user details by ID, not fetching ALL users
   const { data: userData } = await db.queryOnce({
     users: {
-      $: { where: { id: otherUserId } },
+      $: { where: { id: otherUserId } }, // FIX: SEC-002 - Scoped by id
     },
   });
 
@@ -199,7 +259,6 @@ export async function calculateHouseholdDebt(
   const unsettledExpenses = await getUnsettledSharedExpenses(householdId, currentUserId);
 
   // Calculate net debt
-  // yourShare positive = you owe, yourShare negative = you're owed
   let totalDebt = 0;
   for (const expense of unsettledExpenses) {
     totalDebt += expense.yourShare;
@@ -208,8 +267,8 @@ export async function calculateHouseholdDebt(
   // Round to 2 decimal places
   totalDebt = Math.round(totalDebt * 100) / 100;
 
-  console.log('Total debt:', totalDebt, '(positive = you owe, negative = you are owed)');
-  console.log('=== calculateHouseholdDebt END ===');
+  logger.debug('Debt calculation completed'); // FIX: SEC-003 - Don't log debt amount
+  logger.debug('=== calculateHouseholdDebt END ==='); // FIX: SEC-003
 
   return {
     amount: totalDebt,
@@ -254,9 +313,8 @@ export async function getUnsettledExpensesByDirection(
  * Debug function to check splits and transactions state
  */
 export async function debugSettlementData(householdId: string, payerUserId: string, receiverUserId: string) {
-  console.log('🔍 === DEBUG SETTLEMENT DATA ===');
+  logger.debug('=== DEBUG SETTLEMENT DATA ==='); // FIX: SEC-003
 
-  // Get all transactions
   const { data: txData } = await db.queryOnce({
     transactions: {
       $: { where: { householdId, isShared: true } }
@@ -264,33 +322,19 @@ export async function debugSettlementData(householdId: string, payerUserId: stri
   });
 
   const transactions = txData.transactions || [];
-  console.log('Shared transactions:', transactions.length);
-  transactions.forEach((t: any) => {
-    console.log(`  TX ${t.id}: amount=${t.amount}, paidBy=${t.paidByUserId}, category=${t.categoryId}`);
-  });
+  logger.debug('Shared transactions:', transactions.length); // FIX: SEC-003
 
-  // Get all splits
-  const { data: splitData } = await db.queryOnce({
-    shared_expense_splits: {}
-  });
-
-  const allSplits = splitData.shared_expense_splits || [];
-  console.log('All splits:', allSplits.length);
-  allSplits.forEach((s: any) => {
-    console.log(`  Split ${s.id}: ower=${s.owerUserId}, owedTo=${s.owedToUserId}, amount=${s.splitAmount}, isPaid=${s.isPaid}, txId=${s.transactionId}`);
-  });
-
-  // Filter relevant splits
+  // FIX: SEC-010 - Scope splits by user involvement instead of fetching ALL
   const txIds = transactions.map((t: any) => t.id);
-  const householdSplits = allSplits.filter((s: any) => txIds.includes(s.transactionId));
-  console.log('Household splits:', householdSplits.length);
+  const householdSplits = await getHouseholdSplits(txIds, payerUserId, receiverUserId);
+  logger.debug('Household splits:', householdSplits.length); // FIX: SEC-003
 
   const payerSplits = householdSplits.filter((s: any) => s.owerUserId === payerUserId && !s.isPaid);
-  console.log('Payer unpaid splits:', payerSplits.length);
+  logger.debug('Payer unpaid splits:', payerSplits.length); // FIX: SEC-003
 
   return {
     transactions,
-    allSplits,
+    allSplits: householdSplits,
     householdSplits,
     payerSplits,
     payerUserId,
@@ -300,8 +344,21 @@ export async function debugSettlementData(householdId: string, payerUserId: stri
 
 /**
  * Settle debt via internal account transfer
- * Does NOT create a transaction (to avoid affecting budgets)
- * Only transfers money between accounts and marks splits as paid
+ * Does NOT create a budget-affecting transaction for the receiver.
+ * Only transfers money between accounts and marks splits as paid.
+ *
+ * FIX: DAT-003 CRITICAL - All settlement operations consolidated into a SINGLE
+ * atomic db.transact() call. The original code used 7+ separate db.transact() calls,
+ * meaning if any call failed mid-way, data would be corrupted (e.g., splits marked
+ * paid but account balances not updated, or balances updated but settlement record
+ * not created). Now everything is ALL-or-NOTHING.
+ *
+ * FIX: CODE-6 - Original 380+ line createSettlement function decomposed into
+ * 4 clear phases: (1) gather data, (2) build atomic operations,
+ * (3) execute atomically, (4) best-effort budget updates.
+ *
+ * FIX: SEC-001 - Accounts fetched by specific ID with ownership verification
+ * FIX: SEC-010 - Splits fetched by user involvement, not globally
  */
 export async function createSettlement(
   payerUserId: string,
@@ -311,403 +368,279 @@ export async function createSettlement(
   receiverAccountId: string,
   householdId: string,
   categoryId?: string,
-  selectedSplitIds?: string[], // Only settle these specific splits
-  payee?: string // NEW: Payee from original transaction
+  selectedSplitIds?: string[],
+  payee?: string
 ) {
-  console.warn('🚨🚨🚨 SETTLEMENT FUNCTION CALLED 🚨🚨🚨');
-  console.log('💳 === SETTLEMENT START (INTERNAL TRANSFER) ===');
-  console.log('- Payer (member who owes):', payerUserId?.substring(0, 8));
-  console.log('- Receiver (admin who paid):', receiverUserId?.substring(0, 8));
-  console.log('- Amount:', amount);
-  console.log('- Payer Account:', payerAccountId?.substring(0, 8));
-  console.log('- Receiver Account:', receiverAccountId?.substring(0, 8));
-  console.log('- Household:', householdId?.substring(0, 8));
-  console.log('- Category:', categoryId?.substring(0, 8) || 'None');
-  console.log('- Selected Split IDs:', selectedSplitIds?.map(id => id.substring(0, 8)) || 'ALL (legacy behavior)');
-  console.log('- Payee:', payee || 'None');
+  logger.debug('=== SETTLEMENT START (ATOMIC) ==='); // FIX: SEC-003 - Don't log user IDs or amounts
+
+  // FIX: DAT-008 - Null safety for financial arithmetic
+  const safeAmount = amount ?? 0;
+  if (safeAmount <= 0) {
+    throw new Error('Settlement amount must be greater than 0');
+  }
 
   const settlementId = uuidv4();
   const now = Date.now();
 
-  // Step 1: Get current account balances
-  console.log('💰 Fetching account balances...');
-  const { data: accountData } = await db.queryOnce({
-    accounts: {},
+  // ===================================================================
+  // PHASE 1: Gather all data needed for the atomic transaction
+  // ===================================================================
+
+  // FIX: SEC-001 - Fetch accounts by specific ID instead of ALL accounts
+  const { data: payerAccountData } = await db.queryOnce({
+    accounts: {
+      $: { where: { id: payerAccountId } }, // FIX: SEC-001 - Scoped by id
+    },
   });
 
-  const payerAccount = accountData.accounts?.find((a: any) => a.id === payerAccountId);
-  const receiverAccount = accountData.accounts?.find((a: any) => a.id === receiverAccountId);
+  const { data: receiverAccountData } = await db.queryOnce({
+    accounts: {
+      $: { where: { id: receiverAccountId } }, // FIX: SEC-001 - Scoped by id
+    },
+  });
+
+  const payerAccount = payerAccountData.accounts?.[0];
+  const receiverAccount = receiverAccountData.accounts?.[0];
 
   if (!payerAccount || !receiverAccount) {
     throw new Error('Account not found');
   }
 
-  console.log('💰 Current balances:');
-  console.log('  Payer:', payerAccount.balance);
-  console.log('  Receiver:', receiverAccount.balance);
-
-  // Step 2: Update account balances (internal transfer)
-  const newPayerBalance = (payerAccount.balance || 0) - amount;
-  const newReceiverBalance = (receiverAccount.balance || 0) + amount;
-
-  console.log('💰 Updating account balances (internal transfer)...');
-  await db.transact([
-    db.tx.accounts[payerAccountId].update({
-      balance: newPayerBalance,
-    }),
-    db.tx.accounts[receiverAccountId].update({
-      balance: newReceiverBalance,
-    }),
-  ]);
-
-  console.log('💰 New balances:');
-  console.log('  Payer:', newPayerBalance);
-  console.log('  Receiver:', newReceiverBalance);
-
-  // Step 3: Log settlement in settlements table (for history only)
-  console.log('📝 Logging settlement in settlements table...');
-
-  // Collect transaction IDs that will be settled (will be populated after we process splits)
-  const settledTransactionIds: string[] = [];
-
-  await db.transact([
-    db.tx.settlements[settlementId].update({
-      householdId,
-      payerUserId,
-      receiverUserId,
-      amount,
-      paymentMethod: 'internal_transfer', // Internal account transfer
-      categoryId: categoryId || undefined,
-      note: `Debt settlement: ${amount.toFixed(2)} CHF`,
-      settledExpenses: [], // Will be updated later with actual transaction IDs
-      settledAt: now,
-      createdAt: now,
-    }),
-  ]);
-
-  console.log('📝 Settlement logged:', settlementId);
-
-  // Step 3b: Create a transaction for the payer (member) showing their settlement payment
-  // This allows the member to see their payment in their transaction list
-  const payerTransactionId = uuidv4();
-  const todayDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-
-  console.log('📝 Creating settlement transaction for payer...');
-  console.log('  - Transaction ID:', payerTransactionId);
-  console.log('  - Amount:', amount);
-  console.log('  - Category ID:', categoryId || 'None');
-
-  // Only create transaction if we have a valid categoryId
-  if (categoryId) {
-    await db.transact([
-      db.tx.transactions[payerTransactionId].update({
-        userId: payerUserId,
-        householdId,
-        accountId: payerAccountId,
-        categoryId: categoryId, // Use the selected category
-        type: 'expense',
-        amount: amount, // The member's payment amount (e.g., 38.6 CHF)
-        date: todayDate,
-        note: `Debt settlement - paid to household`,
-        payee: payee || 'Debt Settlement', // Use the original payee
-        isShared: false, // Not shared - this is the member's individual payment
-        paidByUserId: payerUserId, // Member paid this
-      }),
-    ]);
-    console.log('📝 Payer transaction created:', payerTransactionId);
-  } else {
-    console.log('⚠️ No category selected, skipping payer transaction creation');
+  // FIX: SEC-001 - Verify account ownership before proceeding
+  if (payerAccount.userId !== payerUserId) {
+    throw new Error('Payer account does not belong to the payer'); // FIX: SEC-001
+  }
+  if (receiverAccount.userId !== receiverUserId) {
+    throw new Error('Receiver account does not belong to the receiver'); // FIX: SEC-001
   }
 
-  // Step 4: Mark unpaid splits as paid AND reduce original transaction amounts
-  console.log('📊 === STEP 4: Finding splits to settle ===');
-  console.log('📊 Settlement params: payerUserId=', payerUserId, 'receiverUserId=', receiverUserId);
+  // FIX: DAT-008 - Null safety for account balances
+  const payerBalance = payerAccount.balance ?? 0;
+  const receiverBalance = receiverAccount.balance ?? 0;
 
-  // First, get all shared transactions for this household
+  // FIX: DAT-003 - Calculate new balances (applied atomically later)
+  const newPayerBalance = payerBalance - safeAmount;
+  const newReceiverBalance = receiverBalance + safeAmount;
+
+  // Step 2: Find all splits to settle
   const { data: txData } = await db.queryOnce({
     transactions: {
-      $: {
-        where: {
-          householdId,
-          isShared: true,
-        },
-      },
+      $: { where: { householdId, isShared: true } },
     },
   });
 
   const householdTransactions = txData.transactions || [];
-  console.log('📊 Found', householdTransactions.length, 'shared transactions in household');
-  householdTransactions.forEach((t: any) => {
-    console.log(`  - TX ${t.id.substring(0, 8)}: amount=${t.amount}, paidBy=${t.paidByUserId?.substring(0, 8)}, userId=${t.userId?.substring(0, 8)}, date=${t.date}`);
-  });
-
-  // Create a map of transaction IDs for quick lookup
   const householdTransactionIds = householdTransactions.map((t: any) => t.id);
   const transactionMap = new Map(householdTransactions.map((t: any) => [t.id, t]));
 
-  // Now get ALL splits (they don't have householdId, so we filter by transactionId)
-  const { data: splitData } = await db.queryOnce({
-    shared_expense_splits: {},
-  });
+  // FIX: SEC-010 - Get splits scoped by user involvement
+  const allSplits = await getHouseholdSplits(householdTransactionIds, payerUserId, receiverUserId);
 
-  const allSplits = splitData.shared_expense_splits || [];
-  console.log('📊 Total splits in database:', allSplits.length);
-  if (allSplits.length > 0) {
-    console.log('📊 First few splits (for debugging):');
-    allSplits.slice(0, 5).forEach((s: any) => {
-      console.log(`  - Split ${s.id.substring(0, 8)}: txId=${s.transactionId?.substring(0, 8)}, ower=${s.owerUserId?.substring(0, 8)}, owedTo=${s.owedToUserId?.substring(0, 8)}, amount=${s.splitAmount}, isPaid=${s.isPaid}`);
-    });
-  }
+  // Filter to household splits, unpaid, payer owes receiver
+  let splitsToSettle = allSplits.filter((s: any) =>
+    householdTransactionIds.includes(s.transactionId) &&
+    s.owerUserId === payerUserId &&
+    !s.isPaid &&
+    s.owedToUserId === receiverUserId
+  );
 
-  // Filter to only splits that belong to this household's transactions
-  const householdSplits = allSplits.filter((s: any) => householdTransactionIds.includes(s.transactionId));
-  console.log('📊 Splits belonging to this household:', householdSplits.length);
-
-  // Find unpaid splits where payer owes money
-  const payerUnpaidSplits = householdSplits.filter((s: any) => s.owerUserId === payerUserId && !s.isPaid);
-  console.log('📊 Unpaid splits for payer', payerUserId, ':', payerUnpaidSplits.length);
-
-  // Log all splits for debugging
-  console.log('📊 All household splits (for debugging):');
-  householdSplits.forEach((s: any) => {
-    const tx = transactionMap.get(s.transactionId);
-    console.log(`  - Split ${s.id}: ower=${s.owerUserId}, owedTo=${s.owedToUserId}, amount=${s.splitAmount}, isPaid=${s.isPaid}, tx.paidBy=${tx?.paidByUserId}`);
-  });
-
-  payerUnpaidSplits.forEach((s: any) => {
-    const tx = transactionMap.get(s.transactionId);
-    console.log(`  - Payer's split ${s.id}: owes ${s.splitAmount} CHF, tx: ${s.transactionId}, paidBy: ${tx?.paidByUserId}, owedTo: ${s.owedToUserId}`);
-  });
-
-  // Only settle splits where receiver paid the original expense
-  // The split.owedToUserId should match receiverUserId (the admin who paid)
-  let splitsToSettle = payerUnpaidSplits.filter((split: any) => {
-    const transaction = transactionMap.get(split.transactionId);
-    // Use both checks: owedToUserId should match receiver, and transaction.paidByUserId should too
-    const owedToMatches = split.owedToUserId === receiverUserId;
-    const paidByMatches = transaction?.paidByUserId === receiverUserId;
-    const shouldSettle = owedToMatches; // Primary check is owedToUserId
-    console.log(`  Checking split ${split.id}: owedTo=${split.owedToUserId}, receiver=${receiverUserId}, owedToMatches=${owedToMatches}, paidBy=${transaction?.paidByUserId}, paidByMatches=${paidByMatches}, settling=${shouldSettle}`);
-    return shouldSettle;
-  });
-
-  // NEW: If specific split IDs were selected, only settle those
+  // If specific splits selected, filter further
   if (selectedSplitIds && selectedSplitIds.length > 0) {
-    console.log('🎯 Filtering to only selected splits:', selectedSplitIds.map(id => id.substring(0, 8)));
     splitsToSettle = splitsToSettle.filter((split: any) => selectedSplitIds.includes(split.id));
-    console.log('🎯 After filtering:', splitsToSettle.length, 'splits to settle');
-  } else {
-    console.log('⚠️ No selectedSplitIds provided - settling ALL unpaid splits (legacy behavior)');
   }
 
-  console.log('📊 Splits to mark as paid:', splitsToSettle.length);
-  splitsToSettle.forEach((s: any) => {
-    console.log(`  - Will settle: ${s.id} for ${s.splitAmount} CHF, txId: ${s.transactionId}`);
+  logger.debug('Splits to settle:', splitsToSettle.length); // FIX: SEC-003
+
+  // Step 3: Calculate transaction amount reductions
+  const transactionReductions: { [txId: string]: number } = {};
+  for (const split of splitsToSettle) {
+    const txId = split.transactionId;
+    if (!transactionReductions[txId]) {
+      transactionReductions[txId] = 0;
+    }
+    // FIX: DAT-008 - Null safety for split amounts
+    transactionReductions[txId] += split.splitAmount ?? 0;
+  }
+
+  // Get fresh transaction data for reductions
+  const transactionIds = Object.keys(transactionReductions);
+  const { data: freshTxData } = await db.queryOnce({
+    transactions: {
+      $: { where: { householdId } },
+    },
   });
 
-  // Step 5: Mark splits as paid AND reduce original transaction amounts
-  if (splitsToSettle.length > 0) {
-    // Group splits by transaction to reduce each transaction amount
-    const transactionReductions: { [txId: string]: number } = {};
+  const allFreshTransactions = freshTxData.transactions || [];
+  const transactionsToUpdate = allFreshTransactions.filter((t: any) => transactionIds.includes(t.id));
 
-    for (const split of splitsToSettle) {
-      const txId = split.transactionId;
-      if (!transactionReductions[txId]) {
-        transactionReductions[txId] = 0;
-      }
-      transactionReductions[txId] += split.splitAmount;
-    }
-
-    console.log('📝 Transaction amounts to reduce:', JSON.stringify(transactionReductions));
-
-    // Get fresh transaction data from database (not from potentially stale map)
-    const transactionIds = Object.keys(transactionReductions);
-    console.log('📝 Transaction IDs to update:', transactionIds);
-
-    const { data: freshTxData } = await db.queryOnce({
-      transactions: {
-        $: {
-          where: {
-            householdId,
-          },
-        },
-      },
-    });
-
-    const allTransactions = freshTxData.transactions || [];
-    const transactionsToUpdate = allTransactions.filter((t: any) => transactionIds.includes(t.id));
-
-    console.log(`📝 Found ${transactionsToUpdate.length} transactions to update out of ${allTransactions.length} total`);
-    console.log('📝 Looking for transaction IDs:', transactionIds);
-    console.log('📝 Available transaction IDs in DB:', allTransactions.map((t: any) => t.id));
-    transactionsToUpdate.forEach((t: any) => {
-      const reduction = transactionReductions[t.id];
-      console.log(`  - Transaction ${t.id.substring(0, 8)}: userId=${t.userId?.substring(0, 8)}, paidBy=${t.paidByUserId?.substring(0, 8)}, current=${t.amount}, reduction=${reduction}, new=${t.amount - reduction}`);
-    });
-
-    // Build all updates: mark splits as paid + reduce transaction amounts
-    console.log(`📝 Executing ${splitsToSettle.length} split updates and ${transactionsToUpdate.length} transaction updates...`);
-
-    if (splitsToSettle.length > 0 || transactionsToUpdate.length > 0) {
-      // Execute split updates first
-      if (splitsToSettle.length > 0) {
-        console.log('🔄 Step 1: Updating splits...');
-        try {
-          await db.transact(
-            splitsToSettle.map(split =>
-              db.tx.shared_expense_splits[split.id].update({
-                isPaid: true,
-              })
-            )
-          );
-          console.log('✅ Splits updated successfully');
-        } catch (error) {
-          console.error('❌ Split updates failed:', error);
-          throw error;
-        }
-      }
-
-      // Then execute transaction updates separately (only reduce amounts, don't mark as settled yet)
-      if (transactionsToUpdate.length > 0) {
-        console.log('🔄 Step 2: Updating transactions (amount reduction only)...');
-        try {
-          // Collect transaction IDs for settlement record
-          const settledTxIds = transactionsToUpdate.map((t: any) => t.id);
-
-          // First, reduce transaction amounts
-          await db.transact(
-            transactionsToUpdate.map(tx => {
-              const reductionAmount = transactionReductions[tx.id];
-              const newAmount = Math.max(0, tx.amount - reductionAmount);
-              console.log(`  📌 Updating ${tx.id.substring(0, 8)}: ${tx.amount} -> ${newAmount}`);
-              return db.tx.transactions[tx.id].update({
-                amount: newAmount,
-              });
-            })
-          );
-          console.log('✅ Transaction amounts updated');
-
-          // After reducing amounts, check if transactions should be marked as settled
-          // A transaction is fully settled when ALL its splits are paid
-          console.log('🔄 Step 2b: Checking if transactions should be marked as fully settled...');
-
-          for (const tx of transactionsToUpdate) {
-            // Get all splits for this transaction
-            const { data: txSplitData } = await db.queryOnce({
-              shared_expense_splits: {
-                $: { where: { transactionId: tx.id } },
-              },
-            });
-
-            const txSplits = txSplitData.shared_expense_splits || [];
-            const allSplitsPaid = txSplits.length > 0 && txSplits.every((s: any) => s.isPaid);
-
-            console.log(`  📌 Transaction ${tx.id.substring(0, 8)}: ${txSplits.length} splits, all paid: ${allSplitsPaid}`);
-
-            // Only mark as settled if ALL splits are paid
-            if (allSplitsPaid) {
-              await db.transact([
-                db.tx.transactions[tx.id].update({
-                  settled: true,
-                  settledAt: now,
-                  settlementId: settlementId,
-                }),
-              ]);
-              console.log(`  ✅ Transaction ${tx.id.substring(0, 8)} marked as fully settled`);
-            } else {
-              console.log(`  ⏳ Transaction ${tx.id.substring(0, 8)} has unpaid splits, keeping as unsettled`);
-            }
-          }
-
-          // Update settlement record with settled transaction IDs
-          console.log('🔄 Step 2c: Updating settlement record with transaction IDs...');
-          await db.transact([
-            db.tx.settlements[settlementId].update({
-              settledExpenses: settledTxIds,
-            }),
-          ]);
-          console.log('✅ Settlement record updated with', settledTxIds.length, 'transaction IDs');
-        } catch (error) {
-          console.error('❌ Transaction updates failed:', error);
-          throw error;
-        }
-      }
-
-      // Update budget spent amounts for the affected transactions
-      console.log('💰 Updating budget spent amounts...');
-      for (const tx of transactionsToUpdate) {
-        const reductionAmount = transactionReductions[tx.id];
-        if (tx.type === 'expense' && reductionAmount > 0) {
-          try {
-            // Import budget functions
-            const { updateBudgetSpentAmount, getMemberBudgetPeriod } = await import('./budget-api');
-
-            // Get the transaction owner's budget period
-            const budgetPeriod = await getMemberBudgetPeriod(tx.userId, tx.householdId);
-
-            // Check if transaction date falls within this budget period
-            if (tx.date >= budgetPeriod.start && tx.date <= budgetPeriod.end) {
-              // Get current budget
-              const { data: budgetData } = await db.queryOnce({
-                budgets: {
-                  $: {
-                    where: {
-                      userId: tx.userId,
-                      categoryId: tx.categoryId,
-                      isActive: true,
-                    },
-                  },
-                },
-              });
-
-              const budget = budgetData.budgets?.[0];
-              if (budget) {
-                // Reduce the spent amount
-                const newSpentAmount = Math.max(0, (budget.spentAmount || 0) - reductionAmount);
-                await updateBudgetSpentAmount(tx.userId, tx.categoryId, budgetPeriod.start, newSpentAmount);
-                console.log(`  ✓ Budget updated for user ${tx.userId.substring(0, 8)}, category ${tx.categoryId.substring(0, 8)}: ${budget.spentAmount} -> ${newSpentAmount}`);
-              }
-            }
-          } catch (error) {
-            console.warn('  ⚠️ Failed to update budget:', error);
-            // Don't fail the settlement if budget update fails
-          }
-        }
-      }
-
-      // Verify the updates were persisted
-      console.log('🔍 Verifying transaction updates...');
-      const { data: verifyData } = await db.queryOnce({
-        transactions: {
-          $: {
-            where: {
-              householdId,
-            },
-          },
-        },
-      });
-
-      const verifyTransactions = verifyData.transactions || [];
-      transactionIds.forEach((txId: string) => {
-        const updatedTx = verifyTransactions.find((t: any) => t.id === txId);
-        if (updatedTx) {
-          console.log(`  ✓ Transaction ${txId.substring(0, 8)} now shows amount: ${updatedTx.amount} CHF`);
-        } else {
-          console.log(`  ✗ Transaction ${txId} not found in verification query!`);
-        }
-      });
-    } else {
-      console.log('⚠️ No updates to execute');
-    }
-  } else {
-    console.log('⚠️ No splits found to settle - check if splits exist and are unpaid');
+  // Step 4: Pre-calculate which transactions will be fully settled
+  // A transaction is fully settled when ALL its splits are paid after this operation
+  const txSettledStatus: Map<string, boolean> = new Map();
+  for (const tx of transactionsToUpdate) {
+    const txSplits = allSplits.filter((s: any) => s.transactionId === tx.id);
+    const settlingIds = new Set(
+      splitsToSettle.filter((s: any) => s.transactionId === tx.id).map((s: any) => s.id)
+    );
+    const allPaidAfter = txSplits.length > 0 && txSplits.every((s: any) =>
+      s.isPaid || settlingIds.has(s.id)
+    );
+    txSettledStatus.set(tx.id, allPaidAfter);
   }
 
-  console.log('💳 === SETTLEMENT COMPLETE ===');
+  // ===================================================================
+  // PHASE 2: Build ALL operations for a SINGLE atomic db.transact()
+  // FIX: DAT-003 - CRITICAL: Everything in ONE call, ALL-or-NOTHING
+  // ===================================================================
+  const atomicOps: any[] = [];
+
+  // Op 1: Update payer account balance
+  // FIX: DAT-003 - Atomic balance update (was separate transact call)
+  atomicOps.push(
+    db.tx.accounts[payerAccountId].update({
+      balance: newPayerBalance,
+    })
+  );
+
+  // Op 2: Update receiver account balance
+  // FIX: DAT-003 - Atomic balance update (was separate transact call)
+  atomicOps.push(
+    db.tx.accounts[receiverAccountId].update({
+      balance: newReceiverBalance,
+    })
+  );
+
+  // Op 3: Create settlement record (with transaction IDs populated immediately)
+  // FIX: DAT-003 - Settlement record created atomically with settledExpenses populated
+  // (was created empty then updated in a separate call)
+  const settledTxIds = transactionsToUpdate.map((t: any) => t.id);
+  atomicOps.push(
+    db.tx.settlements[settlementId].update({
+      householdId,
+      payerUserId,
+      receiverUserId,
+      amount: safeAmount,
+      paymentMethod: 'internal_transfer',
+      categoryId: categoryId || undefined,
+      note: `Debt settlement: ${safeAmount.toFixed(2)} CHF`,
+      settledExpenses: settledTxIds,
+      settledAt: now,
+      createdAt: now,
+    })
+  );
+
+  // Op 4: Create payer transaction if category provided
+  // FIX: DAT-003 - Payer transaction created atomically (was separate transact call)
+  if (categoryId) {
+    const payerTransactionId = uuidv4();
+    const todayDate = new Date().toISOString().split('T')[0];
+    atomicOps.push(
+      db.tx.transactions[payerTransactionId].update({
+        userId: payerUserId,
+        householdId,
+        accountId: payerAccountId,
+        categoryId: categoryId,
+        type: 'expense',
+        amount: safeAmount,
+        date: todayDate,
+        note: `Debt settlement - paid to household`,
+        payee: payee || 'Debt Settlement',
+        isShared: false,
+        paidByUserId: payerUserId,
+      })
+    );
+  }
+
+  // Op 5: Mark all splits as paid
+  // FIX: DAT-003 - Split updates in same atomic transaction (was separate transact call)
+  for (const split of splitsToSettle) {
+    atomicOps.push(
+      db.tx.shared_expense_splits[split.id].update({
+        isPaid: true,
+      })
+    );
+  }
+
+  // Op 6: Reduce transaction amounts and mark fully settled ones
+  // FIX: DAT-003 - Transaction updates in same atomic transaction (were 3+ separate calls)
+  for (const tx of transactionsToUpdate) {
+    // FIX: DAT-008 - Null safety for transaction amounts
+    const currentAmount = tx.amount ?? 0;
+    const reductionAmount = transactionReductions[tx.id] ?? 0;
+    const newAmount = Math.max(0, currentAmount - reductionAmount);
+    const isFullySettled = txSettledStatus.get(tx.id) || false;
+
+    const updatePayload: any = {
+      amount: newAmount,
+    };
+
+    if (isFullySettled) {
+      updatePayload.settled = true;
+      updatePayload.settledAt = now;
+      updatePayload.settlementId = settlementId;
+    }
+
+    atomicOps.push(
+      db.tx.transactions[tx.id].update(updatePayload)
+    );
+  }
+
+  // ===================================================================
+  // PHASE 3: Execute ALL operations atomically
+  // FIX: DAT-003 - SINGLE db.transact() for entire settlement
+  // Previously: 7+ separate db.transact() calls
+  // Now: 1 atomic call - if ANY operation fails, NONE are applied
+  // ===================================================================
+  logger.debug(`Executing ${atomicOps.length} operations in single atomic transaction`); // FIX: SEC-003
+  await db.transact(atomicOps);
+  logger.debug('Atomic settlement transaction committed successfully'); // FIX: SEC-003
+
+  // ===================================================================
+  // PHASE 4: Post-settlement budget updates (best-effort, non-critical)
+  // Budget updates are intentionally OUTSIDE the atomic transaction:
+  // 1. They are supplementary display data, not financial transfers
+  // 2. A budget update failure should NOT roll back a successful settlement
+  // 3. Budget spent amounts can always be recalculated from transactions
+  // ===================================================================
+  logger.debug('Updating budget spent amounts (best-effort)'); // FIX: SEC-003
+  for (const tx of transactionsToUpdate) {
+    const reductionAmount = transactionReductions[tx.id] ?? 0;
+    if (tx.type === 'expense' && reductionAmount > 0) {
+      try {
+        const { updateBudgetSpentAmount, getMemberBudgetPeriod } = await import('./budget-api');
+        const budgetPeriod = await getMemberBudgetPeriod(tx.userId, tx.householdId);
+
+        if (tx.date >= budgetPeriod.start && tx.date <= budgetPeriod.end) {
+          const { data: budgetData } = await db.queryOnce({
+            budgets: {
+              $: {
+                where: {
+                  userId: tx.userId,
+                  categoryId: tx.categoryId,
+                  isActive: true,
+                },
+              },
+            },
+          });
+
+          const budget = budgetData.budgets?.[0];
+          if (budget) {
+            // FIX: DAT-008 - Null safety for budget spent amount
+            const currentSpent = budget.spentAmount ?? 0;
+            const newSpentAmount = Math.max(0, currentSpent - reductionAmount);
+            await updateBudgetSpentAmount(tx.userId, tx.categoryId, budgetPeriod.start, newSpentAmount);
+          }
+        }
+      } catch (error) {
+        logger.warn('Budget update failed (non-critical):', error); // FIX: SEC-003
+      }
+    }
+  }
+
+  logger.debug('=== SETTLEMENT COMPLETE ==='); // FIX: SEC-003
 
   return {
     settlementId,
-    amount,
+    amount: safeAmount,
     newPayerBalance,
     newReceiverBalance,
     splitsSettled: splitsToSettle.length,
@@ -725,15 +658,16 @@ export async function getSettlementHistory(householdId: string) {
           where: { householdId },
         },
       },
-      users: {},
     });
 
     const settlements = data.settlements || [];
-    const users = data.users || [];
+
+    // FIX: SEC-002 - Get users via household member lookup instead of fetching ALL users
+    const userMap = await getHouseholdUserMap(householdId);
 
     return settlements.map((settlement: any) => {
-      const payer = users.find((u: any) => u.id === settlement.payerUserId);
-      const receiver = users.find((u: any) => u.id === settlement.receiverUserId);
+      const payer = userMap.get(settlement.payerUserId);
+      const receiver = userMap.get(settlement.receiverUserId);
       return {
         ...settlement,
         payerName: payer?.name || 'Unknown',
@@ -741,17 +675,16 @@ export async function getSettlementHistory(householdId: string) {
       };
     });
   } catch (error) {
-    console.error('Get settlement history error:', error);
+    logger.error('Get settlement history error:', error); // FIX: SEC-003
     return [];
   }
 }
 
 /**
  * Cleanup old settlement transactions that were created by the previous approach
- * This should be run once to remove legacy settlement transactions from the transactions table
  */
 export async function cleanupOldSettlementTransactions(householdId: string) {
-  console.log('🧹 === CLEANUP OLD SETTLEMENT TRANSACTIONS ===');
+  logger.debug('=== CLEANUP OLD SETTLEMENT TRANSACTIONS ==='); // FIX: SEC-003
 
   const { data } = await db.queryOnce({
     transactions: {
@@ -761,17 +694,15 @@ export async function cleanupOldSettlementTransactions(householdId: string) {
     },
   });
 
-  // Find transactions with type='settlement' (old approach)
   const settlementTransactions = (data.transactions || []).filter((tx: any) => tx.type === 'settlement');
-
-  console.log(`Found ${settlementTransactions.length} old settlement transactions to delete`);
+  logger.debug('Found old settlement transactions to delete:', settlementTransactions.length); // FIX: SEC-003
 
   if (settlementTransactions.length > 0) {
     await db.transact(settlementTransactions.map((tx: any) => db.tx.transactions[tx.id].delete()));
-    console.log('✅ Old settlement transactions deleted');
+    logger.debug('Old settlement transactions deleted'); // FIX: SEC-003
   }
 
-  console.log('🧹 === CLEANUP COMPLETE ===');
+  logger.debug('=== CLEANUP COMPLETE ==='); // FIX: SEC-003
 
   return {
     deleted: settlementTransactions.length,

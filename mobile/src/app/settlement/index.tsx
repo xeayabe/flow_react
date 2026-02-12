@@ -7,7 +7,7 @@ import { useMutation } from '@tanstack/react-query';
 import { ChevronLeft } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { GlassCard } from '@/components/ui/Glass';
+import { GlassCard, GlassButton } from '@/components/ui/Glass';
 import { DebtSummaryCard } from '@/components/settlement/DebtSummaryCard';
 import { ExpenseSelectionList } from '@/components/settlement/ExpenseSelectionList';
 import { ExpenseStatusList } from '@/components/settlement/ExpenseStatusList';
@@ -17,6 +17,7 @@ import { SettlementSummary } from '@/components/settlement/SettlementSummary';
 import { useSettlementData } from '@/hooks/useSettlementData';
 import { createSettlement } from '@/lib/settlement-api';
 import { formatCurrency } from '@/lib/formatCurrency';
+import { db } from '@/lib/db';
 
 /**
  * Settlement Screen - Handle debt settlement between household members
@@ -98,23 +99,35 @@ export default function SettlementScreen() {
   // Settlement mutation
   const settlementMutation = useMutation({
     mutationFn: async () => {
+      console.log('🔄 Starting settlement mutation...');
+      console.log('📊 Settlement data:', {
+        canSettle,
+        selectedExpenseIds,
+        selectedCategoryId,
+        selectedWalletId,
+        selectedTotal,
+        userId: settlementData.userId,
+        partnerId: settlementData.partnerId,
+        householdId: settlementData.householdId,
+      });
+
       if (!canSettle) {
+        console.error('❌ Cannot settle without selections');
         throw new Error('Cannot settle without selections');
       }
 
       // Get receiver's default account
-      // For now, we'll need to get the partner's account
-      // This is a simplification - in a real app, you'd need to handle this differently
-      const { data: partnerAccounts } = await import('@/lib/db').then((m) =>
-        m.db.queryOnce({
-          accounts: {
-            $: { where: { userId: settlementData.partnerId } },
-          },
-        })
-      );
+      console.log('🔍 Fetching partner accounts for userId:', settlementData.partnerId);
+      const { data: partnerAccounts } = await db.queryOnce({
+        accounts: {
+          $: { where: { userId: settlementData.partnerId } },
+        },
+      });
 
+      console.log('📦 Partner accounts:', partnerAccounts.accounts);
       const receiverAccount = partnerAccounts.accounts?.[0];
       if (!receiverAccount) {
+        console.error('❌ Partner has no account set up');
         throw new Error('Partner has no account set up');
       }
 
@@ -124,7 +137,19 @@ export default function SettlementScreen() {
       );
       const payee = selectedExpenses[0]?.payee || 'Debt Settlement';
 
-      return createSettlement(
+      console.log('💰 Creating settlement with:', {
+        userId: settlementData.userId,
+        partnerId: settlementData.partnerId,
+        amount: selectedTotal,
+        payerAccountId: selectedWalletId,
+        receiverAccountId: receiverAccount.id,
+        householdId: settlementData.householdId,
+        categoryId: selectedCategoryId,
+        expenseIds: selectedExpenseIds,
+        payee,
+      });
+
+      const result = await createSettlement(
         settlementData.userId,
         settlementData.partnerId,
         selectedTotal,
@@ -135,8 +160,12 @@ export default function SettlementScreen() {
         selectedExpenseIds,
         payee
       );
+
+      console.log('✅ Settlement result:', result);
+      return result;
     },
     onSuccess: () => {
+      console.log('✅ Settlement successful!');
       Alert.alert(
         'Settlement Complete',
         `Successfully settled ${formatCurrency(selectedTotal)}`,
@@ -152,7 +181,10 @@ export default function SettlementScreen() {
       );
     },
     onError: (error) => {
-      Alert.alert('Settlement Failed', error.message);
+      console.error('❌ Settlement mutation error:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error stack:', error.stack);
+      Alert.alert('Settlement Failed', error.message || 'Unknown error occurred');
     },
   });
 
@@ -243,7 +275,7 @@ export default function SettlementScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: 20,
-          paddingBottom: isPayer ? 120 : insets.bottom + 20,
+          paddingBottom: insets.bottom + 20,
         }}
       >
         {/* Debt Summary Card */}
@@ -280,6 +312,8 @@ export default function SettlementScreen() {
                 categories={settlementData.categories}
                 selectedCategoryId={selectedCategoryId}
                 onSelectCategory={setSelectedCategoryId}
+                userId={settlementData.userId}
+                householdId={settlementData.householdId}
               />
               <WalletSelector
                 wallets={settlementData.wallets}
@@ -292,55 +326,47 @@ export default function SettlementScreen() {
 
         {/* Settlement Summary (Payer only) */}
         {isPayer && selectedExpenseIds.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(300).duration(400)} className="mt-4">
-            <SettlementSummary
-              selectedCount={selectedExpenseIds.length}
-              totalAmount={selectedTotal}
-            />
-          </Animated.View>
-        )}
-      </ScrollView>
+          <>
+            <Animated.View entering={FadeInDown.delay(300).duration(400)} className="mt-4">
+              <SettlementSummary
+                selectedCount={selectedExpenseIds.length}
+                totalAmount={selectedTotal}
+              />
+            </Animated.View>
 
-      {/* Settle Button (Payer only) */}
-      {isPayer && (
-        <View
-          className="absolute left-0 right-0 px-5"
-          style={{ bottom: insets.bottom + 20 }}
-        >
-          <Pressable
-            onPress={handleSettle}
-            disabled={!canSettle || settlementMutation.isPending}
-            style={({ pressed }) => ({
-              backgroundColor: canSettle
-                ? pressed
-                  ? 'rgba(255, 255, 255, 0.8)'
-                  : 'rgba(255, 255, 255, 0.9)'
-                : '#2C5F5D',
-              borderWidth: 2,
-              borderColor: canSettle ? '#2C5F5D' : 'rgba(255, 255, 255, 0.1)',
-              borderRadius: 12,
-              paddingVertical: 16,
-              opacity: canSettle ? 1 : 0.4,
-              alignItems: 'center',
-              justifyContent: 'center',
-            })}
-          >
-            {settlementMutation.isPending ? (
-              <ActivityIndicator size="small" color={canSettle ? '#2C5F5D' : 'white'} />
-            ) : (
-              <Text
-                className="font-semibold"
+            {/* Settle Button in GlassCard */}
+            <Animated.View entering={FadeInDown.delay(350).duration(400)} className="mt-4">
+              <GlassCard
+                className="p-5"
                 style={{
-                  fontSize: 16,
-                  color: canSettle ? '#2C5F5D' : 'white',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 32,
+                  elevation: 8,
                 }}
               >
-                {buttonText}
-              </Text>
-            )}
-          </Pressable>
-        </View>
-      )}
+                <GlassButton
+                  variant="primary"
+                  onPress={handleSettle}
+                  disabled={!canSettle || settlementMutation.isPending}
+                  style={{
+                    opacity: (!canSettle || settlementMutation.isPending) ? 0.5 : 1,
+                  }}
+                >
+                  {settlementMutation.isPending ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <Text className="text-white text-center font-semibold" style={{ fontSize: 15 }}>
+                      {buttonText}
+                    </Text>
+                  )}
+                </GlassButton>
+              </GlassCard>
+            </Animated.View>
+          </>
+        )}
+      </ScrollView>
     </LinearGradient>
   );
 }

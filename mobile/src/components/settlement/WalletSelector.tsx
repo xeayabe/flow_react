@@ -61,77 +61,78 @@ export function WalletSelector({
                   : 'rgba(255, 255, 255, 0.05)',
                 borderRadius: 12,
                 padding: 14,
-                flexDirection: 'row',
-                alignItems: 'center',
               })}
             >
-              {/* Wallet Icon */}
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 8,
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 12,
-                }}
-              >
-                <Wallet size={20} color="rgba(255, 255, 255, 0.7)" />
-              </View>
-
-              {/* Wallet Details */}
-              <View className="flex-1">
-                <Text
-                  className="text-white/90 font-semibold"
-                  style={{ fontSize: 15 }}
-                >
-                  {wallet.name}
-                </Text>
-                <Text
-                  className="text-white/50 mt-0.5"
-                  style={{ fontSize: 11 }}
-                >
-                  {wallet.institution} • {wallet.type}
-                </Text>
-              </View>
-
-              {/* Balance and Radio Button */}
-              <View className="items-end flex-row">
-                <Text
-                  className="text-white/70 mr-3"
-                  style={{
-                    fontSize: 14,
-                    fontVariant: ['tabular-nums'],
-                  }}
-                >
-                  {formatCurrency(wallet.balance)}
-                </Text>
-
-                {/* Radio Button */}
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {/* Wallet Icon */}
                 <View
                   style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: 10,
-                    borderWidth: 2,
-                    borderColor: isSelected
-                      ? 'rgba(255, 255, 255, 0.7)'
-                      : 'rgba(255, 255, 255, 0.3)',
+                    width: 40,
+                    height: 40,
+                    borderRadius: 8,
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    marginRight: 12,
                   }}
                 >
-                  {isSelected && (
-                    <View
-                      style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: 5,
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                      }}
-                    />
-                  )}
+                  <Wallet size={20} color="rgba(255, 255, 255, 0.7)" />
+                </View>
+
+                {/* Wallet Details */}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text
+                    className="text-white/90 font-semibold"
+                    style={{ fontSize: 15 }}
+                  >
+                    {wallet.name}
+                  </Text>
+                  <Text
+                    className="text-white/50 mt-0.5"
+                    style={{ fontSize: 11 }}
+                  >
+                    {wallet.institution} • {wallet.type}
+                  </Text>
+                </View>
+
+                {/* Balance and Radio Button */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+                  <Text
+                    className="text-white/70"
+                    style={{
+                      fontSize: 14,
+                      fontVariant: ['tabular-nums'],
+                      marginRight: 12,
+                    }}
+                  >
+                    {formatCurrency(wallet.balance)}
+                  </Text>
+
+                  {/* Radio Button */}
+                  <View
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
+                      borderWidth: 2,
+                      borderColor: isSelected
+                        ? 'rgba(255, 255, 255, 0.7)'
+                        : 'rgba(255, 255, 255, 0.3)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {isSelected && (
+                      <View
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 5,
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        }}
+                      />
+                    )}
+                  </View>
                 </View>
               </View>
             </Pressable>

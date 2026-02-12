@@ -1,4 +1,6 @@
+// FIX: DAT-009 - Added cascade guard check before category deletion
 import { db } from './db';
+import { checkCategoryDeletable } from './cascade-guard'; // FIX: DAT-009
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -265,6 +267,7 @@ export async function getCategories(householdId: string, userId: string): Promis
     console.log('getCategories query result:', { householdId, userId, rawCategories: result.data.categories });
 
     // Filter: show only user's own categories OR shared categories
+    // For settlements, each user categorizes using their own budget categories
     const categories = (result.data.categories ?? [])
       .filter((cat: any) => cat.isActive)
       .filter((cat: any) => {
@@ -397,9 +400,22 @@ export async function toggleCategorySharing(
 
 /**
  * Delete a custom category (soft delete)
+ *
+ * FIX: DAT-009 - Check for dependent records (transactions, budgets, payee mappings,
+ * recurring templates) before allowing deletion. If dependent records exist, return
+ * a user-friendly error message explaining what needs to be done first.
  */
 export async function deleteCategory(categoryId: string): Promise<CategoryResponse> {
   try {
+    // FIX: DAT-009 - Check cascade guard before deleting
+    const deletability = await checkCategoryDeletable(categoryId);
+    if (!deletability.canDelete) {
+      return {
+        success: false,
+        error: deletability.reason || 'This category cannot be deleted because it has dependent records.',
+      };
+    }
+
     await db.transact([
       db.tx.categories[categoryId].update({
         isActive: false,

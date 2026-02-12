@@ -1,3 +1,8 @@
+// FIX: PERF-4 - Removed aggressive refetchInterval (was 10000ms / 10s).
+// InstantDB provides real-time subscriptions, so polling is unnecessary and
+// wastes battery + network. Replaced with longer staleTime and rely on
+// query invalidation after mutations for freshness.
+
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 import { getUnsettledSharedExpenses, calculateHouseholdDebt, UnsettledExpense } from '@/lib/settlement-api';
@@ -140,9 +145,9 @@ export function useSettlementData(): SettlementData {
       // 9. Get categories
       const categories = await getCategories(householdId, userProfile.id);
       const formattedCategories: SettlementCategory[] = categories.map((c: any) => {
-        // Extract emoji from category name if present (format: "🏠 Rent")
+        // Extract emoji from category name if present (format: "emoji Rent")
         const emojiMatch = c.name.match(/^(\p{Emoji})\s*/u);
-        const emoji = emojiMatch ? emojiMatch[1] : '📊';
+        const emoji = emojiMatch ? emojiMatch[1] : c.emoji || '📊';
         const name = emojiMatch ? c.name.replace(emojiMatch[0], '').trim() : c.name;
 
         return {
@@ -173,8 +178,13 @@ export function useSettlementData(): SettlementData {
       };
     },
     enabled: !!user?.email,
-    staleTime: 5000,
-    refetchInterval: 10000,
+    // FIX: PERF-4 - Increased staleTime from 5s to 60s.
+    // Data refreshes on screen focus and after settlement mutations.
+    staleTime: 60_000,
+    // FIX: PERF-4 - Removed refetchInterval: 10000.
+    // Settlement data changes only when a settlement is created or a shared expense is added.
+    // Both of those operations invalidate this query via queryClient.invalidateQueries().
+    // Polling every 10s was causing ~8,640 unnecessary API calls per day per user.
   });
 
   return {

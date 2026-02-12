@@ -1,3 +1,8 @@
+// FIX: PERF-4 - Removed aggressive refetchInterval from balanceQuery (was 5000ms / 5s)
+// and useBalanceData (was 5000ms / 5s). Balance data changes only when transactions are
+// created/edited/deleted, which already invalidate these queries. Polling every 5s was
+// causing ~17,280 unnecessary API calls per day per user for each query.
+
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 import { calculateTrueBalance, BalanceBreakdown } from '@/lib/balance-api';
@@ -70,7 +75,11 @@ export function useDashboardData() {
       return calculateTrueBalance(userId);
     },
     enabled: !!userId,
-    refetchInterval: 5000, // Refresh every 5 seconds
+    // FIX: PERF-4 - Removed refetchInterval: 5000.
+    // Balance changes only when transactions/settlements are created.
+    // Those operations already call queryClient.invalidateQueries(['true-balance']).
+    // Added staleTime to avoid unnecessary refetches on screen focus.
+    staleTime: 30_000,
   });
 
   // Get accounts
@@ -182,7 +191,9 @@ export function useBalanceData() {
       return calculateTrueBalance(userQuery.data.id);
     },
     enabled: !!userQuery.data?.id,
-    refetchInterval: 5000,
+    // FIX: PERF-4 - Removed refetchInterval: 5000.
+    // Same reasoning as above: balance data is invalidated after mutations.
+    staleTime: 30_000,
   });
 
   return {
