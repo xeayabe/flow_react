@@ -6,10 +6,10 @@
 [![Total Stories](https://img.shields.io/badge/User%20Stories-69%20Active-green)](https://github.com)
 
 **Last Updated**: February 12, 2026
-**Document Version**: 2.1
+**Document Version**: 2.2
 **Original Stories**: 60 (9 removed, 9 added = 60 active)
 **New Phase 2 Stories**: 9 (US-061 through US-069)
-**Latest Updates**: Profile screen added, 5 bug fixes completed (BUG-003 through BUG-007)  
+**Latest Updates**: Drag-to-select navigation added (UX-011), 8 bug fixes completed (BUG-001 through BUG-008)  
 
 ---
 
@@ -2497,6 +2497,106 @@ Stories for progressive disclosure, empathetic design, accessibility, and onboar
 
 ---
 
+#### UX-011: Drag-to-Select Navigation with Glass Effect ✅
+
+**Story**: As a user navigating the app, I want to press and drag across navigation icons to quickly switch tabs, with visual feedback showing which tab I'm hovering over, so that navigation feels fluid and intuitive.
+
+**Phase**: Phase 2 | **Priority**: P2 | **Time**: 2h | **Points**: 3 | **Status**: ✅ Completed (Feb 12, 2026)
+
+**Features**:
+- Press and hold on any navigation icon
+- Drag finger horizontally across other icons
+- Glass effect appears on icons as finger passes over them
+- Release on any icon to navigate to that tab
+- Haptic feedback confirms hover and navigation
+- Works alongside tap and swipe gestures
+
+**User Experience**:
+1. User presses down on Home icon 🏠
+2. Keeps finger pressed and drags to Transactions icon 💸
+3. Glass glow appears on each icon touched
+4. Feels light haptic feedback on each icon transition
+5. Releases on Analytics icon 📊 to navigate there
+
+**Visual Feedback (Glass Effect)**:
+- White glass glow background (15% opacity)
+- Sage green border tint (30% opacity)
+- Icon scales up slightly (24px → 26px)
+- Icon color changes to sage green
+- Smooth fade in/out animation (150ms)
+
+**Haptic Feedback**:
+- Light impact on drag start
+- Light impact when moving to different icon
+- Medium impact on release/navigation
+
+**Business Rules**:
+- Only navigates on release (not while dragging)
+- Cannot drag to already-active tab (no redundant navigation)
+- Works with reduced motion accessibility setting
+- Does not interfere with swipe gestures
+- Gesture priority: Drag > Swipe (using `Gesture.Race()`)
+
+**Acceptance Criteria**:
+- [x] Pan gesture detects press and drag on navigation bar
+- [x] Calculates which tab is under finger based on X position
+- [x] Glass overlay appears on hovered tab with smooth animation
+- [x] Icon enlarges and changes color when dragged over
+- [x] Haptic feedback on drag start, tab change, and release
+- [x] Navigates to correct tab on release
+- [x] Works on all 5 navigation tabs
+- [x] No interference with existing tap/swipe gestures
+- [x] Respects reduced motion preference
+- [x] Glass effect matches design system (sage green, proper opacity)
+
+**Technical Implementation**:
+```typescript
+// Glass effect style
+glassOverlay: {
+  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: 'rgba(168, 181, 161, 0.3)', // Sage green
+}
+
+// Gesture detection
+const dragGesture = Gesture.Pan()
+  .onStart((event) => {
+    const tabIndex = calculateTabFromPosition(event.x);
+    draggedOverTabIndex.value = tabIndex;
+    runOnJS(triggerHaptic)(Haptics.ImpactFeedbackStyle.Light);
+  })
+  .onUpdate((event) => {
+    const tabIndex = calculateTabFromPosition(event.x);
+    if (tabIndex !== draggedOverTabIndex.value) {
+      draggedOverTabIndex.value = tabIndex;
+      runOnJS(triggerHaptic)(Haptics.ImpactFeedbackStyle.Light);
+    }
+  })
+  .onEnd(() => {
+    runOnJS(navigateToTab)(draggedOverTabIndex.value);
+  });
+```
+
+**Files Changed**:
+- `src/components/navigation/FloatingTabBar.tsx` - Added drag gesture, glass state management
+- Added `isDraggedOver` prop to `AnimatedTabButton`
+- Added `glassOpacity` shared value for smooth animations
+- Added `useAnimatedReaction` to sync shared value to React state
+- Added glass overlay style with sage green border
+- Combined drag and swipe gestures using `Gesture.Race()`
+
+**Dependencies**: TECH-010 (Floating Island Navigation Bar), BUG-008 (Haptic Fix)
+
+**Design Compliance**:
+- ✅ Glass effect follows design.md specifications
+- ✅ Sage green color from design tokens (`colors.sageGreen`)
+- ✅ Smooth animations (150ms duration)
+- ✅ Accessibility support (reduced motion)
+- ✅ Haptic feedback for tactile feedback
+
+---
+
 #### UX-002: Collapsible "Upcoming" Section 🆕
 
 **Story**: As a user without future-dated transactions, I want the "Upcoming" section hidden, so that my screen isn't cluttered.
@@ -2740,11 +2840,11 @@ Current bugs and edge cases that need fixing.
 
 ---
 
-#### BUG-001: Settlement Workflow - Personal to Shared Transition 🐛
+#### BUG-001: Settlement Workflow - Personal to Shared Transition ✅
 
 **Story**: As a household member, I edit an existing personal transaction to make it shared, expecting it to create expense splits for my partner, **but the system doesn't generate the splits**, which causes incorrect settlement balances.
 
-**Phase**: Phase 2 | **Priority**: P0 | **Time**: 3h | **Points**: 3 | **Status**: 🐛 Critical Bug
+**Phase**: Phase 2 | **Priority**: P0 | **Time**: 3h | **Points**: 3 | **Status**: ✅ Completed (Feb 12, 2026)
 
 **Expected Behavior**:
 1. User edits transaction, toggles "Shared" to ON
@@ -2752,21 +2852,28 @@ Current bugs and edge cases that need fixing.
 3. ExpenseSplit record created for partner with correct amount
 4. "Settle Up" view updates to show amount owed
 
-**Actual Behavior**:
+**Actual Behavior** (FIXED):
 1. User edits transaction, toggles "Shared" to ON
 2. Transaction updates but no splits are created
 3. Settlement balance remains at zero (incorrect)
 
 **Root Cause**: Mutation logic in `editTransaction()` not checking for personal→shared transition
 
+**Fixes Applied**:
+- ✅ Added personal→shared transition detection in edit transaction flow
+- ✅ Split calculation triggered when toggling to shared
+- ✅ ExpenseSplit records now created with correct amounts
+- ✅ Settle Up view updates immediately after edit
+- ✅ Shared→personal transition properly removes splits
+
 **Acceptance Criteria**:
-- [ ] Editing personal→shared triggers split calculation
-- [ ] ExpenseSplit records created with correct amounts (60% / 40%)
-- [ ] "Settle Up" view immediately reflects new balance
-- [ ] Unit test added to verify personal→shared transition
-- [ ] Integration test covers full settlement workflow end-to-end
-- [ ] Regression test: shared→personal removes splits correctly
-- [ ] Edge case: Editing split percentage also updates ExpenseSplit records
+- [x] Editing personal→shared triggers split calculation
+- [x] ExpenseSplit records created with correct amounts (60% / 40%)
+- [x] "Settle Up" view immediately reflects new balance
+- [x] Unit test added to verify personal→shared transition
+- [x] Integration test covers full settlement workflow end-to-end
+- [x] Regression test: shared→personal removes splits correctly
+- [x] Edge case: Editing split percentage also updates ExpenseSplit records
 
 **Dependencies**: US-018 (Edit Transaction), US-027 (Split Ratios), US-040 (Debt Balance)
 
@@ -2786,28 +2893,34 @@ if (wasShared && nowPersonal) {
 
 ---
 
-#### BUG-002: Recurring Expense Calendar Display 🐛
+#### BUG-002: Recurring Expense Calendar Display ✅
 
 **Story**: As a user viewing the calendar, I see recurring expense templates displayed as actual transactions, which is confusing because the money hasn't been spent yet.
 
-**Phase**: Phase 1 | **Priority**: P1 | **Time**: 2h | **Points**: 2 | **Status**: 🐛 Bug Fix Needed
+**Phase**: Phase 1 | **Priority**: P1 | **Time**: 2h | **Points**: 2 | **Status**: ✅ Completed (Feb 12, 2026)
 
 **Expected Behavior**:
 - Calendar view shows only actual transactions (income and expenses)
 - Recurring templates appear in "Upcoming" section, not calendar
 
-**Actual Behavior**:
+**Actual Behavior** (FIXED):
 - Recurring templates shown on calendar as if they are transactions
 - User confused: "I already paid rent?" (but template hasn't been activated)
 
 **Root Cause**: Calendar query includes templates (should filter by `isTemplate = false`)
 
+**Fixes Applied**:
+- ✅ Added `isTemplate = false` filter to calendar query
+- ✅ Templates now only appear in "Upcoming" section
+- ✅ Calendar displays actual transactions only
+- ✅ Activated templates (converted to transactions) properly appear on calendar
+
 **Acceptance Criteria**:
-- [ ] Calendar view filters out recurring templates
-- [ ] Query: `transactions.where('isTemplate', '=', false)`
-- [ ] Templates only appear in "Upcoming" section
-- [ ] Activated templates (converted to transactions) appear on calendar
-- [ ] Unit test verifies templates excluded from calendar query
+- [x] Calendar view filters out recurring templates
+- [x] Query: `transactions.where('isTemplate', '=', false)`
+- [x] Templates only appear in "Upcoming" section
+- [x] Activated templates (converted to transactions) appear on calendar
+- [x] Unit test verifies templates excluded from calendar query
 
 **Dependencies**: US-016 (Recurring Expenses)
 
@@ -2945,6 +3058,52 @@ if (wasShared && nowPersonal) {
 - [ ] Performance: No degradation from refactor
 
 **Dependencies**: TECH-001 (GlassCard Component)
+
+---
+
+#### BUG-008: Navigation Bar Haptic Feedback Reanimated Error ✅
+
+**Story**: As a user long-pressing or swiping on the navigation bar, I encounter a crash with error "Tried to synchronously call a non-worklet function `impactAsync` on the UI thread."
+
+**Phase**: Phase 2 | **Priority**: P0 | **Time**: 1h | **Points**: 2 | **Status**: ✅ Completed (Feb 12, 2026)
+
+**Issue**: Haptic feedback functions called directly in Reanimated gesture handlers (UI thread) caused runtime errors
+
+**Root Cause**: `Haptics.impactAsync()` is a JavaScript function that must run on the JS thread, but was being called from gesture handlers running on the UI thread
+
+**Error Message**:
+```
+ReanimatedError: [Reanimated] Tried to synchronously call a non-worklet function
+`impactAsync` on the UI thread.
+```
+
+**Fixes Applied**:
+- ✅ Added `runOnJS` import from `react-native-reanimated`
+- ✅ Created `triggerHaptic()` helper function for JS thread execution
+- ✅ Wrapped all `Haptics.impactAsync()` calls with `runOnJS()`
+- ✅ Wrapped navigation callbacks (`onSwipeNext`, `onSwipePrevious`) with `runOnJS()`
+- ✅ Fixed all 5 haptic feedback call sites in gesture handlers
+
+**Acceptance Criteria**:
+- [x] No more Reanimated errors when long-pressing navigation tabs
+- [x] No more errors when swiping left/right on navigation bar
+- [x] Haptic feedback works correctly on gesture start
+- [x] Haptic feedback works on swipe completion
+- [x] Edge case haptic feedback (trying to swipe beyond boundaries)
+
+**Files Changed**:
+- `src/components/navigation/useTabSwipeGesture.ts`
+
+**Code Example**:
+```typescript
+// Before (❌ causes error)
+Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+// After (✅ works correctly)
+runOnJS(triggerHaptic)(Haptics.ImpactFeedbackStyle.Light);
+```
+
+**Dependencies**: TECH-010 (Floating Island Navigation Bar)
 
 ---
 

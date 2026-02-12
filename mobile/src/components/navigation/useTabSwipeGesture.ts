@@ -11,6 +11,7 @@
 
 import { useMemo } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 interface UseTabSwipeGestureParams {
@@ -39,6 +40,11 @@ interface UseTabSwipeGestureParams {
 const SWIPE_VELOCITY_THRESHOLD = 500; // points per second
 const SWIPE_DISTANCE_THRESHOLD = 100; // pixels
 
+// Helper function to trigger haptic feedback (must run on JS thread)
+const triggerHaptic = (style: Haptics.ImpactFeedbackStyle) => {
+  Haptics.impactAsync(style);
+};
+
 export function useTabSwipeGesture({
   currentIndex,
   totalTabs,
@@ -50,7 +56,8 @@ export function useTabSwipeGesture({
       Gesture.Pan()
         .onStart(() => {
           // STEP 5: Light haptic feedback on gesture start
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          // FIXED: Use runOnJS to run haptic on JS thread
+          runOnJS(triggerHaptic)(Haptics.ImpactFeedbackStyle.Light);
         })
         .onUpdate((event) => {
           // Could add visual feedback here (e.g., subtle arrow hint)
@@ -71,27 +78,31 @@ export function useTabSwipeGesture({
 
           if (!shouldTriggerSwipe) {
             // STEP 5: Not enough movement - snap back with light haptic
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            // FIXED: Use runOnJS to run haptic on JS thread
+            runOnJS(triggerHaptic)(Haptics.ImpactFeedbackStyle.Light);
             return;
           }
 
           // STEP 5: Swipe left = next tab (if not at end)
           if (isSwipingLeft && currentIndex < totalTabs - 1) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            onSwipeNext();
+            // FIXED: Use runOnJS to run haptic on JS thread
+            runOnJS(triggerHaptic)(Haptics.ImpactFeedbackStyle.Medium);
+            runOnJS(onSwipeNext)();
             return;
           }
 
           // STEP 5: Swipe right = previous tab (if not at start)
           if (isSwipingRight && currentIndex > 0) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            onSwipePrevious();
+            // FIXED: Use runOnJS to run haptic on JS thread
+            runOnJS(triggerHaptic)(Haptics.ImpactFeedbackStyle.Medium);
+            runOnJS(onSwipePrevious)();
             return;
           }
 
           // STEP 5: Edge case - trying to swipe beyond first/last tab
           // Snap back with light haptic (already at boundary)
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          // FIXED: Use runOnJS to run haptic on JS thread
+          runOnJS(triggerHaptic)(Haptics.ImpactFeedbackStyle.Light);
         })
         // STEP 5: Only respond to horizontal swipes (ignore vertical)
         .activeOffsetX([-10, 10]) // Must move 10px horizontally to activate
