@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Modal, ActivityIndicator, SectionList } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Plus, Edit2, Trash2, X } from 'lucide-react-native';
+import { ArrowLeft, Plus, Edit2, Trash2, X } from 'lucide-react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { db } from '@/lib/db';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '@/lib/categories-api';
 import { getCategoryGroups } from '@/lib/category-groups-api';
+import { colors, borderRadius } from '@/lib/design-tokens';
 import { cn } from '@/lib/cn';
 
 type CategoryType = 'income' | 'expense';
@@ -26,6 +29,7 @@ interface SectionData {
 }
 
 export default function CategoriesScreen() {
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
   const [showModal, setShowModal] = useState(false);
@@ -217,9 +221,17 @@ export default function CategoriesScreen() {
     // Add sections for each group matching the selected type
     groupsOfType.forEach((group) => {
       // Find categories that belong to this group by matching categoryGroup to group.key
-      const categoriesForGroup = categoriesOfType.filter((cat) => cat.categoryGroup === group.key);
+      const categoriesForGroup = categoriesOfType
+        .filter((cat) => cat.categoryGroup === group.key)
+        .sort((a, b) => {
+          // Remove emojis and sort alphabetically by the actual text
+          const nameA = (a.name || '').replace(/[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}]/gu, '').trim().toLowerCase();
+          const nameB = (b.name || '').replace(/[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}]/gu, '').trim().toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
 
       if (categoriesForGroup.length > 0) {
+        console.log(`Group "${group.name}" categories:`, categoriesForGroup.map(c => c.name).join(', '));
         sections.push({
           title: group.icon ? `${group.icon} ${group.name}` : group.name,
           data: categoriesForGroup,
@@ -244,7 +256,12 @@ export default function CategoriesScreen() {
       uncategorizedByGroup.forEach((cats, groupKey) => {
         sections.push({
           title: `📦 ${groupKey.charAt(0).toUpperCase() + groupKey.slice(1)}`,
-          data: cats,
+          data: cats.sort((a, b) => {
+            // Remove emojis and sort alphabetically by the actual text
+            const nameA = (a.name || '').replace(/[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}]/gu, '').trim().toLowerCase();
+            const nameB = (b.name || '').replace(/[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}]/gu, '').trim().toLowerCase();
+            return nameA.localeCompare(nameB);
+          }),
         });
       });
     }
@@ -257,286 +274,419 @@ export default function CategoriesScreen() {
 
   if (householdQuery.isLoading || categoriesQuery.isLoading || categoryGroupsQuery.isLoading) {
     return (
-      <View className="flex-1 bg-white items-center justify-center">
-        <ActivityIndicator size="large" color="#006A6A" />
-      </View>
+      <LinearGradient
+        colors={[colors.contextDark, colors.contextTeal]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ flex: 1, paddingTop: insets.top }}
+      >
+        <View className="flex-1 items-center justify-center">
+          <Animated.View entering={FadeIn.duration(500)}>
+            <Text className="text-4xl mb-4">📁</Text>
+          </Animated.View>
+          <Text style={{ color: colors.textWhiteSecondary }} className="text-sm">
+            Loading categories...
+          </Text>
+        </View>
+      </LinearGradient>
     );
   }
 
 
   return (
-    <View className="flex-1 bg-white">
-      <Stack.Screen
-        options={{
-          title: 'Categories',
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()} className="pl-4">
-              <ChevronLeft size={24} color="#006A6A" />
-            </Pressable>
-          ),
-          headerRight: () => (
-            <Pressable onPress={handleCreateClick} className="pr-4">
-              <Plus size={24} color="#006A6A" />
-            </Pressable>
-          ),
-        }}
-      />
-
-      <SafeAreaView edges={['bottom']} className="flex-1">
-        {/* Type Selector */}
-        <View className="px-6 py-4 gap-3">
-          <View className="flex-row gap-3">
-            {(['expense', 'income'] as const).map((type) => (
-              <Pressable
-                key={type}
-                onPress={() => setSelectedType(type)}
-                className={cn(
-                  'flex-1 py-3 rounded-lg border-2 items-center',
-                  selectedType === type
-                    ? 'bg-teal-50 border-teal-600'
-                    : 'border-gray-200'
-                )}
-              >
-                <Text
-                  className={cn(
-                    'font-medium capitalize',
-                    selectedType === type ? 'text-teal-600' : 'text-gray-700'
-                  )}
-                >
-                  {type}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+    <LinearGradient
+      colors={[colors.contextDark, colors.contextTeal]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+      {/* Header */}
+      <View
+        className="flex-row items-center justify-between px-5 pb-4"
+        style={{ paddingTop: insets.top + 16 }}
+      >
+        <View className="flex-row items-center">
+          <Pressable
+            onPress={() => router.back()}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: borderRadius.sm,
+              backgroundColor: colors.glassWhite,
+              borderWidth: 1,
+              borderColor: colors.glassBorder,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 16,
+            }}
+          >
+            <ArrowLeft size={20} color={colors.textWhite} strokeWidth={2} />
+          </Pressable>
+          <Text className="text-white text-xl font-semibold">Categories</Text>
         </View>
+        <Pressable
+          onPress={handleCreateClick}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: borderRadius.sm,
+            backgroundColor: colors.glassWhite,
+            borderWidth: 1,
+            borderColor: colors.glassBorder,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Plus size={20} color={colors.textWhite} strokeWidth={2} />
+        </Pressable>
+      </View>
 
-        {sections.length === 0 ? (
-          <View className="flex-1 items-center justify-center px-6">
-            <Text className="text-base text-gray-500">No categories yet</Text>
-          </View>
-        ) : (
-          <SectionList
-            sections={sections}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item: category }) => (
-              <View key={category.id} className="px-6 py-3 border-b border-gray-100">
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-1">
-                    <Text className="text-base font-medium text-gray-900">
-                      {category.icon && `${category.icon} `}
-                      {category.name}
+      {/* Type Selector */}
+      <View className="px-5 pb-4">
+        <View className="flex-row gap-3">
+          {(['expense', 'income'] as const).map((type) => (
+            <Pressable
+              key={type}
+              onPress={() => setSelectedType(type)}
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                borderRadius: borderRadius.md,
+                borderWidth: 2,
+                borderColor: selectedType === type ? colors.sageGreen : colors.glassBorder,
+                backgroundColor: selectedType === type ? 'rgba(168, 181, 161, 0.15)' : colors.glassWhite,
+                alignItems: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  color: selectedType === type ? colors.sageGreen : colors.textWhiteSecondary,
+                  fontWeight: '600',
+                  textTransform: 'capitalize',
+                }}
+              >
+                {type}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      {sections.length === 0 ? (
+        <View className="flex-1 items-center justify-center px-6">
+          <Animated.View entering={FadeIn.duration(500)}>
+            <Text className="text-4xl mb-4">📁</Text>
+          </Animated.View>
+          <Text style={{ color: colors.textWhiteSecondary }} className="text-base">
+            No categories yet
+          </Text>
+        </View>
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{
+            paddingBottom: insets.bottom + 24,
+          }}
+          renderItem={({ item: category }) => (
+            <View
+              key={category.id}
+              style={{
+                marginHorizontal: 20,
+                marginBottom: 8,
+                backgroundColor: colors.glassWhite,
+                borderWidth: 1,
+                borderColor: colors.glassBorder,
+                borderRadius: borderRadius.md,
+                padding: 16,
+              }}
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1">
+                  <Text style={{ color: colors.textWhite }} className="text-base font-medium">
+                    {category.icon && `${category.icon} `}
+                    {category.name}
+                  </Text>
+                  {category.isDefault && (
+                    <Text style={{ color: colors.textWhiteSecondary }} className="text-xs mt-1">
+                      Default
                     </Text>
-                    {category.isDefault && (
-                      <Text className="text-xs text-gray-500 mt-1">Default</Text>
-                    )}
-                  </View>
-
-                  {!category.isDefault && (
-                    <View className="flex-row gap-3">
-                      <Pressable onPress={() => handleEditClick(category)}>
-                        <Edit2 size={18} color="#006A6A" />
-                      </Pressable>
-                      <Pressable onPress={() => handleDeleteClick(category.id)}>
-                        <Trash2 size={18} color="#EF4444" />
-                      </Pressable>
-                    </View>
                   )}
                 </View>
-              </View>
-            )}
-            renderSectionHeader={({ section: { title } }) => (
-              <View className="px-6 py-3 bg-gray-50">
-                <Text className="text-sm font-semibold text-gray-700">{title}</Text>
-              </View>
-            )}
-            scrollEnabled={true}
-            contentContainerStyle={{ paddingVertical: 8 }}
-          />
-        )}
-      </SafeAreaView>
 
-      {/* Modal */}
-      <Modal visible={showModal} animationType="slide" transparent>
-        <View className="flex-1 bg-black/30">
-          <SafeAreaView className="flex-1" edges={['bottom']}>
-            <View className="flex-1 bg-white rounded-t-3xl pt-6">
-              {/* Header */}
-              <View className="flex-row items-center justify-between px-6 pb-6 border-b border-gray-100">
-                <Text className="text-xl font-semibold text-gray-900">
-                  {editingCategory ? 'Edit Category' : 'Add Category'}
-                </Text>
-                <Pressable onPress={() => setShowModal(false)}>
-                  <X size={24} color="#6B7280" />
-                </Pressable>
-              </View>
-
-              <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingTop: 16, paddingBottom: 32 }}>
-                {/* Name */}
-                <View className="mb-6">
-                  <Text className="text-sm font-medium text-gray-700 mb-2">Category Name</Text>
-                  <TextInput
-                    className="px-4 py-3 rounded-lg border-2 text-base"
-                    style={{
-                      borderColor: errors.name ? '#EF4444' : '#E5E7EB',
-                      color: '#1F2937',
-                    }}
-                    placeholder="e.g., Groceries"
-                    value={formData.name}
-                    onChangeText={(text) => {
-                      setFormData({ ...formData, name: text });
-                      if (errors.name) setErrors({ ...errors, name: '' });
-                    }}
-                  />
-                  {errors.name && <Text className="text-xs text-red-500 mt-1">{errors.name}</Text>}
-                </View>
-
-                {/* Type */}
-                <View className="mb-6">
-                  <Text className="text-sm font-medium text-gray-700 mb-2">Type</Text>
+                {!category.isDefault && (
                   <View className="flex-row gap-3">
-                    {(['income', 'expense'] as const).map((type) => (
-                      <Pressable
-                        key={type}
-                        onPress={() => {
-                          setFormData({
-                            ...formData,
-                            type,
-                            groupKey: '',
-                          });
-                          if (errors.type) setErrors({ ...errors, type: '' });
-                        }}
-                        className={cn(
-                          'flex-1 py-3 rounded-lg border-2 items-center',
-                          formData.type === type
-                            ? 'bg-teal-50 border-teal-600'
-                            : 'border-gray-200'
-                        )}
-                      >
-                        <Text
-                          className={cn(
-                            'font-medium capitalize',
-                            formData.type === type ? 'text-teal-600' : 'text-gray-700'
-                          )}
-                        >
-                          {type}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                  {errors.type && <Text className="text-xs text-red-500 mt-1">{errors.type}</Text>}
-                </View>
-
-                {/* Group (for both income and expense) */}
-                {formData.type && (
-                  <View className="mb-6">
-                    <Text className="text-sm font-medium text-gray-700 mb-2">Category Group</Text>
-                    {(categoryGroupsQuery.data || []).filter((group) => group.type === formData.type).length === 0 ? (
-                      <View className="p-4 rounded-lg bg-amber-50 border border-amber-200">
-                        <Text className="text-sm text-amber-800 mb-3">
-                          You need to create a category group first before adding categories.
-                        </Text>
-                        <Pressable
-                          onPress={() => {
-                            setShowModal(false);
-                            router.push('/settings/category-groups');
-                          }}
-                          className="py-2 px-4 rounded-lg bg-amber-600 items-center"
-                        >
-                          <Text className="text-sm font-semibold text-white">
-                            Create Category Group
-                          </Text>
-                        </Pressable>
-                      </View>
-                    ) : (
-                      <View className="gap-2">
-                        {(categoryGroupsQuery.data || [])
-                          .filter((group) => group.type === formData.type)
-                          .map((group) => (
-                            <Pressable
-                              key={group.id}
-                              onPress={() => {
-                                setFormData({ ...formData, groupKey: group.key as any });
-                                if (errors.groupKey) setErrors({ ...errors, groupKey: '' });
-                              }}
-                              className={cn(
-                                'py-3 px-4 rounded-lg border-2',
-                                formData.groupKey === group.key
-                                  ? 'bg-teal-50 border-teal-600'
-                                  : 'border-gray-200'
-                              )}
-                            >
-                              <Text
-                                className={cn(
-                                  'font-medium',
-                                  formData.groupKey === group.key ? 'text-teal-600' : 'text-gray-700'
-                                )}
-                              >
-                                {group.icon && `${group.icon} `}
-                                {group.name}
-                              </Text>
-                            </Pressable>
-                          ))}
-                      </View>
-                    )}
-                    {errors.groupKey && <Text className="text-xs text-red-500 mt-1">{errors.groupKey}</Text>}
+                    <Pressable onPress={() => handleEditClick(category)}>
+                      <Edit2 size={18} color={colors.sageGreen} />
+                    </Pressable>
+                    <Pressable onPress={() => handleDeleteClick(category.id)}>
+                      <Trash2 size={18} color="#E3A05D" />
+                    </Pressable>
                   </View>
                 )}
-
-                {/* Icon (optional) */}
-                <View className="mb-6">
-                  <Text className="text-sm font-medium text-gray-700 mb-2">Icon (Optional)</Text>
-                  <TextInput
-                    className="px-4 py-3 rounded-lg border-2 border-gray-200 text-base"
-                    style={{ color: '#1F2937' }}
-                    placeholder="e.g., 🛒"
-                    value={formData.icon}
-                    onChangeText={(text) => setFormData({ ...formData, icon: text })}
-                    maxLength={2}
-                  />
-                  <Text className="text-xs text-gray-500 mt-1">Enter an emoji or leave blank</Text>
-                </View>
-
-                {/* Color (optional) */}
-                <View className="mb-6">
-                  <Text className="text-sm font-medium text-gray-700 mb-2">Color (Optional)</Text>
-                  <TextInput
-                    className="px-4 py-3 rounded-lg border-2 border-gray-200 text-base"
-                    style={{ color: '#1F2937' }}
-                    placeholder="e.g., #FF6B6B"
-                    value={formData.color}
-                    onChangeText={(text) => setFormData({ ...formData, color: text })}
-                  />
-                  <Text className="text-xs text-gray-500 mt-1">Optional hex color code</Text>
-                </View>
-              </ScrollView>
-
-              {/* Footer buttons */}
-              <View className="px-6 py-4 border-t border-gray-100 gap-3">
-                <Pressable
-                  onPress={handleSubmit}
-                  disabled={createMutation.isPending || updateMutation.isPending}
-                  className="py-4 rounded-full bg-teal-600 items-center justify-center"
-                >
-                  {createMutation.isPending || updateMutation.isPending ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text className="text-base font-semibold text-white">
-                      {editingCategory ? 'Save Changes' : 'Add Category'}
-                    </Text>
-                  )}
-                </Pressable>
-
-                <Pressable
-                  onPress={() => setShowModal(false)}
-                  className="py-4 rounded-full border-2 border-gray-200 items-center justify-center"
-                >
-                  <Text className="text-base font-semibold text-gray-700">Cancel</Text>
-                </Pressable>
               </View>
             </View>
-          </SafeAreaView>
-        </View>
+          )}
+          renderSectionHeader={({ section: { title } }) => (
+            <View
+              style={{
+                paddingHorizontal: 20,
+                paddingVertical: 12,
+                marginBottom: 8,
+              }}
+            >
+              <Text style={{ color: colors.sageGreen }} className="text-sm font-semibold">{title}</Text>
+            </View>
+          )}
+          scrollEnabled={true}
+          contentContainerStyle={{ paddingVertical: 8 }}
+        />
+      )}
+
+      {/* Modal */}
+      <Modal visible={showModal} animationType="slide" transparent={false}>
+        <LinearGradient
+          colors={[colors.contextDark, colors.contextTeal]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={{ flex: 1 }}
+        >
+          <View
+            style={{
+              paddingTop: insets.top + 16,
+              paddingHorizontal: 20,
+              paddingBottom: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.glassBorder,
+            }}
+          >
+            <View className="flex-row items-center justify-between">
+              <Text style={{ color: colors.textWhite }} className="text-xl font-semibold">
+                {editingCategory ? 'Edit Category' : 'Add Category'}
+              </Text>
+              <Pressable
+                onPress={() => setShowModal(false)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: borderRadius.sm,
+                  backgroundColor: colors.glassWhite,
+                  borderWidth: 1,
+                  borderColor: colors.glassBorder,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={20} color={colors.textWhite} />
+              </Pressable>
+            </View>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingTop: 16,
+              paddingBottom: insets.bottom + 32,
+            }}
+          >
+            {/* Name */}
+            <View className="mb-6">
+              <Text style={{ color: colors.textWhiteSecondary }} className="text-sm font-medium mb-2">
+                Category Name
+              </Text>
+              <TextInput
+                style={{
+                  backgroundColor: colors.glassWhite,
+                  borderWidth: 2,
+                  borderColor: errors.name ? '#E3A05D' : colors.glassBorder,
+                  borderRadius: borderRadius.md,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  fontSize: 16,
+                  color: colors.textWhite,
+                }}
+                placeholder="e.g., Groceries"
+                placeholderTextColor={colors.textWhiteSecondary}
+                value={formData.name}
+                onChangeText={(text) => {
+                  setFormData({ ...formData, name: text });
+                  if (errors.name) setErrors({ ...errors, name: '' });
+                }}
+              />
+              {errors.name && (
+                <Text style={{ color: '#E3A05D' }} className="text-xs mt-1">
+                  {errors.name}
+                </Text>
+              )}
+            </View>
+
+            {/* Type */}
+            <View className="mb-6">
+              <Text style={{ color: colors.textWhiteSecondary }} className="text-sm font-medium mb-2">
+                Type
+              </Text>
+              <View className="flex-row gap-3">
+                {(['income', 'expense'] as const).map((type) => (
+                  <Pressable
+                    key={type}
+                    onPress={() => {
+                      setFormData({
+                        ...formData,
+                        type,
+                        groupKey: '',
+                      });
+                      if (errors.type) setErrors({ ...errors, type: '' });
+                    }}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 12,
+                      borderRadius: borderRadius.md,
+                      borderWidth: 2,
+                      borderColor: formData.type === type ? colors.sageGreen : colors.glassBorder,
+                      backgroundColor: formData.type === type ? 'rgba(168, 181, 161, 0.15)' : colors.glassWhite,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: formData.type === type ? colors.sageGreen : colors.textWhiteSecondary,
+                        fontWeight: '600',
+                        textTransform: 'capitalize',
+                      }}
+                    >
+                      {type}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              {errors.type && (
+                <Text style={{ color: '#E3A05D' }} className="text-xs mt-1">
+                  {errors.type}
+                </Text>
+              )}
+            </View>
+
+            {/* Group (for both income and expense) */}
+            {formData.type && (
+              <View className="mb-6">
+                <Text style={{ color: colors.textWhiteSecondary }} className="text-sm font-medium mb-2">
+                  Category Group
+                </Text>
+                {(categoryGroupsQuery.data || []).filter((group) => group.type === formData.type).length === 0 ? (
+                  <View
+                    style={{
+                      padding: 16,
+                      borderRadius: borderRadius.md,
+                      backgroundColor: 'rgba(227, 160, 93, 0.1)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(227, 160, 93, 0.3)',
+                    }}
+                  >
+                    <Text style={{ color: colors.softAmber }} className="text-sm mb-3">
+                      You need to create a category group first before adding categories.
+                    </Text>
+                    <Pressable
+                      onPress={() => {
+                        setShowModal(false);
+                        router.push('/settings/category-groups');
+                      }}
+                      style={{
+                        paddingVertical: 8,
+                        paddingHorizontal: 16,
+                        borderRadius: borderRadius.md,
+                        backgroundColor: colors.contextTeal,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ color: colors.textWhite }} className="text-sm font-semibold">
+                        Create Category Group
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <View style={{ gap: 8 }}>
+                    {(categoryGroupsQuery.data || [])
+                      .filter((group) => group.type === formData.type)
+                      .map((group) => (
+                        <Pressable
+                          key={group.id}
+                          onPress={() => {
+                            setFormData({ ...formData, groupKey: group.key as any });
+                            if (errors.groupKey) setErrors({ ...errors, groupKey: '' });
+                          }}
+                          style={{
+                            paddingVertical: 12,
+                            paddingHorizontal: 16,
+                            borderRadius: borderRadius.md,
+                            borderWidth: 2,
+                            borderColor:
+                              formData.groupKey === group.key ? colors.sageGreen : colors.glassBorder,
+                            backgroundColor:
+                              formData.groupKey === group.key
+                                ? 'rgba(168, 181, 161, 0.15)'
+                                : colors.glassWhite,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontWeight: '500',
+                              color:
+                                formData.groupKey === group.key
+                                  ? colors.sageGreen
+                                  : colors.textWhite,
+                            }}
+                          >
+                            {group.icon && `${group.icon} `}
+                            {group.name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                  </View>
+                )}
+                {errors.groupKey && (
+                  <Text style={{ color: colors.softAmber }} className="text-xs mt-1">
+                    {errors.groupKey}
+                  </Text>
+                )}
+              </View>
+            )}
+
+          </ScrollView>
+
+          {/* Footer button */}
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingTop: 16,
+              paddingBottom: insets.bottom + 16,
+              borderTopWidth: 1,
+              borderTopColor: colors.glassBorder,
+            }}
+          >
+            <Pressable
+              onPress={handleSubmit}
+              disabled={createMutation.isPending || updateMutation.isPending}
+              style={{
+                backgroundColor: colors.contextTeal,
+                borderRadius: borderRadius.md,
+                paddingVertical: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: createMutation.isPending || updateMutation.isPending ? 0.5 : 1,
+              }}
+            >
+              {createMutation.isPending || updateMutation.isPending ? (
+                <ActivityIndicator color={colors.textWhite} />
+              ) : (
+                <Text style={{ color: colors.textWhite }} className="text-base font-semibold">
+                  {editingCategory ? 'Save Changes' : 'Add Category'}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </LinearGradient>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 }

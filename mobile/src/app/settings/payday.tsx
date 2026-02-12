@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, ScrollView, ActivityIndicator, Modal, FlatList, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, router } from 'expo-router';
-import { ChevronLeft, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { ArrowLeft, X, AlertCircle, Calendar, Info } from 'lucide-react-native';
+import Animated, { FadeIn, FadeInDown, useSharedValue } from 'react-native-reanimated';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 import { formatDateSwiss } from '@/lib/payday-utils';
 import { getCurrentBudgetPeriod } from '@/lib/budget-period-utils';
-import { cn } from '@/lib/cn';
+import { colors, spacing, borderRadius } from '@/lib/design-tokens';
 
 export default function PaydaySettingsScreen() {
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
   const [selectedPayday, setSelectedPayday] = useState<number | null>(null);
@@ -138,9 +141,21 @@ export default function PaydaySettingsScreen() {
 
   if (memberQuery.isLoading) {
     return (
-      <View className="flex-1 bg-white justify-center items-center">
-        <ActivityIndicator size="large" color="#006A6A" />
-      </View>
+      <LinearGradient
+        colors={[colors.contextDark, colors.contextTeal]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ flex: 1, paddingTop: insets.top }}
+      >
+        <View className="flex-1 items-center justify-center">
+          <Animated.View entering={FadeIn.duration(500)}>
+            <Text className="text-4xl mb-4">📅</Text>
+          </Animated.View>
+          <Text style={{ color: colors.textWhiteSecondary }} className="text-sm">
+            Loading payday settings...
+          </Text>
+        </View>
+      </LinearGradient>
     );
   }
 
@@ -157,150 +172,329 @@ export default function PaydaySettingsScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: 'My Payday',
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()} className="mr-4">
-              <ChevronLeft size={24} color="#006A6A" />
-            </Pressable>
-          ),
-          headerStyle: { backgroundColor: '#FFFFFF' },
-          headerTintColor: '#006A6A',
-          headerTitleStyle: { fontSize: 18, fontWeight: '600' },
-        }}
-      />
+      <LinearGradient
+        colors={[colors.contextDark, colors.contextTeal]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ flex: 1 }}
+      >
+        {/* Header */}
+        <View
+          className="flex-row items-center px-5 pb-4"
+          style={{ paddingTop: insets.top + 16 }}
+        >
+          <Pressable
+            onPress={() => router.back()}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: borderRadius.sm,
+              backgroundColor: colors.glassWhite,
+              borderWidth: 1,
+              borderColor: colors.glassBorder,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 16,
+            }}
+          >
+            <ArrowLeft size={20} color={colors.textWhite} strokeWidth={2} />
+          </Pressable>
+          <Text className="text-white text-xl font-semibold">My Payday</Text>
+        </View>
 
-      <View className="flex-1 bg-white">
-        <SafeAreaView edges={['bottom']} className="flex-1">
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-            <View className="px-6 py-6">
-              {/* Header */}
-              <View className="mb-6">
-                <Text className="text-2xl font-bold text-gray-900 mb-2">Set Your Payday</Text>
-                <Text className="text-gray-600">
-                  When do you receive your monthly salary?
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingBottom: insets.bottom + 24,
+            paddingHorizontal: 20,
+          }}
+        >
+          {/* Description */}
+          <Animated.View entering={FadeInDown.delay(0).duration(400)}>
+            <Text
+              style={{ color: colors.textWhiteSecondary }}
+              className="text-sm mb-6"
+            >
+              When do you receive your monthly salary?
+            </Text>
+          </Animated.View>
+
+          {/* Current Setting (if exists) */}
+          {hasPaydaySet && (
+            <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+              <View
+                style={{
+                  backgroundColor: 'rgba(168, 181, 161, 0.1)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(168, 181, 161, 0.2)',
+                  borderRadius: borderRadius.lg,
+                  padding: 16,
+                  marginBottom: 16,
+                }}
+              >
+                <Text style={{ color: colors.sageGreen }} className="font-semibold mb-1">
+                  Current Setting
+                </Text>
+                <Text style={{ color: colors.textWhiteSecondary }} className="text-sm">
+                  Day {currentMember.paydayDay === -1 ? 'Last day' : currentMember.paydayDay} of each month
                 </Text>
               </View>
+            </Animated.View>
+          )}
 
-              {/* Current Setting (if exists) */}
-              {hasPaydaySet && (
-                <View className="bg-teal-50 p-4 rounded-xl mb-6 border border-teal-100">
-                  <Text className="text-teal-900 font-semibold mb-1">Current Setting</Text>
-                  <Text className="text-teal-700">
-                    Day {currentMember.paydayDay === -1 ? 'Last day' : currentMember.paydayDay} of each month
-                  </Text>
-                </View>
-              )}
-
-              {/* No payday set message */}
-              {!hasPaydaySet && (
-                <View className="bg-amber-50 p-4 rounded-xl mb-6 border border-amber-200">
-                  <Text className="text-amber-900 font-semibold mb-1">⚠️ Payday Not Set</Text>
-                  <Text className="text-amber-700 text-sm">
-                    Please set your payday to start tracking your personal budget cycle.
-                  </Text>
-                </View>
-              )}
-
-              {/* Payday Selection */}
-              <View className="mb-6">
-                <Text className="text-sm font-semibold text-gray-700 mb-3">WHEN DO YOU GET PAID?</Text>
-
-                <Pressable
-                  onPress={() => setShowPaydayPicker(true)}
-                  className="flex-row items-center justify-between p-4 rounded-xl"
-                  style={{ backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB' }}
-                >
+          {/* No payday set message */}
+          {!hasPaydaySet && (
+            <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+              <View
+                style={{
+                  backgroundColor: 'rgba(227, 160, 93, 0.1)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(227, 160, 93, 0.3)',
+                  borderRadius: borderRadius.lg,
+                  padding: 16,
+                  marginBottom: 16,
+                }}
+              >
+                <View className="flex-row items-start gap-2">
+                  <AlertCircle size={18} color={colors.softAmber} />
                   <View className="flex-1">
-                    <Text className="text-gray-600 text-sm mb-1">I get paid on:</Text>
-                    <Text className="text-lg font-bold text-gray-900">
-                      {selectedPayday === null
-                        ? 'Select your payday'
-                        : selectedPayday === -1
-                          ? 'Last day of month'
-                          : `Day ${selectedPayday}`}{' '}
-                      {selectedPayday !== null && 'of each month'}
+                    <Text style={{ color: colors.softAmber }} className="font-semibold mb-1">
+                      Payday Not Set
                     </Text>
-                  </View>
-                  <Text className="text-2xl text-gray-400">›</Text>
-                </Pressable>
-              </View>
-
-              {/* Budget Period Preview */}
-              {budgetPeriod && (
-                <View className="mb-6 p-4 rounded-xl" style={{ backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#86EFAC' }}>
-                  <Text className="text-sm font-semibold text-green-700 mb-3">YOUR BUDGET PERIOD</Text>
-
-                  <View className="mb-3">
-                    <Text className="text-xs text-green-600 mb-1">Period:</Text>
-                    <Text className="text-base font-semibold text-green-800">
-                      {formatDateSwiss(budgetPeriod.periodStartISO)} - {formatDateSwiss(budgetPeriod.periodEndISO)}
+                    <Text style={{ color: colors.textWhiteSecondary }} className="text-sm">
+                      Please set your payday to start tracking your personal budget cycle.
                     </Text>
-                  </View>
-
-                  <View className="flex-row justify-between">
-                    <View className="flex-1">
-                      <Text className="text-xs text-green-600 mb-1">Days remaining:</Text>
-                      <Text className="text-base font-semibold text-green-800">{budgetPeriod.daysRemaining} days</Text>
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-xs text-green-600 mb-1">Resets on:</Text>
-                      <Text className="text-base font-semibold text-green-800">{formatDateSwiss(budgetPeriod.nextResetISO)}</Text>
-                    </View>
                   </View>
                 </View>
-              )}
+              </View>
+            </Animated.View>
+          )}
 
-              {/* Info Box */}
-              <View className="p-4 rounded-xl" style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' }}>
-                <Text className="text-sm font-semibold text-blue-900 mb-2">💡 Your Personal Budget Cycle</Text>
-                <Text className="text-sm text-blue-700 leading-5">
-                  Your budget period starts on your payday and ends the day before your next payday.
-                  This is separate from your household partner's budget cycle - each person can have a different payday!
+          {/* Payday Selection */}
+          <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+            <Text
+              style={{ color: colors.sageGreen }}
+              className="text-xs font-semibold mb-3"
+            >
+              WHEN DO YOU GET PAID?
+            </Text>
+
+            <Pressable
+              onPress={() => setShowPaydayPicker(true)}
+              style={{
+                backgroundColor: colors.glassWhite,
+                borderWidth: 1,
+                borderColor: colors.glassBorder,
+                borderRadius: borderRadius.lg,
+                padding: 16,
+                marginBottom: 16,
+              }}
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1">
+                  <Text style={{ color: colors.textWhiteSecondary }} className="text-sm mb-1">
+                    I get paid on:
+                  </Text>
+                  <Text style={{ color: colors.textWhite }} className="text-lg font-bold">
+                    {selectedPayday === null
+                      ? 'Select your payday'
+                      : selectedPayday === -1
+                        ? 'Last day of month'
+                        : `Day ${selectedPayday}`}{' '}
+                    {selectedPayday !== null && 'of each month'}
+                  </Text>
+                </View>
+                <Calendar size={20} color={colors.textWhiteSecondary} />
+              </View>
+            </Pressable>
+          </Animated.View>
+
+          {/* Budget Period Preview */}
+          {budgetPeriod && (
+            <Animated.View entering={FadeInDown.delay(400).duration(400)}>
+              <View
+                style={{
+                  backgroundColor: 'rgba(168, 181, 161, 0.1)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(168, 181, 161, 0.2)',
+                  borderRadius: borderRadius.lg,
+                  padding: 16,
+                  marginBottom: 16,
+                }}
+              >
+                <Text
+                  style={{ color: colors.sageGreen }}
+                  className="text-xs font-semibold mb-3"
+                >
+                  YOUR BUDGET PERIOD
                 </Text>
+
+                <View className="mb-3">
+                  <Text
+                    style={{ color: colors.textWhiteSecondary }}
+                    className="text-xs mb-1"
+                  >
+                    Period:
+                  </Text>
+                  <Text style={{ color: colors.textWhite }} className="text-base font-semibold">
+                    {formatDateSwiss(budgetPeriod.periodStartISO)} - {formatDateSwiss(budgetPeriod.periodEndISO)}
+                  </Text>
+                </View>
+
+                <View className="flex-row justify-between">
+                  <View className="flex-1">
+                    <Text
+                      style={{ color: colors.textWhiteSecondary }}
+                      className="text-xs mb-1"
+                    >
+                      Days remaining:
+                    </Text>
+                    <Text style={{ color: colors.textWhite }} className="text-base font-semibold">
+                      {budgetPeriod.daysRemaining} days
+                    </Text>
+                  </View>
+                  <View className="flex-1">
+                    <Text
+                      style={{ color: colors.textWhiteSecondary }}
+                      className="text-xs mb-1"
+                    >
+                      Resets on:
+                    </Text>
+                    <Text style={{ color: colors.textWhite }} className="text-base font-semibold">
+                      {formatDateSwiss(budgetPeriod.nextResetISO)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </Animated.View>
+          )}
+
+          {/* Info Box */}
+          <Animated.View entering={FadeInDown.delay(500).duration(400)}>
+            <View
+              style={{
+                backgroundColor: 'rgba(168, 181, 161, 0.1)',
+                borderWidth: 1,
+                borderColor: 'rgba(168, 181, 161, 0.2)',
+                borderRadius: borderRadius.lg,
+                padding: 16,
+                marginBottom: 16,
+              }}
+            >
+              <View className="flex-row items-start gap-3">
+                <Info size={18} color={colors.sageGreen} />
+                <View className="flex-1">
+                  <Text
+                    style={{ color: colors.sageGreen }}
+                    className="font-semibold mb-1"
+                  >
+                    Your Personal Budget Cycle
+                  </Text>
+                  <Text
+                    style={{ color: colors.textWhiteSecondary }}
+                    className="text-sm leading-5"
+                  >
+                    Your budget period starts on your payday and ends the day before your next payday.
+                    This is separate from your household partner's budget cycle - each person can have a different payday!
+                  </Text>
+                </View>
               </View>
             </View>
-          </ScrollView>
+          </Animated.View>
 
           {/* Save Button */}
-          <View className="px-6 py-4 border-t border-gray-200">
+          <Animated.View entering={FadeInDown.delay(600).duration(400)}>
             <Pressable
               onPress={handleSave}
               disabled={saveMutation.isPending || !selectedPayday}
-              className={cn(
-                'py-4 px-4 rounded-xl items-center justify-center',
-                saveMutation.isPending || !selectedPayday ? 'bg-gray-300' : 'bg-teal-600'
-              )}
+              style={{
+                backgroundColor:
+                  saveMutation.isPending || !selectedPayday
+                    ? 'rgba(255,255,255,0.1)'
+                    : 'rgba(168, 181, 161, 0.3)',
+                borderWidth: 1,
+                borderColor: saveMutation.isPending || !selectedPayday ? 'transparent' : 'rgba(168, 181, 161, 0.5)',
+                borderRadius: borderRadius.md,
+                paddingVertical: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: saveMutation.isPending || !selectedPayday ? 0.5 : 1,
+              }}
             >
               {saveMutation.isPending ? (
-                <ActivityIndicator color="white" />
+                <ActivityIndicator color={colors.textWhite} />
               ) : (
-                <Text className="text-white font-semibold text-base">Save Payday</Text>
+                <Text
+                  style={{ color: colors.textWhite }}
+                  className="font-semibold text-base"
+                >
+                  Save
+                </Text>
               )}
             </Pressable>
-          </View>
+          </Animated.View>
+        </ScrollView>
 
-          {/* Success Message */}
-          {successMessage && (
-            <View className="absolute bottom-20 left-6 right-6 bg-green-500 p-4 rounded-lg">
-              <Text className="text-white font-semibold text-center">✓ {successMessage}</Text>
-            </View>
-          )}
-        </SafeAreaView>
-      </View>
+        {/* Success Message */}
+        {successMessage && (
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            style={{
+              position: 'absolute',
+              bottom: insets.bottom + 100,
+              left: 20,
+              right: 20,
+              backgroundColor: 'rgba(168, 181, 161, 0.95)',
+              borderRadius: borderRadius.md,
+              padding: 16,
+            }}
+          >
+            <Text
+              style={{ color: colors.textWhite }}
+              className="font-semibold text-center"
+            >
+              ✓ {successMessage}
+            </Text>
+          </Animated.View>
+        )}
+      </LinearGradient>
 
       {/* Payday Picker Modal */}
       <Modal visible={showPaydayPicker} transparent={false} animationType="slide">
-        <View className="flex-1 bg-white">
-          <SafeAreaView edges={['top']} className="bg-white">
-            <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
-              <Text className="text-lg font-bold">Select Your Payday</Text>
-              <Pressable onPress={() => setShowPaydayPicker(false)}>
-                <X size={24} color="#006A6A" />
+        <LinearGradient
+          colors={[colors.contextDark, colors.contextTeal]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={{ flex: 1 }}
+        >
+          <View
+            style={{
+              paddingTop: insets.top + 16,
+              paddingHorizontal: 20,
+              paddingBottom: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.glassBorder,
+            }}
+          >
+            <View className="flex-row items-center justify-between">
+              <Text style={{ color: colors.textWhite }} className="text-lg font-bold">
+                Select Your Payday
+              </Text>
+              <Pressable
+                onPress={() => setShowPaydayPicker(false)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: colors.glassWhite,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={18} color={colors.textWhite} />
               </Pressable>
             </View>
-          </SafeAreaView>
+          </View>
 
           <FlatList
             data={paydayOptions}
@@ -312,24 +506,35 @@ export default function PaydaySettingsScreen() {
                   setSelectedPayday(item.value);
                   setShowPaydayPicker(false);
                 }}
-                className={cn(
-                  'px-6 py-4 border-b border-gray-100 flex-row items-center justify-between',
-                  selectedPayday === item.value && 'bg-teal-50'
-                )}
+                style={{
+                  paddingHorizontal: 20,
+                  paddingVertical: 16,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.glassBorder,
+                  backgroundColor:
+                    selectedPayday === item.value ? colors.glassWhite : 'transparent',
+                }}
               >
-                <Text
-                  className={cn(
-                    'text-base',
-                    selectedPayday === item.value ? 'font-bold text-teal-600' : 'font-normal text-gray-900'
+                <View className="flex-row items-center justify-between">
+                  <Text
+                    style={{
+                      color: selectedPayday === item.value ? colors.sageGreen : colors.textWhite,
+                      fontWeight: selectedPayday === item.value ? '600' : '400',
+                      fontSize: 16,
+                    }}
+                  >
+                    {item.label}
+                  </Text>
+                  {selectedPayday === item.value && (
+                    <Text style={{ color: colors.sageGreen }} className="text-lg">
+                      ✓
+                    </Text>
                   )}
-                >
-                  {item.label}
-                </Text>
-                {selectedPayday === item.value && <Text className="text-teal-600 text-lg">✓</Text>}
+                </View>
               </Pressable>
             )}
           />
-        </View>
+        </LinearGradient>
       </Modal>
     </>
   );

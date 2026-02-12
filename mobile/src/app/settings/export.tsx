@@ -7,8 +7,10 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import Animated, { FadeInDown, useSharedValue } from 'react-native-reanimated';
 import {
   Download,
   FileSpreadsheet,
@@ -17,6 +19,7 @@ import {
   Filter,
   Check,
   ChevronDown,
+  ArrowLeft,
 } from 'lucide-react-native';
 import { db } from '@/lib/db';
 import { getUserProfileAndHousehold } from '@/lib/household-utils';
@@ -27,6 +30,9 @@ import {
   ExportFilters,
 } from '@/lib/import-export-api';
 import { formatCurrency } from '@/lib/transactions-api';
+import { colors, borderRadius, spacing } from '@/lib/design-tokens';
+import StickyStatusBar from '@/components/layout/StickyStatusBar';
+import { router } from 'expo-router';
 
 type DateRangeOption = 'all' | 'this_month' | 'last_month' | 'last_3_months' | 'last_6_months' | 'this_year';
 type ExportFormat = 'csv' | 'xlsx';
@@ -89,6 +95,8 @@ function getDateRange(option: DateRangeOption): { start?: string; end?: string }
 }
 
 export default function ExportScreen() {
+  const insets = useSafeAreaInsets();
+  const scrollY = useSharedValue(0);
   const { user } = db.useAuth();
 
   // Filter state
@@ -214,247 +222,491 @@ export default function ExportScreen() {
 
   if (userDataQuery.isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
-        <ActivityIndicator size="large" color="#006A6A" />
-      </SafeAreaView>
+      <LinearGradient
+        colors={[colors.contextDark, colors.contextTeal]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ flex: 1, paddingTop: insets.top }}
+      >
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color={colors.sageGreen} />
+        </View>
+      </LinearGradient>
     );
   }
 
   const preview = previewQuery.data;
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['bottom']}>
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        <View className="px-6 py-4">
-          <Text className="text-xl font-bold text-gray-900 mb-2">Export Transactions</Text>
-          <Text className="text-sm text-gray-600 mb-6">
+    <LinearGradient
+      colors={[colors.contextDark, colors.contextTeal]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+      <StickyStatusBar scrollY={scrollY} />
+
+      {/* Header */}
+      <View
+        className="flex-row items-center px-5 pb-4"
+        style={{ paddingTop: insets.top + 16 }}
+      >
+        <Pressable
+          onPress={() => router.back()}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: borderRadius.sm,
+            backgroundColor: colors.glassWhite,
+            borderWidth: 1,
+            borderColor: colors.glassBorder,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: 16,
+          }}
+        >
+          <ArrowLeft size={20} color={colors.textWhite} strokeWidth={2} />
+        </Pressable>
+        <Text className="text-white text-xl font-semibold">Export Data</Text>
+      </View>
+
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 24,
+          paddingHorizontal: 20,
+        }}
+      >
+        <Animated.View entering={FadeInDown.delay(0).duration(400)}>
+          <Text
+            style={{ color: colors.textWhiteSecondary }}
+            className="text-sm mb-6"
+          >
             Download your transactions as CSV or Excel file
           </Text>
+        </Animated.View>
 
           {/* Filters Section */}
-          <View className="bg-white rounded-xl p-4 mb-4">
-            <View className="flex-row items-center mb-4">
-              <Filter size={18} color="#6B7280" />
-              <Text className="text-sm font-semibold text-gray-900 ml-2">Filters</Text>
-            </View>
-
-            {/* Date Range */}
-            <View className="mb-4">
-              <Text className="text-xs text-gray-500 mb-2">Date Range</Text>
-              <Pressable
-                onPress={() => setShowDateOptions(!showDateOptions)}
-                className="flex-row items-center justify-between px-4 py-3 bg-gray-50 rounded-lg"
-              >
-                <View className="flex-row items-center">
-                  <Calendar size={18} color="#006A6A" />
-                  <Text className="text-sm text-gray-900 ml-2">
-                    {DATE_RANGE_OPTIONS.find((o) => o.value === dateRange)?.label}
-                  </Text>
-                </View>
-                <ChevronDown size={18} color="#9CA3AF" />
-              </Pressable>
-
-              {showDateOptions && (
-                <View className="mt-1 bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  {DATE_RANGE_OPTIONS.map((option) => (
-                    <Pressable
-                      key={option.value}
-                      onPress={() => {
-                        setDateRange(option.value);
-                        setShowDateOptions(false);
-                      }}
-                      className={`px-4 py-3 flex-row items-center justify-between border-b border-gray-100 ${
-                        dateRange === option.value ? 'bg-teal-50' : ''
-                      }`}
-                    >
-                      <Text
-                        className={
-                          dateRange === option.value
-                            ? 'text-teal-700 font-medium'
-                            : 'text-gray-900'
-                        }
-                      >
-                        {option.label}
-                      </Text>
-                      {dateRange === option.value && <Check size={18} color="#0D9488" />}
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            {/* Type Filter */}
-            <View>
-              <Text className="text-xs text-gray-500 mb-2">Transaction Type</Text>
-              <Pressable
-                onPress={() => setShowTypeOptions(!showTypeOptions)}
-                className="flex-row items-center justify-between px-4 py-3 bg-gray-50 rounded-lg"
-              >
-                <Text className="text-sm text-gray-900 capitalize">
-                  {typeFilter === 'all' ? 'All Transactions' : typeFilter}
+          <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+            <View
+              style={{
+                backgroundColor: colors.glassWhite,
+                borderWidth: 1,
+                borderColor: colors.glassBorder,
+                borderRadius: borderRadius.lg,
+                padding: 16,
+                marginBottom: 16,
+              }}
+            >
+              <View className="flex-row items-center mb-4">
+                <Filter size={18} color={colors.sageGreen} />
+                <Text
+                  style={{ color: colors.textWhite }}
+                  className="text-sm font-semibold ml-2"
+                >
+                  Filters
                 </Text>
-                <ChevronDown size={18} color="#9CA3AF" />
-              </Pressable>
+              </View>
 
-              {showTypeOptions && (
-                <View className="mt-1 bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  {[
-                    { value: 'all', label: 'All Transactions' },
-                    { value: 'income', label: 'Income Only' },
-                    { value: 'expense', label: 'Expenses Only' },
-                  ].map((option) => (
-                    <Pressable
-                      key={option.value}
-                      onPress={() => {
-                        setTypeFilter(option.value as typeof typeFilter);
-                        setShowTypeOptions(false);
-                      }}
-                      className={`px-4 py-3 flex-row items-center justify-between border-b border-gray-100 ${
-                        typeFilter === option.value ? 'bg-teal-50' : ''
-                      }`}
-                    >
-                      <Text
-                        className={
-                          typeFilter === option.value
-                            ? 'text-teal-700 font-medium'
-                            : 'text-gray-900'
-                        }
+              {/* Date Range */}
+              <View className="mb-4">
+                <Text
+                  style={{ color: colors.textWhiteSecondary }}
+                  className="text-xs mb-2"
+                >
+                  Date Range
+                </Text>
+                <Pressable
+                  onPress={() => setShowDateOptions(!showDateOptions)}
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    borderRadius: borderRadius.md,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <View className="flex-row items-center">
+                    <Calendar size={18} color={colors.sageGreen} />
+                    <Text style={{ color: colors.textWhite }} className="text-sm ml-2">
+                      {DATE_RANGE_OPTIONS.find((o) => o.value === dateRange)?.label}
+                    </Text>
+                  </View>
+                  <ChevronDown size={18} color={colors.textWhiteSecondary} />
+                </Pressable>
+
+                {showDateOptions && (
+                  <View
+                    style={{
+                      marginTop: 4,
+                      backgroundColor: colors.glassWhite,
+                      borderWidth: 1,
+                      borderColor: colors.glassBorder,
+                      borderRadius: borderRadius.md,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {DATE_RANGE_OPTIONS.map((option) => (
+                      <Pressable
+                        key={option.value}
+                        onPress={() => {
+                          setDateRange(option.value);
+                          setShowDateOptions(false);
+                        }}
+                        style={{
+                          paddingHorizontal: 16,
+                          paddingVertical: 12,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          borderBottomWidth: 1,
+                          borderBottomColor: 'rgba(255,255,255,0.05)',
+                          backgroundColor:
+                            dateRange === option.value ? 'rgba(168,181,161,0.1)' : 'transparent',
+                        }}
                       >
-                        {option.label}
-                      </Text>
-                      {typeFilter === option.value && <Check size={18} color="#0D9488" />}
-                    </Pressable>
-                  ))}
-                </View>
-              )}
+                        <Text
+                          style={{
+                            color:
+                              dateRange === option.value ? colors.sageGreen : colors.textWhite,
+                            fontWeight: dateRange === option.value ? '600' : '400',
+                          }}
+                        >
+                          {option.label}
+                        </Text>
+                        {dateRange === option.value && (
+                          <Check size={18} color={colors.sageGreen} />
+                        )}
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Type Filter */}
+              <View>
+                <Text
+                  style={{ color: colors.textWhiteSecondary }}
+                  className="text-xs mb-2"
+                >
+                  Transaction Type
+                </Text>
+                <Pressable
+                  onPress={() => setShowTypeOptions(!showTypeOptions)}
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    borderRadius: borderRadius.md,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Text style={{ color: colors.textWhite }} className="text-sm capitalize">
+                    {typeFilter === 'all' ? 'All Transactions' : typeFilter}
+                  </Text>
+                  <ChevronDown size={18} color={colors.textWhiteSecondary} />
+                </Pressable>
+
+                {showTypeOptions && (
+                  <View
+                    style={{
+                      marginTop: 4,
+                      backgroundColor: colors.glassWhite,
+                      borderWidth: 1,
+                      borderColor: colors.glassBorder,
+                      borderRadius: borderRadius.md,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {[
+                      { value: 'all', label: 'All Transactions' },
+                      { value: 'income', label: 'Income Only' },
+                      { value: 'expense', label: 'Expenses Only' },
+                    ].map((option) => (
+                      <Pressable
+                        key={option.value}
+                        onPress={() => {
+                          setTypeFilter(option.value as typeof typeFilter);
+                          setShowTypeOptions(false);
+                        }}
+                        style={{
+                          paddingHorizontal: 16,
+                          paddingVertical: 12,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          borderBottomWidth: 1,
+                          borderBottomColor: 'rgba(255,255,255,0.05)',
+                          backgroundColor:
+                            typeFilter === option.value ? 'rgba(168,181,161,0.1)' : 'transparent',
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color:
+                              typeFilter === option.value ? colors.sageGreen : colors.textWhite,
+                            fontWeight: typeFilter === option.value ? '600' : '400',
+                          }}
+                        >
+                          {option.label}
+                        </Text>
+                        {typeFilter === option.value && (
+                          <Check size={18} color={colors.sageGreen} />
+                        )}
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </View>
             </View>
-          </View>
+          </Animated.View>
 
           {/* Preview Section */}
-          <View className="bg-white rounded-xl p-4 mb-4">
-            <Text className="text-sm font-semibold text-gray-900 mb-3">Preview</Text>
-
-            {previewQuery.isLoading ? (
-              <View className="py-4 items-center">
-                <ActivityIndicator size="small" color="#006A6A" />
-              </View>
-            ) : preview ? (
-              <>
-                <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
-                  <Text className="text-sm text-gray-600">Total Transactions</Text>
-                  <Text className="text-sm font-semibold text-gray-900">{preview.count}</Text>
-                </View>
-
-                <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
-                  <Text className="text-sm text-gray-600">Income</Text>
-                  <View className="items-end">
-                    <Text className="text-sm font-semibold text-green-700">
-                      +{formatCurrency(preview.totalIncome)}
-                    </Text>
-                    <Text className="text-xs text-gray-400">
-                      {preview.incomeCount} transactions
-                    </Text>
-                  </View>
-                </View>
-
-                <View className="flex-row items-center justify-between py-2">
-                  <Text className="text-sm text-gray-600">Expenses</Text>
-                  <View className="items-end">
-                    <Text className="text-sm font-semibold text-red-700">
-                      -{formatCurrency(preview.totalExpenses)}
-                    </Text>
-                    <Text className="text-xs text-gray-400">
-                      {preview.expenseCount} transactions
-                    </Text>
-                  </View>
-                </View>
-              </>
-            ) : (
-              <Text className="text-sm text-gray-500 text-center py-4">
-                No transactions found
+          <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+            <View
+              style={{
+                backgroundColor: colors.glassWhite,
+                borderWidth: 1,
+                borderColor: colors.glassBorder,
+                borderRadius: borderRadius.lg,
+                padding: 16,
+                marginBottom: 16,
+              }}
+            >
+              <Text
+                style={{ color: colors.textWhite }}
+                className="text-sm font-semibold mb-3"
+              >
+                Preview
               </Text>
-            )}
-          </View>
+
+              {previewQuery.isLoading ? (
+                <View className="py-4 items-center">
+                  <ActivityIndicator size="small" color={colors.sageGreen} />
+                </View>
+              ) : preview ? (
+                <>
+                  <View
+                    style={{
+                      paddingVertical: 8,
+                      borderBottomWidth: 1,
+                      borderBottomColor: 'rgba(255,255,255,0.05)',
+                    }}
+                    className="flex-row items-center justify-between"
+                  >
+                    <Text style={{ color: colors.textWhiteSecondary }} className="text-sm">
+                      Total Transactions
+                    </Text>
+                    <Text style={{ color: colors.textWhite }} className="text-sm font-semibold">
+                      {preview.count}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={{
+                      paddingVertical: 8,
+                      borderBottomWidth: 1,
+                      borderBottomColor: 'rgba(255,255,255,0.05)',
+                    }}
+                    className="flex-row items-center justify-between"
+                  >
+                    <Text style={{ color: colors.textWhiteSecondary }} className="text-sm">
+                      Income
+                    </Text>
+                    <View className="items-end">
+                      <Text
+                        style={{ color: colors.sageGreen }}
+                        className="text-sm font-semibold"
+                      >
+                        +{formatCurrency(preview.totalIncome)}
+                      </Text>
+                      <Text style={{ color: colors.textWhiteSecondary }} className="text-xs">
+                        {preview.incomeCount} transactions
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{ paddingVertical: 8 }} className="flex-row items-center justify-between">
+                    <Text style={{ color: colors.textWhiteSecondary }} className="text-sm">
+                      Expenses
+                    </Text>
+                    <View className="items-end">
+                      <Text
+                        style={{ color: colors.softAmber }}
+                        className="text-sm font-semibold"
+                      >
+                        -{formatCurrency(preview.totalExpenses)}
+                      </Text>
+                      <Text style={{ color: colors.textWhiteSecondary }} className="text-xs">
+                        {preview.expenseCount} transactions
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <Text
+                  style={{ color: colors.textWhiteSecondary }}
+                  className="text-sm text-center py-4"
+                >
+                  No transactions found
+                </Text>
+              )}
+            </View>
+          </Animated.View>
 
           {/* Format Selection */}
-          <View className="bg-white rounded-xl p-4 mb-6">
-            <Text className="text-sm font-semibold text-gray-900 mb-3">Export Format</Text>
-
-            <View className="flex-row gap-3">
-              <Pressable
-                onPress={() => setExportFormat('csv')}
-                className={`flex-1 p-4 rounded-lg border-2 items-center ${
-                  exportFormat === 'csv'
-                    ? 'border-teal-500 bg-teal-50'
-                    : 'border-gray-200 bg-white'
-                }`}
+          <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+            <View
+              style={{
+                backgroundColor: colors.glassWhite,
+                borderWidth: 1,
+                borderColor: colors.glassBorder,
+                borderRadius: borderRadius.lg,
+                padding: 16,
+                marginBottom: 24,
+              }}
+            >
+              <Text
+                style={{ color: colors.textWhite }}
+                className="text-sm font-semibold mb-3"
               >
-                <FileText
-                  size={28}
-                  color={exportFormat === 'csv' ? '#0D9488' : '#9CA3AF'}
-                />
-                <Text
-                  className={`text-sm font-medium mt-2 ${
-                    exportFormat === 'csv' ? 'text-teal-700' : 'text-gray-600'
-                  }`}
-                >
-                  CSV
-                </Text>
-                <Text className="text-xs text-gray-400 mt-1">Universal format</Text>
-              </Pressable>
+                Export Format
+              </Text>
 
-              <Pressable
-                onPress={() => setExportFormat('xlsx')}
-                className={`flex-1 p-4 rounded-lg border-2 items-center ${
-                  exportFormat === 'xlsx'
-                    ? 'border-teal-500 bg-teal-50'
-                    : 'border-gray-200 bg-white'
-                }`}
-              >
-                <FileSpreadsheet
-                  size={28}
-                  color={exportFormat === 'xlsx' ? '#0D9488' : '#9CA3AF'}
-                />
-                <Text
-                  className={`text-sm font-medium mt-2 ${
-                    exportFormat === 'xlsx' ? 'text-teal-700' : 'text-gray-600'
-                  }`}
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <Pressable
+                  onPress={() => setExportFormat('csv')}
+                  style={{
+                    flex: 1,
+                    padding: 16,
+                    borderRadius: borderRadius.md,
+                    borderWidth: 2,
+                    borderColor:
+                      exportFormat === 'csv' ? colors.sageGreen : 'rgba(255,255,255,0.1)',
+                    backgroundColor:
+                      exportFormat === 'csv' ? 'rgba(168,181,161,0.1)' : 'rgba(255,255,255,0.03)',
+                    alignItems: 'center',
+                  }}
                 >
-                  Excel
-                </Text>
-                <Text className="text-xs text-gray-400 mt-1">Formatted spreadsheet</Text>
-              </Pressable>
+                  <FileText
+                    size={28}
+                    color={exportFormat === 'csv' ? colors.sageGreen : colors.textWhiteSecondary}
+                  />
+                  <Text
+                    style={{
+                      color: exportFormat === 'csv' ? colors.sageGreen : colors.textWhite,
+                      fontWeight: exportFormat === 'csv' ? '600' : '400',
+                    }}
+                    className="text-sm mt-2"
+                  >
+                    CSV
+                  </Text>
+                  <Text
+                    style={{ color: colors.textWhiteSecondary }}
+                    className="text-xs mt-1"
+                  >
+                    Universal format
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setExportFormat('xlsx')}
+                  style={{
+                    flex: 1,
+                    padding: 16,
+                    borderRadius: borderRadius.md,
+                    borderWidth: 2,
+                    borderColor:
+                      exportFormat === 'xlsx' ? colors.sageGreen : 'rgba(255,255,255,0.1)',
+                    backgroundColor:
+                      exportFormat === 'xlsx' ? 'rgba(168,181,161,0.1)' : 'rgba(255,255,255,0.03)',
+                    alignItems: 'center',
+                  }}
+                >
+                  <FileSpreadsheet
+                    size={28}
+                    color={exportFormat === 'xlsx' ? colors.sageGreen : colors.textWhiteSecondary}
+                  />
+                  <Text
+                    style={{
+                      color: exportFormat === 'xlsx' ? colors.sageGreen : colors.textWhite,
+                      fontWeight: exportFormat === 'xlsx' ? '600' : '400',
+                    }}
+                    className="text-sm mt-2"
+                  >
+                    Excel
+                  </Text>
+                  <Text
+                    style={{ color: colors.textWhiteSecondary }}
+                    className="text-xs mt-1"
+                  >
+                    Formatted spreadsheet
+                  </Text>
+                </Pressable>
+              </View>
             </View>
-          </View>
+          </Animated.View>
 
           {/* Export Button */}
-          <Pressable
-            onPress={() => exportMutation.mutate()}
-            disabled={!preview?.count || exportMutation.isPending}
-            className={`py-4 rounded-xl flex-row items-center justify-center ${
-              preview?.count ? 'bg-teal-600' : 'bg-gray-300'
-            }`}
-          >
-            {exportMutation.isPending ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <>
-                <Download size={20} color="white" />
-                <Text className="text-base font-semibold text-white ml-2">
-                  Export {preview?.count || 0} Transactions
-                </Text>
-              </>
-            )}
-          </Pressable>
+          <Animated.View entering={FadeInDown.delay(400).duration(400)}>
+            <Pressable
+              onPress={() => exportMutation.mutate()}
+              disabled={!preview?.count || exportMutation.isPending}
+              style={{
+                paddingVertical: 16,
+                borderRadius: borderRadius.md,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor:
+                  preview?.count && !exportMutation.isPending
+                    ? colors.contextTeal
+                    : 'rgba(255,255,255,0.1)',
+                opacity: !preview?.count || exportMutation.isPending ? 0.5 : 1,
+              }}
+            >
+              {exportMutation.isPending ? (
+                <ActivityIndicator size="small" color={colors.textWhite} />
+              ) : (
+                <>
+                  <Download size={20} color={colors.textWhite} />
+                  <Text
+                    style={{ color: colors.textWhite }}
+                    className="text-base font-semibold ml-2"
+                  >
+                    Export {preview?.count || 0} Transactions
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          </Animated.View>
 
           {/* Privacy Note */}
-          <View className="mt-6 p-4 bg-blue-50 rounded-xl">
-            <Text className="text-xs text-blue-700 text-center">
-              Exported files contain your financial data. Store them securely.
-            </Text>
-          </View>
-        </View>
+          <Animated.View entering={FadeInDown.delay(500).duration(400)}>
+            <View
+              style={{
+                marginTop: 24,
+                padding: 16,
+                backgroundColor: 'rgba(227, 160, 93, 0.1)',
+                borderWidth: 1,
+                borderColor: 'rgba(227, 160, 93, 0.3)',
+                borderRadius: borderRadius.md,
+              }}
+            >
+              <Text
+                style={{ color: colors.softAmber }}
+                className="text-xs text-center"
+              >
+                Exported files contain your financial data. Store them securely.
+              </Text>
+            </View>
+          </Animated.View>
       </ScrollView>
-    </SafeAreaView>
+    </LinearGradient>
   );
 }

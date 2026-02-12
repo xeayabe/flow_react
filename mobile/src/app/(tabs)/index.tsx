@@ -88,13 +88,7 @@ export default function DashboardScreen() {
     staleTime: 30000,
   });
 
-  const budgetPeriod = budgetPeriodQuery.data ?? {
-    start: getCurrentBudgetPeriod(25).periodStartISO,
-    end: getCurrentBudgetPeriod(25).periodEndISO,
-    paydayDay: 25,
-    source: 'household' as const,
-    daysRemaining: getCurrentBudgetPeriod(25).daysRemaining,
-  };
+  const budgetPeriod = budgetPeriodQuery.data;
 
   // OPTIMIZED: All queries below now run in PARALLEL (not waterfall)
   
@@ -157,23 +151,23 @@ export default function DashboardScreen() {
 
   // Get budget details
   const budgetDetailsQuery = useQuery({
-    queryKey: ['budget-details', userId, budgetPeriod.start],
+    queryKey: ['budget-details', userId, budgetPeriod?.start],
     queryFn: async () => {
-      if (!userId) return [];
+      if (!userId || !budgetPeriod) return [];
       return getBudgetDetails(userId, budgetPeriod.start);
     },
-    enabled: !!userId,
+    enabled: !!userId && !!budgetPeriod,
     staleTime: 30000,
   });
 
   // Get budget summary
   const budgetSummaryQuery = useQuery({
-    queryKey: ['budget-summary', userId, householdId, budgetPeriod.start],
+    queryKey: ['budget-summary', userId, householdId, budgetPeriod?.start],
     queryFn: async () => {
-      if (!userId || !householdId) return null;
+      if (!userId || !householdId || !budgetPeriod) return null;
       return getBudgetSummary(userId, householdId, budgetPeriod.start);
     },
-    enabled: !!userId && !!householdId,
+    enabled: !!userId && !!householdId && !!budgetPeriod,
     staleTime: 30000,
   });
 
@@ -201,7 +195,7 @@ export default function DashboardScreen() {
 
   React.useEffect(() => {
     // Only recalculate if we have the required data and haven't recalculated yet
-    if (userId && householdId && budgetPeriod.start && budgetPeriod.end && !hasRecalculated) {
+    if (userId && householdId && budgetPeriod && budgetPeriod.start && budgetPeriod.end && !hasRecalculated) {
       setHasRecalculated(true);
 
       // Run recalculation in background without blocking UI
@@ -217,10 +211,10 @@ export default function DashboardScreen() {
         console.error('Budget recalculation error:', error);
       });
     }
-  }, [userId, householdId, budgetPeriod.start, budgetPeriod.end, hasRecalculated]);
+  }, [userId, householdId, budgetPeriod?.start, budgetPeriod?.end, hasRecalculated]);
 
-  // Loading state - only show if user profile is loading
-  const isInitialLoading = userProfileQuery.isLoading || budgetPeriodQuery.isLoading;
+  // Loading state - show until we have all required data
+  const isInitialLoading = userProfileQuery.isLoading || budgetPeriodQuery.isLoading || !budgetPeriod;
 
   if (isInitialLoading) {
     return (

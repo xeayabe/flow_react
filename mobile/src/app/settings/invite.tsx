@@ -1,13 +1,21 @@
 import React, { useEffect } from 'react';
-import { View, Text, Pressable, Alert } from 'react-native';
+import { View, Text, Pressable, Alert, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useMutation } from '@tanstack/react-query';
-import { ArrowLeft, RefreshCw, Copy } from 'lucide-react-native';
+import { ArrowLeft, RefreshCw, Copy, Clock, Info } from 'lucide-react-native';
 import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import Animated, { FadeIn, FadeInDown, useSharedValue } from 'react-native-reanimated';
 import { createInviteCode } from '@/lib/invites-api';
 import { db } from '@/lib/db';
+import { colors, spacing, borderRadius } from '@/lib/design-tokens';
+import StickyStatusBar from '@/components/layout/StickyStatusBar';
 
 export default function InviteScreen() {
+  const insets = useSafeAreaInsets();
+  const scrollY = useSharedValue(0);
+
   const [inviteCode, setInviteCode] = React.useState<string | null>(null);
   const [expiresAt, setExpiresAt] = React.useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = React.useState<number>(300);
@@ -17,59 +25,43 @@ export default function InviteScreen() {
 
   const createCodeMutation = useMutation({
     mutationFn: async () => {
-      console.log('=== DEBUG: Starting invite code creation ===');
-      console.log('Current user (from auth):', user);
-      console.log('User email:', user?.email);
-
       if (!user?.email) {
-        console.error('User email not found!');
         throw new Error('User not authenticated');
       }
 
-      // First, get the user profile from the users table using email
-      console.log('Looking up user profile by email:', user.email);
+      // Get user profile from the users table using email
       const { data: userData } = await db.queryOnce({
         users: {
           $: { where: { email: user.email } }
         }
       });
 
-      console.log('User profile found:', userData.users);
       const userProfile = userData.users?.[0];
 
       if (!userProfile) {
-        console.error('No user profile found for email:', user.email);
         throw new Error('User profile not found');
       }
 
-      console.log('User profile ID:', userProfile.id);
-
-      // Now query householdMembers using the profile ID
-      console.log('Querying household members with profile userId:', userProfile.id);
+      // Query householdMembers using the profile ID
       const { data: memberData } = await db.queryOnce({
         householdMembers: {
           $: { where: { userId: userProfile.id, status: 'active' } }
         }
       });
 
-      console.log('HouseholdMembers found:', memberData.householdMembers);
       const member = memberData.householdMembers[0];
 
       if (!member) {
-        console.error('No household member found!');
         throw new Error('No household found');
       }
 
-      console.log('Creating invite code for household:', member.householdId);
       return createInviteCode(userProfile.id, member.householdId);
     },
     onSuccess: ({ inviteCode: code, expiresAt: expires }) => {
-      console.log('Invite code created successfully:', code);
       setInviteCode(code);
       setExpiresAt(expires);
     },
     onError: (error: Error) => {
-      console.error('Error creating invite code:', error);
       Alert.alert('Error', error.message || 'Could not generate code');
     }
   });
@@ -98,105 +90,286 @@ export default function InviteScreen() {
     createCodeMutation.mutate();
   };
 
+  const handleCopyCode = async () => {
+    if (!inviteCode) return;
+    await Clipboard.setStringAsync(inviteCode);
+    Alert.alert('Copied!', 'Invite code copied to clipboard');
+  };
+
+  // Loading state
   if (authLoading) {
     return (
-      <View className="flex-1 bg-white items-center justify-center">
-        <Text className="text-gray-500">Loading...</Text>
-      </View>
+      <LinearGradient
+        colors={[colors.contextDark, colors.contextTeal]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ flex: 1, paddingTop: insets.top }}
+      >
+        <View className="flex-1 items-center justify-center">
+          <Animated.View entering={FadeIn.duration(500)}>
+            <Text className="text-4xl mb-4">👥</Text>
+          </Animated.View>
+          <Text style={{ color: colors.textWhiteSecondary }} className="text-sm">
+            Loading...
+          </Text>
+        </View>
+      </LinearGradient>
     );
   }
 
+  // Error state
   if (authError || !user) {
     return (
-      <View className="flex-1 bg-white items-center justify-center p-4">
-        <Text className="text-red-600 text-center">Authentication error. Please try again.</Text>
-      </View>
+      <LinearGradient
+        colors={[colors.contextDark, colors.contextTeal]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ flex: 1, paddingTop: insets.top }}
+      >
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="text-4xl mb-4">⚠️</Text>
+          <Text style={{ color: colors.textWhite }} className="text-lg font-semibold mb-2">
+            Authentication Error
+          </Text>
+          <Text style={{ color: colors.textWhiteSecondary }} className="text-sm text-center">
+            Please try again
+          </Text>
+        </View>
+      </LinearGradient>
     );
   }
 
   return (
-    <View className="flex-1 bg-white">
-      <View className="flex-row items-center p-4 border-b border-gray-200">
-        <Pressable onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#374151" />
+    <LinearGradient
+      colors={[colors.contextDark, colors.contextTeal]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+      <StickyStatusBar scrollY={scrollY} />
+
+      {/* Header */}
+      <View
+        className="flex-row items-center px-5 pb-4"
+        style={{ paddingTop: insets.top + 16 }}
+      >
+        <Pressable
+          onPress={() => router.back()}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: borderRadius.sm,
+            backgroundColor: colors.glassWhite,
+            borderWidth: 1,
+            borderColor: colors.glassBorder,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: 16,
+          }}
+        >
+          <ArrowLeft size={20} color={colors.textWhite} strokeWidth={2} />
         </Pressable>
-        <Text className="text-lg font-semibold ml-3">Invite Partner</Text>
+        <Text className="text-white text-xl font-semibold">Invite Your Partner</Text>
       </View>
 
-      <View className="p-4">
-        <Text className="text-2xl font-bold mb-2">Invite Your Partner</Text>
-        <Text className="text-gray-600 mb-6">
-          Generate a code and share it with your partner
-        </Text>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 24,
+          paddingHorizontal: 20,
+        }}
+      >
+        {/* Description */}
+        <Animated.View entering={FadeInDown.delay(0).duration(400)}>
+          <Text
+            style={{ color: colors.textWhiteSecondary }}
+            className="text-sm mb-6"
+          >
+            Generate a code and share it with your partner to join your household
+          </Text>
+        </Animated.View>
 
         {!inviteCode ? (
-          <Pressable
-            onPress={() => createCodeMutation.mutate()}
-            disabled={createCodeMutation.isPending}
-            className="bg-teal-600 py-4 px-6 rounded-xl active:bg-teal-700"
-          >
-            <Text className="text-white text-center font-semibold text-lg">
-              {createCodeMutation.isPending ? 'Generating...' : 'Generate Invite Code'}
-            </Text>
-          </Pressable>
-        ) : (
-          <View>
-            {/* Large code display - tappable to copy */}
+          /* Generate Code Button */
+          <Animated.View entering={FadeInDown.delay(200).duration(400)}>
             <Pressable
-              onPress={async () => {
-                await Clipboard.setStringAsync(inviteCode!);
-                Alert.alert('Copied!', 'Invite code copied to clipboard');
+              onPress={() => createCodeMutation.mutate()}
+              disabled={createCodeMutation.isPending}
+              style={{
+                backgroundColor: colors.contextTeal,
+                borderRadius: borderRadius.md,
+                paddingVertical: 16,
+                paddingHorizontal: 24,
+                alignItems: 'center',
+                opacity: createCodeMutation.isPending ? 0.6 : 1,
               }}
-              className="bg-teal-50 border-2 border-teal-600 rounded-2xl p-8 mb-4 active:bg-teal-100"
             >
-              <Text className="text-center text-sm text-teal-700 mb-2">
-                Invite Code (tap to copy)
-              </Text>
-              <Text className="text-center text-5xl font-bold text-teal-900 tracking-widest">
-                {inviteCode}
+              <Text
+                style={{ color: colors.textWhite }}
+                className="font-semibold text-base"
+              >
+                {createCodeMutation.isPending ? 'Generating...' : 'Generate Invite Code'}
               </Text>
             </Pressable>
+          </Animated.View>
+        ) : (
+          <View className="gap-4">
+            {/* Invite Code Display */}
+            <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+              <Pressable
+                onPress={handleCopyCode}
+                style={{
+                  backgroundColor: colors.glassWhite,
+                  borderWidth: 2,
+                  borderColor: colors.borderTeal,
+                  borderRadius: borderRadius.lg,
+                  padding: 24,
+                  alignItems: 'center',
+                }}
+              >
+                <View className="flex-row items-center mb-3">
+                  <Copy size={14} color={colors.textWhiteSecondary} />
+                  <Text
+                    style={{ color: colors.textWhiteSecondary }}
+                    className="text-xs ml-2"
+                  >
+                    Tap to copy
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    color: colors.sageGreen,
+                    letterSpacing: 8,
+                  }}
+                  className="text-5xl font-bold"
+                >
+                  {inviteCode}
+                </Text>
+              </Pressable>
+            </Animated.View>
 
-            {/* Timer */}
-            <View className="bg-amber-50 p-4 rounded-xl mb-4">
-              <Text className="text-center text-amber-900 font-semibold">
-                ⏱️ Expires in {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
-              </Text>
-              <View className="mt-2 h-2 bg-amber-200 rounded-full overflow-hidden">
+            {/* Timer Card */}
+            <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+              <View
+                style={{
+                  backgroundColor: 'rgba(227, 160, 93, 0.1)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(227, 160, 93, 0.3)',
+                  borderRadius: borderRadius.md,
+                  padding: 16,
+                }}
+              >
+                <View className="flex-row items-center justify-center mb-3">
+                  <Clock size={16} color="#E3A05D" />
+                  <Text
+                    style={{ color: '#E3A05D' }}
+                    className="font-semibold ml-2"
+                  >
+                    Expires in {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
+                  </Text>
+                </View>
+
+                {/* Progress bar */}
                 <View
-                  className="h-full bg-amber-600 rounded-full"
-                  style={{ width: `${(timeRemaining / 300) * 100}%` }}
-                />
+                  style={{
+                    height: 6,
+                    backgroundColor: 'rgba(227, 160, 93, 0.2)',
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Animated.View
+                    style={{
+                      height: '100%',
+                      backgroundColor: '#E3A05D',
+                      borderRadius: 3,
+                      width: `${(timeRemaining / 300) * 100}%`,
+                    }}
+                  />
+                </View>
               </View>
-            </View>
+            </Animated.View>
 
-            {/* Generate new button */}
-            <Pressable
-              onPress={handleGenerateNew}
-              className="flex-row items-center justify-center gap-2 bg-gray-100 py-4 rounded-xl active:bg-gray-200"
-            >
-              <RefreshCw size={20} color="#374151" />
-              <Text className="font-semibold text-gray-700">Generate New Code</Text>
-            </Pressable>
+            {/* Generate New Button */}
+            <Animated.View entering={FadeInDown.delay(400).duration(400)}>
+              <Pressable
+                onPress={handleGenerateNew}
+                style={{
+                  backgroundColor: colors.glassWhite,
+                  borderWidth: 1,
+                  borderColor: colors.glassBorder,
+                  borderRadius: borderRadius.md,
+                  paddingVertical: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
+              >
+                <RefreshCw size={18} color={colors.textWhite} strokeWidth={2} />
+                <Text
+                  style={{ color: colors.textWhite }}
+                  className="font-semibold"
+                >
+                  Generate New Code
+                </Text>
+              </Pressable>
+            </Animated.View>
 
-            {/* Instructions */}
-            <View className="mt-6 bg-blue-50 p-4 rounded-xl">
-              <Text className="text-blue-900 font-semibold mb-2">
-                💡 How to use
-              </Text>
-              <Text className="text-blue-700 text-sm mb-1">
-                1. Tell your partner this code (call, text, or in person)
-              </Text>
-              <Text className="text-blue-700 text-sm mb-1">
-                2. They open the app and tap "Have an invite code?"
-              </Text>
-              <Text className="text-blue-700 text-sm">
-                3. They enter the code within 5 minutes
-              </Text>
-            </View>
+            {/* Instructions Card */}
+            <Animated.View entering={FadeInDown.delay(500).duration(400)}>
+              <View
+                style={{
+                  backgroundColor: colors.glassWhite,
+                  borderWidth: 1,
+                  borderColor: colors.glassBorder,
+                  borderRadius: borderRadius.lg,
+                  padding: 20,
+                }}
+              >
+                <View className="flex-row items-center mb-4">
+                  <Info size={18} color={colors.sageGreen} />
+                  <Text
+                    style={{ color: colors.textWhite }}
+                    className="font-semibold ml-2"
+                  >
+                    How to use
+                  </Text>
+                </View>
+
+                <View className="gap-3">
+                  <View className="flex-row">
+                    <Text style={{ color: colors.textWhiteSecondary }} className="text-sm mr-2">
+                      1.
+                    </Text>
+                    <Text style={{ color: colors.textWhiteSecondary }} className="text-sm flex-1">
+                      Share this code with your partner (call, text, or in person)
+                    </Text>
+                  </View>
+
+                  <View className="flex-row">
+                    <Text style={{ color: colors.textWhiteSecondary }} className="text-sm mr-2">
+                      2.
+                    </Text>
+                    <Text style={{ color: colors.textWhiteSecondary }} className="text-sm flex-1">
+                      They open Flow and tap "Have an invite code?"
+                    </Text>
+                  </View>
+
+                  <View className="flex-row">
+                    <Text style={{ color: colors.textWhiteSecondary }} className="text-sm mr-2">
+                      3.
+                    </Text>
+                    <Text style={{ color: colors.textWhiteSecondary }} className="text-sm flex-1">
+                      They enter the code within 5 minutes to join your household
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </Animated.View>
           </View>
         )}
-      </View>
-    </View>
+      </ScrollView>
+    </LinearGradient>
   );
 }

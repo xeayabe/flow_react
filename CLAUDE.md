@@ -1081,6 +1081,7 @@ Every Sunday (or your chosen day), run the "Weekly Documentation Sync Check" pro
 4. **`mobile/src/utils/dates.ts`**: Payday period calculation (critical)
 5. **`mobile/src/components/ui/GlassCard.tsx`**: Design system pattern
 6. **`mobile/src/lib/*-api.ts`**: Existing API functions (reuse them!)
+7. **`design.md`**: Comprehensive design system to ensure consistent look and feel across all screens.
 
 ---
 

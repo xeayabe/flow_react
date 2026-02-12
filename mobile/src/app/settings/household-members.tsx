@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Modal, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { ArrowLeft, Crown, UserMinus, AlertTriangle, X, AlertCircle } from 'lucide-react-native';
+import { ArrowLeft, Crown, UserMinus, AlertTriangle, X, AlertCircle, Users } from 'lucide-react-native';
+import Animated, { FadeIn, FadeInDown, useSharedValue } from 'react-native-reanimated';
 import { db } from '@/lib/db';
+import { colors, spacing, borderRadius } from '@/lib/design-tokens';
+import { formatCurrency } from '@/lib/formatCurrency';
+import StickyStatusBar from '@/components/layout/StickyStatusBar';
 import {
   getHouseholdMembers,
   checkCanRemoveMember,
@@ -15,6 +20,8 @@ import {
 } from '@/lib/household-members-api';
 
 export default function HouseholdMembersScreen() {
+  const insets = useSafeAreaInsets();
+  const scrollY = useSharedValue(0);
   const queryClient = useQueryClient();
   const { user } = db.useAuth();
 
@@ -92,92 +99,228 @@ export default function HouseholdMembersScreen() {
 
   const isLoading = isLoadingUserInfo || isLoadingMembers;
 
+  // Loading state
   if (isLoading) {
     return (
-      <View className="flex-1 bg-white items-center justify-center">
-        <ActivityIndicator size="large" color="#006A6A" />
-        <Text className="text-gray-500 mt-4">Loading members...</Text>
-      </View>
+      <LinearGradient
+        colors={[colors.contextDark, colors.contextTeal]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ flex: 1, paddingTop: insets.top }}
+      >
+        <View className="flex-1 items-center justify-center">
+          <Animated.View entering={FadeIn.duration(500)}>
+            <Text className="text-4xl mb-4">👥</Text>
+          </Animated.View>
+          <Text style={{ color: colors.textWhiteSecondary }} className="text-sm">
+            Loading members...
+          </Text>
+        </View>
+      </LinearGradient>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <SafeAreaView edges={['top']} className="flex-1">
-        {/* Header */}
-        <View className="bg-white flex-row items-center px-4 py-4 border-b border-gray-200">
-          <Pressable onPress={() => router.back()} className="p-2 -ml-2">
-            <ArrowLeft size={24} color="#374151" />
-          </Pressable>
-          <Text className="text-lg font-semibold ml-2 text-gray-900">Household Members</Text>
-        </View>
+    <LinearGradient
+      colors={[colors.contextDark, colors.contextTeal]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+      <StickyStatusBar scrollY={scrollY} />
 
-        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 32 }}>
-          {/* Members List */}
-          <View className="mt-4 mx-4">
-          {members?.map((member) => (
-            <View
-              key={member.id}
-              className="bg-white rounded-xl p-4 mb-3 border border-gray-100"
-            >
-              <View className="flex-row items-start justify-between">
-                <View className="flex-1">
-                  {/* Name and Role */}
-                  <View className="flex-row items-center gap-2">
-                    <Text className="text-base font-semibold text-gray-900">
-                      {member.name}
-                      {member.isCurrentUser && (
-                        <Text className="text-gray-500 font-normal"> (You)</Text>
+      {/* Header */}
+      <View
+        className="flex-row items-center px-5 pb-4"
+        style={{ paddingTop: insets.top + 16 }}
+      >
+        <Pressable
+          onPress={() => router.back()}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: borderRadius.sm,
+            backgroundColor: colors.glassWhite,
+            borderWidth: 1,
+            borderColor: colors.glassBorder,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: 16,
+          }}
+        >
+          <ArrowLeft size={20} color={colors.textWhite} strokeWidth={2} />
+        </Pressable>
+        <Text className="text-white text-xl font-semibold">Household Members</Text>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 24,
+          paddingHorizontal: 20,
+        }}
+      >
+        {/* Description */}
+        <Animated.View entering={FadeInDown.delay(0).duration(400)}>
+          <Text
+            style={{ color: colors.textWhiteSecondary }}
+            className="text-sm mb-6"
+          >
+            Manage who has access to shared expenses
+          </Text>
+        </Animated.View>
+
+        {/* Members List */}
+        {members && members.length > 0 ? (
+          <View className="gap-3">
+            {members.map((member, index) => (
+              <Animated.View
+                key={member.id}
+                entering={FadeInDown.delay(200 + index * 100).duration(400)}
+              >
+                <View
+                  style={{
+                    backgroundColor: colors.glassWhite,
+                    borderWidth: 1,
+                    borderColor: colors.glassBorder,
+                    borderRadius: borderRadius.lg,
+                    padding: 16,
+                  }}
+                >
+                  <View className="flex-row items-start justify-between">
+                    <View className="flex-1">
+                      {/* Name */}
+                      <Text
+                        style={{ color: colors.textWhite }}
+                        className="text-base font-semibold mb-1"
+                      >
+                        {member.name}
+                        {member.isCurrentUser && (
+                          <Text style={{ color: colors.textWhiteSecondary }} className="font-normal">
+                            {' '}(You)
+                          </Text>
+                        )}
+                      </Text>
+
+                      {/* Email */}
+                      <Text
+                        style={{ color: colors.textWhiteSecondary }}
+                        className="text-sm"
+                      >
+                        {member.email}
+                      </Text>
+                    </View>
+
+                    {/* Right side - Admin Badge and Remove Button */}
+                    <View style={{ gap: 8, alignItems: 'flex-end' }}>
+                      {/* Admin Badge */}
+                      {member.role === 'admin' && (
+                        <View
+                          style={{
+                            backgroundColor: 'rgba(227, 160, 93, 0.15)',
+                            borderWidth: 1,
+                            borderColor: 'rgba(227, 160, 93, 0.3)',
+                            paddingHorizontal: 8,
+                            paddingVertical: 2,
+                            borderRadius: 12,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                        >
+                          <Crown size={10} color="#E3A05D" />
+                          <Text style={{ color: '#E3A05D', fontSize: 10, fontWeight: '600' }}>
+                            ADMIN
+                          </Text>
+                        </View>
                       )}
-                    </Text>
-                    {member.role === 'admin' && (
-                      <View className="flex-row items-center bg-amber-100 px-2 py-0.5 rounded-full">
-                        <Crown size={12} color="#D97706" />
-                        <Text className="text-xs text-amber-700 ml-1 font-medium">Admin</Text>
-                      </View>
-                    )}
+
+                      {/* Remove Button - Only visible to admin for non-self members */}
+                      {userInfo?.isAdmin && !member.isCurrentUser && (
+                        <Pressable
+                          onPress={() => handleRemovePress(member)}
+                          style={{
+                            backgroundColor: 'rgba(227, 160, 93, 0.1)',
+                            borderWidth: 1,
+                            borderColor: 'rgba(227, 160, 93, 0.3)',
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            borderRadius: borderRadius.sm,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 6,
+                          }}
+                        >
+                          <UserMinus size={14} color="#E3A05D" />
+                          <Text style={{ color: '#E3A05D', fontSize: 13, fontWeight: '500' }}>
+                            Remove
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
                   </View>
-
-                  {/* Email */}
-                  <Text className="text-sm text-gray-500 mt-1">{member.email}</Text>
                 </View>
-
-                {/* Remove Button - Only visible to admin for non-self members */}
-                {userInfo?.isAdmin && !member.isCurrentUser && (
-                  <Pressable
-                    onPress={() => handleRemovePress(member)}
-                    className="bg-red-50 px-3 py-2 rounded-lg flex-row items-center active:bg-red-100"
-                  >
-                    <UserMinus size={16} color="#DC2626" />
-                    <Text className="text-red-600 text-sm font-medium ml-1.5">Remove</Text>
-                  </Pressable>
-                )}
-              </View>
-            </View>
-          ))}
-
-          {/* Empty State */}
-          {(!members || members.length === 0) && (
-            <View className="bg-white rounded-xl p-8 items-center">
-              <Text className="text-gray-500 text-center">No members found</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Info Card */}
-        <View className="mx-4 mt-4 bg-blue-50 rounded-xl p-4">
-          <View className="flex-row items-start gap-3">
-            <AlertCircle size={20} color="#2563EB" />
-            <View className="flex-1">
-              <Text className="text-blue-900 font-medium">About Household Members</Text>
-              <Text className="text-blue-700 text-sm mt-1">
-                The household admin can remove members. Before removing a member, all shared debts must be settled.
+              </Animated.View>
+            ))}
+          </View>
+        ) : (
+          /* Empty State */
+          <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+            <View
+              style={{
+                backgroundColor: colors.glassWhite,
+                borderWidth: 1,
+                borderColor: colors.glassBorder,
+                borderRadius: borderRadius.lg,
+                padding: 40,
+                alignItems: 'center',
+              }}
+            >
+              <Text className="text-5xl mb-4">👥</Text>
+              <Text
+                style={{ color: colors.textWhiteSecondary }}
+                className="text-sm text-center"
+              >
+                No members found
               </Text>
             </View>
+          </Animated.View>
+        )}
+
+        {/* Info Card */}
+        <Animated.View
+          entering={FadeInDown.delay(300 + (members?.length || 0) * 100).duration(400)}
+          style={{ marginTop: 16 }}
+        >
+          <View
+            style={{
+              backgroundColor: 'rgba(168, 181, 161, 0.1)',
+              borderWidth: 1,
+              borderColor: 'rgba(168, 181, 161, 0.2)',
+              borderRadius: borderRadius.lg,
+              padding: 16,
+            }}
+          >
+            <View className="flex-row items-start gap-3">
+              <AlertCircle size={18} color={colors.sageGreen} />
+              <View className="flex-1">
+                <Text
+                  style={{ color: colors.sageGreen }}
+                  className="font-semibold mb-1"
+                >
+                  About Household Members
+                </Text>
+                <Text
+                  style={{ color: colors.textWhiteSecondary }}
+                  className="text-sm leading-5"
+                >
+                  The household admin can remove members. Before removing a member, all shared debts must be settled.
+                </Text>
+              </View>
+            </View>
           </View>
-        </View>
+        </Animated.View>
       </ScrollView>
-      </SafeAreaView>
 
       {/* Removal Confirmation Modal */}
       <Modal
@@ -186,58 +329,130 @@ export default function HouseholdMembersScreen() {
         animationType="fade"
         onRequestClose={closeModal}
       >
-        <View className="flex-1 bg-black/50 items-center justify-center px-6">
-          <View className="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 24,
+          }}
+        >
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            style={{
+              backgroundColor: colors.contextDark,
+              borderRadius: borderRadius.xl,
+              width: '100%',
+              maxWidth: 400,
+              borderWidth: 1,
+              borderColor: colors.glassBorder,
+            }}
+          >
             {/* Modal Header */}
-            <View className="flex-row items-center justify-between px-4 py-4 border-b border-gray-100">
-              <Text className="text-lg font-semibold text-gray-900">
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: 20,
+                paddingVertical: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.glassBorder,
+              }}
+            >
+              <Text
+                style={{ color: colors.textWhite }}
+                className="text-lg font-semibold"
+              >
                 {isCheckingRemoval
                   ? 'Checking...'
                   : removalCheck?.canRemove
                   ? 'Remove Member'
                   : 'Cannot Remove Member'}
               </Text>
-              <Pressable onPress={closeModal} className="p-1">
-                <X size={24} color="#6B7280" />
+              <Pressable
+                onPress={closeModal}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: colors.glassWhite,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={18} color={colors.textWhite} />
               </Pressable>
             </View>
 
             {/* Modal Content */}
-            <View className="px-4 py-5">
+            <View style={{ paddingHorizontal: 20, paddingVertical: 20 }}>
               {isCheckingRemoval ? (
-                <View className="items-center py-4">
-                  <ActivityIndicator size="large" color="#006A6A" />
-                  <Text className="text-gray-500 mt-3">Checking debt status...</Text>
+                <View className="items-center py-6">
+                  <ActivityIndicator size="large" color={colors.contextTeal} />
+                  <Text
+                    style={{ color: colors.textWhiteSecondary, marginTop: 12 }}
+                  >
+                    Checking debt status...
+                  </Text>
                 </View>
               ) : removalCheck?.canRemove ? (
                 // Can Remove - Confirmation
                 <View>
-                  <Text className="text-base text-gray-700 mb-4">
-                    Remove <Text className="font-semibold">{selectedMember?.name}</Text> from the household?
+                  <Text
+                    style={{ color: colors.textWhiteSecondary }}
+                    className="text-base mb-4"
+                  >
+                    Remove <Text style={{ color: colors.textWhite, fontWeight: '600' }}>{selectedMember?.name}</Text> from the household?
                   </Text>
 
-                  <View className="bg-amber-50 rounded-xl p-4 mb-4">
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(227, 160, 93, 0.1)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(227, 160, 93, 0.3)',
+                      borderRadius: borderRadius.md,
+                      padding: 12,
+                      marginBottom: 16,
+                    }}
+                  >
                     <View className="flex-row items-start gap-2">
-                      <AlertTriangle size={20} color="#D97706" />
-                      <View className="flex-1">
-                        <Text className="text-amber-800 font-medium">This action cannot be undone</Text>
-                      </View>
+                      <AlertTriangle size={18} color="#E3A05D" />
+                      <Text style={{ color: '#E3A05D', fontSize: 14, fontWeight: '500' }}>
+                        This action cannot be undone
+                      </Text>
                     </View>
                   </View>
 
-                  <View className="space-y-2">
-                    <Text className="text-gray-600 text-sm">
+                  <View className="gap-2 mb-4">
+                    <Text style={{ color: colors.textWhiteSecondary, fontSize: 14 }}>
                       {selectedMember?.name} will:
                     </Text>
-                    <Text className="text-gray-600 text-sm">• Lose access to shared expenses</Text>
-                    <Text className="text-gray-600 text-sm">• Keep their personal data</Text>
+                    <Text style={{ color: colors.textWhiteSecondary, fontSize: 14 }}>
+                      • Lose access to shared expenses
+                    </Text>
+                    <Text style={{ color: colors.textWhiteSecondary, fontSize: 14 }}>
+                      • Keep their personal data
+                    </Text>
                   </View>
 
                   {/* Debt Status - Cleared */}
-                  <View className="mt-4 bg-green-50 rounded-xl p-3 flex-row items-center gap-2">
-                    <Text className="text-green-700">✓</Text>
-                    <Text className="text-green-700 font-medium">
-                      No outstanding debt (0 CHF)
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(168, 181, 161, 0.15)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(168, 181, 161, 0.3)',
+                      borderRadius: borderRadius.sm,
+                      padding: 12,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <Text style={{ color: colors.sageGreen, fontSize: 16 }}>✓</Text>
+                    <Text style={{ color: colors.sageGreen, fontWeight: '500' }}>
+                      No outstanding debt (CHF 0.00)
                     </Text>
                   </View>
                 </View>
@@ -247,39 +462,78 @@ export default function HouseholdMembersScreen() {
                   {removalCheck?.debtAmount && removalCheck.debtAmount > 0 ? (
                     // Debt Exists
                     <View>
-                      <View className="bg-red-50 rounded-xl p-4 mb-4">
+                      <View
+                        style={{
+                          backgroundColor: 'rgba(227, 160, 93, 0.15)',
+                          borderWidth: 1,
+                          borderColor: 'rgba(227, 160, 93, 0.3)',
+                          borderRadius: borderRadius.md,
+                          padding: 16,
+                          marginBottom: 16,
+                        }}
+                      >
                         <View className="flex-row items-start gap-2">
-                          <AlertTriangle size={20} color="#DC2626" />
-                          <View className="flex-1">
-                            <Text className="text-red-800 font-medium">
-                              {selectedMember?.name} has unsettled debt
-                            </Text>
-                          </View>
+                          <AlertTriangle size={18} color="#E3A05D" />
+                          <Text style={{ color: '#E3A05D', fontWeight: '500', flex: 1 }}>
+                            {selectedMember?.name} has unsettled debt
+                          </Text>
                         </View>
                       </View>
 
-                      <View className="bg-gray-100 rounded-xl p-4 items-center mb-4">
-                        <Text className="text-gray-500 text-sm">Current debt</Text>
-                        <Text className="text-2xl font-bold text-gray-900 mt-1">
-                          {removalCheck.debtAmount.toFixed(2)} CHF
+                      <View
+                        style={{
+                          backgroundColor: colors.glassWhite,
+                          borderWidth: 1,
+                          borderColor: colors.glassBorder,
+                          borderRadius: borderRadius.md,
+                          padding: 20,
+                          alignItems: 'center',
+                          marginBottom: 16,
+                        }}
+                      >
+                        <Text
+                          style={{ color: colors.textWhiteSecondary, fontSize: 12 }}
+                        >
+                          Current debt
                         </Text>
-                        <Text className="text-gray-500 text-sm mt-1">
+                        <Text
+                          style={{ color: colors.textWhite }}
+                          className="text-2xl font-bold mt-1"
+                        >
+                          {formatCurrency(removalCheck.debtAmount)}
+                        </Text>
+                        <Text
+                          style={{ color: colors.textWhiteSecondary, fontSize: 13, marginTop: 4 }}
+                        >
                           {removalCheck.debtDirection === 'owes'
                             ? `${selectedMember?.name} owes you`
                             : `You owe ${selectedMember?.name}`}
                         </Text>
                       </View>
 
-                      <Text className="text-gray-600 text-sm text-center">
+                      <Text
+                        style={{ color: colors.textWhiteSecondary }}
+                        className="text-sm text-center"
+                      >
                         Please settle all debts before removing this member.
                       </Text>
                     </View>
                   ) : (
                     // Other reason
-                    <View className="bg-red-50 rounded-xl p-4">
+                    <View
+                      style={{
+                        backgroundColor: 'rgba(227, 160, 93, 0.15)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(227, 160, 93, 0.3)',
+                        borderRadius: borderRadius.md,
+                        padding: 16,
+                      }}
+                    >
                       <View className="flex-row items-start gap-2">
-                        <AlertTriangle size={20} color="#DC2626" />
-                        <Text className="text-red-800 flex-1">{removalCheck?.reason}</Text>
+                        <AlertTriangle size={18} color="#E3A05D" />
+                        <Text style={{ color: '#E3A05D', flex: 1 }}>
+                          {removalCheck?.reason}
+                        </Text>
                       </View>
                     </View>
                   )}
@@ -288,31 +542,67 @@ export default function HouseholdMembersScreen() {
             </View>
 
             {/* Modal Actions */}
-            <View className="px-4 pb-4 flex-row gap-3">
+            <View
+              style={{
+                paddingHorizontal: 20,
+                paddingBottom: 20,
+                flexDirection: 'row',
+                gap: 12,
+              }}
+            >
               {isCheckingRemoval ? (
                 <Pressable
                   onPress={closeModal}
-                  className="flex-1 py-3 rounded-xl bg-gray-100"
+                  style={{
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: borderRadius.md,
+                    backgroundColor: colors.glassWhite,
+                    borderWidth: 1,
+                    borderColor: colors.glassBorder,
+                    alignItems: 'center',
+                  }}
                 >
-                  <Text className="text-center font-semibold text-gray-700">Cancel</Text>
+                  <Text style={{ color: colors.textWhite, fontWeight: '600' }}>
+                    Cancel
+                  </Text>
                 </Pressable>
               ) : removalCheck?.canRemove ? (
                 <>
                   <Pressable
                     onPress={closeModal}
-                    className="flex-1 py-3 rounded-xl bg-gray-100"
+                    style={{
+                      flex: 1,
+                      paddingVertical: 14,
+                      borderRadius: borderRadius.md,
+                      backgroundColor: colors.glassWhite,
+                      borderWidth: 1,
+                      borderColor: colors.glassBorder,
+                      alignItems: 'center',
+                    }}
                   >
-                    <Text className="text-center font-semibold text-gray-700">Cancel</Text>
+                    <Text style={{ color: colors.textWhite, fontWeight: '600' }}>
+                      Cancel
+                    </Text>
                   </Pressable>
                   <Pressable
                     onPress={handleConfirmRemoval}
                     disabled={removeMemberMutation.isPending}
-                    className="flex-1 py-3 rounded-xl bg-red-600 active:bg-red-700"
+                    style={{
+                      flex: 1,
+                      paddingVertical: 14,
+                      borderRadius: borderRadius.md,
+                      backgroundColor: '#E3A05D',
+                      alignItems: 'center',
+                      opacity: removeMemberMutation.isPending ? 0.6 : 1,
+                    }}
                   >
                     {removeMemberMutation.isPending ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
-                      <Text className="text-center font-semibold text-white">Remove Member</Text>
+                      <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
+                        Remove Member
+                      </Text>
                     )}
                   </Pressable>
                 </>
@@ -320,33 +610,60 @@ export default function HouseholdMembersScreen() {
                 <>
                   <Pressable
                     onPress={closeModal}
-                    className="flex-1 py-3 rounded-xl bg-gray-100"
+                    style={{
+                      flex: 1,
+                      paddingVertical: 14,
+                      borderRadius: borderRadius.md,
+                      backgroundColor: colors.glassWhite,
+                      borderWidth: 1,
+                      borderColor: colors.glassBorder,
+                      alignItems: 'center',
+                    }}
                   >
-                    <Text className="text-center font-semibold text-gray-700">Cancel</Text>
+                    <Text style={{ color: colors.textWhite, fontWeight: '600' }}>
+                      Cancel
+                    </Text>
                   </Pressable>
                   <Pressable
                     onPress={() => {
                       closeModal();
-                      // Navigate to settlement screen
                       router.push('/settlement');
                     }}
-                    className="flex-1 py-3 rounded-xl bg-teal-600 active:bg-teal-700"
+                    style={{
+                      flex: 1,
+                      paddingVertical: 14,
+                      borderRadius: borderRadius.md,
+                      backgroundColor: colors.contextTeal,
+                      alignItems: 'center',
+                    }}
                   >
-                    <Text className="text-center font-semibold text-white">Go to Settlement</Text>
+                    <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
+                      Go to Settlement
+                    </Text>
                   </Pressable>
                 </>
               ) : (
                 <Pressable
                   onPress={closeModal}
-                  className="flex-1 py-3 rounded-xl bg-gray-100"
+                  style={{
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: borderRadius.md,
+                    backgroundColor: colors.glassWhite,
+                    borderWidth: 1,
+                    borderColor: colors.glassBorder,
+                    alignItems: 'center',
+                  }}
                 >
-                  <Text className="text-center font-semibold text-gray-700">Close</Text>
+                  <Text style={{ color: colors.textWhite, fontWeight: '600' }}>
+                    Close
+                  </Text>
                 </Pressable>
               )}
             </View>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 }

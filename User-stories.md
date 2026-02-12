@@ -5,10 +5,11 @@
 [![Phase 2](https://img.shields.io/badge/Phase%202-In%20Progress-yellow)](https://github.com)
 [![Total Stories](https://img.shields.io/badge/User%20Stories-69%20Active-green)](https://github.com)
 
-**Last Updated**: February 8, 2026  
-**Document Version**: 2.0  
-**Original Stories**: 60 (9 removed, 9 added = 60 active)  
-**New Phase 2 Stories**: 9 (US-061 through US-069)  
+**Last Updated**: February 12, 2026
+**Document Version**: 2.1
+**Original Stories**: 60 (9 removed, 9 added = 60 active)
+**New Phase 2 Stories**: 9 (US-061 through US-069)
+**Latest Updates**: Profile screen added, 5 bug fixes completed (BUG-003 through BUG-007)  
 
 ---
 
@@ -201,6 +202,64 @@ Core authentication and user account lifecycle management.
 - [x] Confirmation message: "Password updated successfully"
 
 **Dependencies**: US-001
+
+---
+
+#### US-070: Edit Profile Information ✅
+
+**Story**: As a user, I want to edit my personal profile information (name and email), so that I can keep my account details up to date.
+
+**Phase**: Phase 1 | **Priority**: P2 | **Time**: 3h | **Points**: 3 | **Status**: ✅ Completed (Feb 12, 2026)
+
+**Features**:
+- Edit full name
+- Change email address with validation
+- View app version information
+- Profile avatar displays user's initial
+- Edit/Save/Cancel workflow
+
+**Business Rules**:
+- Name cannot be empty
+- Email must be valid format (regex validation)
+- Email changes don't require re-authentication (future enhancement)
+- Profile accessible from Settings screen profile card
+
+**UI/UX**:
+- Profile card at top of Settings screen is clickable
+- Tapping profile card navigates to `/settings/profile`
+- "Edit" button enables editing mode
+- "Save" validates and persists changes
+- "Cancel" discards changes and exits edit mode
+- Success message shown after save
+
+**Acceptance Criteria**:
+- [x] User can tap profile card in Settings to open Profile screen
+- [x] Profile screen shows current name and email
+- [x] "Edit" button enables editing mode
+- [x] Name field is editable text input
+- [x] Email field is editable with keyboard type "email-address"
+- [x] "Save" button validates name (not empty) and email (valid format)
+- [x] "Cancel" button discards changes and returns to view mode
+- [x] App version displayed (read-only)
+- [x] Success alert shown after successful save
+- [x] Profile data updates immediately in Settings screen
+- [x] Follows design.md guidelines (gradient background, glass cards, sage green accents)
+
+**Design Compliance**:
+- ✅ LinearGradient background (contextDark → contextTeal)
+- ✅ Glass cards for information sections
+- ✅ Sage green icons and accents
+- ✅ FadeInDown animations with staggered delays
+- ✅ Profile avatar with sage green border at top
+
+**Files Added**:
+- `src/app/settings/profile.tsx` - Profile screen component
+- Added route in `src/app/settings/_layout.tsx`
+
+**Files Modified**:
+- `src/app/(tabs)/settings.tsx` - Made profile card clickable, removed Profile menu item
+
+**Dependencies**: US-001 (Sign Up), US-002 (Log In)
 
 ---
 
@@ -2689,20 +2748,131 @@ if (wasShared && nowPersonal) {
 
 ---
 
-#### BUG-003: Transaction Color Consistency 🐛
+#### BUG-003: Settings Screen Color Consistency ✅
 
-**Story**: As a user, I see hardcoded colors in transaction screens that don't match the glassmorphism theme, which breaks visual consistency.
+**Story**: As a user, I see hardcoded colors in settings screens that don't match the glassmorphism theme, which breaks visual consistency.
 
-**Phase**: Phase 1 | **Priority**: P1 | **Time**: 3h | **Points**: 3 | **Status**: 🐛 In Progress
+**Phase**: Phase 1 | **Priority**: P1 | **Time**: 3h | **Points**: 3 | **Status**: ✅ Completed (Feb 12, 2026)
 
-**Issue**: Some transaction components use hardcoded background colors instead of GlassCard component
+**Issue**: Settings screens used hardcoded colors (#006A6A, #E3A05D) instead of design tokens
 
 **Root Cause**: Components created before design system was finalized
 
+**Fixes Applied**:
+- ✅ Settings screen: All menu icons now use `colors.sageGreen` instead of hardcoded `#006A6A`
+- ✅ Sign out button: Proper padding, consistent styling with design system
+- ✅ Payday settings: Replaced hardcoded `#E3A05D` with `colors.softAmber`
+- ✅ Save button: Uses sage green background instead of harsh `colors.contextTeal`
+- ✅ All settings screens follow "Calm Financial Control" design philosophy
+
 **Acceptance Criteria**:
-- [ ] All transaction components refactored to use GlassCard
-- [ ] No hardcoded colors in transaction screens
-- [ ] Visual consistency: All cards have glassmorphism effect
+- [x] All settings components use design tokens (no hardcoded colors)
+- [x] Visual consistency: All icons use sage green (#A8B5A1)
+- [x] Buttons use appropriate colors (sage green for primary, soft amber for warnings)
+- [x] No harsh colors (bright teal, red) in settings UI
+
+----
+
+#### BUG-004: Dashboard Payday Data Swap on First Load ✅
+
+**Story**: As a user opening the app for the first time, I see a visual swap between household payday (Day 25) and my actual payday, which is confusing and looks unpolished.
+
+**Phase**: Phase 2 | **Priority**: P1 | **Time**: 2h | **Points**: 2 | **Status**: ✅ Completed (Feb 12, 2026)
+
+**Issue**: Dashboard used fallback data with hardcoded payday 25 while loading, causing visible swap to actual payday
+
+**Root Cause**: `budgetPeriod` fallback object with hardcoded values rendered before real data loaded
+
+**Fixes Applied**:
+- ✅ Removed hardcoded fallback with payday 25
+- ✅ Updated loading state to wait for `budgetPeriod` data before rendering
+- ✅ Added safety checks to all queries depending on `budgetPeriod`
+- ✅ Added optional chaining to prevent errors when data is undefined
+
+**Acceptance Criteria**:
+- [x] Loading screen shows until real payday data loads
+- [x] No visual swap or flicker when data loads
+- [x] Dashboard displays correct payday immediately on first render
+- [x] No errors when `budgetPeriod` is undefined
+
+**Files Changed**: `src/app/(tabs)/index.tsx`
+
+----
+
+#### BUG-005: Settings Menu Progressive Loading ✅
+
+**Story**: As a user navigating to Settings for the first time, I see menu items appear progressively (Payday → Invite Partner → Household Members), which looks unprofessional.
+
+**Phase**: Phase 2 | **Priority**: P1 | **Time**: 1h | **Points**: 1 | **Status**: ✅ Completed (Feb 12, 2026)
+
+**Issue**: Menu items rendered while `showSplitSettings` query was still loading, causing staggered appearance
+
+**Root Cause**: Component rendered before all queries completed
+
+**Fixes Applied**:
+- ✅ Added loading state that waits for `showSplitSettings` query
+- ✅ Display loading screen until all menu data is ready
+- ✅ All menu items now appear simultaneously
+
+**Acceptance Criteria**:
+- [x] Loading screen shows while queries complete
+- [x] All menu items appear at once (no progressive loading)
+- [x] No gaps or jumps in menu layout
+
+**Files Changed**: `src/app/(tabs)/settings.tsx`
+
+----
+
+#### BUG-006: Sign Out Button Inconsistent Design ✅
+
+**Story**: As a user viewing the Settings screen, I see the sign out button doesn't match the design system (wrong padding, low opacity, amber text).
+
+**Phase**: Phase 1 | **Priority**: P2 | **Time**: 0.5h | **Points**: 1 | **Status**: ✅ Completed (Feb 12, 2026)
+
+**Issue**: Sign out button had inconsistent padding and text color
+
+**Root Cause**: Button styling didn't follow design token patterns
+
+**Fixes Applied**:
+- ✅ Changed `paddingVertical: 14` to `padding: 16` for consistency
+- ✅ Increased background opacity from 0.15 to 0.2 (more visible)
+- ✅ Increased border opacity from 0.3 to 0.4 (more defined)
+- ✅ Changed text and icon color from soft amber to white
+
+**Acceptance Criteria**:
+- [x] Button has proper full padding matching other elements
+- [x] Text is white (not amber) for better readability
+- [x] Icon is white (not amber)
+- [x] Background/border use soft amber to indicate destructive action
+
+**Files Changed**: `src/app/(tabs)/settings.tsx`
+
+----
+
+#### BUG-007: File Naming Clarity ✅
+
+**Story**: As a developer, I see generic file names like `two.tsx` that don't indicate their purpose, which makes navigation and maintenance difficult.
+
+**Phase**: Phase 1 | **Priority**: P2 | **Time**: 0.5h | **Points**: 1 | **Status**: ✅ Completed (Feb 12, 2026)
+
+**Issue**: Settings tab screen named `two.tsx` instead of descriptive name
+
+**Root Cause**: Default Expo Router naming not updated to be descriptive
+
+**Fixes Applied**:
+- ✅ Renamed `src/app/(tabs)/two.tsx` → `src/app/(tabs)/settings.tsx`
+- ✅ Updated tab layout to reference new file name
+- ✅ Removed unused `import.tsx` file from settings folder
+
+**Acceptance Criteria**:
+- [x] Settings tab file has descriptive name
+- [x] Tab navigation still works correctly
+- [x] No unused files in codebase
+
+**Files Changed**:
+- Renamed: `src/app/(tabs)/two.tsx` → `src/app/(tabs)/settings.tsx`
+- Updated: `src/app/(tabs)/_layout.tsx`
+- Deleted: `src/app/settings/import.tsx`
 - [ ] Performance: No degradation from refactor
 
 **Dependencies**: TECH-001 (GlassCard Component)
