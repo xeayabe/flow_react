@@ -2386,6 +2386,75 @@ const transactions = userScopedQuery('transactions', userId)
 
 ---
 
+#### TECH-010: Floating Island Navigation Bar ✅
+
+**Story**: As a user, I want a modern floating navigation bar with smooth animations, so that I have an elegant and intuitive way to navigate between app sections.
+
+**Phase**: Phase 2 | **Priority**: P1 | **Time**: 8h | **Points**: 8 | **Status**: ✅ Completed
+
+**Features**:
+- Floating pill-shaped navigation bar with glassmorphism effect
+- 5 tab buttons with icons (Dashboard, Transactions, Analytics, Wallets, Settings)
+- Morphing blob animation that flows between active tabs
+- Swipe gestures for tab navigation (left/right swipe)
+- 3D elevation and breathing animation for active tab
+- Reduced motion accessibility support
+- VoiceOver support with enhanced labels
+- Safe area handling (extends behind home indicator)
+- Dark charcoal background with subtle sage green border
+
+**Business Rules**:
+- Navigation bar sits flush at bottom with 16px side margins (floating effect)
+- Active tab has 3D lift effect (6px elevation) with sage green glow
+- Morphing blob height: 48px in 60px container (80% proportion)
+- Icons: 24px inactive, 28px active (with optical centering adjustment)
+- Swipe velocity threshold: 500 pts/sec, Distance threshold: 100px
+- Haptic feedback on swipe and tab change
+- Container: 60px height + safe area padding below
+
+**Acceptance Criteria**:
+- [x] FloatingTabBar component created in `/src/components/navigation/`
+- [x] Glassmorphism effect with BlurView (intensity: 50, tint: dark)
+- [x] Border radius: 100px (smooth pill shape)
+- [x] MorphingBlob animates horizontally with spring physics
+- [x] Active tab elevates with 3D transform and breathing animation
+- [x] Swipe gesture supports left/right navigation between tabs
+- [x] useTabPositions calculates center X for each tab dynamically
+- [x] useReducedMotion provides accessibility support
+- [x] Safe area: Container has `paddingBottom: insets.bottom`
+- [x] Bottom positioning: `bottom: 0` with no floating gap
+- [x] Icons distributed with `justifyContent: 'space-evenly'`
+- [x] Performance: 60fps animations on iPhone 11
+
+**Dependencies**: None
+
+**Technical Notes**:
+```typescript
+// Component structure
+<FloatingTabBar>
+  <BlurView height={60}>
+    <MorphingBlob height={48} /> {/* 80% of container */}
+    <TabsRow justifyContent="space-evenly">
+      <AnimatedTabButton /> {/* x5 tabs */}
+    </TabsRow>
+  </BlurView>
+</FloatingTabBar>
+
+// Safe area handling
+<View style={{ paddingBottom: insets.bottom }}>
+  <BlurView style={{ height: 60 }} /> {/* Fixed height */}
+</View>
+```
+
+**Implementation Files**:
+- `/src/components/navigation/FloatingTabBar.tsx` - Main component
+- `/src/components/navigation/MorphingBlob.tsx` - Animated blob
+- `/src/components/navigation/useTabPositions.ts` - Position calculator
+- `/src/components/navigation/useTabSwipeGesture.ts` - Swipe handler
+- `/src/components/navigation/useReducedMotion.ts` - Accessibility hook
+
+---
+
 ---
 
 ## UX & Accessibility Stories

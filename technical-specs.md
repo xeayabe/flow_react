@@ -13,15 +13,16 @@
 1. [Architecture Overview](#architecture-overview)
 2. [Technology Stack](#technology-stack)
 3. [File & Folder Structure](#file--folder-structure)
-4. [Database Structure](#database-structure)
-5. [API Layer](#api-layer)
-6. [Authentication System](#authentication-system)
-7. [Data Flow Patterns](#data-flow-patterns)
-8. [Third-Party Services](#third-party-services)
-9. [Security Implementation](#security-implementation)
-10. [Performance Optimization](#performance-optimization)
-11. [Development Guidelines](#development-guidelines)
-12. [Deployment Configuration](#deployment-configuration)
+4. [Navigation Architecture](#navigation-architecture)
+5. [Database Structure](#database-structure)
+6. [API Layer](#api-layer)
+7. [Authentication System](#authentication-system)
+8. [Data Flow Patterns](#data-flow-patterns)
+9. [Third-Party Services](#third-party-services)
+10. [Security Implementation](#security-implementation)
+11. [Performance Optimization](#performance-optimization)
+12. [Development Guidelines](#development-guidelines)
+13. [Deployment Configuration](#deployment-configuration)
 
 ---
 
@@ -186,6 +187,13 @@ flow-app/
 │   │   │   │   ├── ErrorBoundary.tsx # Error handling wrapper
 │   │   │   │   └── EmptyState.tsx   # Empty state illustrations
 │   │   │   │
+│   │   │   ├── navigation/          # Navigation components
+│   │   │   │   ├── FloatingTabBar.tsx      # Floating island navigation (TECH-010)
+│   │   │   │   ├── MorphingBlob.tsx        # Animated selection blob
+│   │   │   │   ├── useTabPositions.ts      # Tab position calculator
+│   │   │   │   ├── useTabSwipeGesture.ts   # Swipe gesture handler
+│   │   │   │   └── useReducedMotion.ts     # Accessibility hook
+│   │   │   │
 │   │   │   ├── dashboard/           # Dashboard widgets
 │   │   │   │   ├── WalletSummary.tsx      # Total balance widget
 │   │   │   │   ├── WeeklyAllowance.tsx    # Needs/Wants/Savings progress
@@ -303,6 +311,201 @@ flow-app/
 - **Utilities**: `camelCase.ts` (e.g., `formatCurrency.ts`)
 - **Types**: `PascalCase` interfaces (e.g., `Transaction`, `Budget`)
 - **Hooks**: `useCamelCase.ts` (e.g., `useTransactions.ts`)
+
+---
+
+## Navigation Architecture
+
+### Floating Island Navigation Bar (TECH-010)
+
+Flow uses a **floating pill-shaped navigation bar** with glassmorphism effects and smooth animations, inspired by modern iOS design patterns.
+
+#### Architecture Overview
+
+```
+┌────────────────────────────────────────┐
+│          Screen Content                │
+│                                        │
+│  (Dashboard/Transactions/Analytics)    │
+│                                        │
+│                                        │
+└────────────────────────────────────────┘
+         ▼ (Sits on top)
+┌────────────────────────────────────────┐
+│  FloatingTabBar (Container)            │
+│  ┌──────────────────────────────────┐ │
+│  │ BlurView (60px height)           │ │
+│  │  ┌────────────────────────────┐  │ │
+│  │  │ MorphingBlob (48px)        │  │ │ ← Animated background
+│  │  └────────────────────────────┘  │ │
+│  │  [🏠] [💸] [📊] [💳] [⚙️]      │ │ ← 5 tabs
+│  └──────────────────────────────────┘ │
+│  └─ paddingBottom: insets.bottom      │ ← Safe area
+└────────────────────────────────────────┘
+```
+
+#### Component Hierarchy
+
+**FloatingTabBar.tsx** (Main component)
+- Handles tab navigation logic
+- Manages swipe gestures
+- Coordinates animations
+- Provides accessibility support
+
+**MorphingBlob.tsx** (Animated background)
+- 48px height (80% of 60px container)
+- Smoothly transitions between active tabs
+- Spring physics animation (or timing for reduced motion)
+- Sage green background (`colors.sageGreen`)
+
+**useTabPositions.ts** (Position calculator)
+- Calculates center X position for each tab
+- Accounts for container padding (16px on each side)
+- Dynamically adjusts to screen width
+- Formula: `centerX = padding + (tabWidth * index) + (tabWidth / 2)`
+
+**useTabSwipeGesture.ts** (Swipe handler)
+- Enables left/right swipe navigation
+- Thresholds: 500 pts/sec velocity OR 100px distance
+- Provides haptic feedback on swipe
+- Prevents accidental vertical scrolls
+
+**useReducedMotion.ts** (Accessibility)
+- Detects system reduced motion preference
+- Switches spring animations to timing animations
+- Reduces animation duration (400ms → 150ms)
+- Disables breathing pulse effect
+
+#### Key Implementation Details
+
+**1. Safe Area Handling**
+```typescript
+// Container handles safe area with paddingBottom
+<View style={[styles.container, { paddingBottom: insets.bottom }]}>
+  {/* BlurView stays at fixed 60px - doesn't extend into safe area */}
+  <BlurView style={{ height: 60 }}>
+    {/* Content */}
+  </BlurView>
+</View>
+```
+
+**Why this approach?**
+- Glass effect stops at 60px (clean pill shape)
+- Safe area padding creates invisible gap below
+- Navigation bar appears to "float" above home indicator
+- No visual distortion from extending blur into safe area
+
+**2. Positioning & Spacing**
+```typescript
+container: {
+  position: 'absolute',
+  bottom: 0,                    // Flush to bottom
+  marginHorizontal: spacing.md, // 16px side margins
+  paddingBottom: insets.bottom, // Safe area gap
+}
+
+blurContainer: {
+  height: 60,                   // Fixed height
+  borderRadius: 100,            // Full pill shape (capped by height)
+}
+
+tabsRow: {
+  justifyContent: 'space-evenly', // Even distribution
+  paddingHorizontal: spacing.md,  // 16px padding inside
+}
+```
+
+**3. Active Tab Animation**
+```typescript
+// STEP 3: 3D elevation with breathing effect
+if (isFocused) {
+  elevation.value = withSequence(
+    withTiming(-8, { duration: 100 }),      // Quick lift
+    withSpring(-6, { damping: 12, stiffness: 300 }) // Settle
+  );
+  scale.value = withSpring(1.1, animConfig.spring);
+
+  // Breathing animation (infinite pulse)
+  breathScale.value = withRepeat(
+    withSequence(
+      withTiming(1.05, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+      withTiming(1.0, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+    ),
+    -1 // Infinite
+  );
+}
+```
+
+**4. Scroll Padding for All Screens**
+
+Every tab screen must account for the navigation bar to prevent content overlap:
+
+```typescript
+contentContainerStyle={{
+  paddingBottom: 60 + insets.bottom + 40
+  // 60px = nav bar height
+  // insets.bottom = safe area
+  // 40px = visual gap
+}}
+```
+
+Applied to:
+- `/src/app/(tabs)/index.tsx` (Dashboard)
+- `/src/app/(tabs)/transactions.tsx`
+- `/src/app/(tabs)/analytics.tsx`
+- `/src/app/(tabs)/settings.tsx`
+
+#### Design Specifications
+
+| Property | Value | Reasoning |
+|----------|-------|-----------|
+| Container height | 60px | Optimal for 44pt touch targets |
+| Blob height | 48px | 80% of container (visual proportion) |
+| Icon size (inactive) | 24px | Standard iOS icon size |
+| Icon size (active) | 28px | 17% larger (noticeable but not jarring) |
+| Border radius | 100px | Creates perfect pill shape |
+| Side margins | 16px | Floating appearance |
+| Blur intensity | 50 | Subtle glassmorphism |
+| Active elevation | -6px | Lifts above surface |
+| Active scale | 1.1 | 10% larger |
+| Animation duration | 400ms (150ms reduced motion) | Feels responsive |
+| Spring config | `{ mass: 1.2, damping: 15, stiffness: 120 }` | Organic, playful |
+
+#### Accessibility Features
+
+1. **VoiceOver Support**
+   - Each tab announces: "Dashboard, tab 1 of 5"
+   - Accessibility hint: "Double tap to navigate to Dashboard screen"
+   - Selected state properly communicated
+
+2. **Reduced Motion**
+   - Detects `prefers-reduced-motion` system setting
+   - Replaces spring animations with timing animations
+   - Disables breathing pulse effect
+   - Faster animation duration (150ms vs 400ms)
+
+3. **Touch Targets**
+   - Each tab is minimum 44x44pt (full width / 5)
+   - Pressable area extends full height of navigation bar
+
+4. **Haptic Feedback**
+   - Light impact on swipe start
+   - Medium impact on successful tab change
+   - Confirms action without visual attention
+
+#### Performance Considerations
+
+- **60fps Animations**: Uses `react-native-reanimated` (runs on UI thread)
+- **Memoization**: `MemoizedAnimatedTabButton` prevents unnecessary re-renders
+- **Gesture Optimization**: Swipe gesture uses `activeOffsetX` and `failOffsetY` to avoid conflicts with vertical scrolling
+- **Spring Physics**: Configured for smooth, organic motion without overshoot
+
+#### Future Enhancements (Deferred)
+
+- [ ] Long-press menu on tabs (quick actions)
+- [ ] Badge notifications on tabs
+- [ ] Customizable tab order
+- [ ] Dynamic tab hiding based on user preferences
 
 ---
 

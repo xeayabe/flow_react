@@ -347,7 +347,7 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingTop: insets.top + 16,
-          paddingBottom: 100 + insets.bottom, // 60px nav + 40px gap
+          paddingBottom: 60 + insets.bottom + 40, // 60px nav + safe area + 40px gap
           paddingHorizontal: 20,
         }}
       >

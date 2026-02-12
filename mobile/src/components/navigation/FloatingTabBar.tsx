@@ -200,29 +200,24 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
 
   return (
     <GestureDetector gesture={swipeGesture}>
-      <View style={styles.container}>
-        {/* Glass background extends behind system home bar */}
+      {/* ✅ Container now handles safe area with paddingBottom */}
+      <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+        {/* ✅ BlurView stays at fixed 60px - no extending into safe area */}
         <BlurView
           intensity={50}
           tint="dark"
-          style={[
-            styles.blurContainer,
-            {
-              height: 60 + insets.bottom, // Upper section + home bar area
-              paddingBottom: insets.bottom, // Internal padding for safe area
-            },
-          ]}
+          style={styles.blurContainer}
         >
-        {/* Overlay for extra depth */}
-        <View style={styles.overlay} />
+          {/* Overlay for extra depth */}
+          <View style={styles.overlay} />
 
-        {/* Tab buttons - STEP 3: Using AnimatedTabButton with 3D elevation */}
-        <View style={styles.tabsRow}>
-          {/* STEP 4: Morphing blob - flows between active tabs */}
-          <MorphingBlob
-            tabPositions={tabPositions}
-            activeTabIndex={state.index}
-          />
+          {/* Tab buttons */}
+          <View style={styles.tabsRow}>
+            {/* Your existing tab rendering code */}
+            <MorphingBlob
+              tabPositions={tabPositions}
+              activeTabIndex={state.index}
+            />
           {state.routes.map((route, index) => {
             const { options } = descriptors[route.key];
             const isFocused = state.index === index;
@@ -279,30 +274,39 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 0, // Flush against bottom safe area
+    bottom: 0, // ✅ Back to 0, not 80!
     left: 0,
     right: 0,
-    marginHorizontal: spacing.md, // 16px side margins for floating effect
-    // NO marginBottom - sits flush at bottom
+    marginHorizontal: spacing.md, // 16px side margins
+    marginBottom: 0 // 12px lift from bottom
+    // ✅ paddingBottom added inline with insets.bottom
   },
   blurContainer: {
     borderRadius: 100,
-    height: 60, // Base upper section - extended with insets.bottom inline
+    height: 60, // ✅ Fixed height - no insets.bottom added here
     overflow: 'hidden',
-    justifyContent: 'center', // Centers tabsRow in upper section
+    justifyContent: 'center',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
   },
   tabsRow: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center', // Vertical centering in upper section
-    justifyContent: 'space-evenly', // Distributes icons with equal spacing
-    paddingHorizontal: spacing.md, // 16px horizontal padding
-    // Icons and blob centered in upper 60px, glass extends below
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    paddingHorizontal: spacing.md,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pressable: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 4, // OPTICAL NUDGE: Move icons down slightly to look "right"
+    paddingTop: 4,
   },
 });

@@ -557,7 +557,7 @@ export default function TransactionsTabScreen() {
           onEndReachedThreshold={0.5}
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingBottom: 100 + insets.bottom, // 60px nav + 40px gap
+            paddingBottom: 60 + insets.bottom + 40, // 60px nav + safe area + 40px gap
           }}
           showsVerticalScrollIndicator={false}
           ListFooterComponent={

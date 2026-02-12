@@ -514,7 +514,7 @@ export default function AnalyticsTabScreen() {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
+          contentContainerStyle={{ paddingBottom: 60 + insets.bottom + 40 }}
         >
           <View style={{ paddingHorizontal: 24, paddingVertical: 16, gap: 20 }}>
             {/* Filters */}
