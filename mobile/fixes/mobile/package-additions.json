@@ -1,0 +1,15 @@
+{
+  "_comment": "No new dependencies required. All imports in fix files use packages already in package.json.",
+  "dependencies": {},
+  "devDependencies": {},
+  "existing_dependencies_used_by_fixes": {
+    "zod": "4.1.11",
+    "@shopify/flash-list": "1.7.6",
+    "@react-native-async-storage/async-storage": "2.1.2",
+    "@react-native-community/netinfo": "11.4.1",
+    "@tanstack/react-query": "5.90.2",
+    "uuid": "^11.1.0",
+    "date-fns": "^4.1.0",
+    "lucide-react-native": "^0.475.0"
+  }
+}

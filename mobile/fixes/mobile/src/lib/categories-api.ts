@@ -1,0 +1,432 @@
+// FIX: DAT-009 - Added cascade guard check before category deletion
+import { db } from './db';
+import { checkCategoryDeletable } from './cascade-guard'; // FIX: DAT-009
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
+
+export interface Category {
+  id?: string;
+  householdId: string;
+  name: string;
+  type: 'income' | 'expense';
+  categoryGroup: string; // Can be default keys like 'income', 'needs', 'wants', 'savings', 'other' or custom keys like 'custom_123456'
+  isShareable: boolean;
+  isDefault: boolean;
+  createdByUserId?: string;
+  icon?: string;
+  color?: string;
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CreateCategoryRequest {
+  householdId: string;
+  name: string;
+  type: 'income' | 'expense';
+  categoryGroup: string;
+  createdByUserId?: string;
+  icon?: string;
+  color?: string;
+}
+
+export interface CategoryResponse {
+  success: boolean;
+  data?: Category | Category[];
+  error?: string;
+}
+
+const DEFAULT_INCOME_CATEGORIES = [
+  'Salary',
+  'Bonus',
+  'Freelance',
+  'Investment',
+  'Gift',
+  'Refund',
+  'Other Income',
+];
+
+const DEFAULT_NEEDS_CATEGORIES = [
+  'Rent/Housing',
+  'Groceries',
+  'Utilities',
+  'Transportation',
+  'Health Insurance',
+  'Internet/Phone',
+];
+
+const DEFAULT_WANTS_CATEGORIES = [
+  'Dining Out',
+  'Entertainment',
+  'Shopping',
+  'Hobbies',
+  'Subscriptions',
+  'Vacations',
+];
+
+const DEFAULT_SAVINGS_CATEGORIES = [
+  'Emergency Fund',
+  'Investments',
+  'Savings Goals',
+];
+
+const DEFAULT_OTHER_EXPENSE_CATEGORIES = [
+  'Other Expense',
+];
+
+/**
+ * Create default categories for a household
+ */
+export async function createDefaultCategories(householdId: string): Promise<CategoryResponse> {
+  try {
+    const now = Date.now();
+    const categoryIds: string[] = [];
+
+    // Create default income categories
+    for (const categoryName of DEFAULT_INCOME_CATEGORIES) {
+      const categoryId = uuidv4();
+      categoryIds.push(categoryId);
+      await db.transact([
+        db.tx.categories[categoryId].update({
+          householdId,
+          name: categoryName,
+          type: 'income',
+          categoryGroup: 'income',
+          isShareable: true,
+          isDefault: true,
+          isActive: true,
+        }),
+      ]);
+    }
+
+    // Create default needs categories
+    for (const categoryName of DEFAULT_NEEDS_CATEGORIES) {
+      const categoryId = uuidv4();
+      categoryIds.push(categoryId);
+      await db.transact([
+        db.tx.categories[categoryId].update({
+          householdId,
+          name: categoryName,
+          type: 'expense',
+          categoryGroup: 'needs',
+          isShareable: true,
+          isDefault: true,
+          isActive: true,
+        }),
+      ]);
+    }
+
+    // Create default wants categories
+    for (const categoryName of DEFAULT_WANTS_CATEGORIES) {
+      const categoryId = uuidv4();
+      categoryIds.push(categoryId);
+      await db.transact([
+        db.tx.categories[categoryId].update({
+          householdId,
+          name: categoryName,
+          type: 'expense',
+          categoryGroup: 'wants',
+          isShareable: true,
+          isDefault: true,
+          isActive: true,
+        }),
+      ]);
+    }
+
+    // Create default savings categories
+    for (const categoryName of DEFAULT_SAVINGS_CATEGORIES) {
+      const categoryId = uuidv4();
+      categoryIds.push(categoryId);
+      await db.transact([
+        db.tx.categories[categoryId].update({
+          householdId,
+          name: categoryName,
+          type: 'expense',
+          categoryGroup: 'savings',
+          isShareable: true,
+          isDefault: true,
+          isActive: true,
+        }),
+      ]);
+    }
+
+    // Create default other expense categories
+    for (const categoryName of DEFAULT_OTHER_EXPENSE_CATEGORIES) {
+      const categoryId = uuidv4();
+      categoryIds.push(categoryId);
+      await db.transact([
+        db.tx.categories[categoryId].update({
+          householdId,
+          name: categoryName,
+          type: 'expense',
+          categoryGroup: 'other',
+          isShareable: true,
+          isDefault: true,
+          isActive: true,
+        }),
+      ]);
+    }
+
+    console.log('Default categories created:', { householdId, count: categoryIds.length });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Create default categories error:', error);
+    return {
+      success: false,
+      error: 'Failed to create default categories',
+    };
+  }
+}
+
+/**
+ * Create a custom category for a household
+ */
+export async function createCategory(request: CreateCategoryRequest): Promise<CategoryResponse> {
+  try {
+    // Validate input
+    if (!request.name || request.name.trim().length < 2) {
+      return {
+        success: false,
+        error: 'Category name must be at least 2 characters',
+      };
+    }
+
+    if (request.name.length > 30) {
+      return {
+        success: false,
+        error: 'Category name must be less than 30 characters',
+      };
+    }
+
+    // Check for duplicate within user's own categories (case-insensitive)
+    const existingResult = await db.queryOnce({
+      categories: {
+        $: {
+          where: {
+            householdId: request.householdId,
+            createdByUserId: request.createdByUserId,
+          },
+        },
+      },
+    });
+
+    const existingCategory = existingResult.data.categories?.find(
+      (cat: any) => cat.name.toLowerCase() === request.name.toLowerCase() && cat.isActive
+    );
+
+    if (existingCategory) {
+      return {
+        success: false,
+        error: 'You already have a category with this name',
+      };
+    }
+
+    const categoryId = uuidv4();
+    const now = Date.now();
+
+    await db.transact([
+      db.tx.categories[categoryId].update({
+        householdId: request.householdId,
+        name: request.name.trim(),
+        type: request.type,
+        categoryGroup: request.categoryGroup,
+        isShareable: false, // Phase 1: all personal
+        isDefault: false, // User-created
+        createdByUserId: request.createdByUserId,
+        isActive: true,
+      }),
+    ]);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Create category error:', error);
+    return {
+      success: false,
+      error: 'Failed to create category',
+    };
+  }
+}
+
+/**
+ * Get categories for a user in their household
+ * Returns: user's own categories + categories shared by others
+ */
+export async function getCategories(householdId: string, userId: string): Promise<Category[]> {
+  try {
+    const result = await db.queryOnce({
+      categories: {
+        $: {
+          where: {
+            householdId,
+          },
+        },
+      },
+    });
+
+    console.log('getCategories query result:', { householdId, userId, rawCategories: result.data.categories });
+
+    // Filter: show only user's own categories OR shared categories
+    const categories = (result.data.categories ?? [])
+      .filter((cat: any) => cat.isActive)
+      .filter((cat: any) => {
+        // Show if: created by this user OR is shareable
+        return cat.createdByUserId === userId || cat.isShareable === true;
+      }) as Category[];
+
+    console.log('Filtered categories:', { count: categories.length });
+
+    // Sort: default categories first, then custom, then alphabetical
+    categories.sort((a: Category, b: Category) => {
+      if (a.isDefault !== b.isDefault) {
+        return a.isDefault ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    return categories;
+  } catch (error) {
+    console.error('Get categories error:', error);
+    return [];
+  }
+}
+
+/**
+ * Update a custom category
+ */
+export async function updateCategory(
+  categoryId: string,
+  updates: {
+    name?: string;
+    type?: 'income' | 'expense';
+    categoryGroup?: string;
+    icon?: string;
+    color?: string;
+    isShareable?: boolean;
+  }
+): Promise<CategoryResponse> {
+  try {
+    // Validate name if provided
+    if (updates.name !== undefined) {
+      if (updates.name.trim().length < 2) {
+        return {
+          success: false,
+          error: 'Category name must be at least 2 characters',
+        };
+      }
+      if (updates.name.length > 30) {
+        return {
+          success: false,
+          error: 'Category name must be less than 30 characters',
+        };
+      }
+    }
+
+    const now = Date.now();
+    const updateData: any = { updatedAt: now };
+
+    if (updates.name !== undefined) updateData.name = updates.name.trim();
+    if (updates.type !== undefined) updateData.type = updates.type;
+    if (updates.categoryGroup !== undefined) updateData.categoryGroup = updates.categoryGroup;
+    if (updates.icon !== undefined) updateData.icon = updates.icon;
+    if (updates.color !== undefined) updateData.color = updates.color;
+    if (updates.isShareable !== undefined) updateData.isShareable = updates.isShareable;
+
+    await db.transact([
+      db.tx.categories[categoryId].update(updateData),
+    ]);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Update category error:', error);
+    return {
+      success: false,
+      error: 'Failed to update category',
+    };
+  }
+}
+
+/**
+ * Toggle category sharing (for category owner only)
+ */
+export async function toggleCategorySharing(
+  categoryId: string,
+  userId: string,
+  isShareable: boolean
+): Promise<CategoryResponse> {
+  try {
+    // First verify the user owns this category
+    const categoryResult = await db.queryOnce({
+      categories: {
+        $: {
+          where: {
+            id: categoryId,
+          },
+        },
+      },
+    });
+
+    const category = categoryResult.data.categories?.[0];
+    if (!category) {
+      return {
+        success: false,
+        error: 'Category not found',
+      };
+    }
+
+    if (category.createdByUserId !== userId) {
+      return {
+        success: false,
+        error: 'Only the category owner can change sharing',
+      };
+    }
+
+    await db.transact([
+      db.tx.categories[categoryId].update({
+        isShareable,
+      }),
+    ]);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Toggle category sharing error:', error);
+    return {
+      success: false,
+      error: 'Failed to update category sharing',
+    };
+  }
+}
+
+/**
+ * Delete a custom category (soft delete)
+ *
+ * FIX: DAT-009 - Check for dependent records (transactions, budgets, payee mappings,
+ * recurring templates) before allowing deletion. If dependent records exist, return
+ * a user-friendly error message explaining what needs to be done first.
+ */
+export async function deleteCategory(categoryId: string): Promise<CategoryResponse> {
+  try {
+    // FIX: DAT-009 - Check cascade guard before deleting
+    const deletability = await checkCategoryDeletable(categoryId);
+    if (!deletability.canDelete) {
+      return {
+        success: false,
+        error: deletability.reason || 'This category cannot be deleted because it has dependent records.',
+      };
+    }
+
+    await db.transact([
+      db.tx.categories[categoryId].update({
+        isActive: false,
+      }),
+    ]);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Delete category error:', error);
+    return {
+      success: false,
+      error: 'Failed to delete category',
+    };
+  }
+}
