@@ -7,7 +7,7 @@ import {
   Dimensions,
   GestureResponderEvent,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import {
@@ -426,6 +426,7 @@ function EmptyState({ type }: { type: TypeFilter }) {
 
 export default function AnalyticsTabScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [dateRange, setDateRange] = useState<DateRangeOption>('this_month');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('expense');
   const [viewMode, setViewMode] = useState<ViewMode>('both');
@@ -511,7 +512,10 @@ export default function AnalyticsTabScreen() {
       {isLoading ? (
         <AnalyticsSkeleton />
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
+        >
           <View style={{ paddingHorizontal: 24, paddingVertical: 16, gap: 20 }}>
             {/* Filters */}
             <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap', zIndex: 100 }}>

@@ -202,7 +202,7 @@ export default function TabTwoScreen() {
         contentContainerStyle={{
           paddingTop: insets.top + 20,
           paddingHorizontal: 20,
-          paddingBottom: insets.bottom + 32,
+          paddingBottom: 100 + insets.bottom, // 60px nav + 40px gap
         }}
       >
         {/* User Profile Section */}

@@ -52,6 +52,7 @@ export const colors = {
   borderTeal: 'rgba(44, 95, 93, 0.3)',
   borderTealLight: 'rgba(44, 95, 93, 0.2)',
   borderSage: 'rgba(168, 181, 161, 0.5)',
+  borderSageSubtle: 'rgba(168, 181, 161, 0.15)', // For floating navigation
 
   // Text colors
   textWhite: '#FFFFFF',
@@ -97,6 +98,7 @@ export const borderRadius = {
   md: 16,
   lg: 20,
   xl: 24,
+  floating: 28, // For floating navigation container
 } as const;
 
 // TypeScript types for design tokens

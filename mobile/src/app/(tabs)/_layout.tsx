@@ -4,6 +4,7 @@ import { Tabs } from 'expo-router';
 
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useClientOnlyValue } from '@/lib/useClientOnlyValue';
+import { FloatingTabBar } from '@/components/navigation/FloatingTabBar';
 // FIX: BUG-003 - Import design tokens instead of hardcoding colors
 import { colors } from '@/lib/design-tokens';
 
@@ -17,21 +18,9 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      // FLOATING NAVIGATION: Steps 1-2 - Custom tab bar with glassmorphism
+      tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
-        // FIX: BUG-003 - Replace hardcoded '#006A6A' with design token
-        tabBarActiveTintColor: colors.contextTeal,
-        // FIX: BUG-003 - Replace hardcoded '#9CA3AF' with design token
-        tabBarInactiveTintColor: colors.textWhiteDisabled,
-        tabBarStyle: {
-          // FIX: BUG-003 - Replace hardcoded '#FFFFFF' with design token for dark theme
-          backgroundColor: colors.contextDark,
-          // FIX: BUG-003 - Replace hardcoded '#E5E7EB' with design token
-          borderTopColor: colors.borderTeal,
-        },
-        // FIX: UX-009 - Ensure tab bar items meet minimum 44pt touch target
-        tabBarItemStyle: {
-          minHeight: 44,
-        },
         headerShown: useClientOnlyValue(false, true),
       }}>
       <Tabs.Screen

@@ -347,7 +347,7 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingTop: insets.top + 16,
-          paddingBottom: insets.bottom + 100,
+          paddingBottom: 100 + insets.bottom, // 60px nav + 40px gap
           paddingHorizontal: 20,
         }}
       >
@@ -408,7 +408,7 @@ export default function DashboardScreen() {
         onPress={() => router.push('/transactions/add')}
         className="absolute items-center justify-center"
         style={{
-          bottom: 20,
+          bottom: 120,
           right: 20,
           width: 64,
           height: 64,

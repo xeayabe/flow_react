@@ -61,7 +61,7 @@ export default function SaveFAB({ onSave, disabled = false, isLoading = false }:
       style={[
         {
           position: 'absolute',
-          bottom: 24,
+          bottom: 40, // 72px nav height + 24px gap
           right: 24,
           width: 64,
           height: 64,

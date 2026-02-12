@@ -557,7 +557,7 @@ export default function TransactionsTabScreen() {
           onEndReachedThreshold={0.5}
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingBottom: 100,
+            paddingBottom: 100 + insets.bottom, // 60px nav + 40px gap
           }}
           showsVerticalScrollIndicator={false}
           ListFooterComponent={
@@ -588,7 +588,7 @@ export default function TransactionsTabScreen() {
         onPress={() => router.push('/transactions/add')}
         className="absolute items-center justify-center"
         style={{
-          bottom: 20,
+          bottom: 120, // 80px nav height + 40px gap (adjusted for taller nav)
           right: 20,
           width: 64,
           height: 64,
