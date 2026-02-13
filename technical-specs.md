@@ -188,9 +188,9 @@ flow-app/
 │   │   │   │   └── EmptyState.tsx   # Empty state illustrations
 │   │   │   │
 │   │   │   ├── navigation/          # Navigation components
-│   │   │   │   ├── FloatingTabBar.tsx      # Floating island navigation (TECH-010)
-│   │   │   │   ├── MorphingBlob.tsx        # Animated selection blob
-│   │   │   │   ├── useTabPositions.ts      # Tab position calculator
+│   │   │   │   ├── FloatingTabBar.tsx      # Floating island nav + sliding bubble (TECH-010)
+│   │   │   │   ├── MorphingBlob.tsx        # UNUSED (kept for reference)
+│   │   │   │   ├── useTabPositions.ts      # UNUSED (kept for reference)
 │   │   │   │   ├── useTabSwipeGesture.ts   # Swipe gesture handler
 │   │   │   │   └── useReducedMotion.ts     # Accessibility hook
 │   │   │   │
@@ -318,123 +318,104 @@ flow-app/
 
 ### Floating Island Navigation Bar (TECH-010)
 
-Flow uses a **floating pill-shaped navigation bar** with glassmorphism effects and smooth animations, inspired by modern iOS design patterns.
+Flow uses a **floating pill-shaped navigation bar** with glassmorphism effects and smooth spring animations. The bar floats above the screen content with 16px margins, creating a premium "island" effect.
 
 #### Architecture Overview
 
 ```
-┌────────────────────────────────────────┐
-│          Screen Content                │
-│                                        │
-│  (Dashboard/Transactions/Analytics)    │
-│                                        │
-│                                        │
-└────────────────────────────────────────┘
-         ▼ (Sits on top)
-┌────────────────────────────────────────┐
-│  FloatingTabBar (Container)            │
-│  ┌──────────────────────────────────┐ │
-│  │ BlurView (60px height)           │ │
-│  │  ┌────────────────────────────┐  │ │
-│  │  │ MorphingBlob (48px)        │  │ │ ← Animated background
-│  │  └────────────────────────────┘  │ │
-│  │  [🏠] [💸] [📊] [💳] [⚙️]      │ │ ← 5 tabs
-│  └──────────────────────────────────┘ │
-│  └─ paddingBottom: insets.bottom      │ ← Safe area
-└────────────────────────────────────────┘
++----------------------------------------+
+|          Screen Content                |
+|  (Dashboard/Transactions/Analytics)    |
+|                                        |
++----------------------------------------+
+         v (Sits on top)
++----------------------------------------+
+|  FloatingTabBar (Container)            |
+|  +----------------------------------+  |
+|  | BlurView (60px, borderRadius 100)|  |
+|  |  [Sliding Bubble] (70x48, abs)  |  |  <-- Animated sage gradient
+|  |  [Tab Row: 5 equal flex slots]  |  |  <-- Icons only, no labels
+|  +----------------------------------+  |
+|  +-- paddingBottom: insets.bottom      |  <-- Safe area
++----------------------------------------+
 ```
 
 #### Component Hierarchy
 
-**FloatingTabBar.tsx** (Main component)
-- Handles tab navigation logic
-- Manages swipe gestures
-- Coordinates animations
-- Provides accessibility support
-
-**MorphingBlob.tsx** (Animated background)
-- 48px height (80% of 60px container)
-- Smoothly transitions between active tabs
-- Spring physics animation (or timing for reduced motion)
-- Sage green background (`colors.sageGreen`)
-
-**useTabPositions.ts** (Position calculator)
-- Calculates center X position for each tab
-- Accounts for container padding (16px on each side)
-- Dynamically adjusts to screen width
-- Formula: `centerX = padding + (tabWidth * index) + (tabWidth / 2)`
+**FloatingTabBar.tsx** (Main component - self-contained)
+- Renders sliding bubble as sibling of tab row (NOT inside it)
+- Tab row contains EXACTLY 5 plain `View` children (`flex: 1`)
+- Manages drag-to-select + swipe gestures via `Gesture.Race`
+- Uses `onLayout` to measure tab row for accurate bubble positioning
+- Coordinates all animations (bubble spring, icon scale, breathing)
 
 **useTabSwipeGesture.ts** (Swipe handler)
-- Enables left/right swipe navigation
+- Enables left/right swipe navigation between adjacent tabs
 - Thresholds: 500 pts/sec velocity OR 100px distance
 - Provides haptic feedback on swipe
-- Prevents accidental vertical scrolls
 
 **useReducedMotion.ts** (Accessibility)
 - Detects system reduced motion preference
 - Switches spring animations to timing animations
-- Reduces animation duration (400ms → 150ms)
+- Reduces animation duration (400ms -> 150ms)
 - Disables breathing pulse effect
+
+**MorphingBlob.tsx** / **useTabPositions.ts** (UNUSED - kept for reference)
+- These files exist but are NOT imported by FloatingTabBar
+- Replaced by inline sliding bubble with `onLayout` measurement
 
 #### Key Implementation Details
 
-**1. Safe Area Handling**
+**1. Tab Row Layout Rule**
 ```typescript
-// Container handles safe area with paddingBottom
+// CRITICAL: tabsRow has EXACTLY 5 plain View children
+// The sliding bubble is a SIBLING, not inside tabsRow
+<BlurView style={styles.blurContainer}>
+  <View style={styles.overlay} />
+  <Animated.View style={[styles.slidingBubble, bubbleStyle]} />  {/* Sibling */}
+  <View style={styles.tabsRow} onLayout={handleRowLayout}>
+    {state.routes.map((route, index) => (
+      <View key={route.key} style={styles.tabSlot}>   {/* Plain View */}
+        <Pressable style={styles.pressable}>
+          <MemoizedAnimatedTabIcon ... />
+        </Pressable>
+      </View>
+    ))}
+  </View>
+</BlurView>
+```
+
+**Why this structure?** Placing an `Animated.View` inside the flex row caused it to be counted as a 6th flex child despite `position: absolute`, breaking the 5-column layout.
+
+**2. Bubble Positioning (onLayout)**
+```typescript
+// Measure actual tab row dimensions
+const [rowLayout, setRowLayout] = useState({ x: 0, width: containerWidth });
+const handleRowLayout = useCallback((e) => {
+  const { x, width } = e.nativeEvent.layout;
+  setRowLayout({ x, width });
+}, []);
+
+// Calculate target position from measured layout
+const slotWidth = rowLayout.width / state.routes.length;
+const targetX = rowLayout.x + slotWidth * state.index
+              + slotWidth / 2 - BUBBLE_WIDTH / 2;
+
+// Animate with spring
+bubbleX.value = withSpring(targetX, {
+  damping: 15, stiffness: 150, mass: 0.8,
+});
+```
+
+**3. Safe Area Handling**
+```typescript
 <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-  {/* BlurView stays at fixed 60px - doesn't extend into safe area */}
-  <BlurView style={{ height: 60 }}>
+  <BlurView style={{ height: 60, borderRadius: 100 }}>
     {/* Content */}
   </BlurView>
 </View>
 ```
-
-**Why this approach?**
-- Glass effect stops at 60px (clean pill shape)
-- Safe area padding creates invisible gap below
-- Navigation bar appears to "float" above home indicator
-- No visual distortion from extending blur into safe area
-
-**2. Positioning & Spacing**
-```typescript
-container: {
-  position: 'absolute',
-  bottom: 0,                    // Flush to bottom
-  marginHorizontal: spacing.md, // 16px side margins
-  paddingBottom: insets.bottom, // Safe area gap
-}
-
-blurContainer: {
-  height: 60,                   // Fixed height
-  borderRadius: 100,            // Full pill shape (capped by height)
-}
-
-tabsRow: {
-  justifyContent: 'space-evenly', // Even distribution
-  paddingHorizontal: spacing.md,  // 16px padding inside
-}
-```
-
-**3. Active Tab Animation**
-```typescript
-// STEP 3: 3D elevation with breathing effect
-if (isFocused) {
-  elevation.value = withSequence(
-    withTiming(-8, { duration: 100 }),      // Quick lift
-    withSpring(-6, { damping: 12, stiffness: 300 }) // Settle
-  );
-  scale.value = withSpring(1.1, animConfig.spring);
-
-  // Breathing animation (infinite pulse)
-  breathScale.value = withRepeat(
-    withSequence(
-      withTiming(1.05, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-      withTiming(1.0, { duration: 1000, easing: Easing.inOut(Easing.ease) })
-    ),
-    -1 // Infinite
-  );
-}
-```
+Glass effect stops at 60px (clean pill shape). Safe area padding creates invisible gap below, so the bar "floats" above the home indicator.
 
 **4. Scroll Padding for All Screens**
 
@@ -455,21 +436,47 @@ Applied to:
 - `/src/app/(tabs)/analytics.tsx`
 - `/src/app/(tabs)/settings.tsx`
 
+**5. Drag-to-Select Gesture**
+```typescript
+// Pan gesture enables dragging finger across tabs to select
+const dragGesture = Gesture.Pan()
+  .onStart((event) => {
+    const tabIndex = calculateTabFromPosition(event.x);
+    draggedOverTabIndex.value = tabIndex;
+    runOnJS(triggerHaptic)(Light);
+  })
+  .onUpdate((event) => {
+    const tabIndex = calculateTabFromPosition(event.x);
+    if (tabIndex !== draggedOverTabIndex.value) {
+      draggedOverTabIndex.value = tabIndex;
+      runOnJS(triggerHaptic)(Light);
+    }
+  })
+  .onEnd(() => {
+    const targetIndex = draggedOverTabIndex.value;
+    runOnJS(triggerHaptic)(Medium);
+    runOnJS(navigateToTab)(targetIndex);
+  });
+
+// Combined with swipe: first gesture to activate wins
+const combinedGesture = Gesture.Race(dragGesture, swipeGesture);
+```
+
 #### Design Specifications
 
 | Property | Value | Reasoning |
 |----------|-------|-----------|
 | Container height | 60px | Optimal for 44pt touch targets |
-| Blob height | 48px | 80% of container (visual proportion) |
+| Bubble dimensions | 70 x 48px | Proportional to container, pill-shaped |
 | Icon size (inactive) | 24px | Standard iOS icon size |
 | Icon size (active) | 28px | 17% larger (noticeable but not jarring) |
+| Icon size (drag hover) | 26px | Intermediate feedback during drag |
 | Border radius | 100px | Creates perfect pill shape |
 | Side margins | 16px | Floating appearance |
 | Blur intensity | 50 | Subtle glassmorphism |
-| Active elevation | -6px | Lifts above surface |
 | Active scale | 1.1 | 10% larger |
-| Animation duration | 400ms (150ms reduced motion) | Feels responsive |
-| Spring config | `{ mass: 1.2, damping: 15, stiffness: 120 }` | Organic, playful |
+| Breathing range | 1.0 - 1.05 | Subtle pulse, not distracting |
+| Bubble spring | `{ damping: 15, stiffness: 150, mass: 0.8 }` | Smooth, responsive |
 
 #### Accessibility Features
 
@@ -479,26 +486,27 @@ Applied to:
    - Selected state properly communicated
 
 2. **Reduced Motion**
-   - Detects `prefers-reduced-motion` system setting
+   - Detects system reduced motion preference
    - Replaces spring animations with timing animations
    - Disables breathing pulse effect
    - Faster animation duration (150ms vs 400ms)
 
 3. **Touch Targets**
-   - Each tab is minimum 44x44pt (full width / 5)
-   - Pressable area extends full height of navigation bar
+   - Each tab slot is `flex: 1` (minimum ~68px wide on iPhone SE)
+   - Pressable area extends full 60px height of navigation bar
 
 4. **Haptic Feedback**
-   - Light impact on swipe start
-   - Medium impact on successful tab change
+   - Light impact on drag start and tab hover
+   - Medium impact on successful tab selection
    - Confirms action without visual attention
 
 #### Performance Considerations
 
 - **60fps Animations**: Uses `react-native-reanimated` (runs on UI thread)
-- **Memoization**: `MemoizedAnimatedTabButton` prevents unnecessary re-renders
-- **Gesture Optimization**: Swipe gesture uses `activeOffsetX` and `failOffsetY` to avoid conflicts with vertical scrolling
-- **Spring Physics**: Configured for smooth, organic motion without overshoot
+- **Memoization**: `MemoizedAnimatedTabIcon = memo(AnimatedTabIcon)` prevents re-renders
+- **onLayout Caching**: Tab row measurements cached in state, not recalculated per frame
+- **Gesture.Race**: Ensures only one gesture type activates per interaction
+- **useAnimatedReaction**: Efficiently bridges shared values to React state for drag-over index
 
 #### Future Enhancements (Deferred)
 
@@ -506,6 +514,7 @@ Applied to:
 - [ ] Badge notifications on tabs
 - [ ] Customizable tab order
 - [ ] Dynamic tab hiding based on user preferences
+- [ ] Entrance animation on app launch
 
 ---
 
@@ -1920,8 +1929,8 @@ const youOwe = splits?.shared_expense_splits.reduce((sum, s) => sum + s.splitAmo
 
 ---
 
-**Document Version**: 2.1 (Updated with Timeless Budgets Architecture)  
-**Last Updated**: February 8, 2026  
+**Document Version**: 2.2 (Updated Navigation Architecture)
+**Last Updated**: February 12, 2026  
 **Next Review**: After Phase 2 Sprint 3 (March 2026)  
 **Maintained By**: Alexander (Flow Founder & Lead Developer)
 

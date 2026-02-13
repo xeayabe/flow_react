@@ -1,76 +1,105 @@
-# FLOATING ISLAND NAVIGATION - REDESIGN SPECIFICATION
+# FLOATING ISLAND NAVIGATION - IMPLEMENTATION SPECIFICATION
+
+**Last Updated**: February 12, 2026
+**Status**: Implemented (TECH-010)
+
 ## Executive Summary
 
-### What Changed
+### What's Implemented
 1. **Floating Container**: Navigation detached from screen edges (16px margin), creating depth and premium feel
-2. **3D Active State**: Active tabs "lift" 6px above surface with perspective transform and glow
-3. **Liquid Morphing Blob**: Animated background shape flows smoothly between active tabs
-4. **Gesture Navigation**: Swipe horizontally to switch tabs (iOS-native feel)
-5. **Breathing Animations**: Subtle scale pulses on icons when active
-6. **Ambient Glow**: Notification badges create soft glowing halos
-7. **Spring Physics**: All animations use natural spring curves for organic feel
+2. **Sliding Bubble**: Animated sage-green bubble slides between active tabs with spring physics
+3. **Gesture Navigation**: Swipe horizontally to switch tabs + drag-to-select across tabs
+4. **Breathing Animations**: Subtle scale pulses on active icon
+5. **Spring Physics**: All animations use natural spring curves for organic feel
+6. **Haptic Feedback**: Light/medium impacts on tab interactions
+7. **Reduced Motion**: Full accessibility support for system motion preferences
 
 ### Why This Works
-- **Distinctive**: Users will remember the "floating island" - it's unique and branded
-- **Premium**: 3D depth, glows, and physics create luxury feel
+- **Distinctive**: Users remember the "floating island" - it's unique and branded
+- **Premium**: Glassmorphism, glows, and physics create luxury feel
 - **iOS-Native**: Respects Human Interface Guidelines while being bold
 - **Calm**: Soft glows and organic animations reduce anxiety
-- **Functional**: Swipe gestures improve efficiency
+- **Functional**: Swipe and drag gestures improve efficiency
 
 ---
 
 ## 1. Layout Blueprint
 
-### Structure (3D Perspective)
+### Structure
 
 ```
                     [Screen Edges]
-    ┌────────────────────────────────────────┐
-    │                                        │
-    │          [Screen Content]              │
-    │                                        │
-    │     ┌──────────────────────────┐      │
-    │ 16px│   [Floating Glass Blob]  │16px  │ ← Floating
-    │     │                          │      │
-    │     │  [Lifted Active Tab]     │      │ ← Elevated 6px
-    │     │  ╱╲  ╱╲  ╱╲  ╱╲  ╱╲     │      │
-    │     │ ◉  ○  ○  ○  ○   Tabs    │      │
-    │     └──────────────────────────┘      │
-    │             ↑ 20px margin             │
-    └────────────────────────────────────────┘
+    +----------------------------------------+
+    |                                        |
+    |          [Screen Content]              |
+    |                                        |
+    |     +----------------------------+     |
+    | 16px|   [Floating Glass Pill]    |16px | <-- Floating
+    |     |                            |     |
+    |     |  [Sliding Bubble]          |     | <-- Animated background
+    |     |  /\  /\  /\  /\  /\       |     |
+    |     | (O) (O) (O) (O) (O) Tabs  |     | <-- 5 equal slots
+    |     +----------------------------+     |
+    |             ^ safe area padding        |
+    +----------------------------------------+
 ```
 
 ### Visual Hierarchy (Z-Axis)
 ```
-Layer 6: Active Tab Icon + Label (z: 60)
-Layer 5: Active Tab Glow (z: 50)
-Layer 4: Morphing Background Blob (z: 40)
-Layer 3: Inactive Tab Icons (z: 30)
-Layer 2: Glass Container (z: 20)
-Layer 1: Container Shadow (z: 10)
-Layer 0: Screen Content (z: 0)
+Layer 4: Tab Icons (interactive, on top)
+Layer 3: Sliding Bubble (animated sage gradient, behind icons)
+Layer 2: Dark Overlay (rgba(0,0,0,0.1))
+Layer 1: Glass Container (BlurView, tint: dark)
+Layer 0: Screen Content
 ```
 
 ### Grid System
 - Container width: Screen width - 32px (16px margins each side)
-- Tab distribution: 5 equal columns (20% each)
-- Active tab expansion: Scales to 110% (overlaps slightly)
-- Vertical safe area: 20px bottom + device safe area inset
+- Tab distribution: 5 equal columns (20% each, `flex: 1`)
+- Active tab: Scales to 110% (icon only, no layout shift)
+- Vertical safe area: Device safe area inset as container paddingBottom
 
 ---
 
-## 2. Component Inventory
+## 2. Component Architecture
 
-| Component | Reference | Variant | Technical Implementation |
-|-----------|-----------|---------|--------------------------|
-| **Floating Container** | §Glassmorphism | Dark glass blur | BlurView (intensity: 80, tint: dark) |
-| **Morphing Blob** | Custom | Animated background | Reanimated interpolation with spring |
-| **Active Tab** | §Buttons → Primary | Elevated + Glow | 3D transform + sage glow shadow |
-| **Inactive Tab** | §Buttons → Ghost | Subtle opacity | White 50% opacity |
-| **Tab Icon** | §Icons | 24×24px | lucide-react-native |
-| **Tab Label** | §Typography → Caption | 10px, medium | Optional hide on small screens |
-| **Badge Glow** | Custom | Ambient notification | Radial gradient with pulse animation |
-| **Swipe Indicator** | Custom | Haptic + visual | Pan gesture with spring snap |
+### File Structure (Actual)
+```
+/src/components/navigation/
++-- FloatingTabBar.tsx          # Main container + sliding bubble + tabs
++-- MorphingBlob.tsx            # UNUSED (kept for reference, not imported)
++-- useTabPositions.ts          # UNUSED (kept for reference, not imported)
++-- useTabSwipeGesture.ts       # Swipe gesture hook (horizontal tab switching)
++-- useReducedMotion.ts         # Accessibility: reduced motion detection
+```
+
+### Component Hierarchy (FloatingTabBar.tsx)
+
+```
+GestureDetector (combinedGesture: Race(dragGesture, swipeGesture))
+  +-- View (container) [position: absolute, bottom: 0, left/right: 16px]
+      +-- paddingBottom: insets.bottom (safe area)
+      +-- BlurView (blurContainer) [height: 60, borderRadius: 100]
+          +-- View (overlay) [absoluteFill, rgba(0,0,0,0.1)]
+          +-- Animated.View (slidingBubble) [position: absolute, 70x48px]
+          |   +-- LinearGradient (sage green)
+          +-- View (tabsRow) [flex: 1, flexDirection: row, onLayout]
+              +-- View (tabSlot) [flex: 1] x5 (EXACTLY 5 children)
+                  +-- Pressable (full slot, accessibility)
+                      +-- MemoizedAnimatedTabIcon (scale + breathing)
+```
+
+**CRITICAL LAYOUT RULE**: The `tabsRow` contains EXACTLY 5 plain `View` children from `state.routes.map()`. The sliding bubble is a SIBLING of `tabsRow`, NOT inside it. This prevents flex layout issues.
+
+### Sub-Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| **FloatingTabBar** | FloatingTabBar.tsx | Main navigation component |
+| **AnimatedTabIcon** | FloatingTabBar.tsx (internal) | Handles scale, breathing, glow per icon |
+| **MemoizedAnimatedTabIcon** | FloatingTabBar.tsx | `React.memo` wrapper for performance |
+| **useTabSwipeGesture** | useTabSwipeGesture.ts | Horizontal swipe between adjacent tabs |
+| **useReducedMotion** | useReducedMotion.ts | Detects system reduced motion preference |
 
 ---
 
@@ -78,648 +107,480 @@ Layer 0: Screen Content (z: 0)
 
 ### Floating Container
 ```typescript
-// Dimensions
-Width: Dimensions.get('window').width - 32
-Height: 88px (includes breathing room)
-Border Radius: 28px (extra round for floating feel)
-Margins: { horizontal: 16px, bottom: 20px + safeAreaInsets.bottom }
+// Outer container
+container: {
+  position: 'absolute',
+  bottom: 0,
+  left: spacing.md,    // 16px
+  right: spacing.md,   // 16px
+  paddingBottom: insets.bottom, // Safe area gap (invisible)
+}
 
-// Glassmorphism
-Background: BlurView
-  intensity: 80
-  tint: 'dark'
-Overlay: rgba(26,28,30,0.5) // Extra depth
+// Glass pill
+blurContainer: {
+  height: 60,          // Fixed height
+  borderRadius: 100,   // Perfect pill shape (capped by height)
+  overflow: 'hidden',
+}
 
-// Elevation Shadow
-Shadow Color: #000
-Shadow Offset: { width: 0, height: 8 }
-Shadow Opacity: 0.25
-Shadow Radius: 24
-Elevation: 12
+// BlurView props
+intensity: 50
+tint: 'dark'
 
-// Subtle Border
-Border: 1px solid rgba(168,181,161,0.15) // Sage green hint
+// Dark overlay (adds depth inside blur)
+overlay: {
+  ...StyleSheet.absoluteFillObject,
+  backgroundColor: 'rgba(0, 0, 0, 0.1)',
+}
 ```
 
-### Morphing Background Blob
+### Sliding Bubble
 ```typescript
-// Position (Animated)
-Initial X: Center of first tab
-Animated X: Interpolates to active tab center
-Y: Centered vertically in container
+// Constants
+BUBBLE_WIDTH = 70   // Fixed width
+BUBBLE_HEIGHT = 48  // Fixed height
 
-// Shape
-Width: 72px (1.2x tab width)
-Height: 64px
-Border Radius: 32px (pill shape)
+// Style
+slidingBubble: {
+  position: 'absolute',
+  width: BUBBLE_WIDTH,       // 70px
+  height: BUBBLE_HEIGHT,     // 48px
+  borderRadius: BUBBLE_WIDTH / 2,  // 35px (pill shape)
+  overflow: 'hidden',
+  left: 0,                   // Positioned via translateX
+  top: '50%',
+  marginTop: -BUBBLE_HEIGHT / 2,  // -24px (vertical centering)
 
-// Appearance
-Background: Linear Gradient
+  // Outer glow
+  shadowColor: colors.sageGreen,
+  shadowOffset: { width: 0, height: 0 },
+  shadowOpacity: 0.3,
+  shadowRadius: 16,
+  elevation: 4,
+}
+
+// Gradient fill
+LinearGradient:
   colors: [
-    'rgba(168,181,161,0.25)', // Sage green top
-    'rgba(168,181,161,0.15)'  // Sage green bottom
+    'rgba(168, 181, 161, 0.25)',  // Sage green top (brighter)
+    'rgba(168, 181, 161, 0.15)',  // Sage green bottom (softer)
   ]
   start: { x: 0, y: 0 }
   end: { x: 0, y: 1 }
 
-// Glow Effect
-Inner Shadow: 
-  inset 0 2px 8px rgba(168,181,161,0.4)
-Outer Glow:
-  0 0 16px rgba(168,181,161,0.3)
+// Positioning (uses onLayout measurement of tabsRow)
+const [rowLayout, setRowLayout] = useState({ x: 0, width: containerWidth });
+const slotWidth = rowLayout.width / state.routes.length;
+const targetX = rowLayout.x + slotWidth * index + slotWidth / 2 - BUBBLE_WIDTH / 2;
 
-// Animation
-Duration: 400ms
-Easing: Spring physics
-  mass: 1
-  damping: 15
-  stiffness: 120
+// Spring animation
+bubbleX.value = withSpring(targetX, {
+  damping: 15,
+  stiffness: 150,
+  mass: 0.8,
+});
 ```
 
-### Active Tab (Elevated)
+### Tab Slots
 ```typescript
-// 3D Transform
-Transform: [
-  { translateY: -6 }, // Lift up
-  { scale: 1.1 },     // Slightly larger
-  { perspective: 1000 }, // 3D depth
+tabsRow: {
+  flex: 1,
+  flexDirection: 'row',
+  width: '100%',
+}
+
+tabSlot: {
+  flex: 1,              // Equal width (20% each)
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+
+pressable: {
+  flex: 1,              // Fill entire slot
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+```
+
+### Active Tab Icon
+```typescript
+// Scale animation
+scale: 1.0 -> 1.1 (withSpring or withTiming for reduced motion)
+
+// Breathing animation (active only)
+breathScale: withRepeat(
+  withSequence(
+    withTiming(1.05, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+    withTiming(1.0, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+  ),
+  -1,  // Infinite
+  false
+)
+
+// Combined transform (NO translateY elevation)
+transform: [
+  { scale: scale.value * breathScale.value },
 ]
 
-// Icon
-Size: 28×28px (enlarged from 24px)
-Color: colors.sageGreen (#A8B5A1)
-Stroke Width: 2.5px (bolder)
+// Glow shadow
+shadowColor: colors.sageGreen,
+shadowOffset: { width: 0, height: 4 },
+shadowOpacity: 0.5,
+shadowRadius: 12,
+elevation: 8,
 
-// Label
-Font Size: 11px
-Font Weight: 600 (semi-bold)
-Color: colors.sageGreen
-Letter Spacing: 0.4px
-Opacity Animated: 0 → 1 (fade in)
-
-// Glow Halo
-Shadow Color: colors.sageGreen
-Shadow Offset: { width: 0, height: 4 }
-Shadow Opacity: 0.5
-Shadow Radius: 12
-
-// Breathing Animation
-Scale: Pulses 1.0 → 1.05 → 1.0
-Duration: 2000ms
-Easing: ease-in-out
-Repeat: Infinite
+// Icon properties
+size: 28px
+color: colors.sageGreen (#A8B5A1)
 ```
 
-### Inactive Tab
+### Inactive Tab Icon
 ```typescript
 // Transform
-Transform: [
-  { scale: 1.0 }
-]
+scale: 1.0
 
-// Icon
-Size: 24×24px
-Color: rgba(255,255,255,0.5)
-Stroke Width: 2px
+// Icon properties (normal)
+size: 24px
+color: colors.textWhiteDisabled (rgba(255,255,255,0.3))
 
-// Label
-Font Size: 10px
-Font Weight: 500
-Color: rgba(255,255,255,0.4)
-Opacity: 0.7
-
-// Hover State (iPad/pointer devices)
-Scale: withSpring(1.05)
-Icon Opacity: 0.5 → 0.7
-Duration: 150ms
-```
-
-### Notification Badge
-```typescript
-// Position
-Absolute positioning:
-  top: -4px
-  right: -4px
-
-// Appearance
-Width: 20px
-Height: 20px
-Border Radius: 10px
-Background: Radial Gradient
-  colors: [
-    'rgba(200,168,168,1.0)', // Error color center
-    'rgba(200,168,168,0.8)'  // Fade to edges
-  ]
-
-// Content
-Font Size: 10px
-Font Weight: 700
-Color: white
-Text Align: center
-
-// Ambient Glow (Animated)
-Shadow Color: rgba(200,168,168,0.8)
-Shadow Offset: { width: 0, height: 0 }
-Shadow Opacity: Animated 0.4 → 0.8 → 0.4
-Shadow Radius: Animated 8 → 16 → 8
-Duration: 2000ms (pulse)
+// Icon properties (dragged over during drag-to-select)
+size: 26px
+color: colors.sageGreen (#A8B5A1)
 ```
 
 ---
 
-## 4. Responsive Behavior
+## 4. Tab Configuration
 
-### iPhone SE (375px width)
-```typescript
-Container Width: 343px (375 - 32)
-Tab Width: ~68px each
-Labels: Hidden (icons only)
-Active Tab Scale: 1.08 (reduced from 1.1)
-Blob Width: 64px (smaller)
-```
+### Tabs (5 total, defined in `(tabs)/_layout.tsx`)
 
-### iPhone Pro (393px width)
-```typescript
-Container Width: 361px
-Tab Width: ~72px each
-Labels: Visible (truncated to 4-5 chars)
-Active Tab Scale: 1.1
-Blob Width: 72px
-```
+| Index | Route | Title | Icon |
+|-------|-------|-------|------|
+| 0 | `index` | Dashboard | Home |
+| 1 | `transactions` | Transactions | CreditCard |
+| 2 | `budget` | Budget | Target |
+| 3 | `analytics` | Analytics | PieChart |
+| 4 | `settings` | Settings | Settings |
 
-### iPhone Pro Max (430px width)
-```typescript
-Container Width: 398px
-Tab Width: ~79px each
-Labels: Full text visible
-Active Tab Scale: 1.1
-Blob Width: 80px
-Breathing room: More generous spacing
-```
-
-### iPad (768px+)
-```
-Alternative Layout: Sidebar navigation (not tab bar)
-OR: Centered tab bar with max-width: 500px
-```
-
-### Landscape Orientation
-```
-Container: Remains at bottom
-Margins: Increase to 24px horizontal
-Labels: May hide to preserve width
-```
+Icons from `lucide-react-native`, all at `size={24}` base.
 
 ---
 
 ## 5. Interaction & States
 
 ### Tab Press Flow
-```typescript
+```
 1. User touches tab
-   → Haptic: impactAsync(ImpactFeedbackStyle.Light)
-   → Active tab: scale → withSpring(0.95)
+   -> Pressable onPress fires
+   -> navigation.navigate(route.name, route.params)
+   -> state.index updates
+   -> Sliding bubble springs to new position
+   -> Old icon: scale -> 1.0, breathing stops
+   -> New icon: scale -> 1.1, breathing starts
+```
 
-2. User releases
-   → Morphing blob: translateX → spring to new tab
-   → Old active tab: scale → withSpring(1.0), translateY → 0
-   → New active tab: scale → withSpring(1.1), translateY → -6
-   → Icon color: interpolate to sage green (300ms)
-   → Label opacity: fade in (200ms)
-   → Haptic: impactAsync(ImpactFeedbackStyle.Medium)
+### Drag-to-Select Gesture
+```
+Pan Gesture (takes priority via Gesture.Race):
 
-3. Breathing animation starts
-   → New active tab: pulse scale 1.0 → 1.05 (2s loop)
+  .onStart(event):
+    -> isDragging = true
+    -> Calculate tab from X position
+    -> Set draggedOverTabIndex
+    -> Haptic: impactAsync(Light)
+
+  .onUpdate(event):
+    -> Recalculate tab from X position
+    -> If tab changed:
+      -> Update draggedOverTabIndex
+      -> Haptic: impactAsync(Light)
+      -> Dragged-over icon: size 26px, color sageGreen
+
+  .onEnd():
+    -> Get final draggedOverTabIndex
+    -> isDragging = false, draggedOverTabIndex = -1
+    -> If valid target:
+      -> Haptic: impactAsync(Medium)
+      -> Navigate to target tab
+
+  .onFinalize():
+    -> Reset isDragging and draggedOverTabIndex
 ```
 
 ### Swipe Gesture Navigation
-```typescript
-Pan Gesture:
-  .onStart():
-    → Capture starting tab index
-    → Haptic: light impact
-  
-  .onUpdate(event):
-    → translateX.value = event.translationX
-    → If swipe > 60px: Show visual hint (subtle arrow)
-  
+```
+Pan Gesture (useTabSwipeGesture hook):
+
+  Thresholds:
+    - Velocity: 500 points/second
+    - Distance: 100px
+
   .onEnd(event):
-    → If velocity.x > 500 OR translationX > 100:
-      → Navigate to next/previous tab
-      → Blob springs to new position
-      → Haptic: medium impact
-    → Else:
-      → Spring back to current position
-      → Haptic: light impact
+    -> If velocity.x > 500 OR translationX > 100:
+      -> Navigate to previous tab (swipe right)
+    -> If velocity.x < -500 OR translationX < -100:
+      -> Navigate to next tab (swipe left)
 
-Velocity Threshold: 500 points/second
-Distance Threshold: 100px
-Spring Config: { mass: 1, damping: 18, stiffness: 140 }
+  Direction: Adjacent tabs only
 ```
 
-### Long Press (Future Feature)
-```typescript
-.onLongPress():
-  → Scale up to 1.15
-  → Show contextual menu (e.g., "Clear Badge")
-  → Haptic: notificationAsync(NotificationFeedbackType.Success)
+### Gesture Priority
 ```
-
-### Loading State
-```typescript
-When route is changing:
-  → Morphing blob: opacity → 0.5
-  → Active tab icon: Replace with ActivityIndicator
-  → Duration: < 300ms (instant feel)
-  → No skeleton - too distracting
+Gesture.Race(dragGesture, swipeGesture)
+- Drag gesture: Slower, deliberate panning across tabs
+- Swipe gesture: Quick flick to adjacent tab
+- First gesture to activate wins
 ```
 
 ---
 
 ## 6. Animations Specification
 
-### Morphing Blob Movement
+### Sliding Bubble Movement
 ```typescript
-const blobPosition = useSharedValue(tabPositions[0]);
+// On tab change (useEffect)
+const targetX = rowLayout.x + slotWidth * state.index
+              + slotWidth / 2 - BUBBLE_WIDTH / 2;
 
-// When tab changes
-blobPosition.value = withSpring(tabPositions[newIndex], {
-  mass: 1.2,
-  damping: 15,
-  stiffness: 120,
-  overshootClamping: false, // Allow slight overshoot
-  restSpeedThreshold: 0.01,
-  restDisplacementThreshold: 0.01,
+bubbleX.value = withSpring(targetX, {
+  damping: 15,     // Controls oscillation decay
+  stiffness: 150,  // Controls spring force
+  mass: 0.8,       // Lower = faster response
 });
-
-// Animated style
-const blobStyle = useAnimatedStyle(() => ({
-  transform: [{ translateX: blobPosition.value }],
-}));
 ```
 
-### Tab Elevation Animation
+### Icon Scale (Active -> Inactive)
 ```typescript
-const elevation = useSharedValue(0);
+// Activate
+scale.value = reducedMotion
+  ? withTiming(1.1, { duration: animConfig.timing.duration })
+  : withSpring(1.1, animConfig.spring);
 
-// Activate tab
-elevation.value = withSequence(
-  withTiming(-8, { duration: 100 }), // Quick lift
-  withSpring(-6, { damping: 12, stiffness: 300 }) // Settle
-);
-
-// Deactivate tab
-elevation.value = withSpring(0, {
-  damping: 20,
-  stiffness: 180,
-});
+// Deactivate
+scale.value = reducedMotion
+  ? withTiming(1.0, { duration: animConfig.timing.duration })
+  : withSpring(1.0, animConfig.spring);
 ```
 
 ### Breathing Pulse (Active Tab)
 ```typescript
-const breathScale = useSharedValue(1);
-
-useEffect(() => {
-  if (isActive) {
-    breathScale.value = withRepeat(
-      withSequence(
-        withTiming(1.05, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1.0, { duration: 1000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1, // Infinite
-      false // Don't reverse
-    );
-  } else {
-    breathScale.value = withTiming(1, { duration: 200 });
-  }
-}, [isActive]);
-```
-
-### Badge Glow Pulse
-```typescript
-const glowRadius = useSharedValue(8);
-
-glowRadius.value = withRepeat(
+// Start breathing when focused
+breathScale.value = withRepeat(
   withSequence(
-    withTiming(16, { duration: 1000 }),
-    withTiming(8, { duration: 1000 })
+    withTiming(1.05, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+    withTiming(1.0, { duration: 1000, easing: Easing.inOut(Easing.ease) })
   ),
-  -1,
-  false
+  -1,     // Infinite repeat
+  false   // Don't reverse
 );
-```
 
-### Entrance Animation (App Launch)
-```typescript
-const containerY = useSharedValue(200);
-const containerOpacity = useSharedValue(0);
-
-useEffect(() => {
-  containerY.value = withSpring(0, {
-    mass: 1,
-    damping: 20,
-    stiffness: 100,
-  });
-  containerOpacity.value = withTiming(1, { duration: 400 });
-}, []);
+// Stop breathing when unfocused
+breathScale.value = withTiming(1, { duration: 200 });
 ```
 
 ---
 
 ## 7. Accessibility
 
-### Color Contrast
-```
-Active Tab Icon (Sage on dark blur): 4.8:1 ✅ WCAG AA
-Inactive Tab Icon (White 50% on dark blur): 3.2:1 ✅ AA (large graphics)
-Badge Text (White on error red): 8.5:1 ✅ AAA
-Morphing Blob (Sage 25% on dark): Decorative, N/A
-```
-
-### VoiceOver / TalkBack
+### VoiceOver Support
 ```typescript
 <Pressable
   accessibilityRole="tab"
-  accessibilityLabel={`${tabName}, tab ${index + 1} of ${totalTabs}`}
-  accessibilityState={{ selected: isActive }}
-  accessibilityHint={`Navigates to ${tabName} screen`}
+  accessibilityState={isFocused ? { selected: true } : {}}
+  accessibilityLabel={`${tabName}, tab ${index + 1} of ${state.routes.length}`}
+  accessibilityHint={`Double tap to navigate to ${tabName} screen`}
+  testID={options.tabBarTestID}
 >
-  {/* Tab content */}
-</Pressable>
 ```
 
 ### Reduced Motion Support
 ```typescript
-import { useReducedMotion } from 'react-native-reanimated';
+import { useReducedMotion, getAnimationConfig } from './useReducedMotion';
 
 const reducedMotion = useReducedMotion();
+const animConfig = getAnimationConfig(reducedMotion);
 
-// Disable breathing animation
-const breathingConfig = reducedMotion 
-  ? { duration: 0 } 
-  : { duration: 1000 };
-
-// Faster transitions
-const springConfig = reducedMotion
-  ? { damping: 50, stiffness: 300 } // Snappy
-  : { damping: 15, stiffness: 120 }; // Bouncy
+// Reduced motion:
+// - Spring -> withTiming (fast, no bounce)
+// - Breathing animation disabled (breathScale stays at 1)
+// - Faster transitions (~150ms)
 ```
 
-### Focus Order
+### Color Contrast
 ```
-Tab Index:
-1. Dashboard (leftmost)
-2. Transactions
-3. Budget
-4. Analytics
-5. Settings (rightmost)
-
-Keyboard Navigation:
-- Tab key: Move focus between tabs
-- Enter/Space: Activate focused tab
-- Arrow Left/Right: Switch tabs (bonus)
+Active Tab Icon (Sage on dark blur): ~4.8:1   WCAG AA
+Inactive Tab Icon (White 30% on dark blur):    Decorative (non-text)
+Sliding Bubble (Sage 25% on dark):             Decorative, N/A
 ```
 
-### Haptic Feedback (Accessibility Feature)
+### Touch Targets
+- Each tab slot: `flex: 1` (minimum ~72px wide on iPhone Pro)
+- Pressable fills entire slot height (60px)
+- Meets 44x44pt iOS minimum
+
+### Haptic Feedback
 ```typescript
-// Light impact: Tab hover/focus
+// Drag start / tab hover during drag
 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-// Medium impact: Tab activation
+// Tab selection (drag end with valid target)
 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-// Success notification: Badge cleared (future)
-Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 ```
 
 ---
 
-## 8. Annotated Layout Description
+## 8. Annotated Layout (Actual Implementation)
 
 ```
-FLOATING CONTAINER (398px width × 88px height on Pro Max)
-│
-├── GLASS BLUR LAYER (BlurView, absolute fill)
-│   └── Properties:
-│       - intensity: 80
-│       - tint: 'dark'
-│       - borderRadius: 28
-│       - border: 1px solid rgba(168,181,161,0.15)
-│
-├── MORPHING BACKGROUND BLOB (Animated.View, absolute positioned)
-│   └── Properties:
-│       - width: 72px (animated)
-│       - height: 64px
-│       - borderRadius: 32px
-│       - translateX: animated (follows active tab)
-│       - background: Linear gradient sage green
-│       - shadow: 0 0 16px rgba(168,181,161,0.3)
-│
-└── TABS ROW (Flexbox, flexDirection: row, justifyContent: space-around)
-    │
-    ├── TAB 1: Dashboard (Active Example)
-    │   ├── Container (Animated.View)
-    │   │   └── Transform:
-    │   │       - translateY: -6px (elevated)
-    │   │       - scale: 1.1
-    │   │       - Breathing pulse: 1.0 → 1.05
-    │   ├── Icon (Home, 28×28px)
-    │   │   └── Color: #A8B5A1 (sage green)
-    │   └── Label ("Dashboard", 11px, weight: 600)
-    │       └── Color: #A8B5A1
-    │
-    ├── TAB 2: Transactions (Inactive Example)
-    │   ├── Container (View)
-    │   │   └── Transform: scale(1.0)
-    │   ├── Icon (CreditCard, 24×24px)
-    │   │   └── Color: rgba(255,255,255,0.5)
-    │   ├── Label ("Transactions", 10px, weight: 500)
-    │   │   └── Color: rgba(255,255,255,0.4)
-    │   └── Badge (Animated, absolute top-right)
-    │       ├── Size: 20×20px
-    │       ├── Background: Radial gradient (error red)
-    │       ├── Text: "3" (white, 10px, bold)
-    │       └── Glow: Animated shadow (pulse 8px → 16px)
-    │
-    ├── TAB 3: Budget (Inactive, 20% width)
-    ├── TAB 4: Analytics (Inactive, 20% width)
-    └── TAB 5: Settings (Inactive, 20% width)
-
-CONTAINER SHADOW (beneath floating container)
-└── Shadow Properties:
-    - color: #000
-    - offset: { width: 0, height: 8 }
-    - opacity: 0.25
-    - radius: 24
+OUTER CONTAINER (position: absolute, bottom: 0, left: 16, right: 16)
+|
++-- paddingBottom: insets.bottom (transparent safe area gap)
+|
++-- BLUR CONTAINER (60px height x full width, borderRadius: 100)
+    |
+    +-- OVERLAY (absoluteFill, rgba(0,0,0,0.1))
+    |
+    +-- SLIDING BUBBLE (Animated.View, position: absolute)
+    |   +-- Properties:
+    |       - width: 70px, height: 48px
+    |       - borderRadius: 35px (pill)
+    |       - top: 50%, marginTop: -24px (vertically centered)
+    |       - translateX: animated (spring to active tab center)
+    |       - background: LinearGradient sage green
+    |       - shadow: sageGreen, radius 16, opacity 0.3
+    |
+    +-- TABS ROW (flex: 1, flexDirection: row, width: 100%)
+        |
+        +-- TAB SLOT 1: Dashboard [flex: 1, center]
+        |   +-- Pressable [flex: 1, center]
+        |       +-- AnimatedTabIcon
+        |           +-- Home icon (28px sage / 24px white-disabled)
+        |
+        +-- TAB SLOT 2: Transactions [flex: 1, center]
+        |   +-- Pressable
+        |       +-- AnimatedTabIcon
+        |           +-- CreditCard icon
+        |
+        +-- TAB SLOT 3: Budget [flex: 1, center]
+        |   +-- Pressable
+        |       +-- AnimatedTabIcon
+        |           +-- Target icon
+        |
+        +-- TAB SLOT 4: Analytics [flex: 1, center]
+        |   +-- Pressable
+        |       +-- AnimatedTabIcon
+        |           +-- PieChart icon
+        |
+        +-- TAB SLOT 5: Settings [flex: 1, center]
+            +-- Pressable
+                +-- AnimatedTabIcon
+                    +-- Settings icon
 ```
 
-**Precise Measurements (iPhone 15 Pro, 393px wide)**:
-- Container outer dimensions: 361px × 88px
-- Container margins: 16px horizontal, 20px bottom
-- Tab width: ~72px each (361 / 5)
-- Blob dimensions: 72px × 64px
-- Active tab elevation: -6px (translateY)
-- Active tab scale: 1.1
-- Icon sizes: 24px (inactive), 28px (active)
-- Border radius: 28px (container), 32px (blob)
-- Safe area compensation: Adds to 20px bottom margin
+### Precise Measurements (iPhone 15 Pro, 393px wide)
+
+| Property | Value |
+|----------|-------|
+| Container outer width | 361px (393 - 32) |
+| Container height | 60px |
+| Container border radius | 100px (pill) |
+| Container margins | 16px horizontal |
+| Tab slot width | ~72px (361 / 5) |
+| Bubble dimensions | 70px x 48px |
+| Bubble border radius | 35px |
+| Icon size (inactive) | 24px |
+| Icon size (active) | 28px |
+| Icon size (drag hover) | 26px |
+| Blur intensity | 50 |
+| Safe area | Added as paddingBottom on outer container |
 
 ---
 
-## 9. Ambiguities & Flags
+## 9. Responsive Behavior
 
-### ⚠️ Items Not Covered by design.md
+### iPhone SE (375px width)
+```
+Container Width: 343px (375 - 32)
+Tab Slot Width: ~68px each
+Bubble Width: 70px (fixed)
+```
 
-1. **Floating Container Margins**
-   - Assumption: 16px horizontal margins create "floating" effect
-   - design.md doesn't specify detached navigation patterns
-   - Recommendation: Add "Floating UI Elements" section to design.md
+### iPhone Pro (393px width)
+```
+Container Width: 361px
+Tab Slot Width: ~72px each
+Bubble Width: 70px (fixed)
+```
 
-2. **Morphing Blob Shape**
-   - Assumption: Pill-shaped (high border radius) for organic feel
-   - Could alternatively be circular, square with rounded corners, or custom SVG path
-   - Recommendation: Define "Morphing Shapes" animation guidelines
-
-3. **Swipe Gesture Thresholds**
-   - Assumption: 100px distance OR 500 points/sec velocity
-   - design.md silent on gesture interaction thresholds
-   - Recommendation: Document "Gesture Standards" (swipe, long-press, drag)
-
-4. **Breathing Animation Intensity**
-   - Assumption: 1.0 → 1.05 scale (5% pulse) to avoid distraction
-   - design.md doesn't define "subtle" vs "prominent" animation scale
-   - Recommendation: Create animation intensity scale (subtle: 1.03, medium: 1.05, bold: 1.1)
-
-5. **Reduced Motion Fallbacks**
-   - Assumption: Faster, damped springs for accessibility
-   - design.md doesn't cover accessibility animation preferences
-   - Recommendation: Add "Accessibility Animation Modes" section
-
-### 🔴 Conflicts with Current Design
-
-1. **Edge-to-Edge vs Floating**
-   - Current: Tab bar spans full screen width (standard iOS)
-   - Proposed: Floating with 16px margins (distinctive, premium)
-   - Resolution: Floating creates depth and brand identity
-   - Trade-off: Slightly smaller tap targets (361px vs 393px)
-
-2. **Simple Tint vs 3D Elevation**
-   - Current: 2D color change for active state
-   - Proposed: 3D transform with elevation and glow
-   - Resolution: 3D creates premium feel and better hierarchy
-   - Trade-off: More complex animation code, minor performance cost
-
-3. **Static Background vs Morphing Blob**
-   - Current: Solid background, no animation
-   - Proposed: Animated blob that flows between tabs
-   - Resolution: Blob creates organic, memorable interaction
-   - Trade-off: Requires Reanimated worklets, higher complexity
-
-4. **Tap-Only vs Swipe Gestures**
-   - Current: Taps only for navigation
-   - Proposed: Taps + horizontal swipe gestures
-   - Resolution: Swipe improves efficiency for power users
-   - Trade-off: Potential conflict with screen-level swipe gestures
-
-### 🟡 Open Questions
-
-1. **Should inactive tabs also breathe (subtle)?**
-   - Pro: Creates "living" feeling, draws attention
-   - Con: Could be distracting, reduces contrast with active state
-   - **Recommendation**: No breathing for inactive tabs
-
-2. **Badge position: Icon corner or container corner?**
-   - Icon corner: More traditional, follows icon
-   - Container corner: Stays fixed when tab scales
-   - **Recommendation**: Icon corner for natural iOS feel
-
-3. **Should blob have texture/pattern?**
-   - Solid gradient: Cleaner, simpler
-   - Subtle noise/grain: More premium, tactile
-   - **Recommendation**: Start solid, A/B test with grain overlay
-
-4. **Swipe between ANY tabs or only adjacent?**
-   - Adjacent only: More predictable (Dashboard → Transactions only)
-   - Any tab: Faster (Dashboard → Settings in one swipe)
-   - **Recommendation**: Adjacent only for clarity
+### iPhone Pro Max (430px width)
+```
+Container Width: 398px
+Tab Slot Width: ~79px each
+Bubble Width: 70px (fixed)
+```
 
 ---
 
-## 10. Technical Implementation Notes
+## 10. Performance Considerations
 
-### Required Packages
+- **60fps Animations**: All animations use `react-native-reanimated` (UI thread)
+- **Memoization**: `MemoizedAnimatedTabIcon = memo(AnimatedTabIcon)` prevents re-renders
+- **onLayout Measurement**: Tab row width measured once via `onLayout`, cached in state
+- **Gesture Optimization**: `Gesture.Race` ensures only one gesture activates
+- **useAnimatedReaction**: Bridges Reanimated shared values to React state for drag-over index
+- **Worklets**: `calculateTabFromPosition` and gesture callbacks run on UI thread
+
+---
+
+## 11. Dependencies
+
 ```json
 {
-  "react-native-reanimated": "^3.17.4",
-  "react-native-gesture-handler": "^2.24.0",
-  "expo-haptics": "^14.0.0",
-  "expo-blur": "^14.1.4",
-  "lucide-react-native": "^0.468.0"
+  "react-native-reanimated": "^3.x",
+  "react-native-gesture-handler": "^2.x",
+  "expo-haptics": "^14.x",
+  "expo-blur": "^14.x",
+  "expo-linear-gradient": "^14.x",
+  "lucide-react-native": "^0.x",
+  "react-native-safe-area-context": "^4.x"
 }
 ```
 
-### Performance Optimizations
-1. **Use UI thread animations**: All Reanimated worklets run at 60fps
-2. **Memoize tab components**: Prevent unnecessary re-renders
-3. **Pre-calculate positions**: Tab centers calculated once, not per frame
-4. **Lazy load inactive tabs**: Only render visible content
-5. **Reduce blur intensity on older devices**: Check iOS version, reduce if < iOS 15
+---
 
-### File Structure
-```
-/src/components/navigation/
-├── FloatingTabBar.tsx          # Main container component
-├── MorphingBlob.tsx            # Animated background blob
-├── TabButton.tsx               # Individual tab (memoized)
-├── TabBadge.tsx                # Notification badge with glow
-├── useTabGestures.ts           # Swipe gesture hook
-└── useTabPositions.ts          # Calculate tab centers
-```
+## 12. Decisions & Trade-offs
+
+### Architecture Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Bubble as sibling of tabsRow | Prevents flex layout bugs (6th child issue when inside tabsRow) |
+| No tab elevation (translateY) | Icon was misaligned within bubble; simpler scale-only animation |
+| onLayout for positioning | More accurate than calculating from screenWidth (avoids drift) |
+| Plain View for tab slots | Animated.View with position:absolute was counted as flex child |
+| Gesture.Race for combined gestures | Drag and swipe can't conflict; first to activate wins |
+| No tab labels | Cleaner look, icons are sufficient with 5 tabs |
+
+### Removed Features (vs. Original Spec)
+
+| Feature | Reason Removed |
+|---------|---------------|
+| 3D elevation (translateY: -6) | Caused icon misalignment in bubble |
+| Tab labels | Cluttered the compact 60px bar |
+| Badge glow animations | Not yet implemented (Phase 2+) |
+| Entrance animation (slide up) | Not yet implemented |
+| MorphingBlob component | Replaced by inline sliding bubble for simpler architecture |
+| useTabPositions hook | Replaced by onLayout measurement for accuracy |
+
+### Future Enhancements (Deferred)
+
+- [ ] Long-press menu on tabs (quick actions)
+- [ ] Badge notifications with ambient glow
+- [ ] Customizable tab order
+- [ ] Entrance animation on app launch
+- [ ] Dynamic tab hiding based on user preferences
 
 ---
 
-## 11. Migration Path from Current Design
-
-### Step 1: Add Floating Container (Low Risk)
-```
-- Change tabBarStyle to add horizontal margins
-- Add borderRadius
-- Test on all device sizes
-```
-
-### Step 2: Add BlurView Background (Medium Risk)
-```
-- Replace solid background with BlurView
-- Adjust border opacity
-- Test performance on iPhone 11
-```
-
-### Step 3: Implement Active Tab Elevation (Medium Risk)
-```
-- Add Reanimated transforms
-- Add sage green glow
-- Test tab switching smoothness
-```
-
-### Step 4: Add Morphing Blob (High Risk)
-```
-- Calculate tab positions
-- Implement spring animation
-- Test gesture conflicts
-```
-
-### Step 5: Add Swipe Gestures (High Risk)
-```
-- Implement Pan gesture
-- Add haptic feedback
-- Test with screen-level gestures
-```
-
-### Step 6: Polish & Optimize
-```
-- Add breathing animation
-- Implement reduced motion support
-- Performance profiling
-```
-
----
+**Document Version**: 2.0 (Post-Rewrite)
+**Last Updated**: February 12, 2026

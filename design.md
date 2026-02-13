@@ -1218,32 +1218,56 @@ const SCREEN_PADDING = {
 <Text style={{ fontSize: 18 }}>←</Text>
 ```
 
-### **Tab Bar (Bottom Navigation)**
+### **Tab Bar (Floating Island Navigation)**
+
+Flow uses a floating pill-shaped navigation bar (see `floatingnavigation.md` for full spec).
 
 ```tsx
+// Outer container (floating with 16px margins)
 {
   position: 'absolute',
   bottom: 0,
-  left: 0,
-  right: 0,
-  backgroundColor: 'rgba(26, 28, 30, 0.95)',
-  borderTopWidth: 1,
-  borderTopColor: 'rgba(255, 255, 255, 0.05)',
-  paddingBottom: 20,  // Safe area
-  paddingTop: 12,
-  backdropFilter: 'blur(20px)',
+  left: 16,    // spacing.md
+  right: 16,   // spacing.md
+  paddingBottom: insets.bottom, // Safe area
 }
 
-// Tab item (active)
+// Glass pill (BlurView)
 {
-  color: '#2C5F5D',
+  height: 60,
+  borderRadius: 100,   // Perfect pill shape
+  overflow: 'hidden',
+}
+// BlurView: intensity={50} tint="dark"
+
+// Sliding bubble (animated active indicator)
+{
+  width: 70,
+  height: 48,
+  borderRadius: 35,
+  // LinearGradient: sage green (0.25 -> 0.15 opacity)
+  // Spring animation: { damping: 15, stiffness: 150, mass: 0.8 }
 }
 
-// Tab item (inactive)
+// Tab icon (active)
 {
-  color: 'rgba(255, 255, 255, 0.5)',
+  color: '#A8B5A1',  // Sage green
+  size: 28,
+  scale: 1.1,        // + breathing pulse 1.0 -> 1.05
+}
+
+// Tab icon (inactive)
+{
+  color: 'rgba(255, 255, 255, 0.3)',  // textWhiteDisabled
+  size: 24,
 }
 ```
+
+**Key Rules:**
+- Tab row: EXACTLY 5 plain `View` children with `flex: 1`
+- Sliding bubble: Sibling of tab row, NOT inside it
+- No tab labels (icons only)
+- No tab elevation/translateY (scale + breathing only)
 
 ### **Breadcrumbs (if needed)**
 
