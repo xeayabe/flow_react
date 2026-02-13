@@ -55,7 +55,7 @@ export function RecentTransactionsCard({
   };
 
   const handleTransactionPress = (transactionId: string) => {
-    router.push(`/transactions/${transactionId}/edit`);
+    router.push(`/transactions/add?id=${transactionId}`);
   };
 
   const handleAddTransaction = () => {

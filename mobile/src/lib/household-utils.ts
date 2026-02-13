@@ -37,6 +37,7 @@ export async function getUserProfileAndHousehold(email: string): Promise<{
   userRecord: any;
   userId: string;
   householdId: string;
+  paydayDay: number;
 } | null> {
   const { data: userData } = await db.queryOnce({
     users: { $: { where: { email } } },
@@ -58,5 +59,6 @@ export async function getUserProfileAndHousehold(email: string): Promise<{
     userRecord,
     userId: userRecord.id,
     householdId: member.householdId,
+    paydayDay: member.paydayDay || 25, // Default to 25th if not set
   };
 }

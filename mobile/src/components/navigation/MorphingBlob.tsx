@@ -39,7 +39,7 @@ interface MorphingBlobProps {
   blobWidth?: number;
 
   /**
-   * Height of the blob (defaults to 48px for 60px upper section)
+   * Height of the blob (defaults to 44px for compact 56px active area)
    */
   blobHeight?: number;
 }
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0, // Start from left edge of container
     // CLEAN CENTERING: No top offset, uses parent's justifyContent: 'center'
-    // Container: 60px upper section, Blob: 48px - automatically centered
+    // Container: 56px active area, Blob: 44px - automatically centered
     alignSelf: 'center',
     // STEP 4: Outer glow shadow
     shadowColor: colors.sageGreen,

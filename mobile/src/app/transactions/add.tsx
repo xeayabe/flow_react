@@ -39,6 +39,7 @@ interface FormData {
   recurringDay: number;
   isShared?: boolean;
   paidByUserId?: string;
+  isExcludedFromBudget?: boolean;
 }
 
 export default function AddTransactionScreen() {
@@ -82,6 +83,7 @@ export default function AddTransactionScreen() {
     payee: '',
     isRecurring: false,
     recurringDay: 1,
+    isExcludedFromBudget: false,
   });
 
   // Shared expense state
@@ -171,6 +173,7 @@ export default function AddTransactionScreen() {
         payee: t.payee || '',
         isRecurring: false,
         recurringDay: 1,
+        isExcludedFromBudget: t.isExcludedFromBudget || false,
       });
     }
   }, [transactionQuery.data, isEditing, recurringId]);
@@ -351,6 +354,7 @@ export default function AddTransactionScreen() {
         recurringDay: undefined,
         isShared: isShared,
         paidByUserId: isShared ? paidByUserId : undefined,
+        isExcludedFromBudget: formData.isExcludedFromBudget,
       });
 
       if (!result.success) {
@@ -408,6 +412,7 @@ export default function AddTransactionScreen() {
         recurringDay: undefined,
         isShared: isShared,
         paidByUserId: isShared ? paidByUserId : undefined,
+        isExcludedFromBudget: formData.isExcludedFromBudget,
       });
 
       if (!result.success) {
@@ -739,6 +744,30 @@ export default function AddTransactionScreen() {
                   />
                 </View>
               )}
+            </View>
+          </Animated.View>
+
+          {/* Exclude from Budget Toggle */}
+          <Animated.View entering={FadeInDown.delay(550).duration(400)} className="mb-6 rounded-2xl overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+            <View className="p-5">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1">
+                  <Text className="text-base font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                    📊 Exclude from Budget
+                  </Text>
+                  <Text className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                    Don't count in budget or analytics
+                  </Text>
+                </View>
+                <Switch
+                  value={formData.isExcludedFromBudget || false}
+                  onValueChange={(newValue) => {
+                    setFormData({ ...formData, isExcludedFromBudget: newValue });
+                  }}
+                  trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#E5C399' }}
+                  thumbColor="#fff"
+                />
+              </View>
             </View>
           </Animated.View>
         </Animated.ScrollView>
