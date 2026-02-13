@@ -119,9 +119,8 @@ const styles = StyleSheet.create({
   blobContainer: {
     position: 'absolute',
     left: 0, // Start from left edge of container
-    // CLEAN CENTERING: No top offset, uses parent's justifyContent: 'center'
-    // Container: 56px active area, Blob: 44px - automatically centered
-    alignSelf: 'center',
+    top: '50%',
+    marginTop: -24, // Negative half of blobHeight (48 / 2 = 24)
     // STEP 4: Outer glow shadow
     shadowColor: colors.sageGreen,
     shadowOffset: { width: 0, height: 0 },

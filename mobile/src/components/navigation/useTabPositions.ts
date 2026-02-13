@@ -22,8 +22,8 @@ export function useTabPositions(numberOfTabs: number = 5): number[] {
 
     // IMPORTANT: Account for tabsRow horizontal padding (16px each side)
     // The tabs are inset by this padding, so we need to adjust positions
-    const tabsRowPadding = spacing.md; // 16px horizontal padding on tabs row
-    const availableWidth = containerWidth - tabsRowPadding * 2;
+    const tabsRowPadding = 0;
+    const availableWidth = containerWidth;
 
     // Tab width = available width divided equally among tabs
     const tabWidth = availableWidth / numberOfTabs;
