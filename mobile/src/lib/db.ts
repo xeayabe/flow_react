@@ -151,6 +151,18 @@ const schema = i.schema({
       createdAt: i.number(),
       lastCreatedDate: i.string().optional(), // ISO date string (YYYY-MM-DD) of last transaction created
     }),
+    // US-074: Internal transfers between user's own accounts
+    // NOT transactions — these don't affect budgets or analytics
+    accountTransfers: i.entity({
+      userId: i.string(),
+      householdId: i.string(),
+      fromAccountId: i.string(),
+      toAccountId: i.string(),
+      amount: i.number(),
+      note: i.string().optional(),
+      transferredAt: i.number(), // Timestamp of transfer
+      createdAt: i.number(),
+    }),
   },
   links: {
     householdsByCreator: {
@@ -379,6 +391,42 @@ const schema = i.schema({
         on: 'users',
         has: 'many',
         label: 'receivableSplits',
+      },
+    },
+    accountTransfersByUser: {
+      forward: {
+        on: 'accountTransfers',
+        has: 'one',
+        label: 'user',
+      },
+      reverse: {
+        on: 'users',
+        has: 'many',
+        label: 'accountTransfers',
+      },
+    },
+    accountTransfersByFromAccount: {
+      forward: {
+        on: 'accountTransfers',
+        has: 'one',
+        label: 'fromAccount',
+      },
+      reverse: {
+        on: 'accounts',
+        has: 'many',
+        label: 'outgoingTransfers',
+      },
+    },
+    accountTransfersByToAccount: {
+      forward: {
+        on: 'accountTransfers',
+        has: 'one',
+        label: 'toAccount',
+      },
+      reverse: {
+        on: 'accounts',
+        has: 'many',
+        label: 'incomingTransfers',
       },
     },
   },

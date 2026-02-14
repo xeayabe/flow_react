@@ -25,6 +25,13 @@ export default function WalletsLayout() {
         }}
       />
       <Stack.Screen
+        name="transfer"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
         name="[id]/index"
         options={{
           headerShown: false,
