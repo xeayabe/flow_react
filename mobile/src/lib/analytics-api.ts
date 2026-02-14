@@ -48,6 +48,8 @@ export async function getTransactionsInRange(
   endDate: string,
   type?: 'income' | 'expense'
 ): Promise<Transaction[]> {
+  if (!userId) return [];
+
   try {
     const result = await db.queryOnce({
       transactions: {
