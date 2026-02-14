@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { Info, CheckCircle2, ChevronDown, ArrowLeft } from 'lucide-react-native';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createAccount,
   getUserAccountsCount,
@@ -50,6 +50,7 @@ interface ValidationErrors {
 
 export default function AddWalletScreen() {
   const { user } = db.useAuth();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const { currency: householdCurrency } = useHouseholdCurrency();
   const [formData, setFormData] = useState<FormData>({
@@ -116,6 +117,8 @@ export default function AddWalletScreen() {
     },
     onSuccess: (response) => {
       if (response.success) {
+        queryClient.invalidateQueries({ queryKey: ['accounts'] });
+        queryClient.invalidateQueries({ queryKey: ['wallets'] });
         router.replace('/wallets');
       } else {
         setErrors({ name: response.error });

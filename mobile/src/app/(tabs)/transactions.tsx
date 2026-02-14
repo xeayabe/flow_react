@@ -189,9 +189,10 @@ export default function TransactionsTabScreen() {
     }
 
     return transactionsQuery.data.map((t: any) => {
-      // Look up category and account by ID
+      // Prefer the account loaded via relationship (always fresh),
+      // fall back to accountMap from separate query
       const category = categoryMap.get(t.categoryId);
-      const account = accountMap.get(t.accountId);
+      const account = t.account?.[0] || accountMap.get(t.accountId);
 
       // Extract emoji from category name if it exists
       let categoryEmoji = '📝';
@@ -303,6 +304,7 @@ export default function TransactionsTabScreen() {
             isShared: t.isShared,
             partnerName: t.partnerName,
             walletName: t.walletName,
+            currency: t.currency,
           });
         }
       });
