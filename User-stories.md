@@ -1941,21 +1941,25 @@ Analytics improvements using budget snapshots for historical accuracy (NEW in Ph
 
 ---
 
-#### US-074: Transfer Between Own Accounts 🆕
+#### US-074: Transfer Between Own Accounts ✅
 
 **Story**: As a user, I want to transfer money between my own accounts (e.g., pay my credit card from my checking account, or move savings), so that I can manage my balances without affecting my budget or analytics.
 
-**Phase**: Phase 2 | **Priority**: P0 | **Time**: 6h | **Points**: 5 | **Status**: 🆕 New Story
+**Phase**: Phase 2 | **Priority**: P0 | **Time**: 6h | **Points**: 5 | **Status**: ✅ Completed (Feb 14, 2026)
 
 **Features**:
 - Transfer money between any two of your own accounts
 - Enter any custom amount (partial or full balance)
-- **Credit card payoff**: Pay down credit card debt from checking/savings
-- **Savings transfer**: Move money from checking to savings (or vice versa)
-- Transfer history visible on each wallet's detail screen
+- **Credit card payoff**: Pay down credit card debt from checking/savings (with "Pay Full" quick action)
+- **Savings transfer**: Move money from checking to savings (or vice versa) (with "Transfer All" quick action)
+- Swap source/destination wallets with a single tap
+- Transfer summary showing before/after balances and "Net worth unchanged · No budget impact" confirmation
+- Transfer history visible on each wallet's detail screen (reactive via `db.useQuery`)
 - Atomic operation: both accounts update together (all-or-nothing)
 - Does NOT create a transaction — budget and analytics stay completely untouched
 - Net worth remains unchanged (money just moves between your own accounts)
+- Optional note field for transfer context (e.g., "Credit card payment")
+- Empty state when fewer than 2 wallets exist ("Need More Wallets" message)
 
 **Business Rules**:
 - Transfer is between two accounts owned by the **same user** (not between household members — that's settlements)
@@ -1966,6 +1970,7 @@ Analytics improvements using budget snapshots for historical accuracy (NEW in Ph
 - Transfer does NOT appear in spending analytics or category charts
 - Each transfer creates an immutable audit record (cannot be deleted)
 - All amounts use Swiss currency formatting (CHF 1'234.56)
+- Both accounts verified to belong to the same userId before execution (privacy-first)
 
 **Use Cases**:
 - Checking → Credit Card: Pay off CHF 1'200 credit card debt
@@ -1974,34 +1979,48 @@ Analytics improvements using budget snapshots for historical accuracy (NEW in Ph
 - Cash → Checking: Deposit CHF 200 cash into bank
 
 **Acceptance Criteria**:
-- [ ] Wallet screen shows "Transfer" action button on each wallet card
-- [ ] Tapping "Transfer" opens transfer screen with source wallet pre-selected
-- [ ] User selects destination wallet from their other active wallets
-- [ ] User enters transfer amount with numeric keypad
-- [ ] Validation: amount must be > CHF 0.00
-- [ ] Validation: source and destination must be different accounts
-- [ ] Validation: amount must not exceed source account balance (block with error message)
-- [ ] Tapping "Confirm Transfer" executes atomically (both balances update together, or neither does)
-- [ ] Source account balance decreases by transfer amount
-- [ ] Destination account balance increases by transfer amount
-- [ ] Transfer audit record created with: fromAccountId, toAccountId, amount, date, timestamp
-- [ ] Transfer does NOT create a transaction (no budget or analytics impact)
-- [ ] Transfer history visible on wallet detail screen (shows date, amount, other account name)
-- [ ] Success confirmation shown after transfer completes
-- [ ] All amounts formatted as CHF with Swiss formatting (CHF 1'234.56)
-- [ ] All database queries scoped to userId (privacy-first)
-- [ ] Optimistic UI update: balances update immediately, sync in background
+- [x] Wallet screen shows "Transfer" action button on each wallet card (only when 2+ wallets exist)
+- [x] Tapping "Transfer" opens transfer screen with source wallet pre-selected (`?fromId=`)
+- [x] User selects destination wallet from their other active wallets (radio button selection)
+- [x] User enters transfer amount with decimal keypad
+- [x] Validation: amount must be > CHF 0.00
+- [x] Validation: source and destination must be different accounts (disabled in picker)
+- [x] Validation: amount must not exceed source account balance (inline error message)
+- [x] Tapping "Confirm Transfer" executes atomically (both balances update together, or neither does)
+- [x] Source account balance decreases by transfer amount
+- [x] Destination account balance increases by transfer amount
+- [x] Transfer audit record created with: userId, householdId, fromAccountId, toAccountId, amount, note, transferredAt, createdAt
+- [x] Transfer does NOT create a transaction (no budget or analytics impact)
+- [x] Transfer history visible on wallet detail screen (shows date, amount, direction, other account name, optional note)
+- [x] Success confirmation alert shown after transfer completes
+- [x] All amounts formatted with `formatCurrency()` (Swiss formatting)
+- [x] All database queries scoped to userId (privacy-first, ownership verified server-side)
+- [x] Query invalidation refreshes wallet balances after transfer (`wallets`, `account`, `transfers` query keys)
+
+**Design Compliance**:
+- ✅ LinearGradient background (contextDark → contextTeal)
+- ✅ GlassCard, GlassButton, GlassInputContainer from `@/components/ui/Glass`
+- ✅ FadeInDown animations with staggered delays (0, 50, 100, 200, 300, 350, 400ms)
+- ✅ Wallet icons per account type (Building2, Wallet, CreditCard, TrendingUp, Banknote)
+- ✅ Design tokens from `@/lib/design-tokens` (colors.contextTeal, colors.sageGreen, etc.)
+- ✅ Radio button selection for wallet picker
+- ✅ Swap button (ArrowDownUp) centered between From/To cards
+- ✅ Quick actions: "Pay Full" for negative-balance credit cards, "Transfer All" for source balance
+- ✅ Inline validation error with soft error background
+- ✅ Loading and empty states handled
+- ✅ Transfer button on wallet cards uses sageGreen pill with ArrowLeftRight icon
+
+**Files Added**:
+- `src/lib/transfer-api.ts` — Transfer CRUD, validation, and history queries (createTransfer, validateTransfer, getTransferHistoryForAccount, getTransfersAfterDate, getUserTransfers)
+- `src/app/wallets/transfer.tsx` — Transfer screen (modal presentation)
+
+**Files Modified**:
+- `src/lib/db.ts` — Added `accountTransfers` entity and relationships (accountTransfersByUser, accountTransfersByFromAccount, accountTransfersByToAccount)
+- `src/app/wallets/_layout.tsx` — Added `transfer` route to Stack navigator (modal presentation)
+- `src/app/wallets/index.tsx` — Added "Transfer" button on wallet cards (visible when 2+ wallets)
+- `src/app/wallets/[id]/index.tsx` — Added transfer history section with TransferHistoryItem component (reactive via `db.useQuery`)
 
 **Dependencies**: US-009 (Add Wallet), US-012 (View Wallet Balance)
-
-**Technical Notes**:
-- Follow the atomic settlement pattern from `settlement-api.ts` — single `db.transact()` with both account updates
-- New database table: `accountTransfers` with fields: userId, householdId, fromAccountId, toAccountId, amount, note (optional), transferredAt, createdAt
-- New API file: `src/lib/transfer-api.ts` for transfer CRUD and validation
-- Entry point: "Transfer" button on wallet card in wallets screen
-- Transfer history displayed on wallet detail screen (query `accountTransfers` WHERE fromAccountId = walletId OR toAccountId = walletId)
-- Use existing `balance-api.ts` asset/liability classification for display context
-- UI follows dark glassmorphism theme (LinearGradient + GlassCard) matching settlement screen pattern
 
 ---
 
@@ -3277,7 +3296,7 @@ runOnJS(triggerHaptic)(Haptics.ImpactFeedbackStyle.Light);
 | US-065 | Payday in Budget Screen | P0 | 3 | 🆕 New | Sprint 4 | US-024, US-064 |
 | US-067 | Auto-Recalc Split Ratios | P0 | 3 | 🆕 New | Sprint 5 | US-027, US-063 |
 | US-069 | Analytics History Integration | P0 | 3 | 🆕 New | Sprint 5 | US-064 |
-| US-074 | Transfer Between Own Accounts | P0 | 5 | 🆕 New | Sprint 4 | US-009, US-012 |
+| US-074 | Transfer Between Own Accounts | P0 | 5 | ✅ Complete | Sprint 4 | US-009, US-012 |
 | US-005 | Invite Member (UI) | P0 | 3 | 🚧 In Progress | Sprint 3 | US-004 |
 | US-006 | Accept Invitation (UI) | P0 | 2 | 🚧 In Progress | Sprint 3 | US-005 |
 | US-042 | Settlement Workflow | P0 | 3 | ✅ Complete | - | US-040 |

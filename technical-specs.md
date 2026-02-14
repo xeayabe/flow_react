@@ -145,6 +145,7 @@ flow-app/
 │   │   │   ├── wallets/             # Wallet (account) management
 │   │   │   │   ├── add.tsx          # Add new wallet
 │   │   │   │   ├── [id]/edit.tsx    # Edit wallet
+│   │   │   │   ├── transfer.tsx     # Transfer between own accounts (US-074)
 │   │   │   │   └── index.tsx        # Wallet list
 │   │   │   │
 │   │   │   ├── budget/              # Budget setup & management
@@ -236,6 +237,7 @@ flow-app/
 │   │   │   ├── wallets-api.ts       # Wallet management
 │   │   │   ├── household-api.ts     # Household & invites
 │   │   │   ├── settlement-api.ts    # Settlement workflow
+│   │   │   ├── transfer-api.ts      # Account transfers (US-074)
 │   │   │   ├── income-api.ts        # Income detection (US-063)
 │   │   │   └── recurring-api.ts     # Recurring expense templates
 │   │   │
@@ -867,6 +869,37 @@ recurringTemplates: {
 
 ---
 
+#### AccountTransfers (US-074)
+Internal transfers between a user's own accounts. These are NOT transactions — they don't affect budgets or analytics.
+
+```typescript
+accountTransfers: {
+  id: string;                    // UUID
+  userId: string;                // Owner (privacy scoping)
+  householdId: string;           // For household queries
+  fromAccountId: string;         // Source wallet
+  toAccountId: string;           // Destination wallet
+  amount: number;                // CHF amount (always positive)
+  note?: string;                 // OPTIONAL - e.g., "Credit card payment"
+  transferredAt: number;         // Unix timestamp of transfer
+  createdAt: number;             // Unix timestamp of record creation
+}
+```
+
+**CRITICAL** (US-074):
+- Transfers are NOT transactions — budgets and analytics stay completely untouched
+- Both account balance updates happen in a single atomic `db.transact()` (all-or-nothing)
+- Both accounts must belong to the same userId (verified before execution)
+- Transfer records are immutable audit entries (cannot be deleted)
+- Transfer history is displayed on each wallet's detail screen using reactive `db.useQuery`
+
+**Relationships**:
+- `accountTransfersByUser`: accountTransfers → users (one-to-many)
+- `accountTransfersByFromAccount`: accountTransfers → accounts (one-to-many, label: outgoingTransfers)
+- `accountTransfersByToAccount`: accountTransfers → accounts (one-to-many, label: incomingTransfers)
+
+---
+
 #### HouseholdInvites
 Pending household invitations.
 
@@ -1329,7 +1362,54 @@ export async function deleteRecurringTemplate(id: string): Promise<void>
 
 ---
 
-#### 8. Income API (`income-api.ts`) - Phase 2
+#### 8. Transfer API (`transfer-api.ts`) - US-074
+
+```typescript
+// Validate transfer data (returns error string or null)
+export function validateTransfer(
+  amount: number,
+  fromAccountId: string,
+  toAccountId: string,
+  fromAccountBalance: number
+): string | null
+
+// Create atomic transfer between two accounts (NOT a transaction)
+export async function createTransfer(data: {
+  userId: string;
+  householdId: string;
+  fromAccountId: string;
+  toAccountId: string;
+  amount: number;
+  note?: string;
+}): Promise<{
+  transferId: string;
+  amount: number;
+  newFromBalance: number;
+  newToBalance: number;
+}>
+
+// Get transfer history for a specific account
+export async function getTransferHistoryForAccount(
+  accountId: string,
+  userId: string
+): Promise<TransferRecord[]>
+
+// Get all transfers for a user
+export async function getUserTransfers(userId: string): Promise<TransferRecord[]>
+
+// Check if transfers exist after a given date (for edit warnings)
+export async function getTransfersAfterDate(
+  accountId: string,
+  userId: string,
+  afterDateISO: string
+): Promise<{ hasTransfers: boolean; latestTransferDate: string | null }>
+```
+
+**Important**: Transfers do NOT create transactions (budget and analytics unaffected). Uses same atomic `db.transact()` pattern as settlement-api.ts.
+
+---
+
+#### 9. Income API (`income-api.ts`) - Phase 2
 
 ```typescript
 // Get income detection settings (US-061)
