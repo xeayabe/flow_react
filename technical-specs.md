@@ -642,7 +642,7 @@ accounts: {
   institution: string;           // "UBS" | "Revolut" | "PostFinance" | "Cash" | "Other"
   accountType: string;           // "checking" | "savings" | "credit" | "cash"
   balance: number;               // Current balance (calculated from transactions)
-  currency: string;              // "CHF" (matches household currency)
+  currency: string;              // Per-wallet: "CHF" | "EUR" | "USD" | "GBP" (locked after creation)
   last4Digits?: string;          // OPTIONAL - Last 4 digits (for display)
   isDefault: boolean;            // Default wallet for new transactions
   isActive: boolean;             // Active/archived
@@ -650,9 +650,10 @@ accounts: {
 }
 ```
 
-**Important**: 
+**Important**:
 - Wallet balances are **calculated** from transactions, not manually editable
 - `isExcludedFromBudget` allows savings accounts to be tracked without affecting budget
+- **Per-wallet currency** (US-013): Each wallet selects its currency during creation (CHF, EUR, USD, GBP). Currency is locked permanently after creation and cannot be changed. Default for new wallets is the household currency. See `src/constants/currencies.ts` for currency configs and `src/lib/formatCurrency.ts` for per-currency formatting.
 
 ---
 

@@ -422,30 +422,52 @@ Household creation, member management, and currency configuration.
 
 ---
 
-#### US-013: Select Currency 🔜
+#### US-013: Select Currency ✅
 
-**Story**: As a new user, I want to select my preferred currency during onboarding, so that all amounts are displayed correctly.
+**Story**: As a user, I want each wallet to have its own currency, so that I can track expenses in CHF, EUR, USD, or GBP independently.
 
-**Phase**: Phase 1 | **Priority**: P0 | **Time**: 2h | **Status**: 🔜 Not Started
+**Phase**: Phase 1 | **Priority**: P0 | **Time**: 2h | **Status**: ✅ Complete
+
+**Implementation**: Per-wallet currency (not household-level). Each wallet selects its currency during creation; currency is locked permanently after creation.
 
 **Features**:
-- Currency selection during onboarding
-- Support for CHF, EUR, USD (Phase 1)
-- Currency symbol and formatting applied throughout app
-- Cannot change currency after first transaction (data integrity)
+- Per-wallet currency selection during wallet creation (CHF, EUR, USD, GBP)
+- Currency symbol and formatting applied per-wallet throughout app
+- Transaction forms show the selected wallet's currency symbol
+- Transaction list items display the correct currency from the wallet
+- Currency locked permanently after wallet creation (shown read-only in edit)
+- Settings screen shows household default currency and supported currencies
 
 **Business Rules**:
 - Swiss Franc (CHF) formatting: CHF 1'234.56 (apostrophe separator)
-- EUR and USD use standard formatting
-- Currency locked after any transaction created
+- EUR: EUR with dot thousand separator, comma decimal
+- USD: $ prefix with comma thousand separator
+- GBP: GBP suffix with comma thousand separator
+- Default currency for new wallets: household currency (CHF)
+- Currency cannot be changed after wallet creation
+
+**Key Files**:
+- `src/constants/currencies.ts` — currency configs (symbol, locale, separators)
+- `src/lib/formatCurrency.ts` — per-currency formatting function
+- `src/hooks/useHouseholdCurrency.ts` — household default currency hook
+- `src/app/wallets/add.tsx` — currency picker during wallet creation
+- `src/app/wallets/edit.tsx` — read-only currency display with Lock icon
+- `src/app/settings/currency.tsx` — currency settings screen
 
 **Acceptance Criteria**:
-- [ ] Currency selection screen during onboarding
-- [ ] CHF selected by default (Swiss target market)
-- [ ] All amounts formatted correctly (CHF 1'234.56)
-- [ ] Currency symbol shown consistently throughout app
-- [ ] Error message if user tries to change after transactions exist
-- [ ] Settings show current currency (read-only after lock)
+- [x] Per-wallet currency selection during wallet creation
+- [x] CHF selected by default (Swiss target market)
+- [x] All amounts formatted correctly per currency (CHF 1'234.56, EUR, $, GBP)
+- [x] Currency symbol shown consistently in transaction forms and lists
+- [x] Currency locked after wallet creation (read-only in edit with Lock icon)
+- [x] Settings show household default currency and supported currencies
+- [x] Transaction add/edit forms derive currency from selected wallet
+- [x] Transaction list items display correct wallet currency
+
+**Future Work (Phase 2.5-3)**:
+- Cross-currency wallet transfers with manual exchange rate
+- `baseCurrencyAmount` field on transactions for analytics aggregation
+- Analytics conversion to household base currency
 
 **Dependencies**: US-004
 
