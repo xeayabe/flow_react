@@ -13,6 +13,7 @@ import { getUserProfileAndHousehold } from '@/lib/household-utils';
 import { savePayeeMapping, getCategorySuggestion } from '@/lib/payee-mappings-api';
 import { createExpenseSplits, calculateSplitRatio } from '@/lib/shared-expenses-api';
 import { cn } from '@/lib/cn';
+import { colors } from '@/lib/design-tokens';
 import PayeePickerModal from '@/components/PayeePickerModal';
 import CategoryPickerModal from '@/components/CategoryPickerModal';
 
@@ -160,6 +161,49 @@ export default function EditTransactionScreen() {
     },
     enabled: !!householdQuery.data?.householdId,
   });
+
+  // Check if wallet has transfers after transaction date (for warning banner)
+  // Uses InstantDB's native reactive query for reliable real-time data
+  const userId = householdQuery.data?.userRecord?.id;
+  const { data: transferData } = db.useQuery(
+    userId
+      ? {
+          accountTransfers: {
+            $: { where: { userId } },
+          },
+        }
+      : null
+  );
+
+  // Compute transfer warning from reactive data
+  const transferWarning = React.useMemo(() => {
+    if (!transferData?.accountTransfers || !formData.accountId || !formData.date) {
+      return null;
+    }
+
+    const txDateTimestamp = new Date(formData.date + 'T00:00:00').getTime();
+
+    // Find transfers involving this account that happened after the transaction date
+    const transfersAfter = transferData.accountTransfers.filter(
+      (t: any) =>
+        (t.fromAccountId === formData.accountId || t.toAccountId === formData.accountId) &&
+        (t.transferredAt ?? 0) > txDateTimestamp
+    );
+
+    if (transfersAfter.length === 0) return null;
+
+    // Get the most recent transfer date for display
+    transfersAfter.sort((a: any, b: any) => (b.transferredAt ?? 0) - (a.transferredAt ?? 0));
+    const latestDate = new Date(transfersAfter[0].transferredAt).toLocaleDateString('de-CH', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    return { latestTransferDate: latestDate };
+  }, [transferData?.accountTransfers, formData.accountId, formData.date]);
+
+  const hasTransferWarning = !!transferWarning;
 
   // Get split ratios for showing percentages
   const splitRatiosQuery = useQuery({
@@ -331,6 +375,27 @@ export default function EditTransactionScreen() {
 
   const handleSubmit = () => {
     if (!validateForm()) return;
+
+    // If this wallet had a transfer after this transaction, confirm before saving
+    if (hasTransferWarning && transferWarning) {
+      Alert.alert(
+        'Wallet Has Transfers',
+        `This wallet had a transfer on ${transferWarning.latestTransferDate}. Editing this transaction will change the wallet balance. Continue?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Continue',
+            onPress: () => {
+              setIsSubmitting(true);
+              updateMutation.mutate();
+              setIsSubmitting(false);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     updateMutation.mutate();
     setIsSubmitting(false);
@@ -445,6 +510,18 @@ export default function EditTransactionScreen() {
                 <View className="mb-6 p-4 rounded-lg bg-green-50 flex-row items-center gap-2">
                   <Check size={20} color="#059669" />
                   <Text className="text-sm font-semibold text-green-700">{successMessage}</Text>
+                </View>
+              )}
+
+              {/* Transfer Warning Banner */}
+              {hasTransferWarning && transferWarning && (
+                <View className="mb-6 p-4 rounded-xl" style={{ backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FB923C' }}>
+                  <Text className="text-sm font-semibold mb-1" style={{ color: '#9A3412' }}>
+                    Wallet has a transfer
+                  </Text>
+                  <Text className="text-xs" style={{ color: '#C2410C' }}>
+                    This wallet had a transfer on {transferWarning.latestTransferDate}. Editing this transaction will change the wallet balance.
+                  </Text>
                 </View>
               )}
 

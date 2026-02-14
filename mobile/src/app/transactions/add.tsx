@@ -253,6 +253,48 @@ export default function AddTransactionScreen() {
     enabled: !!householdQuery.data?.householdId,
   });
 
+  // Check if wallet has transfers after transaction date (for warning banner when editing)
+  const userId = householdQuery.data?.userRecord?.id;
+  const { data: transferData } = db.useQuery(
+    userId && isEditing
+      ? {
+          accountTransfers: {
+            $: { where: { userId } },
+          },
+        }
+      : null
+  );
+
+  // Compute transfer warning from reactive data
+  const transferWarning = React.useMemo(() => {
+    if (!isEditing || !transferData?.accountTransfers || !formData.accountId || !formData.date) {
+      return null;
+    }
+
+    const txDateTimestamp = new Date(formData.date + 'T00:00:00').getTime();
+
+    // Find transfers involving this account that happened after the transaction date
+    const transfersAfter = transferData.accountTransfers.filter(
+      (t: any) =>
+        (t.fromAccountId === formData.accountId || t.toAccountId === formData.accountId) &&
+        (t.transferredAt ?? 0) > txDateTimestamp
+    );
+
+    if (transfersAfter.length === 0) return null;
+
+    // Get the most recent transfer date for display
+    transfersAfter.sort((a: any, b: any) => (b.transferredAt ?? 0) - (a.transferredAt ?? 0));
+    const latestDate = new Date(transfersAfter[0].transferredAt).toLocaleDateString('de-CH', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    return { latestTransferDate: latestDate };
+  }, [isEditing, transferData?.accountTransfers, formData.accountId, formData.date]);
+
+  const hasTransferWarning = !!transferWarning;
+
   // Get split ratios
   const splitRatiosQuery = useQuery({
     queryKey: ['split-ratios', householdQuery.data?.householdId],
@@ -480,6 +522,18 @@ export default function AddTransactionScreen() {
 
     // Use update mutation if editing, create if new
     if (isEditing) {
+      // Warn if this wallet had a transfer after the transaction date
+      if (hasTransferWarning && transferWarning) {
+        Alert.alert(
+          'Wallet Has Transfers',
+          `This wallet had a transfer on ${transferWarning.latestTransferDate}. Editing this transaction will change the wallet balance. Continue?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Continue', onPress: () => updateMutation.mutate() },
+          ]
+        );
+        return;
+      }
       updateMutation.mutate();
     } else {
       createMutation.mutate();
@@ -543,6 +597,18 @@ export default function AddTransactionScreen() {
               {isEditing ? 'Edit' : 'Add'} {formData.type === 'expense' ? 'Expense' : 'Income'}
             </Text>
           </Animated.View>
+
+          {/* Transfer Warning Banner */}
+          {isEditing && hasTransferWarning && transferWarning && (
+            <Animated.View entering={FadeInDown.duration(300)} className="mb-4 p-4 rounded-2xl" style={{ backgroundColor: 'rgba(232, 197, 168, 0.15)', borderWidth: 1, borderColor: 'rgba(232, 197, 168, 0.3)' }}>
+              <Text className="text-sm font-semibold mb-1" style={{ color: '#E8C5A8' }}>
+                Wallet has a transfer
+              </Text>
+              <Text className="text-xs" style={{ color: 'rgba(232, 197, 168, 0.8)' }}>
+                This wallet had a transfer on {transferWarning.latestTransferDate}. Editing will change the wallet balance.
+              </Text>
+            </Animated.View>
+          )}
 
           {/* Type Toggle */}
           <Animated.View entering={FadeInDown.delay(100).duration(400)} className="mb-6">
