@@ -9,7 +9,7 @@
 **Document Version**: 2.2
 **Original Stories**: 60 (9 removed, 9 added = 60 active)
 **New Phase 2 Stories**: 10 (US-061 through US-069, US-074)
-**Latest Updates**: Drag-to-select navigation added (UX-011), 8 bug fixes completed (BUG-001 through BUG-008)  
+**Latest Updates**: Wallet keyboard bug fixed (BUG-009), Drag-to-select navigation added (UX-011), 9 bug fixes completed (BUG-001 through BUG-009)
 
 ---
 
@@ -3193,6 +3193,43 @@ runOnJS(triggerHaptic)(Haptics.ImpactFeedbackStyle.Light);
 ```
 
 **Dependencies**: TECH-010 (Floating Island Navigation Bar)
+
+---
+
+#### BUG-009: Wallet Keyboard Not Appearing (Fabric View Flattening) ✅
+
+**Story**: As a user editing a wallet (balance, name, last 4 digits), the keyboard appears for a fraction of a second then immediately dismisses, making it impossible to edit any wallet field.
+
+**Phase**: Phase 1 | **Priority**: P0 | **Time**: 2h | **Points**: 3 | **Status**: ✅ Completed (Feb 14, 2026)
+
+**Issue**: On all wallet screens (edit, add, transfer), tapping any TextInput caused the keyboard to flash briefly (~1/8 visible) then dismiss instantly. Transaction screens were unaffected.
+
+**Root Cause**: React Native New Architecture (Fabric) view flattening bug ([facebook/react-native#45798](https://github.com/facebook/react-native/issues/45798)). The `GlassInputContainer` component conditionally applies shadow styles (`shadowColor`, `shadowOpacity`, `elevation`) when its `focused` prop changes from `false` to `true`. On Fabric, this style change causes the native View to transition from "flattened" to "unflattened", triggering a **remove + reinsert** of the native view. This reinsert causes the child TextInput to lose first responder status, dismissing the keyboard.
+
+**Why only wallet screens**: Wallet screens use `GlassInputContainer` with a `focused` prop driven by `onFocus` state updates. Transaction screens don't use this pattern — their TextInputs have no focus-dependent wrapper styles.
+
+**Fixes Applied**:
+- ✅ Added `collapsable={false}` to `GlassInputContainer` View — prevents Fabric from ever flattening the view, so the remove+reinsert never happens
+- ✅ Removed unused `KeyboardProvider` from `react-native-keyboard-controller` (nothing in the app used the library's features)
+- ✅ Removed `presentation: 'modal'` from wallet screen layouts (prevents potential modal-related keyboard issues on iOS)
+
+**Acceptance Criteria**:
+- [x] Keyboard appears and stays visible when tapping Wallet Name field
+- [x] Keyboard appears and stays visible when tapping Current Balance field
+- [x] Keyboard appears and stays visible when tapping Last 4 Digits field
+- [x] Add Wallet screen keyboard works for all fields
+- [x] Transfer screen keyboard works for amount and note fields
+- [x] Transaction screens remain unaffected (still work correctly)
+- [x] GlassInputContainer focus highlight animation still works visually
+
+**Files Changed**:
+- `src/components/ui/Glass.tsx` — Added `collapsable={false}` to GlassInputContainer
+- `src/app/_layout.tsx` — Removed unused `KeyboardProvider` wrapper
+- `src/app/wallets/_layout.tsx` — Removed `presentation: 'modal'` from all wallet screens
+
+**Technical Reference**: [facebook/react-native#45798](https://github.com/facebook/react-native/issues/45798) — TextInput keyboard auto-dismissed with conditional styles on New Architecture
+
+**Dependencies**: None
 
 ---
 

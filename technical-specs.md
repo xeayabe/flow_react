@@ -2009,8 +2009,32 @@ const youOwe = splits?.shared_expense_splits.reduce((sum, s) => sum + s.splitAmo
 
 ---
 
-**Document Version**: 2.2 (Updated Navigation Architecture)
-**Last Updated**: February 12, 2026  
+### Fabric View Flattening & TextInput Focus (BUG-009)
+
+**IMPORTANT**: When using New Architecture (Fabric), never conditionally toggle shadow/elevation styles on a View that wraps a TextInput. Fabric's view flattening optimization will remove+reinsert the native view, causing the TextInput to lose focus and the keyboard to dismiss.
+
+**Always add `collapsable={false}`** to any View that:
+- Wraps a TextInput AND
+- Has conditional styles that toggle shadow, elevation, or other properties affecting view flattening
+
+```typescript
+// ✅ CORRECT — prevents view flattening
+<View collapsable={false} style={[focused && { shadowColor: '#000', elevation: 2 }]}>
+  <TextInput onFocus={() => setFocused(true)} />
+</View>
+
+// ❌ WRONG — Fabric will remove+reinsert this View on style change, stealing focus
+<View style={[focused && { shadowColor: '#000', elevation: 2 }]}>
+  <TextInput onFocus={() => setFocused(true)} />
+</View>
+```
+
+**Reference**: [facebook/react-native#45798](https://github.com/facebook/react-native/issues/45798)
+
+---
+
+**Document Version**: 2.3 (Added Fabric TextInput pattern)
+**Last Updated**: February 14, 2026
 **Next Review**: After Phase 2 Sprint 3 (March 2026)  
 **Maintained By**: Alexander (Flow Founder & Lead Developer)
 
