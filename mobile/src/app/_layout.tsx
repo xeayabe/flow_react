@@ -5,7 +5,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { db } from '@/lib/db';
 import { useEffect } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -82,10 +81,8 @@ export default function RootLayout() {
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <KeyboardProvider>
           <StatusBar style="light" translucent backgroundColor="transparent" />
           <RootLayoutNav colorScheme={colorScheme} />
-        </KeyboardProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
     </ErrorBoundary>

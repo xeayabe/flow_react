@@ -129,6 +129,9 @@ export function GlassInputContainer({
 }: GlassInputContainerProps) {
   return (
     <View
+      // Prevents Fabric view flattening — without this, conditionally applying
+      // shadow styles causes a native remove+reinsert that steals TextInput focus
+      collapsable={false}
       className={cn(
         'rounded-xl border px-4 py-3',
         focused ? 'bg-white/[0.05] border-white/10' : 'bg-white/[0.03] border-white/5',

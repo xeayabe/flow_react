@@ -7,28 +7,24 @@ export default function WalletsLayout() {
         name="index"
         options={{
           headerShown: false,
-          presentation: 'modal',
         }}
       />
       <Stack.Screen
         name="add"
         options={{
           headerShown: false,
-          presentation: 'modal',
         }}
       />
       <Stack.Screen
         name="edit"
         options={{
           headerShown: false,
-          presentation: 'modal',
         }}
       />
       <Stack.Screen
         name="transfer"
         options={{
           headerShown: false,
-          presentation: 'modal',
         }}
       />
       <Stack.Screen
