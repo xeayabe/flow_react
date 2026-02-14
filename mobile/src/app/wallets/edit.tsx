@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Info, ChevronDown, Trash2, Eye, EyeOff, ArrowLeft, CheckCircle2 } from 'lucide-react-native';
+import { Info, ChevronDown, Trash2, Eye, EyeOff, ArrowLeft, CheckCircle2, Lock } from 'lucide-react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getAccountById,
@@ -31,6 +31,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { WalletTypePicker } from '@/components/AccountTypePicker';
 import { GlassCard, GlassButton, GlassInputContainer } from '@/components/ui/Glass';
 import { colors } from '@/lib/design-tokens';
+import { getCurrencyConfig } from '@/constants/currencies';
 
 interface FormData {
   name: string;
@@ -371,8 +372,26 @@ export default function EditWalletScreen() {
             </Pressable>
           </Animated.View>
 
-          {/* Current Balance */}
+          {/* Currency (Read-only — locked after wallet creation) */}
           <Animated.View entering={FadeInDown.delay(200).duration(400)} className="mb-5">
+            <Text className="text-xs font-medium mb-2" style={{ color: colors.textWhiteDisabled, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+              Currency
+            </Text>
+            <GlassInputContainer>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-base" style={{ color: colors.textWhiteSecondary }}>
+                  {account.currency} — {getCurrencyConfig(account.currency).displayName}
+                </Text>
+                <Lock size={16} color={colors.textWhiteDisabled} />
+              </View>
+            </GlassInputContainer>
+            <Text className="text-xs mt-1.5 ml-1" style={{ color: colors.textWhiteDisabled }}>
+              Currency cannot be changed after wallet creation
+            </Text>
+          </Animated.View>
+
+          {/* Current Balance */}
+          <Animated.View entering={FadeInDown.delay(250).duration(400)} className="mb-5">
             <Text className="text-xs font-medium mb-2" style={{ color: colors.textWhiteDisabled, textTransform: 'uppercase', letterSpacing: 0.8 }}>
               Current Balance
             </Text>
@@ -408,7 +427,7 @@ export default function EditWalletScreen() {
           </Animated.View>
 
           {/* Last 4 Digits */}
-          <Animated.View entering={FadeInDown.delay(250).duration(400)} className="mb-5">
+          <Animated.View entering={FadeInDown.delay(300).duration(400)} className="mb-5">
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-xs font-medium" style={{ color: colors.textWhiteDisabled, textTransform: 'uppercase', letterSpacing: 0.8 }}>
                 Last 4 Digits
@@ -446,7 +465,7 @@ export default function EditWalletScreen() {
           </Animated.View>
 
           {/* Default Wallet Toggle */}
-          <Animated.View entering={FadeInDown.delay(300).duration(400)} className="mb-5">
+          <Animated.View entering={FadeInDown.delay(350).duration(400)} className="mb-5">
             {!account.isDefault ? (
               <Pressable
                 onPress={() => setFormData({ ...formData, isDefault: !formData.isDefault })}
@@ -478,7 +497,7 @@ export default function EditWalletScreen() {
           </Animated.View>
 
           {/* Exclude from Budget Toggle */}
-          <Animated.View entering={FadeInDown.delay(350).duration(400)} className="mb-8">
+          <Animated.View entering={FadeInDown.delay(400).duration(400)} className="mb-8">
             <Pressable
               onPress={() => setFormData({ ...formData, isExcludedFromBudget: !formData.isExcludedFromBudget })}
             >
@@ -521,7 +540,7 @@ export default function EditWalletScreen() {
           </Animated.View>
 
           {/* Submit Button */}
-          <Animated.View entering={FadeInDown.delay(400).duration(400)} className="gap-3">
+          <Animated.View entering={FadeInDown.delay(450).duration(400)} className="gap-3">
             <GlassButton
               variant="primary"
               onPress={handleSubmit}

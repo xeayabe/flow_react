@@ -39,6 +39,13 @@ export default function SettingsLayout() {
         }}
       />
       <Stack.Screen
+        name="currency"
+        options={{
+          headerShown: false,
+          title: 'Currency',
+        }}
+      />
+      <Stack.Screen
         name="payday"
         options={{
           headerShown: false,

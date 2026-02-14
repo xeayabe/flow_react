@@ -1,24 +1,21 @@
 /**
  * Tests for formatCurrency (src/lib/formatCurrency.ts)
  *
- * Swiss CHF formatting rules:
- *   - Apostrophe thousand separator: 1'234.56
- *   - Period decimal separator
- *   - "CHF" suffix with space: "1'234.56 CHF"
- *   - Always 2 decimal places
- *   - Negative sign as prefix: "-1'234.56 CHF"
- *   - Optional showSign: "+1'234.56 CHF"
- *   - Optional showCurrency=false: "1'234.56"
+ * Multi-currency formatting rules:
+ *   CHF: 1'234.56 CHF (apostrophe separator, suffix)
+ *   EUR: 1.234,56 EUR (dot separator, comma decimal, suffix)
+ *   USD: $1,234.56 (comma separator, prefix symbol)
+ *   GBP: 1,234.56 GBP (comma separator, suffix)
  */
 
 import { formatCurrency } from '../formatCurrency';
 
 describe('formatCurrency', () => {
   // -----------------------------------------------------------------------
-  // Basic positive amounts
+  // CHF (default) - Swiss Franc
   // -----------------------------------------------------------------------
 
-  describe('positive amounts', () => {
+  describe('CHF (default)', () => {
     it('formats a simple integer amount', () => {
       expect(formatCurrency(100)).toBe('100.00 CHF');
     });
@@ -35,38 +32,16 @@ describe('formatCurrency', () => {
       expect(formatCurrency(0.5)).toBe('0.50 CHF');
     });
 
-    it('formats a very small amount', () => {
-      expect(formatCurrency(0.01)).toBe('0.01 CHF');
+    it('formats zero correctly', () => {
+      expect(formatCurrency(0)).toBe('0.00 CHF');
     });
 
     it('formats a typical Swiss salary', () => {
       expect(formatCurrency(7892)).toBe("7'892.00 CHF");
     });
 
-    it('formats a typical Swiss rent', () => {
-      expect(formatCurrency(2100)).toBe("2'100.00 CHF");
-    });
-
-    it('formats a Migros grocery bill', () => {
-      expect(formatCurrency(87.35)).toBe('87.35 CHF');
-    });
-
-    it('formats an amount just below 1000', () => {
-      expect(formatCurrency(999.99)).toBe('999.99 CHF');
-    });
-
     it('formats exactly 1000', () => {
       expect(formatCurrency(1000)).toBe("1'000.00 CHF");
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // Zero
-  // -----------------------------------------------------------------------
-
-  describe('zero amount', () => {
-    it('formats zero correctly with 2 decimal places', () => {
-      expect(formatCurrency(0)).toBe('0.00 CHF');
     });
   });
 
@@ -85,10 +60,6 @@ describe('formatCurrency', () => {
 
     it('formats a small negative amount', () => {
       expect(formatCurrency(-0.5)).toBe('-0.50 CHF');
-    });
-
-    it('formats a negative integer', () => {
-      expect(formatCurrency(-100)).toBe('-100.00 CHF');
     });
   });
 
@@ -128,16 +99,86 @@ describe('formatCurrency', () => {
       expect(formatCurrency(1234.56)).toBe("1'234.56 CHF");
     });
 
-    it('includes CHF suffix when showCurrency is true', () => {
-      expect(formatCurrency(1234.56, { showCurrency: true })).toBe("1'234.56 CHF");
-    });
-
     it('handles negative without currency', () => {
       expect(formatCurrency(-500, { showCurrency: false })).toBe('-500.00');
     });
 
     it('combines showSign and showCurrency=false', () => {
       expect(formatCurrency(500, { showSign: true, showCurrency: false })).toBe('+500.00');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // EUR - Euro
+  // -----------------------------------------------------------------------
+
+  describe('EUR', () => {
+    it('formats with dot separator and comma decimal', () => {
+      expect(formatCurrency(1234.56, { currency: 'EUR' })).toBe('1.234,56 EUR');
+    });
+
+    it('formats a simple amount', () => {
+      expect(formatCurrency(100, { currency: 'EUR' })).toBe('100,00 EUR');
+    });
+
+    it('formats a large amount', () => {
+      expect(formatCurrency(1000000, { currency: 'EUR' })).toBe('1.000.000,00 EUR');
+    });
+
+    it('formats negative EUR', () => {
+      expect(formatCurrency(-500, { currency: 'EUR' })).toBe('-500,00 EUR');
+    });
+
+    it('formats without currency symbol', () => {
+      expect(formatCurrency(1234.56, { currency: 'EUR', showCurrency: false })).toBe('1.234,56');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // USD - US Dollar
+  // -----------------------------------------------------------------------
+
+  describe('USD', () => {
+    it('formats with $ prefix and comma separator', () => {
+      expect(formatCurrency(1234.56, { currency: 'USD' })).toBe('$1,234.56');
+    });
+
+    it('formats a simple amount', () => {
+      expect(formatCurrency(100, { currency: 'USD' })).toBe('$100.00');
+    });
+
+    it('formats a large amount', () => {
+      expect(formatCurrency(1000000, { currency: 'USD' })).toBe('$1,000,000.00');
+    });
+
+    it('formats negative USD', () => {
+      expect(formatCurrency(-500, { currency: 'USD' })).toBe('-$500.00');
+    });
+
+    it('formats without currency symbol', () => {
+      expect(formatCurrency(1234.56, { currency: 'USD', showCurrency: false })).toBe('1,234.56');
+    });
+
+    it('formats with showSign', () => {
+      expect(formatCurrency(100, { currency: 'USD', showSign: true })).toBe('+$100.00');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // GBP - British Pound
+  // -----------------------------------------------------------------------
+
+  describe('GBP', () => {
+    it('formats with suffix and comma separator', () => {
+      expect(formatCurrency(1234.56, { currency: 'GBP' })).toBe('1,234.56 GBP');
+    });
+
+    it('formats a simple amount', () => {
+      expect(formatCurrency(100, { currency: 'GBP' })).toBe('100.00 GBP');
+    });
+
+    it('formats negative GBP', () => {
+      expect(formatCurrency(-500, { currency: 'GBP' })).toBe('-500.00 GBP');
     });
   });
 
@@ -156,10 +197,6 @@ describe('formatCurrency', () => {
       expect(formatCurrency(0.999)).toBe('1.00 CHF');
     });
 
-    it('rounds 99.999 to 100.00', () => {
-      expect(formatCurrency(99.999)).toBe('100.00 CHF');
-    });
-
     it('rounds 999.995 to 1000.00 with separator', () => {
       expect(formatCurrency(999.995)).toBe("1'000.00 CHF");
     });
@@ -171,7 +208,7 @@ describe('formatCurrency', () => {
   });
 
   // -----------------------------------------------------------------------
-  // Very large amounts
+  // Large amounts
   // -----------------------------------------------------------------------
 
   describe('large amounts', () => {

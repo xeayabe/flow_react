@@ -24,6 +24,7 @@ import BottomSheetSelect from '@/components/transactions/BottomSheetSelect';
 import SharedExpenseSection from '@/components/transactions/SharedExpenseSection';
 import StickyStatusBar from '@/components/layout/StickyStatusBar';
 import { cn } from '@/lib/cn';
+import { getCurrencyConfig } from '@/constants/currencies';
 
 type TransactionType = 'income' | 'expense';
 
@@ -552,6 +553,7 @@ export default function AddTransactionScreen() {
   const categories = (categoriesQuery.data as any[]) || [];
   const selectedCategory = categories.find((cat) => cat.id === formData.categoryId);
   const selectedAccount = accountsQuery.data?.find((acc) => acc.id === formData.accountId);
+  const walletCurrencySymbol = getCurrencyConfig(selectedAccount?.currency || 'CHF').symbol;
   const partnerName = householdMembersQuery.data?.find((m: any) => m.userId !== householdQuery.data?.userRecord?.id)?.userName || 'Partner';
 
   if (householdQuery.isLoading || accountsQuery.isLoading || categoriesQuery.isLoading) {
@@ -655,7 +657,7 @@ export default function AddTransactionScreen() {
                   }}
                   autoFocus
                 />
-                <Text className="text-xl font-semibold ml-2" style={{ color: 'rgba(255,255,255,0.6)' }}>CHF</Text>
+                <Text className="text-xl font-semibold ml-2" style={{ color: 'rgba(255,255,255,0.6)' }}>{walletCurrencySymbol}</Text>
               </View>
             </View>
           </Animated.View>
@@ -751,7 +753,7 @@ export default function AddTransactionScreen() {
                 id: account.id,
                 name: account.name,
                 icon: '💳',
-                meta: formatCurrency(account.balance),
+                meta: formatCurrency(account.balance, { currency: account.currency }),
               }))}
               value={formData.accountId}
               onChange={(accountId) => setFormData({ ...formData, accountId })}

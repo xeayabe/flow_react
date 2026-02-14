@@ -29,10 +29,13 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { WalletTypePicker } from '@/components/AccountTypePicker';
 import { GlassCard, GlassButton, GlassInputContainer } from '@/components/ui/Glass';
 import { colors } from '@/lib/design-tokens';
+import { useHouseholdCurrency } from '@/hooks/useHouseholdCurrency';
+import { CURRENCIES, CURRENCY_CODES, type CurrencyCode, getCurrencyConfig } from '@/constants/currencies';
 
 interface FormData {
   name: string;
   accountType: AccountType | '';
+  currency: CurrencyCode;
   startingBalance: string;
   last4Digits: string;
   isDefault: boolean;
@@ -48,19 +51,33 @@ interface ValidationErrors {
 export default function AddWalletScreen() {
   const { user } = db.useAuth();
   const insets = useSafeAreaInsets();
+  const { currency: householdCurrency } = useHouseholdCurrency();
   const [formData, setFormData] = useState<FormData>({
     name: '',
     accountType: '',
+    currency: 'CHF',
     startingBalance: '',
     last4Digits: '',
     isDefault: false,
   });
 
+  // Update default currency once household currency loads
+  const [currencyInitialized, setCurrencyInitialized] = useState(false);
+  React.useEffect(() => {
+    if (householdCurrency && !currencyInitialized) {
+      setFormData((prev) => ({ ...prev, currency: householdCurrency }));
+      setCurrencyInitialized(true);
+    }
+  }, [householdCurrency, currencyInitialized]);
+
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showAccountTypePicker, setShowAccountTypePicker] = useState<boolean>(false);
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState<boolean>(false);
   const [isFirstAccount, setIsFirstAccount] = useState<boolean>(false);
+
+  const selectedCurrencyConfig = getCurrencyConfig(formData.currency);
 
   // Check if this is user's first wallet
   React.useEffect(() => {
@@ -192,6 +209,7 @@ export default function AddWalletScreen() {
       startingBalance: parsedBalance,
       last4Digits: formData.last4Digits || undefined,
       isDefault: formData.isDefault,
+      currency: formData.currency,
     };
 
     createAccountMutation.mutate(accountData);
@@ -313,15 +331,32 @@ export default function AddWalletScreen() {
             )}
           </Animated.View>
 
-          {/* Starting Balance */}
+          {/* Currency Selector */}
           <Animated.View entering={FadeInDown.delay(200).duration(400)} className="mb-5">
+            <Text className="text-xs font-medium mb-2" style={{ color: colors.textWhiteDisabled, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+              Currency
+            </Text>
+            <Pressable onPress={() => setShowCurrencyPicker(true)}>
+              <GlassInputContainer focused={showCurrencyPicker}>
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-base" style={{ color: colors.textWhite }}>
+                    {formData.currency} — {selectedCurrencyConfig.displayName}
+                  </Text>
+                  <ChevronDown size={18} color={colors.textWhiteDisabled} />
+                </View>
+              </GlassInputContainer>
+            </Pressable>
+          </Animated.View>
+
+          {/* Starting Balance */}
+          <Animated.View entering={FadeInDown.delay(250).duration(400)} className="mb-5">
             <Text className="text-xs font-medium mb-2" style={{ color: colors.textWhiteDisabled, textTransform: 'uppercase', letterSpacing: 0.8 }}>
               Starting Balance
             </Text>
             <GlassInputContainer focused={focusedField === 'startingBalance'}>
               <View className="flex-row items-center">
                 <Text className="text-base font-medium mr-3" style={{ color: colors.textWhiteDisabled }}>
-                  CHF
+                  {selectedCurrencyConfig.symbol}
                 </Text>
                 <TextInput
                   className="flex-1 text-base"
@@ -350,7 +385,7 @@ export default function AddWalletScreen() {
           </Animated.View>
 
           {/* Last 4 Digits */}
-          <Animated.View entering={FadeInDown.delay(250).duration(400)} className="mb-5">
+          <Animated.View entering={FadeInDown.delay(300).duration(400)} className="mb-5">
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-xs font-medium" style={{ color: colors.textWhiteDisabled, textTransform: 'uppercase', letterSpacing: 0.8 }}>
                 Last 4 Digits
@@ -388,7 +423,7 @@ export default function AddWalletScreen() {
           </Animated.View>
 
           {/* Default Wallet Toggle */}
-          <Animated.View entering={FadeInDown.delay(300).duration(400)} className="mb-8">
+          <Animated.View entering={FadeInDown.delay(350).duration(400)} className="mb-8">
             {!isFirstAccount ? (
               <Pressable
                 onPress={() => setFormData({ ...formData, isDefault: !formData.isDefault })}
@@ -420,7 +455,7 @@ export default function AddWalletScreen() {
           </Animated.View>
 
           {/* Submit Button */}
-          <Animated.View entering={FadeInDown.delay(350).duration(400)}>
+          <Animated.View entering={FadeInDown.delay(400).duration(400)}>
             <GlassButton
               variant="primary"
               onPress={handleSubmit}
@@ -446,7 +481,7 @@ export default function AddWalletScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Bottom Sheet Picker */}
+      {/* Bottom Sheet Pickers */}
       <WalletTypePicker
         visible={showAccountTypePicker}
         selectedAccountType={formData.accountType}
@@ -457,6 +492,51 @@ export default function AddWalletScreen() {
         }}
         onClose={() => setShowAccountTypePicker(false)}
       />
+
+      {/* Currency Picker Modal */}
+      {showCurrencyPicker && (
+        <Pressable
+          className="absolute inset-0 justify-end"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowCurrencyPicker(false)}
+        >
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <View
+              className="rounded-t-3xl px-5 pt-5 pb-10"
+              style={{ backgroundColor: colors.contextDark }}
+            >
+              <Text className="text-lg font-semibold mb-4" style={{ color: colors.textWhite }}>
+                Select Currency
+              </Text>
+              {CURRENCY_CODES.map((code) => {
+                const config = CURRENCIES[code];
+                const isSelected = formData.currency === code;
+                return (
+                  <Pressable
+                    key={code}
+                    onPress={() => {
+                      setFormData({ ...formData, currency: code });
+                      setShowCurrencyPicker(false);
+                    }}
+                    className="flex-row items-center py-3.5 px-4 rounded-xl mb-1"
+                    style={{
+                      backgroundColor: isSelected ? 'rgba(44, 95, 93, 0.3)' : 'transparent',
+                    }}
+                  >
+                    <Text className="text-base font-semibold mr-3" style={{ color: colors.textWhite, width: 44 }}>
+                      {code}
+                    </Text>
+                    <Text className="text-sm flex-1" style={{ color: colors.textWhiteSecondary }}>
+                      {config.displayName}
+                    </Text>
+                    {isSelected && <CheckCircle2 size={20} color={colors.sageGreen} />}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Pressable>
+        </Pressable>
+      )}
     </LinearGradient>
   );
 }

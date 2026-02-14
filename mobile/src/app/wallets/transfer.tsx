@@ -22,6 +22,7 @@ import { db } from '@/lib/db';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { GlassCard, GlassButton, GlassInputContainer } from '@/components/ui/Glass';
 import { colors } from '@/lib/design-tokens';
+import { useHouseholdCurrency } from '@/hooks/useHouseholdCurrency';
 
 function getWalletIcon(accountType: string) {
   switch (accountType) {
@@ -126,6 +127,7 @@ export default function TransferScreen() {
   const { user } = db.useAuth();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { currency: householdCurrency, symbol: currencySymbol } = useHouseholdCurrency();
 
   const [fromAccountId, setFromAccountId] = useState<string>(fromId || '');
   const [toAccountId, setToAccountId] = useState<string>('');
@@ -208,7 +210,7 @@ export default function TransferScreen() {
 
       Alert.alert(
         'Transfer Complete',
-        `${formatCurrency(result.amount)} CHF transferred from ${fromAccount?.name} to ${toAccount?.name}`,
+        `${formatCurrency(result.amount, { currency: householdCurrency })} transferred from ${fromAccount?.name} to ${toAccount?.name}`,
         [
           {
             text: 'Done',
@@ -429,7 +431,7 @@ export default function TransferScreen() {
 
             <GlassInputContainer focused={amountFocused}>
               <View className="flex-row items-center">
-                <Text className="text-white/50 text-lg mr-2">CHF</Text>
+                <Text className="text-white/50 text-lg mr-2">{currencySymbol}</Text>
                 <TextInput
                   value={amountText}
                   onChangeText={setAmountText}
@@ -455,7 +457,7 @@ export default function TransferScreen() {
                     style={{ backgroundColor: 'rgba(44, 95, 93, 0.3)' }}
                   >
                     <Text className="text-xs" style={{ color: colors.sageGreen }}>
-                      Pay Full ({formatCurrency(Math.abs(toAccount.balance))} CHF)
+                      Pay Full ({formatCurrency(Math.abs(toAccount.balance), { currency: householdCurrency })})
                     </Text>
                   </Pressable>
                 )}
@@ -467,7 +469,7 @@ export default function TransferScreen() {
                     style={{ backgroundColor: 'rgba(44, 95, 93, 0.3)' }}
                   >
                     <Text className="text-xs" style={{ color: colors.sageGreen }}>
-                      Transfer All ({formatCurrency(fromAccount.balance)} CHF)
+                      Transfer All ({formatCurrency(fromAccount.balance, { currency: householdCurrency })})
                     </Text>
                   </Pressable>
                 )}
@@ -576,7 +578,7 @@ export default function TransferScreen() {
                 <View className="flex-row items-center justify-center gap-2">
                   <Check size={18} color="white" />
                   <Text className="text-white text-center font-semibold" style={{ fontSize: 15 }}>
-                    {canTransfer ? `Transfer ${formatCurrency(amount)} CHF` : 'Select wallets and amount'}
+                    {canTransfer ? `Transfer ${formatCurrency(amount, { currency: householdCurrency })}` : 'Select wallets and amount'}
                   </Text>
                 </View>
               )}

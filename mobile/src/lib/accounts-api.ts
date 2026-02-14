@@ -8,6 +8,7 @@ import { checkWalletDeletable } from './cascade-guard'; // FIX: DAT-009
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from './logger'; // FIX: SEC-003 - Secure logger
+import { formatCurrency as formatCurrencyFn } from './formatCurrency';
 
 export const ACCOUNT_TYPES = [
   'Checking',
@@ -25,6 +26,7 @@ export interface CreateAccountData {
   startingBalance: number;
   last4Digits?: string;
   isDefault?: boolean;
+  currency?: string;
 }
 
 export interface Account {
@@ -231,6 +233,9 @@ export async function createAccount(
     const accountId = uuidv4();
     const now = Date.now();
 
+    // Use per-wallet currency if provided, otherwise fall back to household currency
+    const walletCurrency = accountData.currency || currency;
+
     const newAccount: Omit<Account, 'id'> = {
       userId,
       householdId,
@@ -239,7 +244,7 @@ export async function createAccount(
       accountType: accountData.accountType,
       balance: accountData.startingBalance,
       startingBalance: accountData.startingBalance,
-      currency,
+      currency: walletCurrency,
       last4Digits: accountData.last4Digits || '',
       isDefault: shouldBeDefault,
       isActive: true,
@@ -297,16 +302,10 @@ export async function getUserAccounts(email: string): Promise<Account[]> {
 }
 
 /**
- * Format balance for display
+ * Format balance for display using the currency's locale and symbol.
  */
 export function formatBalance(balance: number, currency: string = 'CHF'): string {
-  const formatted = new Intl.NumberFormat('de-CH', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.abs(balance));
-
-  const sign = balance < 0 ? '-' : '';
-  return `${sign}${formatted} ${currency}`;
+  return formatCurrencyFn(balance, { currency, showCurrency: true });
 }
 
 /**

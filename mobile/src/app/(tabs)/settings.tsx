@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ChevronRight, Tag, Wallet, Calendar, PieChart, Download, Layers, UserPlus, Users } from 'lucide-react-native';
+import { ChevronRight, Tag, Wallet, Calendar, PieChart, Download, Layers, UserPlus, Users, Coins } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 import { colors, borderRadius } from '@/lib/design-tokens';
@@ -131,6 +131,12 @@ export default function TabTwoScreen() {
           },
         ]
       : []),
+    {
+      icon: <Coins size={24} color={colors.sageGreen} />,
+      label: 'Currency',
+      description: 'View your household default currency',
+      onPress: () => router.push('/settings/currency'),
+    },
     {
       icon: <Calendar size={24} color={colors.sageGreen} />,
       label: 'Payday & Budget Period',

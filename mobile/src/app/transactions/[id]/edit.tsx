@@ -14,6 +14,7 @@ import { savePayeeMapping, getCategorySuggestion } from '@/lib/payee-mappings-ap
 import { createExpenseSplits, calculateSplitRatio } from '@/lib/shared-expenses-api';
 import { cn } from '@/lib/cn';
 import { colors } from '@/lib/design-tokens';
+import { getCurrencyConfig } from '@/constants/currencies';
 import PayeePickerModal from '@/components/PayeePickerModal';
 import CategoryPickerModal from '@/components/CategoryPickerModal';
 
@@ -427,6 +428,7 @@ export default function EditTransactionScreen() {
 
   const selectedCategory = categories.find((cat) => cat.id === formData.categoryId);
   const selectedAccount = accountsQuery.data?.find((acc) => acc.id === formData.accountId);
+  const walletCurrencySymbol = getCurrencyConfig(selectedAccount?.currency || 'CHF').symbol;
 
   // Get category groups
   const categoryGroups = categoryGroupsQuery.data || [];
@@ -550,9 +552,9 @@ export default function EditTransactionScreen() {
 
               {/* Amount Input */}
               <View className="mb-8">
-                <Text className="text-sm font-semibold text-gray-700 mb-3">Amount (CHF)</Text>
+                <Text className="text-sm font-semibold text-gray-700 mb-3">Amount ({walletCurrencySymbol})</Text>
                 <View className="relative">
-                  <Text className="absolute left-4 top-4 text-lg font-semibold text-gray-700">CHF</Text>
+                  <Text className="absolute left-4 top-4 text-lg font-semibold text-gray-700">{walletCurrencySymbol}</Text>
                   <TextInput
                     ref={amountInputRef}
                     className={cn(
@@ -744,7 +746,7 @@ export default function EditTransactionScreen() {
                             const splitAmount = (parseFloat(formData.amount) * percentage) / 100;
                             return (
                               <Text key={member.userId} className="text-xs text-blue-700 mb-1">
-                                {member.userName}: {splitAmount.toFixed(2)} CHF ({percentage.toFixed(0)}%)
+                                {member.userName}: {splitAmount.toFixed(2)} {walletCurrencySymbol} ({percentage.toFixed(0)}%)
                               </Text>
                             );
                           })}

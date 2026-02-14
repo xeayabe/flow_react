@@ -33,6 +33,7 @@ interface Transaction {
   payee: string;
   categoryName: string;
   walletName?: string;
+  currency?: string;
   emoji: string;
   isShared?: boolean;
   paidByYou?: boolean;
@@ -64,6 +65,7 @@ function arePropsEqual(
     prevTx.payee === nextTx.payee &&
     prevTx.categoryName === nextTx.categoryName &&
     prevTx.walletName === nextTx.walletName &&
+    prevTx.currency === nextTx.currency &&
     prevTx.emoji === nextTx.emoji &&
     prevTx.isShared === nextTx.isShared &&
     prevProps.onClick === nextProps.onClick &&
@@ -307,7 +309,7 @@ function TransactionListItemInner({
                     }}
                   >
                     {isIncome ? '+' : '-'}
-                    {formatCurrency(transaction.amount)} CHF
+                    {formatCurrency(Math.abs(transaction.amount), { showCurrency: true, currency: transaction.currency })}
                   </Text>
                   {isShared && (
                     <View

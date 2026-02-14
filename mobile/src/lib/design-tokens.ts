@@ -187,25 +187,10 @@ export const glassStyles = {
 } as const;
 
 /**
- * Format currency with Swiss thousand separator
- *
- * @param amount - The amount to format
- * @returns Formatted currency string (e.g., "1'234.50")
- *
- * @example
- * ```tsx
- * formatCurrency(1234.5); // "1'234.50"
- * formatCurrency(-500); // "-500.00"
- * ```
+ * Format currency with locale-appropriate separators.
+ * Re-exports from the canonical formatCurrency module.
  */
-export function formatCurrency(amount: number): string {
-  const absAmount = Math.abs(amount);
-  const formatted = absAmount.toLocaleString('de-CH', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  return amount < 0 ? `-${formatted}` : formatted;
-}
+export { formatCurrency } from './formatCurrency';
 
 /**
  * Get color for transaction amount based on type

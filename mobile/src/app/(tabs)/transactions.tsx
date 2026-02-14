@@ -217,6 +217,7 @@ export default function TransactionsTabScreen() {
         categoryId: t.categoryId,
         accountId: t.accountId,
         walletName: account?.name || '',
+        currency: account?.currency || 'CHF',
         emoji: categoryEmoji,
         date: t.date,
         note: t.note,
@@ -281,6 +282,7 @@ export default function TransactionsTabScreen() {
           isShared: r.isShared || false,
           partnerName: 'Partner',
           walletName: account?.name || 'Unknown Account',
+          currency: account?.currency || 'CHF',
         });
       });
     }

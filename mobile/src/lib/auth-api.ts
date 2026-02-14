@@ -242,7 +242,7 @@ export async function createUserProfile(email: string, name: string): Promise<Au
 /**
  * Create default household for a new user (admin role)
  */
-export async function createDefaultHousehold(userId: string, name: string): Promise<{ success: boolean; householdId?: string; error?: string }> {
+export async function createDefaultHousehold(userId: string, name: string, currency: string = 'CHF'): Promise<{ success: boolean; householdId?: string; error?: string }> {
   try {
     logger.debug('Creating default household'); // FIX: SEC-003 - Don't log userId
 
@@ -258,7 +258,7 @@ export async function createDefaultHousehold(userId: string, name: string): Prom
     await db.transact([
       db.tx.households[householdId].update({
         name: householdName,
-        currency: 'CHF',
+        currency,
         paydayDay: defaultPaydayDay, // Keep for backward compatibility
       }),
     ]);

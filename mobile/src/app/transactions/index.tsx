@@ -172,6 +172,7 @@ export default function TransactionsListScreen() {
         categoryName: category?.name || 'Uncategorized',
         categoryId: t.categoryId,
         walletName: account?.name || 'Cash',
+        currency: account?.currency || 'CHF',
         emoji: category?.emoji || '📝',
         date: t.date,
         note: t.note,

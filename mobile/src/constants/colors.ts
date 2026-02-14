@@ -126,18 +126,13 @@ export function getBudgetStatus(percentUsed: number): 'on-track' | 'progressing'
 }
 
 /**
- * Format currency amount in Swiss format (CHF 1'234.56)
- * @param amount - Amount in CHF
+ * Format currency amount using locale conventions.
+ * Re-exports from the canonical formatCurrency module.
+ * @param amount - Amount to format
+ * @param currency - Currency code (default: 'CHF')
  * @returns Formatted string
  */
-export function formatCurrency(amount: number): string {
-  return amount.toLocaleString('de-CH', {
-    style: 'currency',
-    currency: 'CHF',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
+export { formatCurrency } from '@/lib/formatCurrency';
 
 // ============================================================================
 // DESIGN PHILOSOPHY NOTES

@@ -64,7 +64,7 @@ export function SpendingPaceCard({
         <View style={styles.metricCard}>
           <Text style={styles.metricLabel} numberOfLines={1}>Daily Rate</Text>
           <Text style={styles.metricValue} numberOfLines={1} adjustsFontSizeToFit>
-            {pace.dailySpendRate !== null ? formatCurrency(pace.dailySpendRate) : 'CHF 0.00'}
+            {pace.dailySpendRate !== null ? formatCurrency(pace.dailySpendRate) : formatCurrency(0)}
           </Text>
           <Text style={styles.metricSubtext} numberOfLines={1}>per day</Text>
         </View>
