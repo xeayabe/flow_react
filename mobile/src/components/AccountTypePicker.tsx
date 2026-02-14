@@ -9,6 +9,7 @@ import {
 import { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import Animated from 'react-native-reanimated';
 import { type AccountType } from '@/lib/accounts-api';
+import { colors } from '@/lib/design-tokens';
 
 const ACCOUNT_TYPE_ICONS: Record<string, string> = {
   'Checking': '💳',
@@ -69,7 +70,8 @@ export function WalletTypePicker({
     >
       {/* Dimmed Overlay */}
       <Pressable
-        className="absolute inset-0 bg-black/30"
+        className="absolute inset-0"
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
         onPress={onClose}
       />
 
@@ -86,15 +88,13 @@ export function WalletTypePicker({
         ]}
       >
         <View
-          className="bg-white rounded-t-3xl"
+          className="rounded-t-3xl"
           style={{
             minHeight: 400,
             maxHeight: '80%',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.1,
-            shadowRadius: 20,
-            elevation: 10,
+            backgroundColor: colors.contextDark,
+            borderTopWidth: 1,
+            borderTopColor: 'rgba(255, 255, 255, 0.1)',
           }}
         >
           {/* Handle Indicator */}
@@ -103,17 +103,17 @@ export function WalletTypePicker({
               style={{
                 width: 32,
                 height: 4,
-                backgroundColor: '#D1D5DB',
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
                 borderRadius: 2,
               }}
             />
           </View>
 
           {/* Header */}
-          <View className="px-6 py-6 border-b" style={{ borderBottomColor: '#F3F4F6' }}>
+          <View className="px-6 py-5 border-b" style={{ borderBottomColor: 'rgba(255, 255, 255, 0.05)' }}>
             <Text
-              className="text-2xl font-bold text-center"
-              style={{ color: '#006A6A' }}
+              className="text-xl font-semibold text-center"
+              style={{ color: colors.textWhite }}
             >
               Select Wallet Type
             </Text>
@@ -122,7 +122,7 @@ export function WalletTypePicker({
           {/* List */}
           <ScrollView
             className="flex-1"
-            contentContainerStyle={{ paddingVertical: 8 }}
+            contentContainerStyle={{ paddingVertical: 8, paddingBottom: 40 }}
             showsVerticalScrollIndicator={false}
           >
             {accountTypes.map((accountType: AccountType) => {
@@ -133,16 +133,16 @@ export function WalletTypePicker({
                 <Pressable
                   key={accountType}
                   onPress={() => handleSelectAccountType(accountType)}
-                  className="px-4 py-4"
+                  className="px-4 py-2"
                 >
                   {({ pressed }) => (
                     <View
-                      className="flex-row items-center px-4 py-3 rounded-2xl"
+                      className="flex-row items-center px-4 py-3 rounded-xl"
                       style={{
                         backgroundColor: pressed
-                          ? 'rgba(196, 181, 253, 0.15)'
+                          ? 'rgba(44, 95, 93, 0.3)'
                           : isSelected
-                            ? 'rgba(196, 181, 253, 0.1)'
+                            ? 'rgba(44, 95, 93, 0.2)'
                             : 'transparent',
                         height: 56,
                       }}
@@ -154,7 +154,7 @@ export function WalletTypePicker({
                       <Text
                         className="text-base flex-1 font-medium"
                         style={{
-                          color: isSelected ? '#006A6A' : '#374151',
+                          color: isSelected ? colors.sageGreen : colors.textWhite,
                         }}
                       >
                         {accountType}
@@ -164,14 +164,14 @@ export function WalletTypePicker({
                       <View
                         className="w-5 h-5 rounded-full border-2 items-center justify-center"
                         style={{
-                          borderColor: isSelected ? '#006A6A' : '#D1D5DB',
-                          backgroundColor: isSelected ? '#006A6A' : 'transparent',
+                          borderColor: isSelected ? colors.sageGreen : colors.textWhiteDisabled,
+                          backgroundColor: isSelected ? colors.contextTeal : 'transparent',
                         }}
                       >
                         {isSelected && (
                           <View
                             className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: 'white' }}
+                            style={{ backgroundColor: colors.sageGreen }}
                           />
                         )}
                       </View>
