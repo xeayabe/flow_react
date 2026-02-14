@@ -3,7 +3,8 @@ import { View, Text, Pressable, ScrollView, TextInput, Alert, ActivityIndicator,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowLeft, User, Mail, Info } from 'lucide-react-native';
+import { ArrowLeft, User, Mail, Info, LogOut, Pencil } from 'lucide-react-native';
+import { signOut } from '@/lib/auth-api';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/db';
@@ -18,6 +19,7 @@ export default function ProfileScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Query user profile
   const { data: profileData } = db.useQuery({
@@ -83,6 +85,26 @@ export default function ProfileScreen() {
     updateProfileMutation.mutate({ name: name.trim(), email: email.trim() });
   };
 
+  const handleSignOut = async (): Promise<void> => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+      {
+        text: 'Sign Out',
+        onPress: async () => {
+          setIsSigningOut(true);
+          try {
+            await signOut();
+            router.replace('/login');
+          } catch (error) {
+            Alert.alert('Error', 'Failed to sign out. Please try again.');
+            setIsSigningOut(false);
+          }
+        },
+        style: 'destructive',
+      },
+    ]);
+  };
+
   const handleCancel = () => {
     setName(userProfile?.name || '');
     setEmail(user?.email || '');
@@ -128,17 +150,17 @@ export default function ProfileScreen() {
           <Pressable
             onPress={() => setIsEditing(true)}
             style={{
-              paddingHorizontal: 16,
-              paddingVertical: 8,
+              width: 40,
+              height: 40,
               borderRadius: borderRadius.sm,
-              backgroundColor: 'rgba(168, 181, 161, 0.2)',
+              backgroundColor: colors.glassWhite,
               borderWidth: 1,
-              borderColor: 'rgba(168, 181, 161, 0.3)',
+              borderColor: colors.glassBorder,
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <Text style={{ color: colors.sageGreen }} className="font-semibold text-sm">
-              Edit
-            </Text>
+            <Pencil size={18} color={colors.textWhite} />
           </Pressable>
         )}
       </View>
@@ -304,6 +326,45 @@ export default function ProfileScreen() {
               {appVersion}
             </Text>
           </View>
+        </Animated.View>
+
+        {/* Account Section */}
+        <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+          <Text
+            style={{ color: colors.sageGreen }}
+            className="text-xs font-semibold mb-3"
+          >
+            ACCOUNT
+          </Text>
+
+          <Pressable
+            onPress={handleSignOut}
+            disabled={isSigningOut}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: 16,
+              borderRadius: borderRadius.md,
+              backgroundColor: 'rgba(227, 160, 93, 0.2)',
+              borderWidth: 1,
+              borderColor: 'rgba(227, 160, 93, 0.4)',
+              marginBottom: 24,
+              opacity: isSigningOut ? 0.5 : 1,
+            }}
+          >
+            {isSigningOut ? (
+              <ActivityIndicator size="small" color={colors.textWhite} />
+            ) : (
+              <>
+                <LogOut size={20} color={colors.textWhite} />
+                <Text className="text-base font-semibold" style={{ color: colors.textWhite }}>
+                  Sign Out
+                </Text>
+              </>
+            )}
+          </Pressable>
         </Animated.View>
 
         {/* Action Buttons (when editing) */}

@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ChevronRight, Tag, LogOut, Wallet, Calendar, PieChart, Download, Layers, UserPlus, Users } from 'lucide-react-native';
+import { ChevronRight, Tag, Wallet, Calendar, PieChart, Download, Layers, UserPlus, Users } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/lib/db';
-import { signOut } from '@/lib/auth-api';
 import { colors, borderRadius } from '@/lib/design-tokens';
 
 interface MenuItem {
@@ -20,7 +19,6 @@ interface MenuItem {
 export default function TabTwoScreen() {
   const insets = useSafeAreaInsets();
   const { user } = db.useAuth();
-  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Query user profile
   const { data: profileData } = db.useQuery({
@@ -80,26 +78,6 @@ export default function TabTwoScreen() {
     },
     enabled: !!userProfile?.id
   });
-
-  const handleSignOut = async () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', onPress: () => {}, style: 'cancel' },
-      {
-        text: 'Sign Out',
-        onPress: async () => {
-          setIsSigningOut(true);
-          try {
-            await signOut();
-            router.replace('/login');
-          } catch (error) {
-            Alert.alert('Error', 'Failed to sign out. Please try again.');
-            setIsSigningOut(false);
-          }
-        },
-        style: 'destructive',
-      },
-    ]);
-  };
 
   // Show loading screen until all data is ready
   if (isLoadingSplitSettings || !userProfile) {
@@ -285,36 +263,6 @@ export default function TabTwoScreen() {
           ))}
         </View>
 
-        {/* Sign Out Button */}
-        <Animated.View entering={FadeInDown.delay(100 + menuItems.length * 50).duration(400)}>
-          <Pressable
-            onPress={handleSignOut}
-            disabled={isSigningOut}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              padding: 16,
-              borderRadius: borderRadius.md,
-              backgroundColor: 'rgba(227, 160, 93, 0.2)',
-              borderWidth: 1,
-              borderColor: 'rgba(227, 160, 93, 0.4)',
-              opacity: isSigningOut ? 0.5 : 1,
-            }}
-          >
-            {isSigningOut ? (
-              <ActivityIndicator size="small" color={colors.textWhite} />
-            ) : (
-              <>
-                <LogOut size={20} color={colors.textWhite} />
-                <Text className="text-base font-semibold" style={{ color: colors.textWhite }}>
-                  Sign Out
-                </Text>
-              </>
-            )}
-          </Pressable>
-        </Animated.View>
       </ScrollView>
     </LinearGradient>
   );

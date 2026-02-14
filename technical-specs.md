@@ -134,7 +134,7 @@ flow-app/
 │   │   │   │   ├── index.tsx        # Dashboard (home screen)
 │   │   │   │   ├── transactions.tsx # Transaction list screen
 │   │   │   │   ├── budget.tsx       # Budget allocation screen
-│   │   │   │   └── settings.tsx     # Settings & profile screen
+│   │   │   │   └── settings.tsx     # Settings menu screen
 │   │   │   │
 │   │   │   ├── transactions/        # Transaction management
 │   │   │   │   ├── add.tsx          # Add new transaction modal
@@ -162,7 +162,7 @@ flow-app/
 │   │   │   │   ├── invite.tsx       # Invite household member
 │   │   │   │   ├── income.tsx       # Income detection settings (US-061)
 │   │   │   │   ├── payday.tsx       # Payday configuration
-│   │   │   │   ├── profile.tsx      # User profile
+│   │   │   │   ├── profile.tsx      # User profile & sign out
 │   │   │   │   └── security.tsx     # Security settings (biometric)
 │   │   │   │
 │   │   │   ├── auth/                # Authentication screens

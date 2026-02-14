@@ -8,7 +8,7 @@
 **Last Updated**: February 12, 2026
 **Document Version**: 2.2
 **Original Stories**: 60 (9 removed, 9 added = 60 active)
-**New Phase 2 Stories**: 9 (US-061 through US-069)
+**New Phase 2 Stories**: 10 (US-061 through US-069, US-074)
 **Latest Updates**: Drag-to-select navigation added (UX-011), 8 bug fixes completed (BUG-001 through BUG-008)  
 
 ---
@@ -227,15 +227,16 @@ Core authentication and user account lifecycle management.
 **UI/UX**:
 - Profile card at top of Settings screen is clickable
 - Tapping profile card navigates to `/settings/profile`
-- "Edit" button enables editing mode
+- Pencil icon button (40x40 glass style) in header enables editing mode
 - "Save" validates and persists changes
 - "Cancel" discards changes and exits edit mode
 - Success message shown after save
+- Sign Out button in "ACCOUNT" section at bottom of profile screen (soft amber accent)
 
 **Acceptance Criteria**:
 - [x] User can tap profile card in Settings to open Profile screen
 - [x] Profile screen shows current name and email
-- [x] "Edit" button enables editing mode
+- [x] Pencil icon button in header enables editing mode (matches glass icon button pattern)
 - [x] Name field is editable text input
 - [x] Email field is editable with keyboard type "email-address"
 - [x] "Save" button validates name (not empty) and email (valid format)
@@ -243,21 +244,24 @@ Core authentication and user account lifecycle management.
 - [x] App version displayed (read-only)
 - [x] Success alert shown after successful save
 - [x] Profile data updates immediately in Settings screen
+- [x] Sign Out button in ACCOUNT section with confirmation alert
 - [x] Follows design.md guidelines (gradient background, glass cards, sage green accents)
 
 **Design Compliance**:
 - ✅ LinearGradient background (contextDark → contextTeal)
 - ✅ Glass cards for information sections
 - ✅ Sage green icons and accents
-- ✅ FadeInDown animations with staggered delays
+- ✅ FadeInDown animations with staggered delays (0, 100, 200, 300ms)
 - ✅ Profile avatar with sage green border at top
+- ✅ Edit button uses standard 40x40 glass icon button with Pencil icon (matches back button style)
+- ✅ Sign Out button uses soft amber accent (rgba 227,160,93) to indicate destructive action
 
 **Files Added**:
-- `src/app/settings/profile.tsx` - Profile screen component
+- `src/app/settings/profile.tsx` - Profile screen component (includes sign out and edit profile)
 - Added route in `src/app/settings/_layout.tsx`
 
 **Files Modified**:
-- `src/app/(tabs)/settings.tsx` - Made profile card clickable, removed Profile menu item
+- `src/app/(tabs)/settings.tsx` - Made profile card clickable, removed Profile menu item, removed sign out button (moved to profile screen)
 
 **Dependencies**: US-001 (Sign Up), US-002 (Log In)
 
@@ -1937,6 +1941,70 @@ Analytics improvements using budget snapshots for historical accuracy (NEW in Ph
 
 ---
 
+#### US-074: Transfer Between Own Accounts 🆕
+
+**Story**: As a user, I want to transfer money between my own accounts (e.g., pay my credit card from my checking account, or move savings), so that I can manage my balances without affecting my budget or analytics.
+
+**Phase**: Phase 2 | **Priority**: P0 | **Time**: 6h | **Points**: 5 | **Status**: 🆕 New Story
+
+**Features**:
+- Transfer money between any two of your own accounts
+- Enter any custom amount (partial or full balance)
+- **Credit card payoff**: Pay down credit card debt from checking/savings
+- **Savings transfer**: Move money from checking to savings (or vice versa)
+- Transfer history visible on each wallet's detail screen
+- Atomic operation: both accounts update together (all-or-nothing)
+- Does NOT create a transaction — budget and analytics stay completely untouched
+- Net worth remains unchanged (money just moves between your own accounts)
+
+**Business Rules**:
+- Transfer is between two accounts owned by the **same user** (not between household members — that's settlements)
+- Amount must be greater than CHF 0.00
+- Source account must have sufficient balance — transfer blocked if insufficient funds
+- Cannot transfer from and to the same account
+- Transfer does NOT create a budget-affecting transaction
+- Transfer does NOT appear in spending analytics or category charts
+- Each transfer creates an immutable audit record (cannot be deleted)
+- All amounts use Swiss currency formatting (CHF 1'234.56)
+
+**Use Cases**:
+- Checking → Credit Card: Pay off CHF 1'200 credit card debt
+- Checking → Savings: Save CHF 500 this month
+- Savings → Checking: Need CHF 300 for an unexpected bill
+- Cash → Checking: Deposit CHF 200 cash into bank
+
+**Acceptance Criteria**:
+- [ ] Wallet screen shows "Transfer" action button on each wallet card
+- [ ] Tapping "Transfer" opens transfer screen with source wallet pre-selected
+- [ ] User selects destination wallet from their other active wallets
+- [ ] User enters transfer amount with numeric keypad
+- [ ] Validation: amount must be > CHF 0.00
+- [ ] Validation: source and destination must be different accounts
+- [ ] Validation: amount must not exceed source account balance (block with error message)
+- [ ] Tapping "Confirm Transfer" executes atomically (both balances update together, or neither does)
+- [ ] Source account balance decreases by transfer amount
+- [ ] Destination account balance increases by transfer amount
+- [ ] Transfer audit record created with: fromAccountId, toAccountId, amount, date, timestamp
+- [ ] Transfer does NOT create a transaction (no budget or analytics impact)
+- [ ] Transfer history visible on wallet detail screen (shows date, amount, other account name)
+- [ ] Success confirmation shown after transfer completes
+- [ ] All amounts formatted as CHF with Swiss formatting (CHF 1'234.56)
+- [ ] All database queries scoped to userId (privacy-first)
+- [ ] Optimistic UI update: balances update immediately, sync in background
+
+**Dependencies**: US-009 (Add Wallet), US-012 (View Wallet Balance)
+
+**Technical Notes**:
+- Follow the atomic settlement pattern from `settlement-api.ts` — single `db.transact()` with both account updates
+- New database table: `accountTransfers` with fields: userId, householdId, fromAccountId, toAccountId, amount, note (optional), transferredAt, createdAt
+- New API file: `src/lib/transfer-api.ts` for transfer CRUD and validation
+- Entry point: "Transfer" button on wallet card in wallets screen
+- Transfer history displayed on wallet detail screen (query `accountTransfers` WHERE fromAccountId = walletId OR toAccountId = walletId)
+- Use existing `balance-api.ts` asset/liability classification for display context
+- UI follows dark glassmorphism theme (LinearGradient + GlassCard) matching settlement screen pattern
+
+---
+
 ---
 
 ## Phase 3-4: Swiss Open Banking
@@ -2942,7 +3010,7 @@ if (wasShared && nowPersonal) {
 
 **Fixes Applied**:
 - ✅ Settings screen: All menu icons now use `colors.sageGreen` instead of hardcoded `#006A6A`
-- ✅ Sign out button: Proper padding, consistent styling with design system
+- ✅ Sign out button: Proper padding, consistent styling with design system (now on Profile screen)
 - ✅ Payday settings: Replaced hardcoded `#E3A05D` with `colors.softAmber`
 - ✅ Save button: Uses sage green background instead of harsh `colors.contextTeal`
 - ✅ All settings screens follow "Calm Financial Control" design philosophy
@@ -3020,14 +3088,16 @@ if (wasShared && nowPersonal) {
 - ✅ Increased background opacity from 0.15 to 0.2 (more visible)
 - ✅ Increased border opacity from 0.3 to 0.4 (more defined)
 - ✅ Changed text and icon color from soft amber to white
+- ✅ Relocated sign out button from Settings tab to Profile screen (Feb 14, 2026)
 
 **Acceptance Criteria**:
 - [x] Button has proper full padding matching other elements
 - [x] Text is white (not amber) for better readability
 - [x] Icon is white (not amber)
 - [x] Background/border use soft amber to indicate destructive action
+- [x] Sign out lives in Profile screen under "ACCOUNT" section (not Settings tab)
 
-**Files Changed**: `src/app/(tabs)/settings.tsx`
+**Files Changed**: `src/app/settings/profile.tsx` (moved from `src/app/(tabs)/settings.tsx`)
 
 ----
 
@@ -3207,6 +3277,7 @@ runOnJS(triggerHaptic)(Haptics.ImpactFeedbackStyle.Light);
 | US-065 | Payday in Budget Screen | P0 | 3 | 🆕 New | Sprint 4 | US-024, US-064 |
 | US-067 | Auto-Recalc Split Ratios | P0 | 3 | 🆕 New | Sprint 5 | US-027, US-063 |
 | US-069 | Analytics History Integration | P0 | 3 | 🆕 New | Sprint 5 | US-064 |
+| US-074 | Transfer Between Own Accounts | P0 | 5 | 🆕 New | Sprint 4 | US-009, US-012 |
 | US-005 | Invite Member (UI) | P0 | 3 | 🚧 In Progress | Sprint 3 | US-004 |
 | US-006 | Accept Invitation (UI) | P0 | 2 | 🚧 In Progress | Sprint 3 | US-005 |
 | US-042 | Settlement Workflow | P0 | 3 | ✅ Complete | - | US-040 |

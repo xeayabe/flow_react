@@ -1063,7 +1063,19 @@ const SWIPE = {
     marginBottom: 24,
   }}>
     {/* Back button + Title */}
-    {/* Action buttons */}
+    {/* Action button (e.g. edit) - uses same 40x40 glass icon button */}
+    <Pressable style={{
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255, 255, 255, 0.03)',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.05)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <Pencil size={18} color="rgba(255,255,255,0.9)" />
+    </Pressable>
   </View>
   
   {/* Scrollable Content */}
