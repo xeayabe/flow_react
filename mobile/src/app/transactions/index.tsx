@@ -75,25 +75,20 @@ export default function TransactionsListScreen() {
     enabled: !!householdQuery.data?.householdId,
   });
 
-  // Load wallets/accounts
-  const accountsQuery = useQuery({
-    queryKey: ['accounts', householdQuery.data?.householdId],
-    queryFn: async () => {
-      if (!householdQuery.data?.householdId) return [];
-      // @ts-ignore - InstantDB types
-      const result = await db.queryOnce({
-        accounts: {
-          // @ts-ignore
-          $: {
-            // @ts-ignore
-            where: { householdId: householdQuery.data.householdId },
+  // Load wallets/accounts — use db.useQuery (reactive) instead of db.queryOnce
+  // because queryOnce can return stale data missing newly created wallets or currency
+  const accountsResult = db.useQuery(
+    householdQuery.data?.userId
+      ? {
+          accounts: {
+            $: {
+              where: { userId: householdQuery.data.userId },
+            },
           },
-        },
-      });
-      return (result?.data?.accounts || []) as any[];
-    },
-    enabled: !!householdQuery.data?.householdId,
-  });
+        }
+      : null
+  );
+  const accountsData = (accountsResult.data?.accounts || []) as any[];
 
   // Load transactions
   const transactionsQuery = useQuery({
@@ -144,9 +139,13 @@ export default function TransactionsListScreen() {
   const formattedTransactions = React.useMemo(() => {
     if (!transactionsQuery.data) return [];
 
+    // Build account lookup for fallback when relationship link is missing
+    const accountMap = new Map();
+    accountsData.forEach((acc: any) => accountMap.set(acc.id, acc));
+
     return transactionsQuery.data.map((t: any) => {
       const category = t.category?.[0];
-      const account = t.account?.[0];
+      const account = t.account?.[0] || accountMap.get(t.accountId);
       const splits = t.expenseSplits || [];
       const isShared = splits.length > 0;
 

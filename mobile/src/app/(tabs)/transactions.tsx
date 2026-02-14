@@ -91,25 +91,21 @@ export default function TransactionsTabScreen() {
     enabled: !!householdQuery.data?.householdId,
   });
 
-  // Load wallets/accounts
-  const accountsQuery = useQuery({
-    queryKey: ['accounts', householdQuery.data?.householdId],
-    queryFn: async () => {
-      if (!householdQuery.data?.householdId) return [];
-      // @ts-ignore - InstantDB types
-      const result = await db.queryOnce({
-        accounts: {
-          // @ts-ignore
-          $: {
-            // @ts-ignore
-            where: { householdId: householdQuery.data.householdId },
+  // Load wallets/accounts — use db.useQuery (reactive) instead of db.queryOnce
+  // because queryOnce can return stale data that misses newly created wallets
+  // or their currency field (see MEMORY.md: db.queryOnce reliability issues)
+  const accountsResult = db.useQuery(
+    householdQuery.data?.userId
+      ? {
+          accounts: {
+            $: {
+              where: { userId: householdQuery.data.userId },
+            },
           },
-        },
-      });
-      return (result?.data?.accounts || []) as any[];
-    },
-    enabled: !!householdQuery.data?.householdId,
-  });
+        }
+      : null
+  );
+  const accountsData = (accountsResult.data?.accounts || []) as any[];
 
   // Load transactions
   const transactionsQuery = useQuery({
@@ -182,8 +178,8 @@ export default function TransactionsTabScreen() {
 
     // Build an account lookup map
     const accountMap = new Map();
-    if (accountsQuery.data) {
-      accountsQuery.data.forEach((acc: any) => {
+    if (accountsData) {
+      accountsData.forEach((acc: any) => {
         accountMap.set(acc.id, acc);
       });
     }
@@ -229,7 +225,7 @@ export default function TransactionsTabScreen() {
         youOwe: 0,
       };
     });
-  }, [transactionsQuery.data, categoriesQuery.data, accountsQuery.data, householdQuery.data?.userId]);
+  }, [transactionsQuery.data, categoriesQuery.data, accountsData, householdQuery.data?.userId]);
 
   // Combine recurring templates + future transactions
   const formattedRecurring = useMemo(() => {
@@ -245,7 +241,7 @@ export default function TransactionsTabScreen() {
     if (recurringQuery.data) {
       recurringQuery.data.forEach((r: any) => {
         const category = categoriesQuery.data?.find((c: any) => c.id === r.categoryId);
-        const account = accountsQuery.data?.find((a: any) => a.id === r.accountId);
+        const account = accountsData?.find((a: any) => a.id === r.accountId);
 
         let categoryEmoji = '📝';
         if (category?.emoji) {
@@ -311,7 +307,7 @@ export default function TransactionsTabScreen() {
     }
 
     return items;
-  }, [recurringQuery.data, formattedTransactions, categoriesQuery.data, accountsQuery.data]);
+  }, [recurringQuery.data, formattedTransactions, categoriesQuery.data, accountsData]);
 
   // Use filter hook with search
   const { filters, setFilters, filteredTransactions, groupedByDate } = useTransactionFilters(

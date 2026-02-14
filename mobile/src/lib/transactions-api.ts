@@ -265,6 +265,8 @@ export async function createTransaction(request: CreateTransactionRequest): Prom
         paidByUserId: request.isShared ? request.paidByUserId : request.userId,
         isExcludedFromBudget: request.isExcludedFromBudget || false,
       }),
+      // Link transaction to account so relationship traversal (t.account) works in queries
+      db.tx.transactions[transactionId].link({ account: request.accountId }),
       db.tx.accounts[request.accountId].update({
         balance: newBalance,
       }),
@@ -684,6 +686,11 @@ export async function updateTransaction(request: UpdateTransactionRequest): Prom
 
     // FIX: DAT-002 - Build atomic operations including budget where possible
     const atomicOps: any[] = [txUpdate];
+
+    // Update account link when wallet changes so relationship traversal stays correct
+    if (needsSecondAccountUpdate) {
+      atomicOps.push(db.tx.transactions[request.id].link({ account: request.accountId }));
+    }
 
     if (needsBalanceUpdate) {
       if (needsSecondAccountUpdate) {

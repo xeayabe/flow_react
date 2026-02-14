@@ -618,7 +618,7 @@ export default function AddTransactionScreen() {
               {(['expense', 'income'] as const).map((type) => (
                 <Pressable
                   key={type}
-                  onPress={() => setFormData({ ...formData, type, categoryId: '' })}
+                  onPress={() => setFormData(prev => ({ ...prev, type, categoryId: '' }))}
                   className="flex-1 py-3 rounded-lg items-center"
                   style={{
                     backgroundColor: formData.type === type ? 'rgba(44,95,93,0.8)' : 'transparent',
@@ -653,7 +653,7 @@ export default function AddTransactionScreen() {
                     const cleaned = normalized.replace(/[^0-9.]/g, '');
                     const parts = cleaned.split('.');
                     const finalValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
-                    setFormData({ ...formData, amount: finalValue });
+                    setFormData(prev => ({ ...prev, amount: finalValue }));
                   }}
                   autoFocus
                 />
@@ -718,7 +718,7 @@ export default function AddTransactionScreen() {
                 icon: cat.icon || cat.emoji || '📝',
               }))}
               value={formData.categoryId}
-              onChange={(categoryId) => setFormData({ ...formData, categoryId })}
+              onChange={(categoryId) => setFormData(prev => ({ ...prev, categoryId }))}
               placeholder="-- Select Category --"
             />
 
@@ -737,7 +737,7 @@ export default function AddTransactionScreen() {
               <QuickCategoryButtons
                 categories={categories}
                 selectedCategoryId={formData.categoryId}
-                onSelectCategory={(categoryId) => setFormData({ ...formData, categoryId })}
+                onSelectCategory={(categoryId) => setFormData(prev => ({ ...prev, categoryId }))}
                 type={formData.type}
               />
             </View>
@@ -756,7 +756,7 @@ export default function AddTransactionScreen() {
                 meta: formatCurrency(account.balance, { currency: account.currency }),
               }))}
               value={formData.accountId}
-              onChange={(accountId) => setFormData({ ...formData, accountId })}
+              onChange={(accountId) => setFormData(prev => ({ ...prev, accountId }))}
               placeholder="-- Select Wallet --"
             />
           </Animated.View>
@@ -768,7 +768,7 @@ export default function AddTransactionScreen() {
               value={new Date(formData.date + 'T00:00:00')}
               onChange={(date) => {
                 const dateStr = date.toISOString().split('T')[0];
-                setFormData({ ...formData, date: dateStr });
+                setFormData(prev => ({ ...prev, date: dateStr }));
               }}
             />
           </Animated.View>
@@ -788,7 +788,7 @@ export default function AddTransactionScreen() {
                 <Switch
                   value={formData.isRecurring}
                   onValueChange={(newValue) => {
-                    setFormData({ ...formData, isRecurring: newValue });
+                    setFormData(prev => ({ ...prev, isRecurring: newValue }));
                     if (newValue) setIsShared(false);
                   }}
                   trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#2C5F5D' }}
@@ -806,7 +806,7 @@ export default function AddTransactionScreen() {
                     value={formData.recurringDay.toString()}
                     onChangeText={(text) => {
                       const day = Math.min(31, Math.max(1, parseInt(text) || 1));
-                      setFormData({ ...formData, recurringDay: day });
+                      setFormData(prev => ({ ...prev, recurringDay: day }));
                     }}
                     maxLength={2}
                   />
@@ -830,7 +830,7 @@ export default function AddTransactionScreen() {
                 <Switch
                   value={formData.isExcludedFromBudget || false}
                   onValueChange={(newValue) => {
-                    setFormData({ ...formData, isExcludedFromBudget: newValue });
+                    setFormData(prev => ({ ...prev, isExcludedFromBudget: newValue }));
                   }}
                   trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#E5C399' }}
                   thumbColor="#fff"

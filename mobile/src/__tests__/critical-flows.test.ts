@@ -44,6 +44,12 @@ jest.mock('../lib/db', () => ({
                     entity: entityName,
                     id: recordId,
                   })),
+                  link: jest.fn((links: any) => ({
+                    __op: 'link',
+                    entity: entityName,
+                    id: recordId,
+                    links,
+                  })),
                 };
               },
             }
