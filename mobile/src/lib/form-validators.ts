@@ -16,7 +16,6 @@ export interface TransactionFormErrors {
  */
 export interface WalletFormErrors {
   name?: string;
-  institution?: string;
   accountType?: string;
   startingBalance?: string;
   last4Digits?: string;
@@ -150,14 +149,6 @@ export function validateWalletName(name: string): string | undefined {
 }
 
 /**
- * Validates that an institution is selected.
- */
-export function validateInstitution(institution: string): string | undefined {
-  if (!institution) return 'Please select an institution';
-  return undefined;
-}
-
-/**
  * Validates that a wallet type is selected.
  */
 export function validateAccountType(accountType: string): string | undefined {
@@ -193,7 +184,6 @@ export function validateLast4Digits(digits: string): string | undefined {
  */
 export function validateWalletForm(formData: {
   name: string;
-  institution: string;
   accountType: string;
   startingBalance: string;
   last4Digits: string;
@@ -202,9 +192,6 @@ export function validateWalletForm(formData: {
 
   const nameError = validateWalletName(formData.name);
   if (nameError) errors.name = nameError;
-
-  const instError = validateInstitution(formData.institution);
-  if (instError) errors.institution = instError;
 
   const typeError = validateAccountType(formData.accountType);
   if (typeError) errors.accountType = typeError;
@@ -223,14 +210,12 @@ export function validateWalletForm(formData: {
  */
 export function isWalletFormValid(formData: {
   name: string;
-  institution: string;
   accountType: string;
   startingBalance: string;
   last4Digits: string;
 }): boolean {
   return (
     !validateWalletName(formData.name) &&
-    !validateInstitution(formData.institution) &&
     !validateAccountType(formData.accountType) &&
     !validateStartingBalance(formData.startingBalance) &&
     !validateLast4Digits(formData.last4Digits)

@@ -9,16 +9,6 @@ import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from './logger'; // FIX: SEC-003 - Secure logger
 
-export const INSTITUTIONS = [
-  'UBS',
-  'Credit Suisse',
-  'Revolut',
-  'PostFinance',
-  'Raiffeisen',
-  'Cash',
-  'Other',
-] as const;
-
 export const ACCOUNT_TYPES = [
   'Checking',
   'Savings',
@@ -27,12 +17,10 @@ export const ACCOUNT_TYPES = [
   'Investment',
 ] as const;
 
-export type Institution = typeof INSTITUTIONS[number];
 export type AccountType = typeof ACCOUNT_TYPES[number];
 
 export interface CreateAccountData {
   name: string;
-  institution: Institution;
   accountType: AccountType;
   startingBalance: number;
   last4Digits?: string;
@@ -44,7 +32,7 @@ export interface Account {
   userId: string;
   householdId: string;
   name: string;
-  institution: Institution;
+  institution?: string;
   accountType: AccountType;
   balance: number;
   startingBalance: number;
@@ -247,7 +235,7 @@ export async function createAccount(
       userId,
       householdId,
       name: accountData.name,
-      institution: accountData.institution,
+      institution: 'Other',
       accountType: accountData.accountType,
       balance: accountData.startingBalance,
       startingBalance: accountData.startingBalance,
@@ -365,7 +353,6 @@ export async function getAccountById(accountId: string): Promise<Account | null>
 
 export interface UpdateAccountData {
   name?: string;
-  institution?: Institution;
   accountType?: AccountType;
   balance?: number;
   last4Digits?: string;
@@ -417,7 +404,6 @@ export async function updateAccount(
     const updates: Record<string, unknown> = {};
 
     if (updateData.name !== undefined) updates.name = updateData.name;
-    if (updateData.institution !== undefined) updates.institution = updateData.institution;
     if (updateData.accountType !== undefined) updates.accountType = updateData.accountType;
     if (updateData.balance !== undefined) updates.balance = updateData.balance;
     if (updateData.last4Digits !== undefined) updates.last4Digits = updateData.last4Digits;

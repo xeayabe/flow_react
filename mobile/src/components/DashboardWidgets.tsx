@@ -239,7 +239,7 @@ export const AccountsListWidget: React.FC<{ accounts: Account[]; isLoading?: boo
                   </View>
                 )}
               </View>
-              <Text className="text-xs text-gray-500">{account.institution}</Text>
+              <Text className="text-xs text-gray-500">{account.accountType}</Text>
             </View>
             <Text className={`text-sm font-bold ${account.balance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
               {formatCurrency(account.balance)}

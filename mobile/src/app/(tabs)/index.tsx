@@ -304,7 +304,6 @@ export default function DashboardScreen() {
   const formattedWallets = accounts.map((account) => ({
     id: account.id,
     name: account.name,
-    institution: account.institution || 'Other',
     type: account.accountType || 'Checking',
     balance: account.balance ?? 0,
     isDefault: account.isDefault || false,

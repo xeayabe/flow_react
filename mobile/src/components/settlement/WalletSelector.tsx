@@ -6,7 +6,6 @@ import { formatCurrency } from '@/lib/formatCurrency';
 interface WalletData {
   id: string;
   name: string;
-  institution: string;
   type: string;
   balance: number;
 }
@@ -91,7 +90,7 @@ export function WalletSelector({
                     className="text-white/50 mt-0.5"
                     style={{ fontSize: 11 }}
                   >
-                    {wallet.institution} • {wallet.type}
+                    {wallet.type}
                   </Text>
                 </View>
 

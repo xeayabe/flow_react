@@ -6,7 +6,6 @@ import { colors } from '@/lib/design-tokens';
 
 interface WalletItemProps {
   name: string;
-  institution: string;
   type: string;
   balance: number;
   isDefault: boolean;
@@ -20,7 +19,6 @@ interface WalletItemProps {
  */
 export function WalletItem({
   name,
-  institution,
   type,
   balance,
   isDefault,
@@ -75,7 +73,7 @@ export function WalletItem({
               className="text-white/50"
               style={{ fontSize: 12 }}
             >
-              {institution} • {type}
+              {type}
             </Text>
           </View>
 

@@ -4,11 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Pencil, CreditCard, Wallet, PiggyBank, Banknote, TrendingUp } from 'lucide-react-native';
-import { getAccountById } from '@/lib/accounts-api';
+import { ArrowLeft, Pencil, CreditCard, Wallet, PiggyBank, Banknote, TrendingUp, ArrowUpRight, ArrowDownLeft } from 'lucide-react-native';
+import { getAccountById, getUserAccounts } from '@/lib/accounts-api';
+import { type TransferRecord } from '@/lib/transfer-api';
 import { formatCurrency } from '@/lib/formatCurrency';
 import { GlassCard } from '@/components/ui/Glass';
 import { colors } from '@/lib/design-tokens';
+import { db } from '@/lib/db';
 
 /**
  * Get the appropriate icon for a wallet type
@@ -28,9 +30,64 @@ function getWalletIcon(type: string) {
   }
 }
 
+function TransferHistoryItem({
+  transfer,
+  currentAccountId,
+  accountNames,
+}: {
+  transfer: TransferRecord;
+  currentAccountId: string;
+  accountNames: Map<string, string>;
+}) {
+  const isOutgoing = transfer.fromAccountId === currentAccountId;
+  const otherAccountId = isOutgoing ? transfer.toAccountId : transfer.fromAccountId;
+  const otherAccountName = accountNames.get(otherAccountId) || 'Unknown';
+  const date = new Date(transfer.transferredAt);
+  const dateStr = date.toLocaleDateString('de-CH', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  return (
+    <View className="flex-row items-center py-3 border-b border-white/5">
+      <View
+        className="w-8 h-8 rounded-lg items-center justify-center mr-3"
+        style={{ backgroundColor: isOutgoing ? 'rgba(200, 168, 168, 0.15)' : 'rgba(168, 181, 161, 0.15)' }}
+      >
+        {isOutgoing ? (
+          <ArrowUpRight size={16} color={colors.error} />
+        ) : (
+          <ArrowDownLeft size={16} color={colors.sageGreen} />
+        )}
+      </View>
+
+      <View className="flex-1">
+        <Text className="text-white/90 text-sm font-medium">
+          {isOutgoing ? `To ${otherAccountName}` : `From ${otherAccountName}`}
+        </Text>
+        <Text className="text-white/40 text-xs mt-0.5">
+          {dateStr}{transfer.note ? ` · ${transfer.note}` : ''}
+        </Text>
+      </View>
+
+      <Text
+        className="text-sm font-medium"
+        style={{
+          fontVariant: ['tabular-nums'],
+          color: isOutgoing ? colors.error : colors.sageGreen,
+        }}
+      >
+        {isOutgoing ? '-' : '+'}{formatCurrency(transfer.amount)}
+      </Text>
+    </View>
+  );
+}
+
 export default function WalletDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { user } = db.useAuth();
 
   const { data: account, isLoading, error } = useQuery({
     queryKey: ['account', id],
@@ -40,6 +97,50 @@ export default function WalletDetailPage() {
     },
     enabled: !!id,
   });
+
+  // Fetch transfer history using InstantDB's reactive query for reliable real-time data
+  const userId = account?.userId;
+  const { data: transferData } = db.useQuery(
+    userId
+      ? {
+          accountTransfers: {
+            $: { where: { userId } },
+          },
+        }
+      : null
+  );
+
+  // Filter transfers for this specific account
+  const transfers = React.useMemo(() => {
+    if (!transferData?.accountTransfers || !id) return [];
+
+    const relevant = transferData.accountTransfers.filter(
+      (t: any) => t.fromAccountId === id || t.toAccountId === id
+    );
+
+    // Sort by transferredAt descending (newest first)
+    relevant.sort((a: any, b: any) => (b.transferredAt ?? 0) - (a.transferredAt ?? 0));
+
+    return relevant as TransferRecord[];
+  }, [transferData?.accountTransfers, id]);
+
+  // Fetch all user accounts for name resolution in transfer history
+  const { data: allAccounts = [] } = useQuery({
+    queryKey: ['wallets', user?.email],
+    queryFn: async () => {
+      if (!user?.email) return [];
+      return getUserAccounts(user.email);
+    },
+    enabled: !!user?.email,
+  });
+
+  const accountNames = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const acc of allAccounts) {
+      map.set(acc.id, acc.name);
+    }
+    return map;
+  }, [allAccounts]);
 
   const handleEdit = () => {
     router.push(`/wallets/edit?id=${id}`);
@@ -101,18 +202,32 @@ export default function WalletDetailPage() {
             <View className="flex-row items-center justify-between mb-8">
               <Pressable
                 onPress={() => router.back()}
-                className="w-10 h-10 rounded-full bg-white/10 items-center justify-center"
+                className="items-center justify-center rounded-xl"
+                style={{
+                  width: 40,
+                  height: 40,
+                  backgroundColor: 'rgba(255,255,255,0.03)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.05)',
+                }}
               >
-                <ArrowLeft size={20} color="white" />
+                <ArrowLeft size={20} color="rgba(255,255,255,0.9)" strokeWidth={2} />
               </Pressable>
               <Text className="text-white text-lg font-semibold">
                 Wallet Details
               </Text>
               <Pressable
                 onPress={handleEdit}
-                className="w-10 h-10 rounded-full bg-white/10 items-center justify-center"
+                className="items-center justify-center rounded-xl"
+                style={{
+                  width: 40,
+                  height: 40,
+                  backgroundColor: 'rgba(255,255,255,0.03)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.05)',
+                }}
               >
-                <Pencil size={18} color="white" />
+                <Pencil size={18} color="rgba(255,255,255,0.9)" />
               </Pressable>
             </View>
 
@@ -170,14 +285,6 @@ export default function WalletDetailPage() {
 
               {/* Details Grid */}
               <View className="flex-row flex-wrap">
-                <View className="w-1/2 py-3">
-                  <Text className="text-white/40 text-xs uppercase tracking-wide mb-1">
-                    Institution
-                  </Text>
-                  <Text className="text-white/90 text-sm font-medium">
-                    {account.institution}
-                  </Text>
-                </View>
                 <View className="w-1/2 py-3">
                   <Text className="text-white/40 text-xs uppercase tracking-wide mb-1">
                     Type
@@ -247,6 +354,36 @@ export default function WalletDetailPage() {
               </View>
             </GlassCard>
 
+            {/* Transfer History */}
+            <View className="mt-6">
+              <Text
+                className="text-white/50 mb-3 px-1"
+                style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}
+              >
+                Transfer History
+              </Text>
+
+              {transfers.length > 0 ? (
+                <GlassCard className="p-5">
+                  {transfers.map((transfer, index) => (
+                    <TransferHistoryItem
+                      key={transfer.id}
+                      transfer={transfer}
+                      currentAccountId={id!}
+                      accountNames={accountNames}
+                    />
+                  ))}
+                </GlassCard>
+              ) : (
+                <GlassCard className="p-8 items-center">
+                  <Text className="text-4xl mb-3">🔄</Text>
+                  <Text className="text-white/70 text-center text-sm">
+                    No transfers yet
+                  </Text>
+                </GlassCard>
+              )}
+            </View>
+
             {/* Placeholder for transactions */}
             <View className="mt-6">
               <Text
@@ -256,7 +393,7 @@ export default function WalletDetailPage() {
                 Recent Transactions
               </Text>
               <GlassCard className="p-8 items-center">
-                <Text className="text-6xl mb-4">📊</Text>
+                <Text className="text-4xl mb-3">📊</Text>
                 <Text className="text-white/70 text-center text-sm">
                   Transaction history for this wallet coming soon!
                 </Text>

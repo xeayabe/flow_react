@@ -16,7 +16,6 @@ import { getUserAccounts } from '@/lib/accounts-api';
 export interface SettlementWallet {
   id: string;
   name: string;
-  institution: string;
   type: string;
   balance: number;
 }
@@ -137,7 +136,6 @@ export function useSettlementData(): SettlementData {
       const formattedWallets: SettlementWallet[] = wallets.map((w: any) => ({
         id: w.id,
         name: w.name,
-        institution: w.institution || 'Other',
         type: w.accountType || 'Checking',
         balance: w.balance || 0,
       }));

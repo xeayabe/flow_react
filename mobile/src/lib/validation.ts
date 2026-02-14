@@ -124,16 +124,6 @@ const VALID_ACCOUNT_TYPES = [
   'Investment',
 ] as const;
 
-const VALID_INSTITUTIONS = [
-  'UBS',
-  'Credit Suisse',
-  'Revolut',
-  'PostFinance',
-  'Raiffeisen',
-  'Cash',
-  'Other',
-] as const;
-
 export const WalletSchema = z.object({
   name: z
     .string()
@@ -145,9 +135,6 @@ export const WalletSchema = z.object({
       'Wallet name can only contain letters, numbers, spaces, hyphens, and apostrophes'
     )
     .transform(sanitizeString),
-  institution: z.enum(VALID_INSTITUTIONS, {
-    errorMap: () => ({ message: 'Please select a valid institution' }),
-  }),
   accountType: z.enum(VALID_ACCOUNT_TYPES, {
     errorMap: () => ({ message: 'Please select a valid account type' }),
   }),

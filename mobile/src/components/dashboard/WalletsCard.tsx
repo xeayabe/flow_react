@@ -15,7 +15,6 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 interface WalletData {
   id: string;
   name: string;
-  institution: string;
   type: string;
   balance: number;
   isDefault: boolean;
@@ -114,7 +113,6 @@ export function WalletsCard({ wallets }: WalletsCardProps) {
             <WalletItem
               key={wallet.id}
               name={wallet.name}
-              institution={wallet.institution}
               type={wallet.type}
               balance={wallet.balance}
               isDefault={wallet.isDefault}
